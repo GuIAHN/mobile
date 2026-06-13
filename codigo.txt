@@ -1,0 +1,1128 @@
+import 'package:flutter/material.dart';
+
+void main() => runApp(const RepuestosApp());
+
+/* ───────────────── Colores ───────────────── */
+class AppColors {
+  static const naranja = Color(0xFFE8602C);
+  static const naranjaSuave = Color(0xFFFDF0E9);
+  static const fondo = Color(0xFFFAFAFA);
+  static const texto = Color(0xFF2D2D2D);
+  static const gris = Color(0xFF8A8A8A);
+  static const grisIcono = Color(0xFF9E9E9E);
+  static const borde = Color(0xFFE8E8E8);
+  static const verde = Color(0xFF3E9B5F);
+  static const rojo = Color(0xFFE05252);
+}
+
+/* ───────────────── Modelos ───────────────── */
+class CategoriaRepuesto {
+  final String nombre;
+  final IconData icono;
+  final String desc;
+  final List<String> subs;
+  const CategoriaRepuesto(this.nombre, this.icono, this.desc, this.subs);
+}
+
+class LineaCatalogo {
+  final String marca;
+  final String categoria;
+  Set<String> subs;
+  LineaCatalogo({required this.marca, required this.categoria, required this.subs});
+}
+
+class _ResultadoSheet {
+  final bool eliminar;
+  final Set<String> subs;
+  const _ResultadoSheet({this.eliminar = false, this.subs = const {}});
+}
+
+/* ───────────────── Data (luego vendrá del backend) ───────────────── */
+const kMarcas = [
+  'Toyota', 'Chevrolet', 'Ford', 'Hyundai', 'Kia',
+  'Nissan', 'Mitsubishi', 'Volkswagen', 'Jeep', 'Mazda',
+];
+
+const kCategorias = [
+  CategoriaRepuesto('Motor', Icons.settings_outlined,
+      'Empacaduras, pistones, correas y bombas.', [
+    'Empacadura de cámara', 'Empacadura de carter', 'Pistones', 'Anillos',
+    'Conchas de bancada', 'Conchas de biela', 'Correa de tiempo',
+    'Correa única', 'Tensor de correa', 'Bomba de aceite', 'Bomba de agua',
+    'Bomba de gasolina', 'Termostato', 'Válvulas', 'Árbol de levas',
+    'Base de motor',
+  ]),
+  CategoriaRepuesto('Transmisión', Icons.account_tree_outlined,
+      'Croche, discos, collarines y soportes.', [
+    'Kit de croche', 'Disco de croche', 'Plato de croche', 'Collarín',
+    'Bomba de croche inferior', 'Bomba de croche superior',
+    'Soporte de caja', 'Aceite de caja', 'Tripoides', 'Puntas de tripoide',
+  ]),
+  CategoriaRepuesto('Suspensión', Icons.unfold_more_outlined,
+      'Amortiguadores, mesetas y rótulas.', [
+    'Amortiguadores delanteros', 'Amortiguadores traseros', 'Mesetas',
+    'Rótulas', 'Terminales', 'Bujes de meseta', 'Muñones', 'Espirales',
+    'Barra estabilizadora', 'Bieletas', 'Cajetín de dirección',
+  ]),
+  CategoriaRepuesto('Frenos', Icons.album_outlined,
+      'Pastillas, discos, tambores y bombas.', [
+    'Pastillas delanteras', 'Pastillas traseras', 'Discos de freno',
+    'Tambores', 'Bandas', 'Bomba de freno', 'Cilindro de rueda',
+    'Cauchos de caliper', 'Liga de freno', 'Manguera de freno',
+  ]),
+  CategoriaRepuesto('Electricidad', Icons.bolt_outlined,
+      'Alternadores, bujías, sensores y baterías.', [
+    'Alternador', 'Motor de arranque', 'Bujías', 'Cables de bujía',
+    'Bobinas', 'Batería', 'Sensor de oxígeno', 'Sensor de cigüeñal',
+    'Sensor de temperatura', 'Fusibles', 'Relés', 'Ramal de motor',
+  ]),
+  CategoriaRepuesto('Latonería y Pintura', Icons.format_paint_outlined,
+      'Faros, stops, parachoques y espejos.', [
+    'Faros delanteros', 'Stops', 'Cruces', 'Parachoques delantero',
+    'Parachoques trasero', 'Retrovisores', 'Manillas', 'Guardafangos',
+    'Capó', 'Parrilla',
+  ]),
+];
+
+/* ───────────────── App ───────────────── */
+class RepuestosApp extends StatelessWidget {
+  const RepuestosApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Registro de Tienda',
+      theme: ThemeData(
+        useMaterial3: true,
+        scaffoldBackgroundColor: AppColors.fondo,
+        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.naranja),
+        fontFamily: 'Roboto',
+      ),
+      home: const RegistroTiendaScreen(),
+    );
+  }
+}
+
+/* ───────────────── Pantalla principal (wizard) ───────────────── */
+class RegistroTiendaScreen extends StatefulWidget {
+  const RegistroTiendaScreen({super.key});
+
+  @override
+  State<RegistroTiendaScreen> createState() => _RegistroTiendaScreenState();
+}
+
+class _RegistroTiendaScreenState extends State<RegistroTiendaScreen> {
+  static const int totalPasos = 4;
+
+  int paso = 1;
+  bool terminado = false;
+  bool ubicacionOk = false;
+  Offset? pinPos;
+
+  final nombreCtrl = TextEditingController();
+  final propietarioCtrl = TextEditingController();
+  final telefonoCtrl = TextEditingController();
+
+  String? marcaSel;
+  final List<LineaCatalogo> catalogo = [];
+
+  @override
+  void initState() {
+    super.initState();
+    for (final c in [nombreCtrl, propietarioCtrl, telefonoCtrl]) {
+      c.addListener(() => setState(() {}));
+    }
+  }
+
+  @override
+  void dispose() {
+    nombreCtrl.dispose();
+    propietarioCtrl.dispose();
+    telefonoCtrl.dispose();
+    super.dispose();
+  }
+
+  LineaCatalogo? _buscarCombo(String marca, String categoria) {
+    for (final l in catalogo) {
+      if (l.marca == marca && l.categoria == categoria) return l;
+    }
+    return null;
+  }
+
+  bool get _puedeContinuar {
+    switch (paso) {
+      case 1:
+        return nombreCtrl.text.trim().isNotEmpty &&
+            propietarioCtrl.text.trim().isNotEmpty &&
+            telefonoCtrl.text.trim().isNotEmpty;
+      case 2:
+      case 3:
+        return catalogo.isNotEmpty;
+      case 4:
+        return ubicacionOk;
+      default:
+        return false;
+    }
+  }
+
+  void _siguiente() {
+    if (paso < totalPasos) {
+      setState(() => paso++);
+    } else {
+      setState(() => terminado = true);
+    }
+  }
+
+  void _atras() {
+    if (paso > 1) setState(() => paso--);
+  }
+
+  /* ───────── Bottom sheet de piezas ───────── */
+  Future<void> _abrirSheetPiezas(String marca, String nombreCategoria) async {
+    final categoria =
+        kCategorias.firstWhere((c) => c.nombre == nombreCategoria);
+    final existente = _buscarCombo(marca, nombreCategoria);
+
+    final resultado = await showModalBottomSheet<_ResultadoSheet>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => SheetPiezas(
+        marca: marca,
+        categoria: categoria,
+        seleccionInicial: existente?.subs ?? {},
+        existia: existente != null,
+      ),
+    );
+
+    if (resultado == null) return;
+
+    setState(() {
+      if (resultado.eliminar || resultado.subs.isEmpty) {
+        catalogo.removeWhere(
+            (l) => l.marca == marca && l.categoria == nombreCategoria);
+      } else if (existente != null) {
+        existente.subs = resultado.subs;
+      } else {
+        catalogo.add(LineaCatalogo(
+          marca: marca,
+          categoria: nombreCategoria,
+          subs: resultado.subs,
+        ));
+      }
+    });
+  }
+
+  /* ───────── Build ───────── */
+  @override
+  Widget build(BuildContext context) {
+    if (terminado) return _pantallaFinal();
+
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            _appBar(),
+            _barraProgreso(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                child: _contenidoPaso(),
+              ),
+            ),
+            _footer(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _appBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 10, 16, 0),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: _atras,
+            icon: const Icon(Icons.arrow_back_ios_new,
+                size: 20, color: AppColors.texto),
+          ),
+          const Text(
+            'Registro de Tienda',
+            style: TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+                color: AppColors.texto),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _barraProgreso() {
+    final pct = paso / totalPasos;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'PASO $paso DE $totalPasos',
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                    color: AppColors.gris),
+              ),
+              Text(
+                '${(pct * 100).round()}% Completado',
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.naranja),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              value: pct,
+              minHeight: 4,
+              backgroundColor: AppColors.borde,
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(AppColors.naranja),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _footer() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+      child: Row(
+        children: [
+          if (paso > 1) ...[
+            TextButton(
+              onPressed: _atras,
+              child: const Text('Atrás',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.texto)),
+            ),
+            const SizedBox(width: 16),
+          ],
+          Expanded(
+            child: ElevatedButton(
+              onPressed: _puedeContinuar ? _siguiente : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.naranja,
+                disabledBackgroundColor: const Color(0xFFE5E5E5),
+                foregroundColor: Colors.white,
+                disabledForegroundColor: AppColors.gris,
+                padding: const EdgeInsets.symmetric(vertical: 17),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(27)),
+                elevation: 0,
+              ),
+              child: Text(
+                paso == totalPasos ? 'FINALIZAR  ›' : 'CONTINUAR  ›',
+                style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _contenidoPaso() {
+    switch (paso) {
+      case 1:
+        return _paso1();
+      case 2:
+        return _paso2();
+      case 3:
+        return _paso3();
+      case 4:
+        return _paso4();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  /* ───────── Paso 1: Perfil ───────── */
+  Widget _paso1() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _Titulo('Perfil de la Tienda'),
+        const _Subtitulo('Paso 1 de 4: Información básica'),
+        const _Label('NOMBRE DE LA TIENDA'),
+        _CampoTexto(
+            controller: nombreCtrl,
+            hint: 'Ej: Repuestos El Motor',
+            icono: Icons.storefront_outlined),
+        const _Label('NOMBRE DEL PROPIETARIO'),
+        _CampoTexto(
+            controller: propietarioCtrl,
+            hint: 'Nombre completo',
+            icono: Icons.person_outline),
+        const _Label('NÚMERO DE TELÉFONO'),
+        _CampoTexto(
+            controller: telefonoCtrl,
+            hint: '0414 000 0000',
+            icono: Icons.phone_outlined,
+            teclado: TextInputType.phone),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.naranjaSuave,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline, color: AppColors.naranja, size: 20),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Esta información será visible para tus clientes al buscar repuestos en la plataforma.',
+                  style: TextStyle(
+                      fontSize: 13, height: 1.5, color: Color(0xFF4A4A4A)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /* ───────── Paso 2: Catálogo ───────── */
+  Widget _paso2() {
+    final otras = catalogo.where((l) => l.marca != marcaSel).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _Titulo('Catálogo'),
+        const _Subtitulo(
+            'Selecciona la marca y toca cada categoría para elegir las piezas que manejas.'),
+        const _Label('MARCA DEL VEHÍCULO'),
+        Container(
+          margin: const EdgeInsets.only(bottom: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: _decoCampo(),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: marcaSel,
+              isExpanded: true,
+              hint: const Row(
+                children: [
+                  Icon(Icons.directions_car_outlined,
+                      color: AppColors.grisIcono, size: 20),
+                  SizedBox(width: 12),
+                  Text('Selecciona la marca',
+                      style: TextStyle(
+                          fontSize: 15, color: Color(0xFFB5B5B5))),
+                ],
+              ),
+              icon: const Icon(Icons.keyboard_arrow_down,
+                  color: AppColors.grisIcono),
+              items: kMarcas
+                  .map((m) => DropdownMenuItem(
+                        value: m,
+                        child: Row(
+                          children: [
+                            const Icon(Icons.directions_car_outlined,
+                                color: AppColors.grisIcono, size: 20),
+                            const SizedBox(width: 12),
+                            Text(m,
+                                style: const TextStyle(
+                                    fontSize: 15, color: AppColors.texto)),
+                          ],
+                        ),
+                      ))
+                  .toList(),
+              onChanged: (v) => setState(() => marcaSel = v),
+            ),
+          ),
+        ),
+        if (marcaSel != null) ...[
+          const _Label('TOCA UNA CATEGORÍA PARA ELEGIR PIEZAS'),
+          ...kCategorias.map((cat) {
+            final combo = _buscarCombo(marcaSel!, cat.nombre);
+            final n = combo?.subs.length ?? 0;
+            return _CardCategoria(
+              categoria: cat,
+              piezas: n,
+              onTap: () => _abrirSheetPiezas(marcaSel!, cat.nombre),
+            );
+          }),
+        ],
+        if (otras.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          const _Label('OTRAS MARCAS EN TU CATÁLOGO'),
+          ...otras.map((l) => _CardLinea(
+                linea: l,
+                onTap: () => _abrirSheetPiezas(l.marca, l.categoria),
+              )),
+        ],
+      ],
+    );
+  }
+
+  /* ───────── Paso 3: Resumen ───────── */
+  Widget _paso3() {
+    final marcas = catalogo.map((l) => l.marca).toSet().join(', ');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _Titulo('Catálogo Seleccionado'),
+        const _Subtitulo(
+            'Paso 3 de 4: Revisa lo que registraste. Toca una tarjeta para editar sus piezas.'),
+        ...catalogo.map((l) => _CardLinea(
+              linea: l,
+              onTap: () => _abrirSheetPiezas(l.marca, l.categoria),
+            )),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.borde),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Tu catálogo define tus clientes',
+                  style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.texto)),
+              const SizedBox(height: 8),
+              Text(
+                'El sistema mostrará tu tienda a los usuarios que busquen repuestos de $marcas. Puedes volver atrás para agregar más marcas o categorías.',
+                style: const TextStyle(
+                    fontSize: 13.5, height: 1.5, color: AppColors.gris),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /* ───────── Paso 4: Ubicación ───────── */
+  Widget _paso4() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          margin: const EdgeInsets.only(bottom: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: _decoCampo(),
+          child: const TextField(
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              hintText: 'Buscar dirección de la tienda...',
+              hintStyle: TextStyle(fontSize: 15, color: Color(0xFFB5B5B5)),
+              icon: Icon(Icons.search, color: AppColors.grisIcono, size: 20),
+              contentPadding: EdgeInsets.symmetric(vertical: 17),
+            ),
+          ),
+        ),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: GestureDetector(
+            onTapDown: (d) => setState(() => pinPos = d.localPosition),
+            child: SizedBox(
+              height: 300,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: CustomPaint(painter: _MapaGridPainter()),
+                  ),
+                  Positioned(
+                    left: (pinPos?.dx ?? 170) - 20,
+                    top: (pinPos?.dy ?? 110) - 40,
+                    child: const Icon(Icons.location_on,
+                        color: AppColors.naranja, size: 40),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        const Center(
+          child: Text(
+            'Toca el mapa para ajustar la ubicación exacta de la tienda',
+            style: TextStyle(fontSize: 13, color: AppColors.gris),
+          ),
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () => setState(() => ubicacionOk = !ubicacionOk),
+            icon: Icon(
+                ubicacionOk ? Icons.check_circle_outline : Icons.place_outlined,
+                size: 20),
+            label: Text(
+              ubicacionOk ? 'Ubicación Confirmada' : 'Confirmar Ubicación',
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  ubicacionOk ? AppColors.verde : AppColors.naranja,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(27)),
+              elevation: 2,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /* ───────── Pantalla final ───────── */
+  Widget _pantallaFinal() {
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.check_circle_outline,
+                    color: AppColors.verde, size: 72),
+                const SizedBox(height: 18),
+                const Text('¡Tienda registrada!',
+                    style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.texto)),
+                const SizedBox(height: 10),
+                Text(
+                  '${nombreCtrl.text} quedó registrada con ${catalogo.length} '
+                  '${catalogo.length == 1 ? 'línea' : 'líneas'} de repuestos '
+                  'y su ubicación confirmada.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 14, height: 1.5, color: AppColors.gris),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/* ───────────────── Bottom sheet de piezas ───────────────── */
+class SheetPiezas extends StatefulWidget {
+  final String marca;
+  final CategoriaRepuesto categoria;
+  final Set<String> seleccionInicial;
+  final bool existia;
+
+  const SheetPiezas({
+    super.key,
+    required this.marca,
+    required this.categoria,
+    required this.seleccionInicial,
+    required this.existia,
+  });
+
+  @override
+  State<SheetPiezas> createState() => _SheetPiezasState();
+}
+
+class _SheetPiezasState extends State<SheetPiezas> {
+  late Set<String> temp;
+  String filtro = '';
+
+  @override
+  void initState() {
+    super.initState();
+    temp = Set.from(widget.seleccionInicial);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtradas = widget.categoria.subs
+        .where((s) => s.toLowerCase().contains(filtro.toLowerCase()))
+        .toList();
+
+    return Padding(
+      // Evita que el teclado tape la lista al buscar
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.78,
+        decoration: const BoxDecoration(
+          color: AppColors.fondo,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            /* Header */
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 18),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD5D5D5),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                  Text(widget.categoria.nombre,
+                      style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.texto)),
+                  const SizedBox(height: 2),
+                  Text('${widget.marca} · selecciona las piezas que vendes',
+                      style: const TextStyle(
+                          fontSize: 13.5, color: AppColors.gris)),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: _decoCampo(),
+                    child: TextField(
+                      onChanged: (v) => setState(() => filtro = v),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        hintText: 'Buscar pieza...',
+                        hintStyle: TextStyle(
+                            fontSize: 15, color: Color(0xFFB5B5B5)),
+                        icon: Icon(Icons.search,
+                            color: AppColors.grisIcono, size: 20),
+                        contentPadding: EdgeInsets.symmetric(vertical: 13),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+              ),
+            ),
+            /* Lista */
+            Expanded(
+              child: filtradas.isEmpty
+                  ? Center(
+                      child: Text('No se encontraron piezas con "$filtro"',
+                          style: const TextStyle(
+                              fontSize: 13.5, color: AppColors.gris)),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      itemCount: filtradas.length,
+                      itemBuilder: (_, i) {
+                        final pieza = filtradas[i];
+                        final on = temp.contains(pieza);
+                        return GestureDetector(
+                          onTap: () => setState(() {
+                            on ? temp.remove(pieza) : temp.add(pieza);
+                          }),
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: on
+                                  ? AppColors.naranjaSuave
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: on
+                                    ? AppColors.naranja
+                                    : AppColors.borde,
+                                width: on ? 1.6 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 22,
+                                  height: 22,
+                                  decoration: BoxDecoration(
+                                    color: on
+                                        ? AppColors.naranja
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(7),
+                                    border: Border.all(
+                                      color: on
+                                          ? AppColors.naranja
+                                          : const Color(0xFFD5D5D5),
+                                      width: 1.8,
+                                    ),
+                                  ),
+                                  child: on
+                                      ? const Icon(Icons.check,
+                                          size: 14, color: Colors.white)
+                                      : null,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    pieza,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.texto,
+                                      fontWeight: on
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            /* Footer */
+            Container(
+              padding: const EdgeInsets.fromLTRB(24, 14, 24, 26),
+              decoration: const BoxDecoration(
+                color: AppColors.fondo,
+                border: Border(top: BorderSide(color: AppColors.borde)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: (temp.isNotEmpty || widget.existia)
+                          ? () => Navigator.pop(
+                              context, _ResultadoSheet(subs: temp))
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.naranja,
+                        disabledBackgroundColor: const Color(0xFFE5E5E5),
+                        foregroundColor: Colors.white,
+                        disabledForegroundColor: AppColors.gris,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(27)),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        temp.isEmpty
+                            ? 'Guardar'
+                            : 'Guardar (${temp.length} ${temp.length == 1 ? 'pieza' : 'piezas'})',
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                  if (widget.existia)
+                    TextButton(
+                      onPressed: () => Navigator.pop(
+                          context, const _ResultadoSheet(eliminar: true)),
+                      child: Text(
+                        'Quitar ${widget.categoria.nombre} de ${widget.marca}',
+                        style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.rojo),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/* ───────────────── Widgets reutilizables ───────────────── */
+
+BoxDecoration _decoCampo() => BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: AppColors.borde),
+    );
+
+class _Titulo extends StatelessWidget {
+  final String texto;
+  const _Titulo(this.texto);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Text(texto,
+            style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                color: AppColors.texto)),
+      );
+}
+
+class _Subtitulo extends StatelessWidget {
+  final String texto;
+  const _Subtitulo(this.texto);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: Text(texto,
+            style: const TextStyle(
+                fontSize: 14, height: 1.4, color: AppColors.gris)),
+      );
+}
+
+class _Label extends StatelessWidget {
+  final String texto;
+  const _Label(this.texto);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(texto,
+            style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.2,
+                color: AppColors.gris)),
+      );
+}
+
+class _CampoTexto extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final IconData icono;
+  final TextInputType? teclado;
+
+  const _CampoTexto({
+    required this.controller,
+    required this.hint,
+    required this.icono,
+    this.teclado,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(bottom: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: _decoCampo(),
+        child: TextField(
+          controller: controller,
+          keyboardType: teclado,
+          style: const TextStyle(fontSize: 15, color: AppColors.texto),
+          decoration: InputDecoration(
+            border: InputBorder.none,
+            hintText: hint,
+            hintStyle:
+                const TextStyle(fontSize: 15, color: Color(0xFFB5B5B5)),
+            icon: Icon(icono, color: AppColors.grisIcono, size: 20),
+            contentPadding: const EdgeInsets.symmetric(vertical: 17),
+          ),
+        ),
+      );
+}
+
+class _CardCategoria extends StatelessWidget {
+  final CategoriaRepuesto categoria;
+  final int piezas;
+  final VoidCallback onTap;
+
+  const _CardCategoria({
+    required this.categoria,
+    required this.piezas,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final activa = piezas > 0;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: activa ? AppColors.naranjaSuave : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: activa ? AppColors.naranja : AppColors.borde,
+            width: activa ? 1.8 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: activa
+                    ? AppColors.naranja.withOpacity(0.12)
+                    : const Color(0xFFF3F3F3),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(categoria.icono,
+                  color: activa ? AppColors.naranja : AppColors.grisIcono,
+                  size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(categoria.nombre,
+                      style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.texto)),
+                  const SizedBox(height: 2),
+                  Text(categoria.desc,
+                      style: const TextStyle(
+                          fontSize: 12.5,
+                          height: 1.4,
+                          color: AppColors.gris)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            activa
+                ? _Badge('$piezas piezas')
+                : const Icon(Icons.chevron_right,
+                    color: AppColors.grisIcono, size: 22),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CardLinea extends StatelessWidget {
+  final LineaCatalogo linea;
+  final VoidCallback onTap;
+
+  const _CardLinea({required this.linea, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borde),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.naranjaSuave,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.directions_car_outlined,
+                  color: AppColors.naranja, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(linea.marca,
+                      style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.texto)),
+                  Text(linea.categoria,
+                      style: const TextStyle(
+                          fontSize: 13, color: AppColors.gris)),
+                ],
+              ),
+            ),
+            _Badge('${linea.subs.length} piezas', suave: true),
+            const SizedBox(width: 6),
+            const Icon(Icons.chevron_right,
+                color: AppColors.grisIcono, size: 22),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  final String texto;
+  final bool suave;
+  const _Badge(this.texto, {this.suave = false});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: suave ? AppColors.naranjaSuave : AppColors.naranja,
+          borderRadius: BorderRadius.circular(99),
+        ),
+        child: Text(
+          texto,
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            color: suave ? AppColors.naranja : Colors.white,
+          ),
+        ),
+      );
+}
+
+/* ───────────────── Mapa placeholder (cuadrícula) ───────────────── */
+class _MapaGridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final fondo = Paint()..color = const Color(0xFFEFEFEF);
+    canvas.drawRect(Offset.zero & size, fondo);
+
+    final linea = Paint()
+      ..color = const Color(0xFFDDDDDD)
+      ..strokeWidth = 1;
+
+    for (double x = 0; x < size.width; x += 60) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), linea);
+    }
+    for (double y = 0; y < size.height; y += 60) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), linea);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
