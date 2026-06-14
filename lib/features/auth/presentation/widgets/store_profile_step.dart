@@ -5,13 +5,13 @@ import '../../../../shared/widgets/app_text_field.dart';
 
 class StoreProfileStep extends StatelessWidget {
   final TextEditingController nombreController;
-  final TextEditingController propietarioController;
+  final TextEditingController emailController;
   final TextEditingController telefonoController;
 
   const StoreProfileStep({
     super.key,
     required this.nombreController,
-    required this.propietarioController,
+    required this.emailController,
     required this.telefonoController,
   });
 
@@ -28,10 +28,11 @@ class StoreProfileStep extends StatelessWidget {
           textInputAction: TextInputAction.next,
         ),
         AppTextField(
-          label: 'NOMBRE DEL PROPIETARIO',
-          controller: propietarioController,
-          hint: 'Ej: Juan Pérez',
-          prefixIcon: Icons.person_outline,
+          label: 'CORREO ELECTRÓNICO',
+          controller: emailController,
+          hint: 'ejemplo@correo.com',
+          prefixIcon: Icons.mail_outline,
+          keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
         ),
         AppTextField(

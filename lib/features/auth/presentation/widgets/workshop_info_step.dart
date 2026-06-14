@@ -5,13 +5,13 @@ import '../../../../shared/widgets/app_text_field.dart';
 
 class WorkshopInfoStep extends StatelessWidget {
   final TextEditingController nombreController;
-  final TextEditingController propietarioController;
+  final TextEditingController emailController;
   final TextEditingController telefonoController;
 
   const WorkshopInfoStep({
     super.key,
     required this.nombreController,
-    required this.propietarioController,
+    required this.emailController,
     required this.telefonoController,
   });
 
@@ -28,10 +28,11 @@ class WorkshopInfoStep extends StatelessWidget {
           textInputAction: TextInputAction.next,
         ),
         _campo(
-          label: 'NOMBRE DEL PROPIETARIO',
-          ctrl: propietarioController,
-          hint: 'Nombre completo',
-          icono: Icons.person_outline,
+          label: 'CORREO ELECTRÓNICO',
+          ctrl: emailController,
+          hint: 'ejemplo@correo.com',
+          icono: Icons.mail_outline,
+          teclado: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
         ),
         _campo(

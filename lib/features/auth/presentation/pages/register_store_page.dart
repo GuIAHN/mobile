@@ -24,7 +24,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
 
   // ===== Paso 1: Perfil de la tienda =====
   final _nombreCtrl = TextEditingController();
-  final _propietarioCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
   final _telefonoCtrl = TextEditingController();
 
   // ===== Paso 2: Catálogo =====
@@ -37,7 +37,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
   @override
   void initState() {
     super.initState();
-    for (final c in [_nombreCtrl, _propietarioCtrl, _telefonoCtrl]) {
+    for (final c in [_nombreCtrl, _emailCtrl, _telefonoCtrl]) {
       c.addListener(() => setState(() {}));
     }
   }
@@ -45,7 +45,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
   @override
   void dispose() {
     _nombreCtrl.dispose();
-    _propietarioCtrl.dispose();
+    _emailCtrl.dispose();
     _telefonoCtrl.dispose();
     super.dispose();
   }
@@ -93,7 +93,8 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     switch (_paso) {
       case 1:
         return _nombreCtrl.text.trim().isNotEmpty &&
-            _propietarioCtrl.text.trim().isNotEmpty &&
+            _emailCtrl.text.trim().isNotEmpty &&
+            RegExp(r'^[\w\.\-]+@[\w\-]+\.\w{2,}$').hasMatch(_emailCtrl.text.trim()) &&
             _telefonoCtrl.text.trim().isNotEmpty;
       case 2:
       case 3:
@@ -166,7 +167,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                                 child: switch (_paso) {
                                   1 => StoreProfileStep(
                                       nombreController: _nombreCtrl,
-                                      propietarioController: _propietarioCtrl,
+                                      emailController: _emailCtrl,
                                       telefonoController: _telefonoCtrl,
                                     ),
                                   2 => StoreCatalogStep(

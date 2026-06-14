@@ -22,7 +22,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
 
   // ===== Paso 1: Información del taller =====
   final _nombreCtrl = TextEditingController();
-  final _propietarioCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
   final _telefonoCtrl = TextEditingController();
 
   // ===== Paso 2: Especialidades =====
@@ -35,7 +35,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
   @override
   void initState() {
     super.initState();
-    for (final c in [_nombreCtrl, _propietarioCtrl, _telefonoCtrl]) {
+    for (final c in [_nombreCtrl, _emailCtrl, _telefonoCtrl]) {
       c.addListener(() => setState(() {}));
     }
   }
@@ -43,7 +43,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
   @override
   void dispose() {
     _nombreCtrl.dispose();
-    _propietarioCtrl.dispose();
+    _emailCtrl.dispose();
     _telefonoCtrl.dispose();
     super.dispose();
   }
@@ -53,7 +53,8 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
     switch (_paso) {
       case 1:
         return _nombreCtrl.text.trim().isNotEmpty &&
-            _propietarioCtrl.text.trim().isNotEmpty &&
+            _emailCtrl.text.trim().isNotEmpty &&
+            RegExp(r'^[\w\.\-]+@[\w\-]+\.\w{2,}$').hasMatch(_emailCtrl.text.trim()) &&
             _telefonoCtrl.text.trim().isNotEmpty;
       case 2:
         return _seleccionadas.isNotEmpty;
@@ -123,7 +124,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                                 child: switch (_paso) {
                                   1 => WorkshopInfoStep(
                                       nombreController: _nombreCtrl,
-                                      propietarioController: _propietarioCtrl,
+                                      emailController: _emailCtrl,
                                       telefonoController: _telefonoCtrl,
                                     ),
                                   2 => WorkshopSpecialtiesStep(

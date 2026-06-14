@@ -76,7 +76,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
           email: _emailController.text.trim(),
           password: _passwordController.text,
           name: _nameController.text.trim(),
-          role: 'user', // Rol de usuario convencional aprobado
+          role: 'user',
           phone: _phoneController.text.trim().isEmpty 
               ? null 
               : _phoneController.text.trim(),
@@ -87,21 +87,9 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   Widget build(BuildContext context) {
     ref.listen<AuthState>(authProvider, (_, next) {
       if (next.isAuthenticated) {
-        ref.read(authProvider.notifier).logout().then((_) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Registro completado. Por favor inicia sesión.'),
-                backgroundColor: AppColors.success,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            );
-            context.go(RouteNames.login);
-          }
-        });
+        if (mounted) {
+          context.go(RouteNames.registerVehicles);
+        }
       }
       if (next.hasError && next.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -124,85 +112,29 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // ===== Back =====
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new,
-                        color: AppColors.textPrimary,
-                        size: 24,
-                      ),
-                      onPressed: () => context.go(RouteNames.register),
-                      tooltip: 'Volver a elegir perfil',
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: LayoutBuilder(
+              builder: (context, viewportConstraints) {
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: viewportConstraints.maxHeight - 32,
                     ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // ===== Título =====
-                  Text(
-                    'Registro de Usuario',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Crea tu cuenta para gestionar tus vehículos, mecánicos y más.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 15,
-                      height: 1.45,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-
-                  // ===== Card del formulario =====
-                  TweenAnimationBuilder<double>(
-                    tween: Tween<double>(begin: 0.0, end: 1.0),
-                    duration: const Duration(milliseconds: 350),
-                    curve: Curves.easeInOut,
-                    builder: (context, value, child) {
-                      return Transform.translate(
-                        offset: Offset(0, 30 * (1.0 - value)),
-                        child: Opacity(
-                          opacity: value,
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
+                    child: IntrinsicHeight(
                       child: Form(
                         key: _formKey,
                         autovalidateMode: AutovalidateMode.onUserInteraction,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
+                            _appBar(),
+                            const SizedBox(height: 16),
+                            _indicadorPasos(),
+                            const SizedBox(height: 24),
+                            _tituloPaso(),
+                            const SizedBox(height: 24),
                             AppTextField(
                               label: 'NOMBRE COMPLETO',
                               controller: _nameController,
@@ -295,129 +227,199 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                                     : (_passwordValida ? AppColors.success : AppColors.primary),
                               ),
                             ),
-                            const SizedBox(height: 24),
-
-                            // ===== Botón Registrarse =====
-                            _RegisterButton(
-                              isLoading: state.isLoading,
-                              isValid: _formularioValido,
-                              onPressed: (_formularioValido && !state.isLoading)
-                                  ? _submit
-                                  : null,
-                            ),
+                            const Spacer(),
+                            const SizedBox(height: 32),
+                            _loginLink(),
+                            const SizedBox(height: 16),
+                            _footer(),
                           ],
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
-
-                  // ===== Link a login =====
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '¿Ya tienes una cuenta? ',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 15,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => context.go(RouteNames.login),
-                        child: Text(
-                          'Inicia sesión',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ),
       ),
     );
   }
-}
 
-
-class _RegisterButton extends StatelessWidget {
-  final bool isLoading;
-  final bool isValid;
-  final VoidCallback? onPressed;
-
-  const _RegisterButton({
-    required this.isLoading,
-    required this.isValid,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _PressableScale(
-      onTap: onPressed,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(32),
-          boxShadow: (isValid && !isLoading)
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.4),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
-                  ),
-                ]
-              : [],
+  Widget _appBar() {
+    return Row(
+      children: [
+        GestureDetector(
+          onTap: () => context.go(RouteNames.register),
+          child: const Icon(
+            Icons.arrow_back_ios_new,
+            color: AppColors.textPrimary,
+            size: 22,
+          ),
         ),
-        child: ElevatedButton(
-          onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            disabledBackgroundColor: const Color(0xFFD9DCE1),
-            disabledForegroundColor: const Color(0xFF9AA0A8),
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(32),
+        const SizedBox(width: 12),
+        Text(
+          'Registro de Usuario',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const Spacer(),
+        const Icon(
+          Icons.help_outline,
+          color: AppColors.textSecondary,
+          size: 20,
+          ),
+      ],
+    );
+  }
+
+  Widget _indicadorPasos() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          'PASO 1 DE 2',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 2,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        Row(
+          children: List.generate(2, (i) {
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: 28,
+              height: 5,
+              margin: const EdgeInsets.only(left: 6),
+              decoration: BoxDecoration(
+                color: i < 1 ? AppColors.primary : AppColors.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _tituloPaso() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Crea tu Cuenta',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 26,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Paso 1 de 2: Registra tus datos básicos.',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 13,
+            height: 1.45,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _loginLink() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          '¿Ya tienes una cuenta? ',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 15,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        GestureDetector(
+          onTap: () => context.go(RouteNames.login),
+          child: Text(
+            'Inicia sesión',
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
             ),
           ),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: isLoading
-                ? const SizedBox(
-                    key: ValueKey('loader'),
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
+        ),
+      ],
+    );
+  }
+
+  Widget _footer() {
+    final state = ref.watch(authProvider);
+    final enabled = _formularioValido && !state.isLoading;
+
+    return _PressableScale(
+      onTap: enabled ? _submit : null,
+      child: SizedBox(
+        width: double.infinity,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: enabled
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.4),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
                     ),
-                  )
-                : Row(
-                    key: const ValueKey('content'),
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'REGISTRARSE',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 2,
-                        ),
+                  ]
+                : [],
+          ),
+          child: ElevatedButton(
+            onPressed: enabled ? _submit : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: const Color(0xFFD9DCE1),
+              disabledForegroundColor: const Color(0xFF9AA0A8),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(32),
+              ),
+            ),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: state.isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
                       ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.person_add, size: 20),
-                    ],
-                  ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'REGISTRARSE',
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.person_add_outlined, size: 18),
+                      ],
+                    ),
+            ),
           ),
         ),
       ),
