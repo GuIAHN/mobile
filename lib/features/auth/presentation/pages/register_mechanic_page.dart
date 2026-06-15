@@ -262,40 +262,31 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
   }
 
   Widget _indicadorPasos() {
-    final porcentaje = (_paso / 4 * 100).round();
-    return Column(
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'PASO $_paso DE 4',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 2,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            Text(
-              '$porcentaje% Completado',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(99),
-          child: LinearProgressIndicator(
-            value: _paso / 4,
-            minHeight: 5,
-            backgroundColor: AppColors.border,
-            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+        Text(
+          'PASO $_paso DE 4',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 2,
+            color: AppColors.textSecondary,
           ),
+        ),
+        Row(
+          children: List.generate(4, (i) {
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: 28,
+              height: 5,
+              margin: const EdgeInsets.only(left: 6),
+              decoration: BoxDecoration(
+                color: i < _paso ? AppColors.primary : AppColors.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            );
+          }),
         ),
       ],
     );
@@ -360,7 +351,7 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
               ),
             ),
             child: Text(
-              'Back',
+              'Atrás',
               style: GoogleFonts.hankenGrotesk(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -404,7 +395,7 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'NEXT',
+                      _paso == 3 ? 'FINALIZAR' : 'CONTINUAR',
                       style: GoogleFonts.hankenGrotesk(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
