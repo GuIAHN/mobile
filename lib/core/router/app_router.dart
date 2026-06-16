@@ -10,6 +10,7 @@ import '../../features/auth/presentation/pages/register_mechanic_page.dart';
 import '../../features/auth/presentation/pages/register_store_page.dart';
 import '../../features/vehicles/presentation/pages/register_vehicles_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
+import '../../features/home/presentation/pages/home_page.dart';
 import 'route_names.dart';
 
 /// Proveedor global del router de la app.
@@ -90,7 +91,7 @@ class AppRouter {
           GoRoute(
             path: RouteNames.home,
             name: 'home',
-            builder: (context, state) => const _PlaceholderPage(title: 'Home'),
+            builder: (context, state) => const HomePage(),
           ),
 
           // ── Vehículos ────────────────────────────────────────────────────

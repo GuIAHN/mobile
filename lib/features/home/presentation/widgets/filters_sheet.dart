@@ -1,0 +1,369 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../domain/entities/home_filters.dart';
+import '../../domain/entities/sort_option.dart';
+
+class FiltersSheet extends StatefulWidget {
+  final HomeFilters initialFilters;
+
+  const FiltersSheet({super.key, required this.initialFilters});
+
+  @override
+  State<FiltersSheet> createState() => _FiltersSheetState();
+}
+
+class _FiltersSheetState extends State<FiltersSheet> {
+  late HomeFilters _tempFilters;
+
+  @override
+  void initState() {
+    super.initState();
+    _tempFilters = widget.initialFilters;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasChanges = _tempFilters != const HomeFilters();
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.only(
+        left: AppSpacing.xl,
+        right: AppSpacing.xl,
+        top: AppSpacing.md,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.xl2,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Drag Handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+              decoration: BoxDecoration(
+                color: AppColors.grey300,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Filtros de Búsqueda',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 20),
+                color: AppColors.textSecondary,
+                onPressed: () => Navigator.pop(context),
+                style: IconButton.styleFrom(
+                  backgroundColor: AppColors.grey100,
+                  padding: const EdgeInsets.all(6),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Ordenar por
+          _buildLabel('ORDENAR POR'),
+          const SizedBox(height: 10),
+          Row(
+            children: SortOption.values.map((option) {
+              final isSelected = _tempFilters.sortBy == option;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _tempFilters = _tempFilters.copyWith(sortBy: option);
+                    });
+                  },
+                  child: Container(
+                    margin: EdgeInsets.only(
+                      right: option == SortOption.values.last ? 0 : 8,
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.primary : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? AppColors.primary : AppColors.border,
+                        width: 1.0,
+                      ),
+                    ),
+                    child: Text(
+                      option.label,
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: isSelected ? Colors.white : AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 24),
+
+          // Distancia Máxima
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildLabel('DISTANCIA MÁXIMA'),
+              Text(
+                '${_tempFilters.maxDistance.toInt()} km',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: AppColors.primary,
+              inactiveTrackColor: AppColors.grey100,
+              thumbColor: AppColors.primary,
+              overlayColor: AppColors.primary.withValues(alpha: 0.15),
+              trackHeight: 4,
+            ),
+            child: Slider(
+              value: _tempFilters.maxDistance,
+              min: 1.0,
+              max: 10.0,
+              divisions: 9,
+              onChanged: (val) {
+                setState(() {
+                  _tempFilters = _tempFilters.copyWith(maxDistance: val);
+                });
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Valoración mínima
+          _buildLabel('VALORACIÓN MÍNIMA'),
+          const SizedBox(height: 10),
+          Row(
+            children: [0.0, 3.0, 4.0, 4.5].map((rating) {
+              final isSelected = _tempFilters.minRating == rating;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _tempFilters = _tempFilters.copyWith(minRating: rating);
+                    });
+                  },
+                  child: Container(
+                    margin: EdgeInsets.only(
+                      right: rating == 4.5 ? 0 : 8,
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.primaryMuted : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? AppColors.primary : AppColors.border,
+                        width: 1.2,
+                      ),
+                    ),
+                    child: rating == 0.0
+                        ? Text(
+                            'Todas',
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.star_rounded,
+                                size: 13,
+                                color: isSelected ? AppColors.primary : const Color(0xFFF59E0B),
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                '$rating+',
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 24),
+
+          // Solo abiertos
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _tempFilters = _tempFilters.copyWith(onlyOpen: !_tempFilters.onlyOpen);
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.grey50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border, width: 0.5),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check,
+                      size: 16,
+                      color: AppColors.success,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Mostrar solo abiertos ahora',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  // Custom Toggle Switch
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 48,
+                    height: 26,
+                    padding: const EdgeInsets.all(2),
+                    alignment: _tempFilters.onlyOpen ? Alignment.centerRight : Alignment.centerLeft,
+                    decoration: BoxDecoration(
+                      color: _tempFilters.onlyOpen ? AppColors.primary : AppColors.grey300,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Container(
+                      width: 22,
+                      height: 22,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          // Acciones
+          Row(
+            children: [
+              // Botón Limpiar
+              OutlinedButton(
+                onPressed: hasChanges
+                    ? () {
+                        setState(() {
+                          _tempFilters = const HomeFilters();
+                        });
+                      }
+                    : null,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textPrimary,
+                  side: const BorderSide(color: AppColors.border),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.restart_alt, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Limpiar',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Botón Aplicar
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context, _tempFilters);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shadowColor: AppColors.primary.withValues(alpha: 0.35),
+                    elevation: 4,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: Text(
+                    'APLICAR FILTROS',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Text(
+      text,
+      style: GoogleFonts.hankenGrotesk(
+        fontSize: 10.5,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.5,
+        color: AppColors.textSecondary,
+      ),
+    );
+  }
+}
