@@ -42,63 +42,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     super.dispose();
   }
 
-  // Abre el selector de ubicación mockeado
-  void _openLocationSelector() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: AppSpacing.lg),
-                decoration: BoxDecoration(
-                  color: AppColors.grey300,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-            ),
-            Text(
-              'Selecciona tu ubicación',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ...['Tegucigalpa', 'San Pedro Sula', 'La Ceiba', 'Choluteca'].map((city) {
-              return ListTile(
-                leading: const Icon(Icons.location_on_outlined, color: AppColors.primary),
-                title: Text(
-                  city,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                trailing: city == 'Tegucigalpa'
-                    ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
-                    : null,
-                onTap: () => Navigator.pop(context),
-              );
-            }),
-          ],
-        ),
-      ),
-    );
-  }
-
   // Abre la hoja de filtros y guarda el resultado
   Future<void> _openFilters() async {
     final currentFilters = ref.read(homeFiltersProvider);
@@ -186,8 +129,14 @@ class _HomePageState extends ConsumerState<HomePage> {
               child: activeTab == 0
                   ? _buildHomeTab()
                   : activeTab == 1
-                      ? _buildPlaceholderTab(Icons.chat_bubble_outline_rounded, 'Chats', 'Tus conversaciones de servicio aparecerán aquí.')
-                      : _buildPlaceholderTab(Icons.person_outline_rounded, 'Mi Perfil', 'Configura tus datos, vehículos y preferencias.'),
+                      ? _buildPlaceholderTab(
+                          Icons.chat_bubble_outline_rounded,
+                          'Chats',
+                          'Tus conversaciones de servicio aparecerán aquí.')
+                      : _buildPlaceholderTab(
+                          Icons.person_outline_rounded,
+                          'Mi Perfil',
+                          'Configura tus datos, vehículos y preferencias.'),
             ),
           ),
           // Barra de navegación inferior burbuja flotante
@@ -212,7 +161,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     return ListView(
       controller: _scrollController,
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.only(bottom: 120), // Espaciado extra para no tapar con la barra burbuja
+      padding: const EdgeInsets.only(
+          bottom: 120), // Espaciado extra para no tapar con la barra burbuja
       children: [
         // 1. Header (Logo + Ubicación)
         _buildHeader(),
@@ -234,7 +184,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
           loading: () => const Padding(
             padding: EdgeInsets.only(top: 24),
-            child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+            child: Center(
+                child: CircularProgressIndicator(color: AppColors.primary)),
           ),
           error: (_, __) => const SizedBox.shrink(),
         ),
@@ -255,7 +206,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           )
         else ...[
           // 5. Encabezado de la lista
-          _buildListHeader(filteredItemsAsync.value?.length ?? 0, filters.activeCount > 0),
+          _buildListHeader(
+              filteredItemsAsync.value?.length ?? 0, filters.activeCount > 0),
 
           // 6. Chips con los filtros aplicados
           if (filters.activeCount > 0) _buildActiveFilterChips(filters),
@@ -274,7 +226,8 @@ class _HomePageState extends ConsumerState<HomePage> {
               },
               loading: () => const Padding(
                 padding: EdgeInsets.only(top: 48),
-                child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                child: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary)),
               ),
               error: (err, _) => Padding(
                 padding: const EdgeInsets.only(top: 48),
@@ -292,6 +245,8 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildHeader() {
+    final isLocationShared = ref.watch(isLocationSharedProvider);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
       child: Row(
@@ -315,15 +270,24 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
           ),
           const Spacer(),
-          // Selector de Ubicación
+          // Toggle de Compartir Ubicación
           GestureDetector(
-            onTap: _openLocationSelector,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            onTap: () {
+              ref.read(isLocationSharedProvider.notifier).state =
+                  !isLocationShared;
+            },
+            behavior: HitTestBehavior.opaque,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(99),
-                border: Border.all(color: AppColors.border),
+                color: isLocationShared ? AppColors.primaryMuted : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color:
+                      isLocationShared ? AppColors.primary : AppColors.border,
+                  width: 1.5,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.03),
@@ -332,22 +296,14 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ),
                 ],
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.location_on_outlined, color: AppColors.primary, size: 16),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Tegucigalpa',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary, size: 16),
-                ],
+              child: Icon(
+                isLocationShared
+                    ? Icons.location_on
+                    : Icons.location_on_outlined,
+                color: isLocationShared
+                    ? AppColors.primary
+                    : AppColors.textSecondary,
+                size: 20,
               ),
             ),
           ),
@@ -364,7 +320,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(99), // Forma de píldora (pill)
+          borderRadius: BorderRadius.circular(12), // Esquinas de 12px
           border: Border.all(color: AppColors.border),
           boxShadow: [
             BoxShadow(
@@ -376,7 +332,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 20),
+            const Icon(Icons.search_rounded,
+                color: AppColors.textSecondary, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: TextField(
@@ -413,45 +370,52 @@ class _HomePageState extends ConsumerState<HomePage> {
                     ref.read(searchQueryProvider.notifier).state = '';
                   });
                 },
-                child: const Icon(Icons.cancel_rounded, color: AppColors.textDisabled, size: 18),
+                child: const Icon(Icons.cancel_rounded,
+                    color: AppColors.textDisabled, size: 18),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
             ],
             const SizedBox(width: 4),
             // Botón de filtros integrado en la misma barra
             GestureDetector(
               onTap: _openFilters,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Icon(
-                    Icons.tune_rounded,
-                    color: activeFilters > 0 ? AppColors.primary : AppColors.textSecondary,
-                    size: 20,
-                  ),
-                  if (activeFilters > 0)
-                    Positioned(
-                      top: -6,
-                      right: -6,
-                      child: Container(
-                        width: 14,
-                        height: 14,
-                        alignment: Alignment.center,
-                        decoration: const BoxDecoration(
-                          color: AppColors.error,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          '$activeFilters',
-                          style: GoogleFonts.hankenGrotesk(
-                            color: Colors.white,
-                            fontSize: 8,
-                            fontWeight: FontWeight.w800,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(
+                      Icons.tune_rounded,
+                      color: activeFilters > 0
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      size: 20,
+                    ),
+                    if (activeFilters > 0)
+                      Positioned(
+                        top: -6,
+                        right: -6,
+                        child: Container(
+                          width: 14,
+                          height: 14,
+                          alignment: Alignment.center,
+                          decoration: const BoxDecoration(
+                            color: AppColors.error,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            '$activeFilters',
+                            style: GoogleFonts.hankenGrotesk(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -499,11 +463,13 @@ class _HomePageState extends ConsumerState<HomePage> {
           if (hasActiveFilters)
             GestureDetector(
               onTap: () {
-                ref.read(homeFiltersProvider.notifier).state = const HomeFilters();
+                ref.read(homeFiltersProvider.notifier).state =
+                    const HomeFilters();
               },
               child: Row(
                 children: [
-                  const Icon(Icons.close_rounded, size: 14, color: AppColors.primary),
+                  const Icon(Icons.close_rounded,
+                      size: 14, color: AppColors.primary),
                   const SizedBox(width: 3),
                   Text(
                     'Quitar filtros',
@@ -541,7 +507,8 @@ class _HomePageState extends ConsumerState<HomePage> {
               const SizedBox(width: 4),
               GestureDetector(
                 onTap: onRemove,
-                child: const Icon(Icons.cancel_rounded, size: 16, color: AppColors.textDisabled),
+                child: const Icon(Icons.cancel_rounded,
+                    size: 16, color: AppColors.textDisabled),
               ),
             ],
           ),
@@ -553,9 +520,13 @@ class _HomePageState extends ConsumerState<HomePage> {
       addChip(
         Text(
           filters.sortBy.label,
-          style: GoogleFonts.hankenGrotesk(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          style: GoogleFonts.hankenGrotesk(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary),
         ),
-        () => ref.read(homeFiltersProvider.notifier).state = filters.copyWith(sortBy: SortOption.cercania),
+        () => ref.read(homeFiltersProvider.notifier).state =
+            filters.copyWith(sortBy: SortOption.cercania),
       );
     }
 
@@ -563,9 +534,13 @@ class _HomePageState extends ConsumerState<HomePage> {
       addChip(
         Text(
           '≤ ${filters.maxDistance.toInt()} km',
-          style: GoogleFonts.hankenGrotesk(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          style: GoogleFonts.hankenGrotesk(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary),
         ),
-        () => ref.read(homeFiltersProvider.notifier).state = filters.copyWith(maxDistance: 5.0),
+        () => ref.read(homeFiltersProvider.notifier).state =
+            filters.copyWith(maxDistance: 5.0),
       );
     }
 
@@ -578,11 +553,15 @@ class _HomePageState extends ConsumerState<HomePage> {
             const SizedBox(width: 3),
             Text(
               '${filters.minRating}+',
-              style: GoogleFonts.hankenGrotesk(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+              style: GoogleFonts.hankenGrotesk(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary),
             ),
           ],
         ),
-        () => ref.read(homeFiltersProvider.notifier).state = filters.copyWith(minRating: 0.0),
+        () => ref.read(homeFiltersProvider.notifier).state =
+            filters.copyWith(minRating: 0.0),
       );
     }
 
@@ -591,15 +570,23 @@ class _HomePageState extends ConsumerState<HomePage> {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)),
+            Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                    color: AppColors.success, shape: BoxShape.circle)),
             const SizedBox(width: 4),
             Text(
               'Abiertos',
-              style: GoogleFonts.hankenGrotesk(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.success),
+              style: GoogleFonts.hankenGrotesk(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.success),
             ),
           ],
         ),
-        () => ref.read(homeFiltersProvider.notifier).state = filters.copyWith(onlyOpen: false),
+        () => ref.read(homeFiltersProvider.notifier).state =
+            filters.copyWith(onlyOpen: false),
       );
     }
 
@@ -619,14 +606,16 @@ class _HomePageState extends ConsumerState<HomePage> {
       padding: const EdgeInsets.only(top: 24),
       child: EmptyState(
         title: 'Sin resultados',
-        subtitle: 'Prueba ampliando el rango de búsqueda o modificando tus filtros.',
+        subtitle:
+            'Prueba ampliando el rango de búsqueda o modificando tus filtros.',
         icon: Icons.search_off_rounded,
         action: SizedBox(
           width: 180,
           height: 44,
           child: ElevatedButton(
             onPressed: () {
-              ref.read(homeFiltersProvider.notifier).state = const HomeFilters();
+              ref.read(homeFiltersProvider.notifier).state =
+                  const HomeFilters();
               setState(() {
                 _searchController.clear();
               });
@@ -635,11 +624,13 @@ class _HomePageState extends ConsumerState<HomePage> {
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               padding: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
             child: Text(
               'Restablecer filtros',
-              style: GoogleFonts.hankenGrotesk(fontSize: 13, fontWeight: FontWeight.w800),
+              style: GoogleFonts.hankenGrotesk(
+                  fontSize: 13, fontWeight: FontWeight.w800),
             ),
           ),
         ),

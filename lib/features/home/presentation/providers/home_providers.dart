@@ -35,6 +35,11 @@ final homeFiltersProvider = StateProvider<HomeFilters>((ref) {
   return const HomeFilters();
 });
 
+/// Indica si la búsqueda por ubicación está activada/compartida
+final isLocationSharedProvider = StateProvider<bool>((ref) {
+  return false;
+});
+
 /// Query de búsqueda textual
 final searchQueryProvider = StateProvider<String>((ref) {
   return '';

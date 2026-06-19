@@ -105,7 +105,7 @@ class _CategoryItemState extends State<_CategoryItem> {
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
           decoration: BoxDecoration(
             color: widget.isActive ? widget.activeBgColor : Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: widget.isActive ? widget.activeColor : AppColors.border,
               width: widget.isActive ? 1.5 : 1.0,
@@ -122,6 +122,8 @@ class _CategoryItemState extends State<_CategoryItem> {
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
@@ -133,7 +135,9 @@ class _CategoryItemState extends State<_CategoryItem> {
                 child: Icon(
                   widget.icon,
                   size: 22,
-                  color: widget.isActive ? widget.activeColor : AppColors.textSecondary,
+                  color: widget.isActive
+                      ? widget.activeColor
+                      : AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -141,8 +145,11 @@ class _CategoryItemState extends State<_CategoryItem> {
                 widget.label,
                 style: GoogleFonts.hankenGrotesk(
                   fontSize: 12.5,
-                  fontWeight: widget.isActive ? FontWeight.w800 : FontWeight.w600,
-                  color: widget.isActive ? widget.activeColor : AppColors.textPrimary,
+                  fontWeight:
+                      widget.isActive ? FontWeight.w800 : FontWeight.w600,
+                  color: widget.isActive
+                      ? widget.activeColor
+                      : AppColors.textPrimary,
                 ),
               ),
             ],

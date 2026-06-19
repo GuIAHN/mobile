@@ -57,7 +57,8 @@ class _ItemCardState extends State<ItemCard> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(
+                item.type == ServiceType.workshops ? 14 : 20),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
@@ -67,6 +68,7 @@ class _ItemCardState extends State<ItemCard> {
             ],
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Avatar con icono lider + indicador de estado
               Stack(
@@ -93,7 +95,9 @@ class _ItemCardState extends State<ItemCard> {
                       width: 14,
                       height: 14,
                       decoration: BoxDecoration(
-                        color: item.isOpen ? AppColors.success : AppColors.textDisabled,
+                        color: item.isOpen
+                            ? AppColors.success
+                            : AppColors.textDisabled,
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white, width: 2),
                       ),
@@ -101,7 +105,7 @@ class _ItemCardState extends State<ItemCard> {
                   ),
                 ],
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 16),
 
               // Información del Item
               Expanded(
@@ -118,7 +122,7 @@ class _ItemCardState extends State<ItemCard> {
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 4),
                     Text(
                       item.detail,
                       maxLines: 1,
@@ -132,16 +136,19 @@ class _ItemCardState extends State<ItemCard> {
                     const SizedBox(height: 8),
                     // Fila de tags (Rating, Distancia)
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         // Rating Tag
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFEF3C7), // Amarillo suave
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               const Icon(
                                 Icons.star_rounded,
@@ -157,7 +164,7 @@ class _ItemCardState extends State<ItemCard> {
                                   color: const Color(0xFFB5790F),
                                 ),
                               ),
-                              const SizedBox(width: 2),
+                              const SizedBox(width: 4),
                               Text(
                                 '(${item.reviews})',
                                 style: GoogleFonts.hankenGrotesk(
@@ -173,14 +180,17 @@ class _ItemCardState extends State<ItemCard> {
 
                         // Distancia Tag
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: AppColors.grey50,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.border, width: 0.5),
+                            border:
+                                Border.all(color: AppColors.border, width: 0.5),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               const Icon(
                                 Icons.near_me_outlined,
@@ -214,17 +224,22 @@ class _ItemCardState extends State<ItemCard> {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: _isFavorite ? AppColors.primaryMuted : AppColors.grey50,
+                    color:
+                        _isFavorite ? AppColors.primaryMuted : AppColors.grey50,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: _isFavorite ? AppColors.primary.withValues(alpha: 0.2) : AppColors.border,
+                      color: _isFavorite
+                          ? AppColors.primary.withValues(alpha: 0.2)
+                          : AppColors.border,
                       width: 1.0,
                     ),
                   ),
                   child: Icon(
                     _isFavorite ? Icons.favorite : Icons.favorite_border,
                     size: 18,
-                    color: _isFavorite ? AppColors.primary : AppColors.textDisabled,
+                    color: _isFavorite
+                        ? AppColors.primary
+                        : AppColors.textDisabled,
                   ),
                 ),
               ),
