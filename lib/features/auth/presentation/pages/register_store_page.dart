@@ -5,6 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../catalog/domain/entities/category.dart';
+import '../../../catalog/presentation/providers/catalog_providers.dart';
+import '../providers/auth_provider.dart';
+import '../providers/auth_state.dart';
+import '../../domain/repositories/auth_repository.dart';
 import '../widgets/registration_completed_step.dart';
 import '../widgets/store_catalog_helper.dart';
 import '../widgets/store_catalog_step.dart';
@@ -26,6 +31,9 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
   final _nombreCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _telefonoCtrl = TextEditingController();
+  final _rifCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  final _confirmPasswordCtrl = TextEditingController();
 
   // ===== Paso 2: Catálogo =====
   final List<LineaCatalogo> _catalogo = [];
@@ -37,7 +45,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
   @override
   void initState() {
     super.initState();
-    for (final c in [_nombreCtrl, _emailCtrl, _telefonoCtrl]) {
+    for (final c in [_nombreCtrl, _emailCtrl, _telefonoCtrl, _rifCtrl, _passwordCtrl, _confirmPasswordCtrl]) {
       c.addListener(() => setState(() {}));
     }
   }
@@ -47,27 +55,30 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     _nombreCtrl.dispose();
     _emailCtrl.dispose();
     _telefonoCtrl.dispose();
+    _rifCtrl.dispose();
+    _passwordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
     super.dispose();
   }
 
-  LineaCatalogo? _buscarLinea(String categoriaNombre) {
+  LineaCatalogo? _buscarLinea(String categoryId) {
     for (final l in _catalogo) {
-      if (l.categoria == categoriaNombre) return l;
+      if (l.category.id == categoryId) return l;
     }
     return null;
   }
 
   /* ───────── Bottom sheet de marcas por categoría ───────── */
-  Future<void> _abrirSheetMarcas(CategoriaRepuesto categoria) async {
-    final existente = _buscarLinea(categoria.nombre);
+  Future<void> _abrirSheetMarcas(Category category) async {
+    final existente = _buscarLinea(category.id);
 
     final resultado = await showModalBottomSheet<ResultadoSheet>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => SheetMarcas(
-        categoria: categoria,
-        seleccionInicial: existente?.marcas ?? {},
+        category: category,
+        seleccionInicial: existente?.brands ?? {},
         existia: existente != null,
       ),
     );
@@ -75,17 +86,24 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     if (resultado == null) return;
 
     setState(() {
-      if (resultado.eliminar || resultado.marcas.isEmpty) {
-        _catalogo.removeWhere((l) => l.categoria == categoria.nombre);
+      if (resultado.eliminar || resultado.brands.isEmpty) {
+        _catalogo.removeWhere((l) => l.category.id == category.id);
       } else if (existente != null) {
-        existente.marcas = resultado.marcas;
+        existente.brands = resultado.brands;
       } else {
         _catalogo.add(LineaCatalogo(
-          categoria: categoria.nombre,
-          marcas: resultado.marcas,
+          category: category,
+          brands: resultado.brands,
         ));
       }
     });
+  }
+
+  bool get _passwordValida {
+    final p = _passwordCtrl.text;
+    return p.length >= 8 &&
+        p.contains(RegExp(r'[0-9]')) &&
+        p.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-]'));
   }
 
   // ===== Validación por paso =====
@@ -95,7 +113,10 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
         return _nombreCtrl.text.trim().isNotEmpty &&
             _emailCtrl.text.trim().isNotEmpty &&
             RegExp(r'^[\w\.\-]+@[\w\-]+\.\w{2,}$').hasMatch(_emailCtrl.text.trim()) &&
-            _telefonoCtrl.text.trim().isNotEmpty;
+            _telefonoCtrl.text.trim().isNotEmpty &&
+            _rifCtrl.text.trim().isNotEmpty &&
+            _passwordValida &&
+            _confirmPasswordCtrl.text == _passwordCtrl.text;
       case 2:
       case 3:
         return _catalogo.isNotEmpty;
@@ -108,9 +129,51 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
 
   void _avanzar() {
     if (!_pasoValido) return;
-    if (_paso < 5) {
+    if (_paso < 4) {
       setState(() => _paso++);
+    } else if (_paso == 4) {
+      _submit();
     }
+  }
+
+  Future<void> _submit() async {
+    final authState = ref.read(authProvider);
+    if (authState.isLoading) return;
+
+    final latitude = 14.0818 + (_posicionPin.dy - 0.5) * 0.1;
+    final longitude = -87.2068 + (_posicionPin.dx - 0.5) * 0.1;
+
+    final catalogConfigs = _catalogo.map((l) {
+      return StoreCategoryConfig(
+        categoryId: l.category.id,
+        minPrice: 1.0,
+        servesAllBrands: false,
+        brandIds: l.brands.map((b) => b.id).toList(),
+      );
+    }).toList();
+
+    String sanitizedPhone = _telefonoCtrl.text.trim();
+    if (sanitizedPhone.isNotEmpty) {
+      final clean = sanitizedPhone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+      sanitizedPhone = clean.startsWith('0') ? clean.substring(1) : clean;
+    }
+
+    String rif = _rifCtrl.text.trim();
+    if (rif.toUpperCase().startsWith('J')) {
+      rif = rif.substring(1);
+    }
+
+    await ref.read(authProvider.notifier).registerStore(
+      email: _emailCtrl.text.trim(),
+      password: _passwordCtrl.text,
+      name: _nombreCtrl.text.trim(),
+      phone: sanitizedPhone,
+      latitude: latitude,
+      longitude: longitude,
+      address: 'Dirección física de la tienda.',
+      rif: 'J$rif',
+      catalog: catalogConfigs,
+    );
   }
 
   void _retroceder() {
@@ -123,6 +186,29 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthState>(authProvider, (_, next) {
+      if (next.isAuthenticated) {
+        setState(() => _paso = 5);
+      }
+      if (next.hasError && next.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.errorMessage!),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+        );
+        ref.read(authProvider.notifier).clearError();
+      }
+    });
+
+    final authState = ref.watch(authProvider);
+    final categoriesAsync = ref.watch(categoriesProvider);
+    final categories = categoriesAsync.value ?? [];
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -166,14 +252,18 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                                 key: ValueKey(_paso),
                                 child: switch (_paso) {
                                   1 => StoreProfileStep(
-                                      nombreController: _nombreCtrl,
-                                      emailController: _emailCtrl,
-                                      telefonoController: _telefonoCtrl,
-                                    ),
+                                       nombreController: _nombreCtrl,
+                                       emailController: _emailCtrl,
+                                       telefonoController: _telefonoCtrl,
+                                       rifController: _rifCtrl,
+                                       passwordController: _passwordCtrl,
+                                       confirmPasswordController: _confirmPasswordCtrl,
+                                     ),
                                   2 => StoreCatalogStep(
-                                      catalogo: _catalogo,
-                                      onAbrirSheetMarcas: _abrirSheetMarcas,
-                                    ),
+                                       catalogo: _catalogo,
+                                       categories: categories,
+                                       onAbrirSheetMarcas: _abrirSheetMarcas,
+                                     ),
                                   3 => StoreSummaryStep(
                                       catalogo: _catalogo,
                                       onAbrirSheetMarcas: _abrirSheetMarcas,
@@ -338,6 +428,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
   }
 
   Widget _footer() {
+    final authState = ref.watch(authProvider);
     return Row(
       children: [
         Expanded(
@@ -403,7 +494,18 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                         letterSpacing: 1,
                       ),
                     ),
-                    const Icon(Icons.chevron_right, size: 18),
+                    const SizedBox(width: 6),
+                    if (authState.isLoading)
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    else
+                      const Icon(Icons.chevron_right, size: 18),
                   ],
                 ),
               ),

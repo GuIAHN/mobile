@@ -8,6 +8,7 @@ import '../../domain/entities/sort_option.dart';
 import '../../domain/repositories/home_repository.dart';
 import '../../domain/usecases/get_home_items_usecase.dart';
 import '../../domain/usecases/get_promos_usecase.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 // ── Repositorio e Use Cases Providers ────────────────────────────────────────
 final homeRepositoryProvider = Provider<HomeRepository>((ref) {
@@ -111,3 +112,13 @@ final filteredHomeItemsProvider = Provider.autoDispose<AsyncValue<List<HomeItem>
     return list;
   });
 });
+
+/// Tracks whether the welcome toast/snackbar has already been displayed during this session.
+final welcomeShownProvider = StateProvider<bool>((ref) {
+  final isAuthenticated = ref.watch(authProvider.select((s) => s.isAuthenticated));
+  if (!isAuthenticated) {
+    return false;
+  }
+  return false;
+});
+

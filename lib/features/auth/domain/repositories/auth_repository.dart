@@ -2,17 +2,32 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/user.dart';
 
-/// Contrato del repositorio de autenticación (dominio puro).
-/// La implementación vive en la capa data.
+/// Store category configuration in the spare parts catalog.
+class StoreCategoryConfig {
+  final String categoryId;
+  final double minPrice;
+  final bool servesAllBrands;
+  final List<String> brandIds;
+
+  const StoreCategoryConfig({
+    required this.categoryId,
+    this.minPrice = 1.0,
+    this.servesAllBrands = false,
+    required this.brandIds,
+  });
+}
+
+/// Authentication repository contract (pure domain).
+/// The implementation resides in the data layer.
 abstract class AuthRepository {
-  /// Inicia sesión con [email] y [password].
-  /// Retorna el [User] autenticado o un [Failure].
+  /// Logs in with [email] and [password].
+  /// Returns the authenticated [User] or a [Failure].
   Future<Either<Failure, User>> login({
     required String email,
     required String password,
   });
 
-  /// Registra un nuevo usuario con su respectivo rol.
+  /// Registers a new user with their respective role.
   Future<Either<Failure, User>> register({
     required String email,
     required String password,
@@ -21,9 +36,37 @@ abstract class AuthRepository {
     String? phone,
   });
 
-  /// Cierra la sesión actual y limpia los tokens almacenados.
+  /// Registers a mechanic or workshop.
+  Future<Either<Failure, User>> registerMechanic({
+    required String email,
+    required String password,
+    required String name,
+    required String phone,
+    required double latitude,
+    required double longitude,
+    required String description,
+    required bool isWorkshop,
+    required String identification,
+    required List<String> specialtyIds,
+  });
+
+  /// Registers a store and configures its initial catalog.
+  Future<Either<Failure, User>> registerStore({
+    required String email,
+    required String password,
+    required String name,
+    required String phone,
+    required double latitude,
+    required double longitude,
+    required String address,
+    required String rif,
+    required List<StoreCategoryConfig> catalog,
+  });
+
+  /// Closes the current session and clears stored tokens.
   Future<Either<Failure, void>> logout();
 
-  /// Retorna el usuario actualmente autenticado (por token guardado).
+  /// Returns the currently authenticated user (by stored token).
   Future<Either<Failure, User>> getCurrentUser();
 }
+

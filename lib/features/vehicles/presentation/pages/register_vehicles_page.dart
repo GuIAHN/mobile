@@ -6,7 +6,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../domain/entities/brand.dart';
 import '../providers/register_vehicles_provider.dart';
+import '../providers/vehicle_providers.dart';
 
 class RegisterVehiclesPage extends ConsumerStatefulWidget {
   const RegisterVehiclesPage({super.key});
@@ -16,28 +18,13 @@ class RegisterVehiclesPage extends ConsumerStatefulWidget {
 }
 
 class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
-  // ===== Catálogo de vehículos (Mocks) =====
-  final Map<String, List<String>> _catalogo = {
-    'Toyota': ['Corolla', 'Hilux', 'Yaris', 'Fortuner', '4Runner', 'Camry'],
-    'Chevrolet': ['Aveo', 'Spark', 'Optra', 'Cruze', 'Silverado', 'Tahoe'],
-    'Ford': ['Fiesta', 'Focus', 'Explorer', 'F-150', 'EcoSport', 'Ranger'],
-    'Hyundai': ['Accent', 'Elantra', 'Tucson', 'Santa Fe', 'Getz'],
-    'Kia': ['Rio', 'Picanto', 'Sportage', 'Sorento', 'Cerato'],
-    'Mitsubishi': ['Lancer', 'Montero', 'Outlander', 'L200', 'Signo'],
-    'Volkswagen': ['Gol', 'Polo', 'Jetta', 'Tiguan', 'Amarok'],
-    'Renault': ['Logan', 'Sandero', 'Duster', 'Kwid', 'Twingo'],
-    'Chery': ['Arauca', 'Orinoco', 'Tiggo', 'QQ', 'X1'],
-    'Jeep': ['Cherokee', 'Grand Cherokee', 'Wrangler', 'Compass', 'Renegade'],
-  };
-
-  late final List<int> _anios =
-      List.generate(36, (i) => DateTime.now().year + 1 - i); // años: 2027 a 1992
-
-  String? _marca;
-  String? _modelo;
+  Brand? _selectedBrand;
+  String? _modeloName;
   int? _anio;
 
-  bool get _formCompleto => _marca != null && _modelo != null && _anio != null;
+  bool _isSaving = false;
+
+  bool get _formCompleto => _selectedBrand != null && _modeloName != null && _anio != null;
 
   // ===== Selector Bottom Sheet de GuIA / Veloce Automotive =====
   Future<T?> _abrirSelector<T>({
@@ -196,21 +183,54 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
 
   void _agregarVehiculo() {
     if (!_formCompleto) return;
+
+    final models = ref.read(brandModelsProvider(_selectedBrand!.id)).value ?? [];
+    final selectedModel = models.firstWhere((m) => m.name == _modeloName && m.year == _anio);
+
     ref.read(registerVehiclesProvider.notifier).addUserCar(
-          brand: _marca!,
-          model: _modelo!,
+          brand: _selectedBrand!.name,
+          model: _modeloName!,
           year: _anio!,
+          modelId: selectedModel.id,
         );
     setState(() {
-      _marca = null;
-      _modelo = null;
+      _selectedBrand = null;
+      _modeloName = null;
       _anio = null;
     });
   }
 
-  void _finishRegistration() {
+  Future<void> _finishRegistration() async {
+    final vehiculos = ref.read(registerVehiclesProvider);
+    if (vehiculos.isEmpty) return;
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    final repository = ref.read(vehicleRepositoryProvider);
+
+    for (final v in vehiculos) {
+      final result = await repository.addCarToGarage(
+        modelId: v.modelId,
+      );
+      result.fold(
+        (failure) {
+          print('Error al guardar vehículo ${v.brand} ${v.model}: ${failure.message}');
+        },
+        (success) {
+          print('Vehículo guardado exitosamente: ${success.id}');
+        },
+      );
+    }
+
+    setState(() {
+      _isSaving = false;
+    });
+
     ref.read(authProvider.notifier).logout().then((_) {
       if (!mounted) return;
+      ref.read(registerVehiclesProvider.notifier).clear();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Registro completado. Por favor inicia sesión.'),
@@ -227,6 +247,11 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(brandsProvider);
+    if (_selectedBrand != null) {
+      ref.watch(brandModelsProvider(_selectedBrand!.id));
+    }
+
     final vehiculos = ref.watch(registerVehiclesProvider);
 
     return Scaffold(
@@ -258,19 +283,28 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
                           _FieldLabel('MARCA'),
                           _SelectorField(
                             icon: Icons.directions_car_outlined,
-                            value: _marca,
+                            value: _selectedBrand?.name,
                             placeholder: 'Selecciona la marca',
                             onTap: () async {
-                              final r = await _abrirSelector<String>(
+                              final brandsState = ref.read(brandsProvider);
+                              final brands = brandsState.value ?? [];
+                              if (brands.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Cargando marcas de la API...')),
+                                );
+                                return;
+                              }
+                              final r = await _abrirSelector<Brand>(
                                 titulo: 'Selecciona la marca',
-                                opciones: _catalogo.keys.toList(),
-                                etiqueta: (m) => m,
-                                seleccionado: _marca,
+                                opciones: brands,
+                                etiqueta: (b) => b.name,
+                                seleccionado: _selectedBrand,
                               );
                               if (r != null) {
                                 setState(() {
-                                  _marca = r;
-                                  _modelo = null;
+                                  _selectedBrand = r;
+                                  _modeloName = null;
+                                  _anio = null;
                                 });
                               }
                             },
@@ -279,19 +313,34 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
                           _FieldLabel('MODELO'),
                           _SelectorField(
                             icon: Icons.commute_outlined,
-                            value: _modelo,
-                            placeholder: _marca == null
+                            value: _modeloName,
+                            placeholder: _selectedBrand == null
                                 ? 'Primero elige una marca'
                                 : 'Selecciona el modelo',
-                            enabled: _marca != null,
+                            enabled: _selectedBrand != null,
                             onTap: () async {
+                              if (_selectedBrand == null) return;
+                              final modelsState = ref.read(brandModelsProvider(_selectedBrand!.id));
+                              final models = modelsState.value ?? [];
+                              if (models.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Cargando modelos...')),
+                                );
+                                return;
+                              }
+                              final distinctNames = models.map((m) => m.name).toSet().toList();
                               final r = await _abrirSelector<String>(
-                                titulo: 'Modelos de $_marca',
-                                opciones: _catalogo[_marca]!,
+                                titulo: 'Modelos de ${_selectedBrand!.name}',
+                                opciones: distinctNames,
                                 etiqueta: (m) => m,
-                                seleccionado: _modelo,
+                                seleccionado: _modeloName,
                               );
-                              if (r != null) setState(() => _modelo = r);
+                              if (r != null) {
+                                setState(() {
+                                  _modeloName = r;
+                                  _anio = null;
+                                });
+                              }
                             },
                           ),
 
@@ -301,9 +350,17 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
                             value: _anio?.toString(),
                             placeholder: 'Selecciona el año',
                             onTap: () async {
+                              if (_selectedBrand == null || _modeloName == null) return;
+                              final models = ref.read(brandModelsProvider(_selectedBrand!.id)).value ?? [];
+                              final availableYears = models
+                                  .where((m) => m.name == _modeloName)
+                                  .map((m) => m.year)
+                                  .toSet()
+                                  .toList();
+                              availableYears.sort((a, b) => b.compareTo(a));
                               final r = await _abrirSelector<int>(
                                 titulo: 'Selecciona el año',
-                                opciones: _anios,
+                                opciones: availableYears,
                                 etiqueta: (a) => '$a',
                                 seleccionado: _anio,
                               );
@@ -477,7 +534,7 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
 
   Widget _footer() {
     final vehiculos = ref.watch(registerVehiclesProvider);
-    final enabled = vehiculos.isNotEmpty;
+    final enabled = vehiculos.isNotEmpty && !_isSaving;
 
     return _PressableScale(
       onTap: enabled ? _finishRegistration : null,
@@ -514,7 +571,7 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'FINALIZAR REGISTRO',
+                  _isSaving ? 'GUARDANDO VEHÍCULOS...' : 'FINALIZAR REGISTRO',
                   style: GoogleFonts.hankenGrotesk(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
@@ -522,7 +579,16 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.check_circle_outline, size: 18),
+                _isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Icon(Icons.check_circle_outline, size: 18),
               ],
             ),
           ),

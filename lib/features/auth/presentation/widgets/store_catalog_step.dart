@@ -1,27 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../catalog/domain/entities/category.dart';
 import 'store_catalog_helper.dart';
 
 class StoreCatalogStep extends StatelessWidget {
   final List<LineaCatalogo> catalogo;
-  final ValueChanged<CategoriaRepuesto> onAbrirSheetMarcas;
+  final List<Category> categories;
+  final ValueChanged<Category> onAbrirSheetMarcas;
 
   const StoreCatalogStep({
     super.key,
     required this.catalogo,
+    required this.categories,
     required this.onAbrirSheetMarcas,
   });
 
-  LineaCatalogo? _buscarLinea(String categoriaNombre) {
+  LineaCatalogo? _buscarLinea(String categoryId) {
     for (final l in catalogo) {
-      if (l.categoria == categoriaNombre) return l;
+      if (l.category.id == categoryId) return l;
     }
     return null;
   }
 
   @override
   Widget build(BuildContext context) {
+    if (categories.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 48),
+        alignment: Alignment.center,
+        child: Column(
+          children: [
+            const CircularProgressIndicator(color: AppColors.primary),
+            const SizedBox(height: 16),
+            Text(
+              'Cargando categorías de la API...',
+              style: GoogleFonts.hankenGrotesk(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -37,10 +60,10 @@ class StoreCatalogStep extends StatelessWidget {
             ),
           ),
         ),
-        ...kCategorias.map((cat) {
-          final linea = _buscarLinea(cat.nombre);
+        ...categories.map((cat) {
+          final linea = _buscarLinea(cat.id);
           return _CardCategoria(
-            categoria: cat,
+            category: cat,
             linea: linea,
             onTap: () => onAbrirSheetMarcas(cat),
           );
@@ -53,20 +76,23 @@ class StoreCatalogStep extends StatelessWidget {
 /* ───────────────── Widgets de Soporte Local ───────────────── */
 
 class _CardCategoria extends StatelessWidget {
-  final CategoriaRepuesto categoria;
+  final Category category;
   final LineaCatalogo? linea;
   final VoidCallback onTap;
 
   const _CardCategoria({
-    required this.categoria,
+    required this.category,
     required this.linea,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final marcas = linea?.marcas ?? {};
+    final marcas = linea?.brands ?? {};
     final activa = marcas.isNotEmpty;
+
+    final icon = getCategoryIcon(category.name);
+    final desc = getCategoryDescription(category.name);
 
     return GestureDetector(
       onTap: onTap,
@@ -105,7 +131,7 @@ class _CardCategoria extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(
-                    categoria.icono,
+                    icon,
                     color: activa ? AppColors.primary : AppColors.textSecondary,
                     size: 26,
                   ),
@@ -117,7 +143,7 @@ class _CardCategoria extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        categoria.nombre,
+                        category.name,
                         style: GoogleFonts.hankenGrotesk(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -126,7 +152,7 @@ class _CardCategoria extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        categoria.desc,
+                        desc,
                         style: GoogleFonts.hankenGrotesk(
                           fontSize: 12.5,
                           height: 1.4,
@@ -155,7 +181,7 @@ class _CardCategoria extends StatelessWidget {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: marcas.map((m) => _ChipMarca(m)).toList(),
+                children: marcas.map((m) => _ChipMarca(m.name)).toList(),
               ),
             ],
           ],

@@ -1,8 +1,8 @@
 /// Tipo de servicio disponible en el home.
 enum ServiceType {
-  mechanic,
   spareParts,
   workshops,
+  mechanic,
 }
 
 extension ServiceTypeX on ServiceType {

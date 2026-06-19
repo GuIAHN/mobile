@@ -5,6 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../catalog/presentation/providers/catalog_providers.dart';
+import '../providers/auth_provider.dart';
+import '../providers/auth_state.dart';
 import '../widgets/registration_completed_step.dart';
 import '../widgets/workshop_info_step.dart';
 import '../widgets/workshop_location_step.dart';
@@ -24,9 +27,12 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
   final _nombreCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _telefonoCtrl = TextEditingController();
+  final _rifCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  final _confirmPasswordCtrl = TextEditingController();
 
   // ===== Paso 2: Especialidades =====
-  final Set<int> _seleccionadas = {};
+  final Set<String> _seleccionadas = {};
 
   // ===== Paso 3: Ubicación =====
   Offset _posicionPin = const Offset(0.5, 0.5);
@@ -35,7 +41,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
   @override
   void initState() {
     super.initState();
-    for (final c in [_nombreCtrl, _emailCtrl, _telefonoCtrl]) {
+    for (final c in [_nombreCtrl, _emailCtrl, _telefonoCtrl, _rifCtrl, _passwordCtrl, _confirmPasswordCtrl]) {
       c.addListener(() => setState(() {}));
     }
   }
@@ -45,7 +51,17 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
     _nombreCtrl.dispose();
     _emailCtrl.dispose();
     _telefonoCtrl.dispose();
+    _rifCtrl.dispose();
+    _passwordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
     super.dispose();
+  }
+
+  bool get _passwordValida {
+    final p = _passwordCtrl.text;
+    return p.length >= 8 &&
+        p.contains(RegExp(r'[0-9]')) &&
+        p.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-]'));
   }
 
   // ===== Validación por paso =====
@@ -55,7 +71,10 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
         return _nombreCtrl.text.trim().isNotEmpty &&
             _emailCtrl.text.trim().isNotEmpty &&
             RegExp(r'^[\w\.\-]+@[\w\-]+\.\w{2,}$').hasMatch(_emailCtrl.text.trim()) &&
-            _telefonoCtrl.text.trim().isNotEmpty;
+            _telefonoCtrl.text.trim().isNotEmpty &&
+            _rifCtrl.text.trim().isNotEmpty &&
+            _passwordValida &&
+            _confirmPasswordCtrl.text == _passwordCtrl.text;
       case 2:
         return _seleccionadas.isNotEmpty;
       case 3:
@@ -67,9 +86,43 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
 
   void _avanzar() {
     if (!_pasoValido) return;
-    if (_paso < 4) {
+    if (_paso < 3) {
       setState(() => _paso++);
+    } else if (_paso == 3) {
+      _submit();
     }
+  }
+
+  Future<void> _submit() async {
+    final authState = ref.read(authProvider);
+    if (authState.isLoading) return;
+
+    final latitude = 14.0818 + (_posicionPin.dy - 0.5) * 0.1;
+    final longitude = -87.2068 + (_posicionPin.dx - 0.5) * 0.1;
+
+    String sanitizedPhone = _telefonoCtrl.text.trim();
+    if (sanitizedPhone.isNotEmpty) {
+      final clean = sanitizedPhone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+      sanitizedPhone = clean.startsWith('0') ? clean.substring(1) : clean;
+    }
+
+    String rif = _rifCtrl.text.trim();
+    if (rif.toUpperCase().startsWith('J')) {
+      rif = rif.substring(1);
+    }
+
+    await ref.read(authProvider.notifier).registerMechanic(
+      email: _emailCtrl.text.trim(),
+      password: _passwordCtrl.text,
+      name: _nombreCtrl.text.trim(),
+      phone: sanitizedPhone,
+      latitude: latitude,
+      longitude: longitude,
+      description: 'Taller mecánico especializado.',
+      isWorkshop: true,
+      identification: 'J$rif',
+      specialtyIds: _seleccionadas.toList(),
+    );
   }
 
   void _retroceder() {
@@ -82,6 +135,29 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthState>(authProvider, (_, next) {
+      if (next.isAuthenticated) {
+        setState(() => _paso = 4);
+      }
+      if (next.hasError && next.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.errorMessage!),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+        );
+        ref.read(authProvider.notifier).clearError();
+      }
+    });
+
+    final authState = ref.watch(authProvider);
+    final specialtiesAsync = ref.watch(specialtiesProvider);
+    final specialties = specialtiesAsync.value ?? [];
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -123,22 +199,26 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                                 key: ValueKey(_paso),
                                 child: switch (_paso) {
                                   1 => WorkshopInfoStep(
-                                      nombreController: _nombreCtrl,
-                                      emailController: _emailCtrl,
-                                      telefonoController: _telefonoCtrl,
-                                    ),
-                                  2 => WorkshopSpecialtiesStep(
-                                      selectedSpecialties: _seleccionadas,
-                                      onSpecialtyToggled: (i) {
-                                        setState(() {
-                                          if (_seleccionadas.contains(i)) {
-                                            _seleccionadas.remove(i);
-                                          } else {
-                                            _seleccionadas.add(i);
-                                          }
-                                        });
-                                      },
-                                    ),
+                                       nombreController: _nombreCtrl,
+                                       emailController: _emailCtrl,
+                                       telefonoController: _telefonoCtrl,
+                                       rifController: _rifCtrl,
+                                       passwordController: _passwordCtrl,
+                                       confirmPasswordController: _confirmPasswordCtrl,
+                                     ),
+                                   2 => WorkshopSpecialtiesStep(
+                                       selectedSpecialtyIds: _seleccionadas,
+                                       onSpecialtyToggled: (id) {
+                                         setState(() {
+                                           if (_seleccionadas.contains(id)) {
+                                             _seleccionadas.remove(id);
+                                           } else {
+                                             _seleccionadas.add(id);
+                                           }
+                                         });
+                                       },
+                                       specialties: specialties,
+                                     ),
                                   3 => WorkshopLocationStep(
                                       posicionPin: _posicionPin,
                                       onPinChanged: (p) => setState(() => _posicionPin = p),
@@ -252,6 +332,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
   }
 
   Widget _footer() {
+    final authState = ref.watch(authProvider);
     return _PressableScale(
       onTap: _pasoValido ? _avanzar : null,
       child: SizedBox(
@@ -271,7 +352,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                 : [],
           ),
           child: ElevatedButton(
-            onPressed: _pasoValido ? _avanzar : null,
+            onPressed: _pasoValido && !authState.isLoading ? _avanzar : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
@@ -283,19 +364,31 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                 borderRadius: BorderRadius.circular(32),
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'CONTINUAR',
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1,
-                  ),
-                ),
-                const Icon(Icons.chevron_right, size: 18),
-              ],
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: authState.isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _paso == 3 ? 'FINALIZAR' : 'CONTINUAR',
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right, size: 18),
+                      ],
+                    ),
             ),
           ),
         ),

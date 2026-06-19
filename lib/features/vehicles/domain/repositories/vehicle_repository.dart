@@ -1,0 +1,24 @@
+import 'package:dartz/dartz.dart';
+import '../../../../core/error/failures.dart';
+import '../entities/brand.dart';
+import '../entities/car_model.dart';
+import '../entities/user_car.dart';
+
+/// Repository contract for brands, models, and vehicle garage.
+abstract class VehicleRepository {
+  /// Fetches all available vehicle brands.
+  Future<Either<Failure, List<Brand>>> getBrands();
+
+  /// Fetches all models for a specific brand.
+  Future<Either<Failure, List<CarModel>>> getBrandModels(String brandId);
+
+  /// Registers a car in the user's garage.
+  Future<Either<Failure, UserCar>> addCarToGarage({
+    required String modelId,
+    String? placa,
+    String? color,
+  });
+
+  /// Fetches all cars from the user's garage.
+  Future<Either<Failure, List<UserCar>>> getUserCars();
+}

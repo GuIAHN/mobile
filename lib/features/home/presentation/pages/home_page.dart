@@ -14,6 +14,7 @@ import '../widgets/item_card.dart';
 import '../widgets/promo_carousel.dart';
 import '../widgets/request_spare_part_form.dart';
 import '../../../../shared/widgets/empty_state.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -24,6 +25,7 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
   final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -36,6 +38,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -115,6 +118,62 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final activeTab = ref.watch(homeTabProvider);
+    final authState = ref.watch(authProvider);
+    final user = authState.user;
+
+    // Show a friendly welcome greeting if authenticated and not shown yet in this session
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && user != null && !ref.read(welcomeShownProvider)) {
+        ref.read(welcomeShownProvider.notifier).state = true;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.waving_hand_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '¡Hola, ${user.name}!',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        fontSize: 15,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            backgroundColor: AppColors.secondary,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(milliseconds: 2000),
+            elevation: 6,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            ),
+            margin: const EdgeInsets.only(
+              left: AppSpacing.lg,
+              right: AppSpacing.lg,
+              bottom: 96,
+            ),
+          ),
+        );
+      }
+    });
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -151,6 +210,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final isSpareParts = selectedType == ServiceType.spareParts;
 
     return ListView(
+      controller: _scrollController,
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 120), // Espaciado extra para no tapar con la barra burbuja
       children: [
@@ -181,9 +241,17 @@ class _HomePageState extends ConsumerState<HomePage> {
 
         // Si es repuestos, mostramos el formulario de solicitud
         if (isSpareParts)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: RequestSparePartForm(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: RequestSparePartForm(
+              onSubmitted: () {
+                _scrollController.animateTo(
+                  0.0,
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.easeInOutCubic,
+                );
+              },
+            ),
           )
         else ...[
           // 5. Encabezado de la lista

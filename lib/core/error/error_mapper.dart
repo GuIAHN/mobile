@@ -62,6 +62,7 @@ class ErrorMapper {
             return const ForbiddenFailure();
           case 404:
             return const NotFoundFailure();
+          case 400:
           case 422:
             return ValidationFailure(message: message);
           default:
@@ -72,13 +73,19 @@ class ErrorMapper {
     }
   }
 
-  /// Extrae el mensaje de error de distintos formatos de respuesta de la API.
+  /// Extracts the error message from various API response formats.
   static String? _extractMessage(dynamic data) {
     if (data == null) return null;
     if (data is String) return data;
     if (data is Map<String, dynamic>) {
-      return data['message'] as String? ??
-          data['error'] as String? ??
+      final msg = data['message'];
+      if (msg is List) {
+        return msg.join(', ');
+      }
+      if (msg is String) {
+        return msg;
+      }
+      return data['error'] as String? ??
           data['detail'] as String?;
     }
     return null;

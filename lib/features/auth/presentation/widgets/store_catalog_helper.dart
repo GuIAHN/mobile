@@ -1,101 +1,72 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../catalog/domain/entities/category.dart';
+import '../../../vehicles/domain/entities/brand.dart';
+import '../../../vehicles/presentation/providers/vehicle_providers.dart';
 
 /* ───────────────── Modelos ───────────────── */
 
-class CategoriaRepuesto {
-  final String nombre;
-  final IconData icono;
-  final String desc;
-  const CategoriaRepuesto(this.nombre, this.icono, this.desc);
-}
-
 class LineaCatalogo {
-  final String categoria;
-  Set<String> marcas;
+  final Category category;
+  Set<Brand> brands;
   LineaCatalogo({
-    required this.categoria,
-    required this.marcas,
+    required this.category,
+    required this.brands,
   });
 }
 
 class ResultadoSheet {
   final bool eliminar;
-  final Set<String> marcas;
-  const ResultadoSheet({this.eliminar = false, this.marcas = const {}});
+  final Set<Brand> brands;
+  const ResultadoSheet({this.eliminar = false, this.brands = const {}});
 }
 
-/* ───────────────── Datos Estáticos del Catálogo ───────────────── */
+/* ───────────────── Funciones Auxiliares ───────────────── */
 
-const List<String> kMarcas = [
-  'Toyota',
-  'Chevrolet',
-  'Ford',
-  'Hyundai',
-  'Kia',
-  'Nissan',
-  'Mitsubishi',
-  'Volkswagen',
-  'Jeep',
-  'Mazda',
-  'Honda',
-  'Mercedes',
-];
+IconData getCategoryIcon(String name) {
+  final lower = name.toLowerCase();
+  if (lower.contains('motor')) return Icons.settings_outlined;
+  if (lower.contains('transmisión') || lower.contains('caja')) return Icons.account_tree_outlined;
+  if (lower.contains('suspensión') || lower.contains('dirección')) return Icons.unfold_more_outlined;
+  if (lower.contains('freno')) return Icons.album_outlined;
+  if (lower.contains('electricidad') || lower.contains('electrónico')) return Icons.bolt_outlined;
+  if (lower.contains('latonería') || lower.contains('pintura') || lower.contains('carrocería')) return Icons.format_paint_outlined;
+  return Icons.build_outlined;
+}
 
-const List<CategoriaRepuesto> kCategorias = [
-  CategoriaRepuesto(
-    'Motor',
-    Icons.settings_outlined,
-    'Empacaduras, pistones, correas y bombas.',
-  ),
-  CategoriaRepuesto(
-    'Transmisión',
-    Icons.account_tree_outlined,
-    'Croche, discos, collarines y soportes.',
-  ),
-  CategoriaRepuesto(
-    'Suspensión',
-    Icons.unfold_more_outlined,
-    'Amortiguadores, mesetas y rótulas.',
-  ),
-  CategoriaRepuesto(
-    'Frenos',
-    Icons.album_outlined,
-    'Pastillas, discos, tambores y bombas.',
-  ),
-  CategoriaRepuesto(
-    'Electricidad',
-    Icons.bolt_outlined,
-    'Alternadores, bujías, sensores y baterías.',
-  ),
-  CategoriaRepuesto(
-    'Latonería y Pintura',
-    Icons.format_paint_outlined,
-    'Faros, stops, parachoques y espejos.',
-  ),
-];
+String getCategoryDescription(String name) {
+  final lower = name.toLowerCase();
+  if (lower.contains('motor')) return 'Empacaduras, pistones, correas y bombas de agua.';
+  if (lower.contains('transmisión')) return 'Kits de embrague, discos, collarines y soportes.';
+  if (lower.contains('suspensión')) return 'Amortiguadores, mesetas, terminales y rótulas.';
+  if (lower.contains('freno')) return 'Pastillas, discos, tambores y bombas de freno.';
+  if (lower.contains('electricidad')) return 'Alternadores, bujías, sensores y baterías.';
+  if (lower.contains('latonería')) return 'Faros, stops, parachoques y espejos retrovisores.';
+  return 'Repuestos y accesorios mecánicos de alta calidad.';
+}
 
 /* ───────────────── Bottom Sheet de Selección de Marcas ───────────────── */
 
-class SheetMarcas extends StatefulWidget {
-  final CategoriaRepuesto categoria;
-  final Set<String> seleccionInicial;
+class SheetMarcas extends ConsumerStatefulWidget {
+  final Category category;
+  final Set<Brand> seleccionInicial;
   final bool existia;
 
   const SheetMarcas({
     super.key,
-    required this.categoria,
+    required this.category,
     required this.seleccionInicial,
     required this.existia,
   });
 
   @override
-  State<SheetMarcas> createState() => _SheetMarcasState();
+  ConsumerState<SheetMarcas> createState() => _SheetMarcasState();
 }
 
-class _SheetMarcasState extends State<SheetMarcas> {
-  late Set<String> _tempSeleccion;
+class _SheetMarcasState extends ConsumerState<SheetMarcas> {
+  late Set<Brand> _tempSeleccion;
   String _filtro = '';
   final _filtroController = TextEditingController();
 
@@ -113,8 +84,11 @@ class _SheetMarcasState extends State<SheetMarcas> {
 
   @override
   Widget build(BuildContext context) {
-    final filtradas = kMarcas
-        .where((m) => m.toLowerCase().contains(_filtro.toLowerCase()))
+    final brandsAsync = ref.watch(brandsProvider);
+    final allBrands = brandsAsync.value ?? [];
+
+    final filtradas = allBrands
+        .where((m) => m.name.toLowerCase().contains(_filtro.toLowerCase()))
         .toList();
 
     return Padding(
@@ -145,7 +119,7 @@ class _SheetMarcasState extends State<SheetMarcas> {
                     ),
                   ),
                   Text(
-                    widget.categoria.nombre,
+                    widget.category.name,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.hankenGrotesk(
                       fontSize: 20,
@@ -220,8 +194,19 @@ class _SheetMarcasState extends State<SheetMarcas> {
 
             /* Listado de Marcas */
             Expanded(
-              child: filtradas.isEmpty
-                  ? Center(
+              child: brandsAsync.when(
+                loading: () => const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+                error: (err, stack) => Center(
+                  child: Text(
+                    'Error al cargar marcas: $err',
+                    style: GoogleFonts.hankenGrotesk(color: AppColors.error),
+                  ),
+                ),
+                data: (_) {
+                  if (filtradas.isEmpty) {
+                    return Center(
                       child: Text(
                         'No se encontraron marcas con "$_filtro"',
                         style: GoogleFonts.hankenGrotesk(
@@ -229,70 +214,73 @@ class _SheetMarcasState extends State<SheetMarcas> {
                           color: AppColors.textSecondary,
                         ),
                       ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      itemCount: filtradas.length,
-                      itemBuilder: (_, i) {
-                        final marca = filtradas[i];
-                        final seleccionado = _tempSeleccion.contains(marca);
-                        return GestureDetector(
-                          onTap: () => setState(() {
-                            if (seleccionado) {
-                              _tempSeleccion.remove(marca);
-                            } else {
-                              _tempSeleccion.add(marca);
-                            }
-                          }),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                            decoration: BoxDecoration(
+                    );
+                  }
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    itemCount: filtradas.length,
+                    itemBuilder: (_, i) {
+                      final marca = filtradas[i];
+                      final seleccionado = _tempSeleccion.any((b) => b.id == marca.id);
+                      return GestureDetector(
+                        onTap: () => setState(() {
+                          if (seleccionado) {
+                            _tempSeleccion.removeWhere((b) => b.id == marca.id);
+                          } else {
+                            _tempSeleccion.add(marca);
+                          }
+                        }),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: seleccionado
+                                ? AppColors.primaryMuted
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
                               color: seleccionado
-                                  ? AppColors.primaryMuted
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: seleccionado
                                   ? AppColors.primary
                                   : AppColors.border,
-                                width: seleccionado ? 1.6 : 1.0,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  seleccionado
-                                      ? Icons.check_circle_rounded
-                                      : Icons.radio_button_off_rounded,
-                                  size: 20,
-                                  color: seleccionado
-                                      ? AppColors.primary
-                                      : AppColors.textDisabled,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    marca,
-                                    style: GoogleFonts.hankenGrotesk(
-                                      fontSize: 15,
-                                      color: AppColors.textPrimary,
-                                      fontWeight: seleccionado
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                              width: seleccionado ? 1.6 : 1.0,
                             ),
                           ),
-                        );
-                      },
-                    ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                seleccionado
+                                    ? Icons.check_circle_rounded
+                                    : Icons.radio_button_off_rounded,
+                                size: 20,
+                                color: seleccionado
+                                    ? AppColors.primary
+                                    : AppColors.textDisabled,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  marca.name,
+                                  style: GoogleFonts.hankenGrotesk(
+                                    fontSize: 15,
+                                    color: AppColors.textPrimary,
+                                    fontWeight: seleccionado
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
 
             /* Botones de Acción (Footer) */
@@ -326,7 +314,7 @@ class _SheetMarcasState extends State<SheetMarcas> {
                         onPressed: (_tempSeleccion.isNotEmpty || widget.existia)
                             ? () => Navigator.pop(
                                   context,
-                                  ResultadoSheet(marcas: _tempSeleccion),
+                                  ResultadoSheet(brands: _tempSeleccion),
                                 )
                             : null,
                         style: ElevatedButton.styleFrom(
@@ -360,7 +348,7 @@ class _SheetMarcasState extends State<SheetMarcas> {
                         const ResultadoSheet(eliminar: true),
                       ),
                       child: Text(
-                        'Quitar la categoría ${widget.categoria.nombre}',
+                        'Quitar la categoría ${widget.category.name}',
                         style: GoogleFonts.hankenGrotesk(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,

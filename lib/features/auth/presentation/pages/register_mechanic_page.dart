@@ -5,6 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../catalog/presentation/providers/catalog_providers.dart';
+import '../providers/auth_provider.dart';
+import '../providers/auth_state.dart';
 import '../widgets/registration_completed_step.dart';
 import '../widgets/mechanic_profile_step.dart';
 import '../widgets/mechanic_technical_step.dart';
@@ -20,30 +23,15 @@ class RegisterMechanicPage extends ConsumerStatefulWidget {
 class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
   int _paso = 1; // 1..4
 
-  // ===== Paso 1: Perfil del mecánico =====
   final _nombreCtrl = TextEditingController();
   final _telefonoCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _cedulaCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
+  String _cedulaTipo = 'V';
 
-  // ===== Paso 2: Especialidades =====
-  static const _especialidades = [
-    SpecialtyItem(Icons.settings_outlined, 'Motor',
-        'Diagnóstico, reparación mayor, ajuste de rendimiento y componentes internos.'),
-    SpecialtyItem(Icons.sync_alt, 'Transmisión',
-        'Cajas automáticas y manuales, embragues y mantenimiento del tren motriz.'),
-    SpecialtyItem(Icons.height, 'Suspensión',
-        'Alineación, amortiguación, dirección y geometría del chasis.'),
-    SpecialtyItem(Icons.album_outlined, 'Frenos',
-        'Sistemas ABS, discos, tambores, purga hidráulica y pastillas.'),
-    SpecialtyItem(Icons.bolt_outlined, 'Electricidad',
-        'Cableado, programación de ECU, sensores y gestión de baterías.'),
-    SpecialtyItem(Icons.format_paint_outlined, 'Latonería y Pintura',
-        'Desabolladura, pintura, reparación de colisiones y enderezado estructural.'),
-  ];
-  final Set<int> _seleccionadas = {};
+  final Set<String> _seleccionadas = {};
 
   // ===== Paso 3: Perfil técnico =====
   double _aniosExperiencia = 5;
@@ -102,9 +90,35 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
 
   void _avanzar() {
     if (!_pasoValido) return;
-    if (_paso < 4) {
+    if (_paso < 3) {
       setState(() => _paso++);
+    } else if (_paso == 3) {
+      _submit();
     }
+  }
+
+  Future<void> _submit() async {
+    final authState = ref.read(authProvider);
+    if (authState.isLoading) return;
+
+    String sanitizedPhone = _telefonoCtrl.text.trim();
+    if (sanitizedPhone.isNotEmpty) {
+      final clean = sanitizedPhone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+      sanitizedPhone = clean.startsWith('0') ? clean.substring(1) : clean;
+    }
+
+    await ref.read(authProvider.notifier).registerMechanic(
+      email: _emailCtrl.text.trim(),
+      password: _passwordCtrl.text,
+      name: _nombreCtrl.text.trim(),
+      phone: sanitizedPhone,
+      latitude: 14.0818,
+      longitude: -87.2068,
+      description: 'Mecánico con ${_aniosExperiencia.round()} años de experiencia.',
+      isWorkshop: false,
+      identification: '$_cedulaTipo${_cedulaCtrl.text.trim()}',
+      specialtyIds: _seleccionadas.toList(),
+    );
   }
 
   void _retroceder() {
@@ -117,6 +131,29 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthState>(authProvider, (_, next) {
+      if (next.isAuthenticated) {
+        setState(() => _paso = 4);
+      }
+      if (next.hasError && next.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.errorMessage!),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+        );
+        ref.read(authProvider.notifier).clearError();
+      }
+    });
+
+    final authState = ref.watch(authProvider);
+    final specialtiesAsync = ref.watch(specialtiesProvider);
+    final specialties = specialtiesAsync.value ?? [];
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -167,23 +204,29 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
                                       passwordController: _passwordCtrl,
                                       confirmPasswordController: _confirmPasswordCtrl,
                                       passwordValida: _passwordValida,
-                                    ),
-                                  2 => WorkshopSpecialtiesStep(
-                                      selectedSpecialties: _seleccionadas,
-                                      onSpecialtyToggled: (i) {
+                                      cedulaTipo: _cedulaTipo,
+                                      onCedulaTipoChanged: (val) {
                                         setState(() {
-                                          if (_seleccionadas.contains(i)) {
-                                            _seleccionadas.remove(i);
-                                          } else {
-                                            _seleccionadas.add(i);
-                                          }
+                                          _cedulaTipo = val;
                                         });
                                       },
-                                      specialties: _especialidades,
-                                      cardTitle: 'Especialidades Seleccionadas',
-                                      cardDescription:
-                                          'Tu selección define los diagnósticos y consultas de mantenimiento que te asignará el sistema. Debes poseer maestría en las áreas marcadas.',
                                     ),
+                                  2 => WorkshopSpecialtiesStep(
+                                       selectedSpecialtyIds: _seleccionadas,
+                                       onSpecialtyToggled: (id) {
+                                         setState(() {
+                                           if (_seleccionadas.contains(id)) {
+                                             _seleccionadas.remove(id);
+                                           } else {
+                                             _seleccionadas.add(id);
+                                           }
+                                         });
+                                       },
+                                       specialties: specialties,
+                                       cardTitle: 'Especialidades Seleccionadas',
+                                       cardDescription:
+                                           'Tu selección define los diagnósticos y consultas de mantenimiento que te asignará el sistema. Debes poseer maestría en las áreas marcadas.',
+                                     ),
                                   3 => MechanicTechnicalStep(
                                       aniosExperiencia: _aniosExperiencia,
                                       onAniosExperienciaChanged: (v) =>
@@ -337,6 +380,7 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
   }
 
   Widget _footer() {
+    final authState = ref.watch(authProvider);
     return Row(
       children: [
         Expanded(
@@ -379,7 +423,7 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
                     : [],
               ),
               child: ElevatedButton(
-                onPressed: _pasoValido ? _avanzar : null,
+                onPressed: _pasoValido && !authState.isLoading ? _avanzar : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -391,19 +435,31 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
                     borderRadius: BorderRadius.circular(32),
                   ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _paso == 3 ? 'FINALIZAR' : 'CONTINUAR',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right, size: 18),
-                  ],
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: authState.isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              _paso == 3 ? 'FINALIZAR' : 'CONTINUAR',
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right, size: 18),
+                          ],
+                        ),
                 ),
               ),
             ),

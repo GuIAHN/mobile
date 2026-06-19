@@ -6,8 +6,8 @@ import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
 
-/// Implementación concreta del repositorio de autenticación.
-/// Orquesta el datasource y el almacenamiento seguro de tokens.
+/// Concrete implementation of the authentication repository.
+/// Orchestrates the datasource and secure token storage.
 class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource remoteDataSource;
   final SecureStorage secureStorage;
@@ -28,14 +28,17 @@ class AuthRepositoryImpl implements AuthRepository {
         password: password,
       );
 
-      // Persistir tokens de forma segura.
+      // Save tokens securely.
       await secureStorage.saveToken(response.accessToken);
       if (response.refreshToken != null) {
         await secureStorage.saveRefreshToken(response.refreshToken!);
       }
-      await secureStorage.saveUserId(response.user.id);
 
-      return Right(response.user);
+      // Fetch the actual user profile from the API.
+      final user = await remoteDataSource.getCurrentUser();
+      await secureStorage.saveUserId(user.id);
+
+      return Right(user);
     } catch (e) {
       return Left(ErrorMapper.map(e));
     }
@@ -50,22 +53,133 @@ class AuthRepositoryImpl implements AuthRepository {
     String? phone,
   }) async {
     try {
-      final response = await remoteDataSource.register(
+      // 1. Create the user in the backend.
+      final registeredUser = await remoteDataSource.register(
         email: email,
         password: password,
         name: name,
         role: role,
-        phone: phone,
       );
 
-      // Persistir tokens de forma segura.
-      await secureStorage.saveToken(response.accessToken);
-      if (response.refreshToken != null) {
-        await secureStorage.saveRefreshToken(response.refreshToken!);
-      }
-      await secureStorage.saveUserId(response.user.id);
+      // 2. Log in automatically to obtain tokens for the active session.
+      final loginResponse = await remoteDataSource.login(
+        email: email,
+        password: password,
+      );
 
-      return Right(response.user);
+      // Save obtained tokens securely.
+      await secureStorage.saveToken(loginResponse.accessToken);
+      if (loginResponse.refreshToken != null) {
+        await secureStorage.saveRefreshToken(loginResponse.refreshToken!);
+      }
+      await secureStorage.saveUserId(registeredUser.id);
+
+      // 3. Register the phone number in a separate endpoint if specified.
+      if (phone != null && phone.trim().isNotEmpty) {
+        await remoteDataSource.updatePhone(phone);
+      }
+
+      // 4. Retrieve the updated full profile from the API.
+      final finalUser = await remoteDataSource.getCurrentUser();
+
+      return Right(finalUser);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, User>> registerMechanic({
+    required String email,
+    required String password,
+    required String name,
+    required String phone,
+    required double latitude,
+    required double longitude,
+    required String description,
+    required bool isWorkshop,
+    required String identification,
+    required List<String> specialtyIds,
+  }) async {
+    try {
+      final registeredUser = await remoteDataSource.registerMechanic(
+        email: email,
+        password: password,
+        name: name,
+        phone: phone,
+        latitude: latitude,
+        longitude: longitude,
+        description: description,
+        isWorkshop: isWorkshop,
+        identification: identification,
+        specialtyIds: specialtyIds,
+      );
+
+      final loginResponse = await remoteDataSource.login(
+        email: email,
+        password: password,
+      );
+
+      await secureStorage.saveToken(loginResponse.accessToken);
+      if (loginResponse.refreshToken != null) {
+        await secureStorage.saveRefreshToken(loginResponse.refreshToken!);
+      }
+      await secureStorage.saveUserId(registeredUser.id);
+
+      final finalUser = await remoteDataSource.getCurrentUser();
+      return Right(finalUser);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, User>> registerStore({
+    required String email,
+    required String password,
+    required String name,
+    required String phone,
+    required double latitude,
+    required double longitude,
+    required String address,
+    required String rif,
+    required List<StoreCategoryConfig> catalog,
+  }) async {
+    try {
+      final registeredUser = await remoteDataSource.registerStore(
+        email: email,
+        password: password,
+        name: name,
+        phone: phone,
+        latitude: latitude,
+        longitude: longitude,
+        address: address,
+        rif: rif,
+      );
+
+      final loginResponse = await remoteDataSource.login(
+        email: email,
+        password: password,
+      );
+
+      await secureStorage.saveToken(loginResponse.accessToken);
+      if (loginResponse.refreshToken != null) {
+        await secureStorage.saveRefreshToken(loginResponse.refreshToken!);
+      }
+      await secureStorage.saveUserId(registeredUser.id);
+
+      // Configure initial catalog categories
+      for (final config in catalog) {
+        await remoteDataSource.configureStoreCategory(
+          categoryId: config.categoryId,
+          minPrice: config.minPrice,
+          servesAllBrands: config.servesAllBrands,
+          brandIds: config.brandIds,
+        );
+      }
+
+      final finalUser = await remoteDataSource.getCurrentUser();
+      return Right(finalUser);
     } catch (e) {
       return Left(ErrorMapper.map(e));
     }
@@ -78,7 +192,7 @@ class AuthRepositoryImpl implements AuthRepository {
       await secureStorage.clearTokens();
       return const Right(null);
     } catch (e) {
-      // Aunque falle el endpoint, siempre limpiamos tokens locales.
+      // Even if the endpoint fails, always clear local tokens.
       await secureStorage.clearTokens();
       return const Right(null);
     }
@@ -94,3 +208,4 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 }
+

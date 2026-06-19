@@ -72,14 +72,19 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     
+    String? sanitizedPhone;
+    final rawPhone = _phoneController.text.trim();
+    if (rawPhone.isNotEmpty) {
+      final clean = rawPhone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+      sanitizedPhone = clean.startsWith('0') ? clean.substring(1) : clean;
+    }
+
     await ref.read(authProvider.notifier).register(
           email: _emailController.text.trim(),
           password: _passwordController.text,
           name: _nameController.text.trim(),
-          role: 'user',
-          phone: _phoneController.text.trim().isEmpty 
-              ? null 
-              : _phoneController.text.trim(),
+          role: 'CONSUMER',
+          phone: sanitizedPhone,
         );
   }
 
@@ -172,13 +177,18 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                             AppTextField(
                               label: 'TELÉFONO (OPCIONAL)',
                               controller: _phoneController,
-                              hint: '0414 000 0000',
+                              hint: '414 123 4567',
+                              helperText: 'Ingresa el número sin el "0" ni "+58" (ej. 4141234567)',
                               prefixIcon: Icons.smartphone_outlined,
                               keyboardType: TextInputType.phone,
                               textInputAction: TextInputAction.next,
                               validator: (v) {
-                                if (v != null && v.isNotEmpty && v.length < 8) {
-                                  return 'Número de teléfono inválido';
+                                if (v != null && v.isNotEmpty) {
+                                  final clean = v.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+                                  final normalized = clean.startsWith('0') ? clean.substring(1) : clean;
+                                  if (normalized.length < 10) {
+                                    return 'Número de teléfono inválido (debe tener 10 dígitos)';
+                                  }
                                 }
                                 return null;
                               },

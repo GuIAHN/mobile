@@ -7,12 +7,18 @@ class StoreProfileStep extends StatelessWidget {
   final TextEditingController nombreController;
   final TextEditingController emailController;
   final TextEditingController telefonoController;
+  final TextEditingController rifController;
+  final TextEditingController passwordController;
+  final TextEditingController confirmPasswordController;
 
   const StoreProfileStep({
     super.key,
     required this.nombreController,
     required this.emailController,
     required this.telefonoController,
+    required this.rifController,
+    required this.passwordController,
+    required this.confirmPasswordController,
   });
 
   @override
@@ -38,16 +44,69 @@ class StoreProfileStep extends StatelessWidget {
         AppTextField(
           label: 'NÚMERO DE TELÉFONO',
           controller: telefonoController,
-          hint: '0414 000 0000',
+          hint: '414 123 4567',
           prefixIcon: Icons.phone_outlined,
           keyboardType: TextInputType.phone,
+          textInputAction: TextInputAction.next,
+          helperText: 'Ingresa el número sin el "0" ni "+58" (ej. 4141234567)',
+        ),
+        AppTextField(
+          label: 'RIF (REGISTRO DE INFORMACIÓN FISCAL)',
+          controller: rifController,
+          hint: '123456789',
+          prefixIcon: Icons.badge_outlined,
+          keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.next,
+          prefixBuilder: (context, isFocused) {
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(width: 12),
+                Icon(
+                  Icons.badge_outlined,
+                  size: 20,
+                  color: isFocused ? AppColors.primary : AppColors.textSecondary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'J',
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  height: 20,
+                  width: 1,
+                  color: AppColors.border,
+                ),
+              ],
+            );
+          },
+        ),
+        AppTextField(
+          label: 'CONTRASEÑA',
+          controller: passwordController,
+          hint: '••••••••••',
+          prefixIcon: Icons.lock_outline,
+          obscureText: true,
+          textInputAction: TextInputAction.next,
+        ),
+        AppTextField(
+          label: 'CONFIRMAR CONTRASEÑA',
+          controller: confirmPasswordController,
+          hint: '••••••••••',
+          prefixIcon: Icons.lock_outline,
+          obscureText: true,
           textInputAction: TextInputAction.done,
         ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.primaryMuted, // naranja muy suave
+            color: AppColors.primaryMuted,
             borderRadius: BorderRadius.circular(14),
           ),
           child: Row(

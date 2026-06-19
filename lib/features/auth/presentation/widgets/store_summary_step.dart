@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../catalog/domain/entities/category.dart';
 import 'store_catalog_helper.dart';
 
 class StoreSummaryStep extends StatelessWidget {
   final List<LineaCatalogo> catalogo;
-  final ValueChanged<CategoriaRepuesto> onAbrirSheetMarcas;
+  final ValueChanged<Category> onAbrirSheetMarcas;
 
   const StoreSummaryStep({
     super.key,
@@ -15,21 +16,18 @@ class StoreSummaryStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final marcasUnicas = catalogo.expand((l) => l.marcas).toSet();
+    final marcasUnicas = catalogo.expand((l) => l.brands.map((b) => b.name)).toSet();
     final marcasStr = marcasUnicas.join(', ');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ...catalogo.map((l) {
-          final cat = kCategorias.firstWhere(
-            (c) => c.nombre == l.categoria,
-            orElse: () => CategoriaRepuesto(l.categoria, Icons.help_outline, ''),
-          );
+          final icon = getCategoryIcon(l.category.name);
           return _CardLinea(
             linea: l,
-            icono: cat.icono,
-            onTap: () => onAbrirSheetMarcas(cat),
+            icono: icon,
+            onTap: () => onAbrirSheetMarcas(l.category),
           );
         }),
         const SizedBox(height: 8),
@@ -89,6 +87,8 @@ class _CardLinea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brandNames = linea.brands.map((b) => b.name).join(', ');
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -130,7 +130,7 @@ class _CardLinea extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    linea.categoria,
+                    linea.category.name,
                     style: GoogleFonts.hankenGrotesk(
                       fontSize: 15.5,
                       fontWeight: FontWeight.w800,
@@ -139,7 +139,7 @@ class _CardLinea extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    linea.marcas.join(', '),
+                    brandNames,
                     style: GoogleFonts.hankenGrotesk(
                       fontSize: 13,
                       color: AppColors.textSecondary,
@@ -154,7 +154,7 @@ class _CardLinea extends StatelessWidget {
             const SizedBox(width: 8),
             /* Badge de conteo */
             _Badge(
-              '${linea.marcas.length} ${linea.marcas.length == 1 ? 'marca' : 'marcas'}',
+              '${linea.brands.length} ${linea.brands.length == 1 ? 'marca' : 'marcas'}',
               suave: true,
             ),
             const SizedBox(width: 6),

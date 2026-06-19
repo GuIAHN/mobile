@@ -3,14 +3,14 @@ import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/dio_client.dart';
 import '../models/user_model.dart';
 
-/// Fuente de datos remota para autenticación.
-/// Solo conoce HTTP/Dio y devuelve Models o lanza Exceptions.
+/// Remote data source for authentication.
+/// Only interacts with HTTP/Dio and returns Models or throws Exceptions.
 class AuthRemoteDataSource {
   final DioClient _client;
 
   AuthRemoteDataSource(this._client);
 
-  /// Llama a POST /auth/login y retorna la respuesta parseada.
+  /// Calls POST /auth/login and returns the parsed response.
   Future<LoginResponseModel> login({
     required String email,
     required String password,
@@ -29,22 +29,21 @@ class AuthRemoteDataSource {
     } on ParseException {
       rethrow;
     } catch (e) {
-      rethrow; // El AuthInterceptor y ErrorMapper se encargan del resto.
+      rethrow; // AuthInterceptor and ErrorMapper will handle the rest.
     }
   }
 
-  /// Llama a POST /auth/logout.
+  /// Calls POST /auth/logout (No-op for the current backend).
   Future<void> logout() async {
-    await _client.post<void>(ApiEndpoints.logout);
+    // The current backend does not have a logout endpoint; token expiration is client-side.
   }
 
-  /// Llama a POST /auth/register y retorna tokens + usuario.
-  Future<LoginResponseModel> register({
+  /// Calls POST /auth/register and returns the created user info.
+  Future<UserModel> register({
     required String email,
     required String password,
     required String name,
     required String role,
-    String? phone,
   }) async {
     try {
       final response = await _client.post<Map<String, dynamic>>(
@@ -53,9 +52,7 @@ class AuthRemoteDataSource {
           'email': email,
           'password': password,
           'name': name,
-          'fullName': name,
-          'role': role,
-          if (phone != null && phone.isNotEmpty) 'phone': phone,
+          'userType': role,
         },
       );
 
@@ -63,7 +60,11 @@ class AuthRemoteDataSource {
         throw const ParseException();
       }
 
-      return LoginResponseModel.fromJson(response.data!);
+      final data = Map<String, dynamic>.from(response.data!);
+      // The backend does not return 'name' in the registration response, so we inject it from the form.
+      data['name'] = name;
+
+      return UserModel.fromJson(data);
     } on ParseException {
       rethrow;
     } catch (e) {
@@ -71,7 +72,7 @@ class AuthRemoteDataSource {
     }
   }
 
-  /// Llama a GET /auth/me para obtener el usuario actual.
+  /// Calls GET /users/me to obtain the current user.
   Future<UserModel> getCurrentUser() async {
     final response = await _client.get<Map<String, dynamic>>(ApiEndpoints.me);
 
@@ -81,4 +82,121 @@ class AuthRemoteDataSource {
 
     return UserModel.fromJson(response.data!);
   }
+
+  /// Calls PUT /users/me/phone to update the phone number.
+  Future<void> updatePhone(String phone) async {
+    await _client.put<Map<String, dynamic>>(
+      '/users/me/phone',
+      data: {'number': phone},
+    );
+  }
+
+  /// Calls POST /mechanics/register to register a mechanic or workshop.
+  Future<UserModel> registerMechanic({
+    required String email,
+    required String password,
+    required String name,
+    required String phone,
+    required double latitude,
+    required double longitude,
+    required String description,
+    required bool isWorkshop,
+    required String identification,
+    required List<String> specialtyIds,
+  }) async {
+    try {
+      final response = await _client.post<Map<String, dynamic>>(
+        'mechanics/register',
+        data: {
+          'email': email,
+          'password': password,
+          'name': name,
+          'telefono': phone,
+          'ubicacion': {
+            'lat': latitude,
+            'lon': longitude,
+          },
+          'descripcion': description,
+          'esTaller': isWorkshop,
+          'identification': identification,
+          'specialtyIds': specialtyIds,
+        },
+      );
+
+      if (response.data == null) {
+        throw const ParseException();
+      }
+
+      final data = Map<String, dynamic>.from(response.data!);
+      data['name'] = name;
+
+      return UserModel.fromJson(data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Calls POST /stores/register to register a spare parts store.
+  Future<UserModel> registerStore({
+    required String email,
+    required String password,
+    required String name,
+    required String phone,
+    required double latitude,
+    required double longitude,
+    required String address,
+    required String rif,
+  }) async {
+    try {
+      final response = await _client.post<Map<String, dynamic>>(
+        'stores/register',
+        data: {
+          'email': email,
+          'password': password,
+          'name': name,
+          'telefono': phone,
+          'ubicacion': {
+            'lat': latitude,
+            'lon': longitude,
+          },
+          'direccion': address,
+          'rif': rif,
+        },
+      );
+
+      if (response.data == null) {
+        throw const ParseException();
+      }
+
+      final data = Map<String, dynamic>.from(response.data!);
+      data['name'] = name;
+
+      return UserModel.fromJson(data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Calls POST /stores/me/categories to register a store catalog line.
+  Future<void> configureStoreCategory({
+    required String categoryId,
+    required double minPrice,
+    required bool servesAllBrands,
+    required List<String> brandIds,
+  }) async {
+    try {
+      await _client.post<Map<String, dynamic>>(
+        'stores/me/categories',
+        data: {
+          'categoryId': categoryId,
+          'priceDesde': minPrice,
+          'atiendeTodasMarcas': servesAllBrands,
+          'brandIds': brandIds,
+        },
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
+

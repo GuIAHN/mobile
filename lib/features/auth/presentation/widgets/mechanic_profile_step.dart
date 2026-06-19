@@ -11,6 +11,8 @@ class MechanicProfileStep extends StatelessWidget {
   final TextEditingController passwordController;
   final TextEditingController confirmPasswordController;
   final bool passwordValida;
+  final String cedulaTipo;
+  final ValueChanged<String> onCedulaTipoChanged;
 
   const MechanicProfileStep({
     super.key,
@@ -21,6 +23,8 @@ class MechanicProfileStep extends StatelessWidget {
     required this.passwordController,
     required this.confirmPasswordController,
     required this.passwordValida,
+    required this.cedulaTipo,
+    required this.onCedulaTipoChanged,
   });
 
   @override
@@ -38,10 +42,11 @@ class MechanicProfileStep extends StatelessWidget {
         _campo(
           label: 'NÚMERO DE TELÉFONO',
           ctrl: telefonoController,
-          hint: '0414 000 0000',
+          hint: '414 123 4567',
           icono: Icons.call_outlined,
           teclado: TextInputType.phone,
           textInputAction: TextInputAction.next,
+          helperText: 'Ingresa el número sin el "0" ni "+58" (ej. 4141234567)',
         ),
         _campo(
           label: 'CORREO ELECTRÓNICO',
@@ -51,13 +56,15 @@ class MechanicProfileStep extends StatelessWidget {
           teclado: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
         ),
-        _campo(
+        _campoCedula(
           label: 'CÉDULA DE IDENTIDAD',
           ctrl: cedulaController,
           hint: '12343224',
           icono: Icons.badge_outlined,
-          teclado: TextInputType.text,
+          teclado: TextInputType.number,
           textInputAction: TextInputAction.next,
+          cedulaTipo: cedulaTipo,
+          onCedulaTipoChanged: onCedulaTipoChanged,
         ),
         _campo(
           label: 'CONTRASEÑA SEGURA',
@@ -98,6 +105,7 @@ class MechanicProfileStep extends StatelessWidget {
     TextInputType teclado = TextInputType.text,
     TextInputAction textInputAction = TextInputAction.next,
     bool obscureText = false,
+    String? helperText,
   }) {
     return AppTextField(
       label: label,
@@ -107,6 +115,74 @@ class MechanicProfileStep extends StatelessWidget {
       keyboardType: teclado,
       obscureText: obscureText,
       textInputAction: textInputAction,
+      helperText: helperText,
+    );
+  }
+
+  Widget _campoCedula({
+    required String label,
+    required TextEditingController ctrl,
+    required String hint,
+    required IconData icono,
+    required String cedulaTipo,
+    required ValueChanged<String> onCedulaTipoChanged,
+    TextInputType teclado = TextInputType.text,
+    TextInputAction textInputAction = TextInputAction.next,
+  }) {
+    return AppTextField(
+      label: label,
+      controller: ctrl,
+      hint: hint,
+      prefixIcon: icono,
+      keyboardType: teclado,
+      textInputAction: textInputAction,
+      prefixBuilder: (context, isFocused) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(width: 12),
+            Icon(
+              icono,
+              size: 20,
+              color: isFocused ? AppColors.primary : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: cedulaTipo,
+                icon: const Icon(
+                  Icons.keyboard_arrow_down,
+                  color: AppColors.textSecondary,
+                  size: 16,
+                ),
+                dropdownColor: Colors.white,
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+                onChanged: (String? newValue) {
+                  if (newValue != null) {
+                    onCedulaTipoChanged(newValue);
+                  }
+                },
+                items: <String>['V', 'E', 'J'].map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+              ),
+            ),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+              height: 20,
+              width: 1,
+              color: AppColors.border,
+            ),
+          ],
+        );
+      },
     );
   }
 }

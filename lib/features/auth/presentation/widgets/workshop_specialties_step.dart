@@ -1,67 +1,142 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../catalog/domain/entities/specialty.dart';
 
-class SpecialtyItem {
-  final IconData icono;
-  final String nombre;
-  final String descripcion;
-  const SpecialtyItem(this.icono, this.nombre, this.descripcion);
+/// Funciones auxiliares para mapear especialidades dinámicas del backend a iconos e información estética.
+IconData getSpecialtyIcon(String name) {
+  final lower = name.toLowerCase();
+  if (lower.contains('aire') || lower.contains('climatización')) {
+    return Icons.ac_unit_outlined;
+  }
+  if (lower.contains('tuning') || lower.contains('reprogramación') || lower.contains('computadoras')) {
+    return Icons.computer_outlined;
+  }
+  if (lower.contains('escaneo') || lower.contains('diagnóstico')) {
+    return Icons.troubleshoot_outlined;
+  }
+  if (lower.contains('detallado') || lower.contains('detailing') || lower.contains('estética')) {
+    return Icons.auto_awesome_outlined;
+  }
+  if (lower.contains('electricidad') || lower.contains('electrónica')) {
+    return Icons.bolt_outlined;
+  }
+  if (lower.contains('latonería') || lower.contains('pintura') || lower.contains('restauración')) {
+    return Icons.format_paint_outlined;
+  }
+  if (lower.contains('frenos') || lower.contains('abs')) {
+    return Icons.album_outlined;
+  }
+  if (lower.contains('suspensión') || lower.contains('dirección') || lower.contains('alineación')) {
+    return Icons.swap_vert_outlined;
+  }
+  if (lower.contains('transmisiones automáticas') || lower.contains('cvt')) {
+    return Icons.swap_horizontal_circle_outlined;
+  }
+  if (lower.contains('transmisiones manuales') || lower.contains('embragues')) {
+    return Icons.account_tree_outlined;
+  }
+  if (lower.contains('turbo') || lower.contains('inducción')) {
+    return Icons.speed_outlined;
+  }
+  return Icons.settings_outlined; // Mecánica General / Default
+}
+
+String getSpecialtyDescription(String name) {
+  final lower = name.toLowerCase();
+  if (lower.contains('aire') || lower.contains('climatización')) {
+    return 'Carga de gas refrigerante, compresores y sistemas de climatización.';
+  }
+  if (lower.contains('tuning') || lower.contains('reprogramación')) {
+    return 'Programación de ECU, mapeos de motor e incrementos de potencia seguros.';
+  }
+  if (lower.contains('escaneo') || lower.contains('diagnóstico')) {
+    return 'Diagnóstico computarizado por OBDII, lectura de sensores en tiempo real.';
+  }
+  if (lower.contains('detallado') || lower.contains('detailing')) {
+    return 'Corrección de barniz, recubrimientos cerámicos e higienización de habitáculo.';
+  }
+  if (lower.contains('electricidad') || lower.contains('electrónica')) {
+    return 'Alternadores, encendido, cableados complejos, sensores y módulos electrónicos.';
+  }
+  if (lower.contains('latonería') || lower.contains('pintura')) {
+    return 'Desabolladura técnica, restauración de carrocería y acabados premium.';
+  }
+  if (lower.contains('frenos') || lower.contains('abs')) {
+    return 'Pastillas, discos, purga hidráulica, cilindros maestros y sistemas ABS.';
+  }
+  if (lower.contains('suspensión') || lower.contains('alineación')) {
+    return 'Amortiguadores, terminales de dirección, alineación 3D y balanceo.';
+  }
+  if (lower.contains('transmisión') || lower.contains('cvt') || lower.contains('embrague')) {
+    return 'Diagnóstico, reconstrucción de cajas de cambios y kits de embrague.';
+  }
+  if (lower.contains('turbo')) {
+    return 'Mantenimiento de turbocargadores, actuadores de vacío y sistemas de inducción.';
+  }
+  return 'Mantenimiento preventivo, afinación de motor y servicios generales.';
 }
 
 class WorkshopSpecialtiesStep extends StatelessWidget {
-  final Set<int> selectedSpecialties;
-  final ValueChanged<int> onSpecialtyToggled;
-  final List<SpecialtyItem> specialties;
+  final Set<String> selectedSpecialtyIds;
+  final ValueChanged<String> onSpecialtyToggled;
+  final List<Specialty> specialties;
   final String cardTitle;
   final String cardDescription;
 
-  static const defaultSpecialties = [
-    SpecialtyItem(Icons.settings_outlined, 'Mecánica General',
-        'Motor, transmisión y mantenimiento preventivo integral.'),
-    SpecialtyItem(Icons.format_paint_outlined, 'Latonería y Pintura',
-        'Restauración de carrocería y acabados de alta gama.'),
-    SpecialtyItem(Icons.album_outlined, 'Frenos',
-        'Sistemas ABS, discos, pastillas y seguridad activa.'),
-    SpecialtyItem(Icons.swap_vert_outlined, 'Suspensión',
-        'Amortiguación, dirección y alineación técnica.'),
-    SpecialtyItem(Icons.ac_unit, 'Aire Acondicionado',
-        'Carga de gas, compresores y climatización.'),
-    SpecialtyItem(Icons.bolt_outlined, 'Electricidad',
-        'Diagnóstico electrónico, sensores y cableado.'),
-  ];
-
   const WorkshopSpecialtiesStep({
     super.key,
-    required this.selectedSpecialties,
+    required this.selectedSpecialtyIds,
     required this.onSpecialtyToggled,
-    this.specialties = defaultSpecialties,
+    required this.specialties,
     this.cardTitle = 'Capacidad Técnica',
     this.cardDescription = 'Su selección define el tipo de órdenes de servicio que recibirá en el panel de administración. Asegúrese de contar con las herramientas certificadas para cada especialidad elegida.',
   });
 
   @override
   Widget build(BuildContext context) {
+    if (specialties.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 48),
+        alignment: Alignment.center,
+        child: Column(
+          children: [
+            const CircularProgressIndicator(color: AppColors.primary),
+            const SizedBox(height: 16),
+            Text(
+              'Cargando especialidades de la API...',
+              style: GoogleFonts.hankenGrotesk(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ...List.generate(specialties.length, (i) {
-          final e = specialties[i];
-          final activa = selectedSpecialties.contains(i);
+        ...specialties.map((specialty) {
+          final active = selectedSpecialtyIds.contains(specialty.id);
+          final icon = getSpecialtyIcon(specialty.name);
+          final desc = getSpecialtyDescription(specialty.name);
+
           return GestureDetector(
-            onTap: () => onSpecialtyToggled(i),
+            onTap: () => onSpecialtyToggled(specialty.id),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: activa ? const Color(0xFFFFF8F4) : Colors.white,
+                color: active ? const Color(0xFFFFF8F4) : Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: activa ? AppColors.primary : AppColors.border,
+                  color: active ? AppColors.primary : AppColors.border,
                   width: 1.5,
                 ),
-                boxShadow: activa
+                boxShadow: active
                     ? [
                         BoxShadow(
                           color: AppColors.primary.withOpacity(0.10),
@@ -78,15 +153,15 @@ class WorkshopSpecialtiesStep extends StatelessWidget {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: activa
-                          ? AppColors.primary.withOpacity(0.10) // naranjaSuave
+                      color: active
+                          ? AppColors.primary.withOpacity(0.10)
                           : AppColors.background,
                       borderRadius: BorderRadius.circular(13),
                     ),
                     child: Icon(
-                      e.icono,
+                      icon,
                       size: 22,
-                      color: activa ? AppColors.primary : AppColors.textSecondary,
+                      color: active ? AppColors.primary : AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -95,18 +170,18 @@ class WorkshopSpecialtiesStep extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          e.nombre,
+                          specialty.name,
                           style: GoogleFonts.hankenGrotesk(
-                            fontSize: 16,
+                            fontSize: 15,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          e.descripcion,
+                          desc,
                           style: GoogleFonts.hankenGrotesk(
-                            fontSize: 13,
+                            fontSize: 12.5,
                             height: 1.4,
                             color: AppColors.textSecondary,
                           ),
@@ -114,10 +189,11 @@ class WorkshopSpecialtiesStep extends StatelessWidget {
                       ],
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Icon(
                     Icons.check_circle,
                     size: 22,
-                    color: activa ? AppColors.primary : AppColors.border,
+                    color: active ? AppColors.primary : AppColors.border,
                   ),
                 ],
               ),

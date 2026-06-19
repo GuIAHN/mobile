@@ -16,6 +16,8 @@ class AppTextField extends StatefulWidget {
   final ValueChanged<String>? onFieldSubmitted;
   final bool enabled;
   final Widget? suffixWidget;
+  final String? helperText;
+  final Widget Function(BuildContext context, bool isFocused)? prefixBuilder;
 
   const AppTextField({
     super.key,
@@ -30,6 +32,8 @@ class AppTextField extends StatefulWidget {
     this.onFieldSubmitted,
     this.enabled = true,
     this.suffixWidget,
+    this.helperText,
+    this.prefixBuilder,
   });
 
   @override
@@ -108,11 +112,18 @@ class _AppTextFieldState extends State<AppTextField> {
                 fontWeight: FontWeight.w400,
                 color: AppColors.textDisabled,
               ),
-              prefixIcon: Icon(
-                widget.prefixIcon,
-                size: 20,
-                color: _isFocused ? AppColors.primary : AppColors.textSecondary,
+              helperText: widget.helperText,
+              helperStyle: GoogleFonts.hankenGrotesk(
+                fontSize: 12,
+                color: AppColors.textSecondary,
               ),
+              prefixIcon: widget.prefixBuilder != null
+                  ? widget.prefixBuilder!(context, _isFocused)
+                  : Icon(
+                      widget.prefixIcon,
+                      size: 20,
+                      color: _isFocused ? AppColors.primary : AppColors.textSecondary,
+                    ),
               suffixIcon: widget.obscureText
                   ? IconButton(
                       icon: Icon(
