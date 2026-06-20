@@ -55,7 +55,36 @@ class AuthNotifier extends StateNotifier<AuthState> {
         _registerUseCase = registerUseCase,
         _authRepository = authRepository,
         _secureStorage = secureStorage,
-        super(const AuthState.initial());
+        super(const AuthState.initial()) {
+    checkAuthStatus();
+  }
+
+  /// Checks the current authentication status and loads the user if token exists.
+  Future<void> checkAuthStatus() async {
+    final hasToken = await _secureStorage.hasToken();
+    if (!hasToken) {
+      state = state.copyWith(status: AuthStatus.unauthenticated);
+      return;
+    }
+
+    state = state.copyWith(status: AuthStatus.loading);
+    final result = await _authRepository.getCurrentUser();
+    result.fold(
+      (failure) {
+        _secureStorage.clearTokens();
+        state = state.copyWith(
+          status: AuthStatus.unauthenticated,
+          errorMessage: failure.message,
+        );
+      },
+      (user) {
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          user: user,
+        );
+      },
+    );
+  }
 
   /// Executes login with email and password.
   Future<void> login({

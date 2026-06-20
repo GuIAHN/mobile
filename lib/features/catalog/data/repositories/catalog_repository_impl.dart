@@ -31,4 +31,14 @@ class CatalogRepositoryImpl implements CatalogRepository {
       return Left(ErrorMapper.map(e));
     }
   }
+
+  @override
+  Future<Either<Failure, List<Category>>> getSubcategories(String categoryId) async {
+    try {
+      final subcategories = await remoteDataSource.getSubcategories(categoryId);
+      return Right(subcategories);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
 }

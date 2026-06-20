@@ -13,6 +13,7 @@ import '../widgets/filters_sheet.dart';
 import '../widgets/item_card.dart';
 import '../widgets/promo_carousel.dart';
 import '../widgets/request_spare_part_form.dart';
+import '../widgets/profile_tab.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
@@ -133,10 +134,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                           Icons.chat_bubble_outline_rounded,
                           'Chats',
                           'Tus conversaciones de servicio aparecerán aquí.')
-                      : _buildPlaceholderTab(
-                          Icons.person_outline_rounded,
-                          'Mi Perfil',
-                          'Configura tus datos, vehículos y preferencias.'),
+                      : const ProfileTab(),
             ),
           ),
           // Barra de navegación inferior burbuja flotante

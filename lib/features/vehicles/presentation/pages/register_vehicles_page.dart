@@ -143,7 +143,6 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
                             ),
                           )
                         : ListView.builder(
-                            shrinkWrap: true,
                             itemCount: opcionesFiltradas.length,
                             itemBuilder: (_, i) {
                               final op = opcionesFiltradas[i];

@@ -37,3 +37,13 @@ final categoriesProvider = FutureProvider.autoDispose<List<Category>>((ref) asyn
     (categories) => categories,
   );
 });
+
+/// Provider exposing subcategories for a specific category id.
+final subcategoriesProvider = FutureProvider.family.autoDispose<List<Category>, String>((ref, categoryId) async {
+  final repository = ref.watch(catalogRepositoryProvider);
+  final result = await repository.getSubcategories(categoryId);
+  return result.fold(
+    (failure) => throw Exception(failure.message),
+    (subcategories) => subcategories,
+  );
+});

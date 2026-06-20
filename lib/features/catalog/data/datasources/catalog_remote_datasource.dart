@@ -38,4 +38,19 @@ class CatalogRemoteDataSource {
       rethrow;
     }
   }
+
+  /// Fetches the list of subcategories for a specific category.
+  Future<List<CategoryModel>> getSubcategories(String categoryId) async {
+    try {
+      final response = await _client.get<List<dynamic>>('/categories/$categoryId/subcategories');
+      if (response.data == null) {
+        throw const ParseException();
+      }
+      return response.data!
+          .map((json) => CategoryModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

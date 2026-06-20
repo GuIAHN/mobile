@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../catalog/domain/entities/category.dart';
+import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../../../vehicles/domain/entities/brand.dart';
+import '../../../vehicles/domain/entities/car_model.dart';
 import '../../../vehicles/domain/entities/user_car.dart';
 import '../../../vehicles/presentation/providers/vehicle_providers.dart';
 
@@ -20,15 +23,13 @@ class RequestSparePartForm extends ConsumerStatefulWidget {
 }
 
 class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
-  final _productController = TextEditingController();
   final _detailsController = TextEditingController();
 
-  UserCar? _selectedGarageCar;
-  bool _isOtherVehicle = false;
+  Category? _selectedCategory;
+  Category? _selectedSubcategory;
 
-  Brand? _selectedBrand;
-  String? _modeloName;
-  int? _anio;
+  UserCar? _selectedGarageCar;
+  UserCar? _selectedManualCar; // Si se elige "Otro vehículo..."
 
   bool _hasPhoto = false;
   bool _isValid = false;
@@ -36,29 +37,23 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
   @override
   void initState() {
     super.initState();
-    _productController.addListener(_validateForm);
   }
 
   @override
   void dispose() {
-    _productController.dispose();
     _detailsController.dispose();
     super.dispose();
   }
 
   void _validateForm() {
     setState(() {
-      final hasProduct = _productController.text.trim().isNotEmpty;
-      final hasVehicle = (!_isOtherVehicle && _selectedGarageCar != null) ||
-          (_isOtherVehicle &&
-              _selectedBrand != null &&
-              _modeloName != null &&
-              _anio != null);
-      _isValid = hasProduct && hasVehicle;
+      final hasCategory = _selectedCategory != null && _selectedSubcategory != null;
+      final hasVehicle = _selectedGarageCar != null || _selectedManualCar != null;
+      _isValid = hasCategory && hasVehicle;
     });
   }
 
-  // ===== Selector Bottom Sheet genérico =====
+  // ===== Selector Bottom Sheet genérico con filtro =====
   Future<T?> _abrirSelector<T>({
     required String titulo,
     required List<T> opciones,
@@ -115,7 +110,6 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                   ),
                   const SizedBox(height: 16),
                   
-                  // Buscador para filtrar opciones rápidamente
                   TextField(
                     onChanged: (val) {
                       setModalState(() {
@@ -157,20 +151,21 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  Flexible(
+                  Expanded(
                     child: opcionesFiltradas.isEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 32),
-                            child: Text(
-                              'No se encontraron resultados',
-                              style: GoogleFonts.hankenGrotesk(
-                                fontSize: 13.5,
-                                color: AppColors.textSecondary,
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 32),
+                              child: Text(
+                                'No se encontraron resultados',
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 13.5,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ),
                           )
                         : ListView.builder(
-                            shrinkWrap: true,
                             itemCount: opcionesFiltradas.length,
                             itemBuilder: (_, i) {
                               final op = opcionesFiltradas[i];
@@ -210,6 +205,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
   void _abrirSelectorVehiculo(List<UserCar> garageCars) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
@@ -217,7 +213,15 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
             color: AppColors.background,
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 20,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 26,
+          ),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -241,13 +245,12 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                 ),
               ),
               const SizedBox(height: 16),
-              Flexible(
+              Expanded(
                 child: ListView(
-                  shrinkWrap: true,
                   children: [
-                    // Autos del garaje
+                    // Autos del garaje del usuario
                     ...garageCars.map((car) {
-                      final esSeleccionado = !_isOtherVehicle && _selectedGarageCar?.id == car.id;
+                      final esSeleccionado = _selectedGarageCar?.id == car.id;
                       return Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         decoration: BoxDecoration(
@@ -263,9 +266,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                             width: 38,
                             height: 38,
                             decoration: BoxDecoration(
-                              color: esSeleccionado
-                                  ? AppColors.primaryMuted
-                                  : AppColors.grey100,
+                              color: esSeleccionado ? AppColors.primaryMuted : AppColors.grey100,
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
@@ -295,7 +296,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                           onTap: () {
                             setState(() {
                               _selectedGarageCar = car;
-                              _isOtherVehicle = false;
+                              _selectedManualCar = null;
                             });
                             _validateForm();
                             Navigator.pop(context);
@@ -304,15 +305,15 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                       );
                     }),
                     
-                    // Opción: Otro vehículo
+                    // Opción: Registrar/Elegir otro vehículo (Flujo aparte en Sheet)
                     Container(
                       margin: const EdgeInsets.only(bottom: 10),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: _isOtherVehicle ? AppColors.primary : AppColors.border,
-                          width: _isOtherVehicle ? 1.5 : 1.0,
+                          color: _selectedManualCar != null ? AppColors.primary : AppColors.border,
+                          width: _selectedManualCar != null ? 1.5 : 1.0,
                         ),
                       ),
                       child: ListTile(
@@ -320,12 +321,12 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                           width: 38,
                           height: 38,
                           decoration: BoxDecoration(
-                            color: _isOtherVehicle ? AppColors.primaryMuted : AppColors.grey100,
+                            color: _selectedManualCar != null ? AppColors.primaryMuted : AppColors.grey100,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             Icons.add_circle_outline_rounded,
-                            color: _isOtherVehicle ? AppColors.primary : AppColors.textSecondary,
+                            color: _selectedManualCar != null ? AppColors.primary : AppColors.textSecondary,
                             size: 20,
                           ),
                         ),
@@ -334,26 +335,22 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                           style: GoogleFonts.hankenGrotesk(
                             fontWeight: FontWeight.w800,
                             fontSize: 14.5,
-                            color: _isOtherVehicle ? AppColors.primary : AppColors.textPrimary,
+                            color: _selectedManualCar != null ? AppColors.primary : AppColors.textPrimary,
                           ),
                         ),
                         subtitle: Text(
-                          'Elegir marca y modelo desde cero',
+                          'Ingresar marca, modelo y año desde cero',
                           style: GoogleFonts.hankenGrotesk(
                             fontSize: 12,
                             color: AppColors.textSecondary,
                           ),
                         ),
-                        trailing: _isOtherVehicle
+                        trailing: _selectedManualCar != null
                             ? const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20)
                             : null,
                         onTap: () {
-                          setState(() {
-                            _selectedGarageCar = null;
-                            _isOtherVehicle = true;
-                          });
-                          _validateForm();
-                          Navigator.pop(context);
+                          Navigator.pop(context); // Cierra el selector de garaje
+                          _abrirDialogoOtroVehiculo(); // Abre el flujo aparte para marca/modelo/año
                         },
                       ),
                     ),
@@ -365,6 +362,214 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
         );
       },
     );
+  }
+
+  // ===== Flujo Aparte: Registro de vehículo manual en Bottom Sheet =====
+  void _abrirDialogoOtroVehiculo() {
+    Brand? tempBrand;
+    String? tempModel;
+    int? tempYear;
+
+    showModalBottomSheet<UserCar>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final formCompleto = tempBrand != null && tempModel != null && tempYear != null;
+
+            return Container(
+              decoration: const BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 12,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 26,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 18),
+                      decoration: BoxDecoration(
+                        color: AppColors.grey300,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Detalles del vehículo',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Selecciona marca, modelo y año del otro vehículo.',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Marca
+                  _buildLabel('MARCA *'),
+                  const SizedBox(height: 6),
+                  _SelectorField(
+                    icon: Icons.directions_car_outlined,
+                    value: tempBrand?.name,
+                    placeholder: 'Selecciona la marca',
+                    onTap: () async {
+                      final brandsState = ref.read(brandsProvider);
+                      final brands = brandsState.value ?? [];
+                      if (brands.isEmpty) return;
+
+                      final r = await _abrirSelector<Brand>(
+                        titulo: 'Selecciona la marca',
+                        opciones: brands,
+                        etiqueta: (b) => b.name,
+                        seleccionado: tempBrand,
+                      );
+                      if (r != null) {
+                        setModalState(() {
+                          tempBrand = r;
+                          tempModel = null;
+                          tempYear = null;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Modelo
+                  _buildLabel('MODELO *'),
+                  const SizedBox(height: 6),
+                  _SelectorField(
+                    icon: Icons.commute_outlined,
+                    value: tempModel,
+                    placeholder: tempBrand == null
+                        ? 'Primero elige una marca'
+                        : 'Selecciona el modelo',
+                    enabled: tempBrand != null,
+                    onTap: () async {
+                      if (tempBrand == null) return;
+                      final modelsState = ref.read(brandModelsProvider(tempBrand!.id));
+                      final models = modelsState.value ?? [];
+                      if (models.isEmpty) return;
+
+                      final distinctNames = models.map((m) => m.name).toSet().toList();
+                      final r = await _abrirSelector<String>(
+                        titulo: 'Modelos de ${tempBrand!.name}',
+                        opciones: distinctNames,
+                        etiqueta: (m) => m,
+                        seleccionado: tempModel,
+                      );
+                      if (r != null) {
+                        setModalState(() {
+                          tempModel = r;
+                          tempYear = null;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Año
+                  _buildLabel('AÑO *'),
+                  const SizedBox(height: 6),
+                  _SelectorField(
+                    icon: Icons.calendar_today_outlined,
+                    value: tempYear?.toString(),
+                    placeholder: 'Selecciona el año',
+                    enabled: tempBrand != null && tempModel != null,
+                    onTap: () async {
+                      if (tempBrand == null || tempModel == null) return;
+                      final models = ref.read(brandModelsProvider(tempBrand!.id)).value ?? [];
+                      final availableYears = models
+                          .where((m) => m.name == tempModel)
+                          .map((m) => m.year)
+                          .toSet()
+                          .toList();
+                      availableYears.sort((a, b) => b.compareTo(a));
+
+                      final r = await _abrirSelector<int>(
+                        titulo: 'Selecciona el año',
+                        opciones: availableYears,
+                        etiqueta: (a) => '$a',
+                        seleccionado: tempYear,
+                      );
+                      if (r != null) {
+                        setModalState(() {
+                          tempYear = r;
+                        });
+                      }
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+                  
+                  // Botón Confirmar
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: formCompleto
+                          ? () {
+                              final car = UserCar(
+                                id: 'temp-${DateTime.now().millisecondsSinceEpoch}',
+                                brand: tempBrand!.name,
+                                model: tempModel!,
+                                year: tempYear!,
+                              );
+                              Navigator.pop(context, car);
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: AppColors.grey200,
+                        disabledForegroundColor: AppColors.textDisabled,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(32),
+                        ),
+                        elevation: formCompleto ? 4 : 0,
+                      ),
+                      child: Text(
+                        'CONFIRMAR VEHÍCULO',
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).then((selectedCar) {
+      if (selectedCar != null) {
+        setState(() {
+          _selectedManualCar = selectedCar;
+          _selectedGarageCar = null;
+        });
+        _validateForm();
+      }
+    });
   }
 
   void _onSubmit() {
@@ -434,14 +639,12 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                 onPressed: () {
                   Navigator.pop(context); // Cierra bottom sheet
                   // Limpia el formulario
-                  _productController.clear();
                   _detailsController.clear();
                   setState(() {
+                    _selectedCategory = null;
+                    _selectedSubcategory = null;
                     _selectedGarageCar = null;
-                    _isOtherVehicle = false;
-                    _selectedBrand = null;
-                    _modeloName = null;
-                    _anio = null;
+                    _selectedManualCar = null;
                     _hasPhoto = false;
                     _isValid = false;
                   });
@@ -477,17 +680,18 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
     // Escuchar el estado de autenticación y los vehículos de garaje
     final authState = ref.watch(authProvider);
     final user = authState.user;
-    // Es un usuario convencional si no tiene un rol específico o si es de tipo CONSUMER
     final isConsumer = user == null || user.role == 'CONSUMER' || user.role == 'user';
 
     // Cargar vehículos del garaje
     final userCarsAsync = ref.watch(userCarsProvider);
 
-    // Precargar marcas y modelos por si se selecciona "Otro de 0"
-    ref.watch(brandsProvider);
-    if (_selectedBrand != null) {
-      ref.watch(brandModelsProvider(_selectedBrand!.id));
-    }
+    // Cargar categorías principales desde la API
+    final categoriesAsync = ref.watch(categoriesProvider);
+
+    // Cargar subcategorías de la categoría seleccionada
+    final subcategoriesAsync = _selectedCategory != null
+        ? ref.watch(subcategoriesProvider(_selectedCategory!.id))
+        : null;
 
     return Container(
       margin: const EdgeInsets.only(top: 8),
@@ -555,25 +759,46 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
             child: Divider(),
           ),
 
-          // Campo 1: Producto / Repuesto
-          _buildLabel('REPUESTO QUE BUSCAS *'),
-          const SizedBox(height: 8),
-          _buildTextField(
-            controller: _productController,
-            hint: 'Ej. Kit de embrague, amortiguador delantero...',
-            icon: Icons.search_outlined,
+          // Campo 1: Categoría y Subcategoría de Repuesto
+          _buildLabel('CATEGORÍA DE REPUESTO *'),
+          const SizedBox(height: 6),
+          _SelectorField(
+            icon: Icons.category_outlined,
+            value: _selectedCategory != null && _selectedSubcategory != null
+                ? '${_selectedCategory!.name}  ▸  ${_selectedSubcategory!.name}'
+                : null,
+            placeholder: 'Selecciona categoría y subcategoría',
+            onTap: () async {
+              final result = await showModalBottomSheet<_CategorySubcategoryResult>(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                barrierColor: Colors.black.withValues(alpha: 0.4),
+                builder: (_) => _CategorySubcategorySelectorSheet(
+                  initialCategory: _selectedCategory,
+                  initialSubcategory: _selectedSubcategory,
+                ),
+              );
+              if (result != null) {
+                setState(() {
+                  _selectedCategory = result.category;
+                  _selectedSubcategory = result.subcategory;
+                });
+                _validateForm();
+              }
+            },
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
 
-          // Campo 2: Selector de vehículo (Solo si es un CONSUMER convencional)
+          // Campo 3: Selector de vehículo (Solo si es un CONSUMER convencional)
           if (isConsumer) ...[
             _buildLabel('VEHÍCULO PARA LA SOLICITUD *'),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             userCarsAsync.when(
               data: (garageCars) {
                 final String valorMostrado;
-                if (_isOtherVehicle) {
-                  valorMostrado = 'Otro vehículo...';
+                if (_selectedManualCar != null) {
+                  valorMostrado = 'Otro: ${_selectedManualCar!.brand} ${_selectedManualCar!.model} (${_selectedManualCar!.year})';
                 } else if (_selectedGarageCar != null) {
                   valorMostrado = '${_selectedGarageCar!.brand} ${_selectedGarageCar!.model} (${_selectedGarageCar!.year})';
                 } else {
@@ -582,182 +807,36 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
 
                 return _SelectorField(
                   icon: Icons.directions_car_filled_outlined,
-                  value: (_selectedGarageCar != null || _isOtherVehicle) ? valorMostrado : null,
+                  value: (_selectedGarageCar != null || _selectedManualCar != null) ? valorMostrado : null,
                   placeholder: 'Selecciona un vehículo de tu garaje',
                   onTap: () => _abrirSelectorVehiculo(garageCars),
                 );
               },
-              loading: () => Container(
-                height: 52,
-                decoration: BoxDecoration(
-                  color: AppColors.grey50,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: const Row(
-                  children: [
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-                    ),
-                    SizedBox(width: 12),
-                    Text('Cargando tus vehículos...', style: TextStyle(color: AppColors.textSecondary)),
-                  ],
-                ),
-              ),
+              loading: () => _buildLoadingField('Cargando tus vehículos...'),
               error: (_, __) => _SelectorField(
                 icon: Icons.directions_car_filled_outlined,
-                value: _isOtherVehicle ? 'Otro vehículo...' : null,
+                value: _selectedManualCar != null ? 'Otro: ${_selectedManualCar!.brand} ${_selectedManualCar!.model}' : null,
                 placeholder: 'Ingresa vehículo manual',
                 onTap: () => _abrirSelectorVehiculo(const []),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
           ],
 
-          // Si seleccionó "+ Otro vehículo" (o si no es CONSUMER, por fallback)
-          if (_isOtherVehicle || !isConsumer) ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.grey50,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Detalles del vehículo:',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Marca
-                  _buildLabel('MARCA *'),
-                  const SizedBox(height: 6),
-                  _SelectorField(
-                    icon: Icons.directions_car_outlined,
-                    value: _selectedBrand?.name,
-                    placeholder: 'Selecciona la marca',
-                    onTap: () async {
-                      final brandsState = ref.read(brandsProvider);
-                      final brands = brandsState.value ?? [];
-                      if (brands.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Cargando marcas...')),
-                        );
-                        return;
-                      }
-                      final r = await _abrirSelector<Brand>(
-                        titulo: 'Selecciona la marca',
-                        opciones: brands,
-                        etiqueta: (b) => b.name,
-                        seleccionado: _selectedBrand,
-                      );
-                      if (r != null) {
-                        setState(() {
-                          _selectedBrand = r;
-                          _modeloName = null;
-                          _anio = null;
-                        });
-                        _validateForm();
-                      }
-                    },
-                  ),
-
-                  // Modelo
-                  _buildLabel('MODELO *'),
-                  const SizedBox(height: 6),
-                  _SelectorField(
-                    icon: Icons.commute_outlined,
-                    value: _modeloName,
-                    placeholder: _selectedBrand == null
-                        ? 'Primero elige una marca'
-                        : 'Selecciona el modelo',
-                    enabled: _selectedBrand != null,
-                    onTap: () async {
-                      if (_selectedBrand == null) return;
-                      final modelsState = ref.read(brandModelsProvider(_selectedBrand!.id));
-                      final models = modelsState.value ?? [];
-                      if (models.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Cargando modelos...')),
-                        );
-                        return;
-                      }
-                      final distinctNames = models.map((m) => m.name).toSet().toList();
-                      final r = await _abrirSelector<String>(
-                        titulo: 'Modelos de ${_selectedBrand!.name}',
-                        opciones: distinctNames,
-                        etiqueta: (m) => m,
-                        seleccionado: _modeloName,
-                      );
-                      if (r != null) {
-                        setState(() {
-                          _modeloName = r;
-                          _anio = null;
-                        });
-                        _validateForm();
-                      }
-                    },
-                  ),
-
-                  // Año
-                  _buildLabel('AÑO *'),
-                  const SizedBox(height: 6),
-                  _SelectorField(
-                    icon: Icons.calendar_today_outlined,
-                    value: _anio?.toString(),
-                    placeholder: 'Selecciona el año',
-                    enabled: _selectedBrand != null && _modeloName != null,
-                    onTap: () async {
-                      if (_selectedBrand == null || _modeloName == null) return;
-                      final models = ref.read(brandModelsProvider(_selectedBrand!.id)).value ?? [];
-                      final availableYears = models
-                          .where((m) => m.name == _modeloName)
-                          .map((m) => m.year)
-                          .toSet()
-                          .toList();
-                      availableYears.sort((a, b) => b.compareTo(a));
-                      final r = await _abrirSelector<int>(
-                        titulo: 'Selecciona el año',
-                        opciones: availableYears,
-                        etiqueta: (a) => '$a',
-                        seleccionado: _anio,
-                      );
-                      if (r != null) {
-                        setState(() => _anio = r);
-                        _validateForm();
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-          ],
-
-          // Campo 3: Detalles adicionales (Opcional)
+          // Campo 4: Detalles adicionales (Opcional)
           _buildLabel('DETALLES ADICIONALES (OPCIONAL)'),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           _buildTextField(
             controller: _detailsController,
-            hint: 'Ej. Lado derecho, número de chasis (VIN)...',
+            hint: 'Ej. Alternador para motor 1.8L, lado derecho, marca Denso...',
             icon: Icons.description_outlined,
             maxLines: 2,
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
 
-          // Campo 4: Fotografía
+          // Campo 5: Fotografía
           _buildLabel('FOTOGRAFÍA DE REFERENCIA (OPCIONAL)'),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           GestureDetector(
             onTap: () {
               setState(() {
@@ -773,7 +852,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: _hasPhoto ? AppColors.primary : AppColors.border,
-                  style: _hasPhoto ? BorderStyle.solid : BorderStyle.solid,
+                  style: BorderStyle.solid,
                   width: 1.5,
                 ),
               ),
@@ -809,7 +888,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
               ),
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 20),
 
           // Botón de Enviar Solicitud
           SizedBox(
@@ -858,6 +937,35 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
         fontWeight: FontWeight.w800,
         letterSpacing: 1.5,
         color: AppColors.textSecondary,
+      ),
+    );
+  }
+
+  Widget _buildLoadingField(String message) {
+    return Container(
+      height: 52,
+      decoration: BoxDecoration(
+        color: AppColors.grey50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            message,
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -934,47 +1042,326 @@ class _SelectorField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasValue = value != null;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: GestureDetector(
-        onTap: enabled ? onTap : null,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-          decoration: BoxDecoration(
-            color: enabled ? Colors.white : const Color(0xFFF3F4F6),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: hasValue ? AppColors.primary : AppColors.border,
-              width: hasValue ? 1.5 : 1.0,
-            ),
+    final isLongText = hasValue && (value!.contains('▸') || value!.length > 28);
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        decoration: BoxDecoration(
+          color: enabled ? Colors.white : const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: hasValue ? AppColors.primary : AppColors.border,
+            width: hasValue ? 1.5 : 1.0,
           ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: hasValue ? AppColors.primary : AppColors.textSecondary,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  value ?? placeholder,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 15,
-                    fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
-                    color: hasValue ? AppColors.textPrimary : AppColors.textDisabled,
-                  ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: hasValue ? AppColors.primary : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                value ?? placeholder,
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: isLongText ? 13 : 14.5,
+                  fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
+                  color: hasValue ? AppColors.textPrimary : AppColors.textDisabled,
                 ),
               ),
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 20,
-                color: hasValue ? AppColors.primary : AppColors.textSecondary,
-              ),
-            ],
-          ),
+            ),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 20,
+              color: hasValue ? AppColors.primary : AppColors.textSecondary,
+            ),
+          ],
         ),
       ),
     );
   }
 }
+
+// ===== Hoja de Selección de Categoría y Subcategoría Combinada =====
+class _CategorySubcategorySelectorSheet extends ConsumerStatefulWidget {
+  final Category? initialCategory;
+  final Category? initialSubcategory;
+
+  const _CategorySubcategorySelectorSheet({
+    this.initialCategory,
+    this.initialSubcategory,
+  });
+
+  @override
+  ConsumerState<_CategorySubcategorySelectorSheet> createState() =>
+      _CategorySubcategorySelectorSheetState();
+}
+
+class _CategorySubcategorySelectorSheetState
+    extends ConsumerState<_CategorySubcategorySelectorSheet> {
+  Category? _selectedCategory;
+  String _filtro = '';
+  final _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCategory = widget.initialCategory;
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_selectedCategory == null) {
+      // 1. Mostrar categorías principales
+      final categoriesAsync = ref.watch(categoriesProvider);
+      return _buildSheetLayout(
+        titulo: 'Selecciona la categoría',
+        asyncValue: categoriesAsync,
+        onItemSelected: (category) {
+          setState(() {
+            _selectedCategory = category;
+            _filtro = '';
+            _searchController.clear();
+          });
+        },
+      );
+    } else {
+      // 2. Mostrar subcategorías de la categoría seleccionada
+      final subcategoriesAsync =
+          ref.watch(subcategoriesProvider(_selectedCategory!.id));
+      return _buildSheetLayout(
+        titulo: _selectedCategory!.name,
+        asyncValue: subcategoriesAsync,
+        showBackButton: true,
+        onBackPressed: () {
+          setState(() {
+            _selectedCategory = null;
+            _filtro = '';
+            _searchController.clear();
+          });
+        },
+        onItemSelected: (subcategory) {
+          Navigator.pop(
+            context,
+            _CategorySubcategoryResult(
+              category: _selectedCategory!,
+              subcategory: subcategory,
+            ),
+          );
+        },
+      );
+    }
+  }
+
+  Widget _buildSheetLayout({
+    required String titulo,
+    required AsyncValue<List<Category>> asyncValue,
+    required ValueChanged<Category> onItemSelected,
+    bool showBackButton = false,
+    VoidCallback? onBackPressed,
+  }) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 12,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 26,
+      ),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.75,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle de arrastre
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 18),
+              decoration: BoxDecoration(
+                color: AppColors.grey300,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+          
+          // Fila del título y botón atrás
+          Row(
+            children: [
+              if (showBackButton) ...[
+                GestureDetector(
+                  onTap: onBackPressed,
+                  behavior: HitTestBehavior.opaque,
+                  child: const Padding(
+                    padding: EdgeInsets.only(right: 12, top: 4, bottom: 4),
+                    child: Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+              Expanded(
+                child: Text(
+                  titulo,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Campo de búsqueda
+          TextField(
+            controller: _searchController,
+            onChanged: (val) {
+              setState(() {
+                _filtro = val;
+              });
+            },
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 14.5,
+              color: AppColors.textPrimary,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Buscar...',
+              hintStyle: GoogleFonts.hankenGrotesk(
+                color: AppColors.textDisabled,
+                fontSize: 14.5,
+              ),
+              prefixIcon: const Icon(
+                Icons.search_rounded,
+                size: 20,
+                color: AppColors.textSecondary,
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: AppColors.primary,
+                  width: 1.5,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Listado
+          Expanded(
+            child: asyncValue.when(
+              data: (opciones) {
+                final opcionesFiltradas = opciones.where((op) {
+                  return op.name.toLowerCase().contains(_filtro.toLowerCase());
+                }).toList();
+
+                if (opcionesFiltradas.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
+                      child: Text(
+                        'No se encontraron resultados',
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 13.5,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: opcionesFiltradas.length,
+                  itemBuilder: (_, i) {
+                    final op = opcionesFiltradas[i];
+                    final isActivo = op.id == widget.initialSubcategory?.id ||
+                        op.id == widget.initialCategory?.id;
+
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                      title: Text(
+                        op.name,
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 15,
+                          fontWeight: isActivo ? FontWeight.w800 : FontWeight.w500,
+                          color: isActivo ? AppColors.primary : AppColors.textPrimary,
+                        ),
+                      ),
+                      trailing: isActivo
+                          ? const Icon(
+                              Icons.check_circle_rounded,
+                              color: AppColors.primary,
+                              size: 20,
+                            )
+                          : const Icon(
+                              Icons.chevron_right_rounded,
+                              color: AppColors.textSecondary,
+                              size: 20,
+                            ),
+                      onTap: () => onItemSelected(op),
+                    );
+                  },
+                );
+              },
+              loading: () => const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+              error: (err, _) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'Error al cargar: $err',
+                    style: GoogleFonts.hankenGrotesk(
+                      color: AppColors.error,
+                      fontSize: 13.5,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategorySubcategoryResult {
+  final Category category;
+  final Category subcategory;
+
+  const _CategorySubcategoryResult({
+    required this.category,
+    required this.subcategory,
+  });
+}
+

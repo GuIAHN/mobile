@@ -10,4 +10,7 @@ abstract class CatalogRepository {
 
   /// Fetches the list of root spare parts categories.
   Future<Either<Failure, List<Category>>> getRootCategories();
+
+  /// Fetches the list of subcategories for a specific category.
+  Future<Either<Failure, List<Category>>> getSubcategories(String categoryId);
 }
