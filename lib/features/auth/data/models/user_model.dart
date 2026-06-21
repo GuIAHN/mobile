@@ -1,4 +1,5 @@
 import '../../domain/entities/user.dart';
+import '../../../../core/domain/enums/user_role.dart';
 
 /// User model with JSON serialization.
 /// Extends the [User] entity without polluting it.
@@ -23,13 +24,15 @@ class UserModel extends User {
       }
     }
 
+    final roleStr = json['role'] as String? ?? json['userType'] as String?;
+
     return UserModel(
       id: json['id'] as String,
       email: json['email'] as String,
       name: json['name'] as String? ?? json['fullName'] as String? ?? '',
       avatarUrl: json['avatarUrl'] as String? ?? json['photo'] as String?,
       phone: parsedPhone,
-      role: json['role'] as String? ?? json['userType'] as String?,
+      role: UserRole.fromString(roleStr),
       approved: json['approved'] as bool? ?? true,
     );
   }
@@ -40,7 +43,7 @@ class UserModel extends User {
         'name': name,
         if (avatarUrl != null) 'avatarUrl': avatarUrl,
         if (phone != null) 'phone': phone,
-        if (role != null) 'role': role,
+        'role': role.value,
         'approved': approved,
       };
 }

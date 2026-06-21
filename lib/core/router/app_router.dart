@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/storage/secure_storage.dart';
+import '../../core/domain/enums/user_role.dart';
+import '../../core/providers/current_user_provider.dart';
+import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_type_page.dart';
 import '../../features/auth/presentation/pages/register_user_page.dart';
@@ -16,6 +19,7 @@ import 'route_names.dart';
 /// Proveedor global del router de la app.
 /// Reactive: se reconstruye si el estado de autenticación cambia.
 final appRouterProvider = Provider<GoRouter>((ref) {
+  ref.watch(authProvider);
   return AppRouter(ref).router;
 });
 
@@ -118,6 +122,7 @@ class AppRouter {
   Future<String?> _redirect(BuildContext context, GoRouterState state) async {
     final storage = _ref.read(secureStorageProvider);
     final hasToken = await storage.hasToken();
+    final seenOnboarding = await storage.hasSeenOnboarding();
 
     final isAuthRoute = state.matchedLocation == RouteNames.login ||
         state.matchedLocation == RouteNames.register ||
@@ -130,19 +135,23 @@ class AppRouter {
         state.matchedLocation == RouteNames.splash ||
         state.matchedLocation == RouteNames.onboarding;
 
-    // Si no tiene token y no está en ruta de auth → redirigir
+    // Si no tiene token y no está en una ruta pública/auth → login
     if (!hasToken && !isAuthRoute) {
       return RouteNames.login;
     }
 
-    // Si tiene token y está en splash → home
-    if (hasToken && state.matchedLocation == RouteNames.splash) {
+    // Si tiene token e intenta acceder a login, registro u onboarding → home
+    if (hasToken && isAuthRoute && state.matchedLocation != RouteNames.splash) {
       return RouteNames.home;
     }
 
-    // Si no tiene token y está en splash → onboarding o login
-    if (!hasToken && state.matchedLocation == RouteNames.splash) {
-      return RouteNames.onboarding; // Forzar onboarding para visualización
+    // Rutas iniciales desde Splash
+    if (state.matchedLocation == RouteNames.splash) {
+      if (hasToken) {
+        return RouteNames.home;
+      } else {
+        return seenOnboarding ? RouteNames.login : RouteNames.onboarding;
+      }
     }
 
     return null;

@@ -1,21 +1,7 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/user.dart';
-
-/// Store category configuration in the spare parts catalog.
-class StoreCategoryConfig {
-  final String categoryId;
-  final double minPrice;
-  final bool servesAllBrands;
-  final List<String> brandIds;
-
-  const StoreCategoryConfig({
-    required this.categoryId,
-    this.minPrice = 1.0,
-    this.servesAllBrands = false,
-    required this.brandIds,
-  });
-}
+import '../entities/store_category_config.dart';
 
 /// Authentication repository contract (pure domain).
 /// The implementation resides in the data layer.

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/api_error_message.dart';
 import '../providers/auth_provider.dart';
@@ -44,18 +45,15 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   }
 
   bool get _passwordValida {
-    final p = _passwordController.text;
-    return p.length >= 8 &&
-        p.contains(RegExp(r'[0-9]')) &&
-        p.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-]'));
+    return Validators.password(_passwordController.text) == null;
   }
 
   void _validarFormulario() {
-    final nombreValido = _nameController.text.trim().isNotEmpty;
-    final correoValido = RegExp(r'^[\w\.\-]+@[\w\-]+\.\w{2,}$')
-        .hasMatch(_emailController.text.trim());
+    final nombreValido = Validators.required(_nameController.text, fieldName: 'Nombre') == null &&
+        _nameController.text.trim().split(' ').length >= 2;
+    final correoValido = Validators.email(_emailController.text) == null;
     final passValido = _passwordValida;
-    final confirmValido = _passwordController.text == _confirmPasswordController.text;
+    final confirmValido = Validators.confirmPassword(_confirmPasswordController.text, _passwordController.text) == null;
 
     final valido = nombreValido && correoValido && passValido && confirmValido;
     if (valido != _formularioValido) {
@@ -146,10 +144,9 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                               prefixIcon: Icons.person_outline,
                               textInputAction: TextInputAction.next,
                               validator: (v) {
-                                if (v == null || v.trim().isEmpty) {
-                                  return 'El nombre es obligatorio';
-                                }
-                                if (v.trim().split(' ').length < 2) {
+                                final err = Validators.required(v, fieldName: 'El nombre');
+                                if (err != null) return err;
+                                if (v!.trim().split(' ').length < 2) {
                                   return 'Ingresa nombre y apellido';
                                 }
                                 return null;
@@ -162,32 +159,19 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                               prefixIcon: Icons.mail_outline,
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
-                              validator: (v) {
-                                if (v == null || v.trim().isEmpty) {
-                                  return 'El correo es obligatorio';
-                                }
-                                if (!RegExp(r'^[\w\.\-]+@[\w\-]+\.\w{2,}$')
-                                    .hasMatch(v.trim())) {
-                                  return 'Ingresa un correo válido';
-                                }
-                                return null;
-                              },
+                              validator: Validators.email,
                             ),
                             AppTextField(
                               label: 'TELÉFONO (OPCIONAL)',
                               controller: _phoneController,
                               hint: '414 123 4567',
-                              helperText: 'Ingresa el número sin el "0" ni "+58" (ej. 4141234567)',
+                              helperText: 'Ingresa el número de teléfono móvil',
                               prefixIcon: Icons.smartphone_outlined,
                               keyboardType: TextInputType.phone,
                               textInputAction: TextInputAction.next,
                               validator: (v) {
                                 if (v != null && v.isNotEmpty) {
-                                  final clean = v.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-                                  final normalized = clean.startsWith('0') ? clean.substring(1) : clean;
-                                  if (normalized.length < 10) {
-                                    return 'Número de teléfono inválido (debe tener 10 dígitos)';
-                                  }
+                                  return Validators.phone(v);
                                 }
                                 return null;
                               },
@@ -199,16 +183,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                               prefixIcon: Icons.lock_outline,
                               obscureText: true,
                               textInputAction: TextInputAction.next,
-                              validator: (v) {
-                                if (v == null || v.length < 8) {
-                                  return 'Mínimo 8 caracteres';
-                                }
-                                if (!v.contains(RegExp(r'[0-9]')) ||
-                                    !v.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-]'))) {
-                                  return 'Debe contener número y símbolo especial';
-                                }
-                                return null;
-                              },
+                              validator: Validators.password,
                             ),
                             AppTextField(
                               label: 'CONFIRMAR CONTRASEÑA',
@@ -217,9 +192,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                               prefixIcon: Icons.lock_outline,
                               obscureText: true,
                               textInputAction: TextInputAction.done,
-                              validator: (v) => (v != _passwordController.text)
-                                  ? 'Las contraseñas no coinciden'
-                                  : null,
+                              validator: (v) => Validators.confirmPassword(v, _passwordController.text),
                               onFieldSubmitted: (_) {
                                 if (_formularioValido && !state.isLoading) {
                                   _submit();

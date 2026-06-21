@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/async_error_listener.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/api_error_message.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../providers/auth_provider.dart';
@@ -63,23 +64,19 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
   }
 
   bool get _passwordValida {
-    final p = _passwordCtrl.text;
-    return p.length >= 8 &&
-        p.contains(RegExp(r'[0-9]')) &&
-        p.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-]'));
+    return Validators.password(_passwordCtrl.text) == null;
   }
 
   // ===== Validación por paso =====
   bool get _pasoValido {
     switch (_paso) {
       case 1:
-        return _nombreCtrl.text.trim().isNotEmpty &&
-            _emailCtrl.text.trim().isNotEmpty &&
-            RegExp(r'^[\w\.\-]+@[\w\-]+\.\w{2,}$').hasMatch(_emailCtrl.text.trim()) &&
-            _telefonoCtrl.text.trim().isNotEmpty &&
-            _rifCtrl.text.trim().isNotEmpty &&
+        return Validators.required(_nombreCtrl.text) == null &&
+            Validators.email(_emailCtrl.text) == null &&
+            Validators.phone(_telefonoCtrl.text) == null &&
+            Validators.required(_rifCtrl.text) == null &&
             _passwordValida &&
-            _confirmPasswordCtrl.text == _passwordCtrl.text;
+            Validators.confirmPassword(_confirmPasswordCtrl.text, _passwordCtrl.text) == null;
       case 2:
         return _seleccionadas.isNotEmpty;
       case 3:

@@ -59,11 +59,13 @@ class LoadingOverlay extends StatelessWidget {
       children: [
         child,
         if (isLoading)
-          ColoredBox(
-            color: Colors.black.withOpacity(0.4),
-            child: LoadingIndicator(
-              message: message,
-              color: Colors.white,
+          Positioned.fill(
+            child: ColoredBox(
+              color: Colors.black.withOpacity(0.4),
+              child: LoadingIndicator(
+                message: message,
+                color: Colors.white,
+              ),
             ),
           ),
       ],

@@ -12,7 +12,7 @@ class AuthInterceptor extends Interceptor {
 
   // Previene múltiples refreshes simultáneos.
   bool _isRefreshing = false;
-  final List<RequestOptions> _pendingRequests = [];
+  final List<_PendingRequest> _pendingRequests = [];
 
   AuthInterceptor(this._ref, this._dio);
 
@@ -44,7 +44,7 @@ class AuthInterceptor extends Interceptor {
 
       if (_isRefreshing) {
         // Encolar la petición para reintentarla cuando se refresque el token.
-        _pendingRequests.add(err.requestOptions);
+        _pendingRequests.add(_PendingRequest(err, handler));
         return;
       }
 
@@ -56,6 +56,7 @@ class AuthInterceptor extends Interceptor {
 
         if (refreshToken == null) {
           await storage.clearTokens();
+          _rejectPendingRequests();
           return handler.next(err);
         }
 
@@ -80,17 +81,33 @@ class AuthInterceptor extends Interceptor {
 
           // Reintentar peticiones pendientes.
           for (final pending in _pendingRequests) {
-            pending.headers['Authorization'] = 'Bearer $newToken';
-            _dio.fetch(pending).ignore();
+            pending.err.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+            _dio.fetch(pending.err.requestOptions).then(
+              (resp) => pending.handler.resolve(resp),
+              onError: (dynamic error) {
+                if (error is DioException) {
+                  pending.handler.reject(error);
+                } else {
+                  pending.handler.reject(
+                    DioException(
+                      requestOptions: pending.err.requestOptions,
+                      error: error,
+                    ),
+                  );
+                }
+              },
+            ).ignore();
           }
           _pendingRequests.clear();
         } else {
           await storage.clearTokens();
+          _rejectPendingRequests();
           handler.next(err);
         }
-      } catch (_) {
+      } catch (e) {
         final storage = _ref.read(secureStorageProvider);
         await storage.clearTokens();
+        _rejectPendingRequests();
         handler.next(err);
       } finally {
         _isRefreshing = false;
@@ -99,4 +116,18 @@ class AuthInterceptor extends Interceptor {
       handler.next(err);
     }
   }
+
+  void _rejectPendingRequests() {
+    for (final pending in _pendingRequests) {
+      pending.handler.reject(pending.err);
+    }
+    _pendingRequests.clear();
+  }
+}
+
+class _PendingRequest {
+  final DioException err;
+  final ErrorInterceptorHandler handler;
+
+  _PendingRequest(this.err, this.handler);
 }

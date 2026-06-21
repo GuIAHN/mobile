@@ -21,12 +21,12 @@ class AuthState extends Equatable {
   AuthState copyWith({
     AuthStatus? status,
     User? user,
-    String? errorMessage,
+    Object? errorMessage = _sentinel,
   }) {
     return AuthState(
       status: status ?? this.status,
       user: user ?? this.user,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: errorMessage == _sentinel ? this.errorMessage : errorMessage as String?,
     );
   }
 
@@ -37,3 +37,5 @@ class AuthState extends Equatable {
   @override
   List<Object?> get props => [status, user, errorMessage];
 }
+
+const _sentinel = Object();

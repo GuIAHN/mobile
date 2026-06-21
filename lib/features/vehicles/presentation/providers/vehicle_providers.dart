@@ -48,7 +48,7 @@ final brandsProvider = FutureProvider.autoDispose<List<Brand>>((ref) async {
   final useCase = ref.watch(getBrandsUseCaseProvider);
   final result = await useCase();
   return result.fold(
-    (failure) => throw Exception(failure.message),
+    (failure) => throw failure,
     (brands) => brands,
   );
 });
@@ -58,7 +58,7 @@ final brandModelsProvider = FutureProvider.family.autoDispose<List<CarModel>, St
   final useCase = ref.watch(getBrandModelsUseCaseProvider);
   final result = await useCase(brandId);
   return result.fold(
-    (failure) => throw Exception(failure.message),
+    (failure) => throw failure,
     (models) => models,
   );
 });
@@ -68,7 +68,7 @@ final userCarsProvider = FutureProvider.autoDispose<List<UserCar>>((ref) async {
   final useCase = ref.watch(getUserCarsUseCaseProvider);
   final result = await useCase();
   return result.fold(
-    (failure) => throw Exception(failure.message),
+    (failure) => throw failure,
     (cars) => cars,
   );
 });

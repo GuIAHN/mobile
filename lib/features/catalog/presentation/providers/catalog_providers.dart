@@ -5,6 +5,9 @@ import '../../data/repositories/catalog_repository_impl.dart';
 import '../../domain/entities/category.dart';
 import '../../domain/entities/specialty.dart';
 import '../../domain/repositories/catalog_repository.dart';
+import '../../domain/usecases/get_specialties_usecase.dart';
+import '../../domain/usecases/get_root_categories_usecase.dart';
+import '../../domain/usecases/get_subcategories_usecase.dart';
 
 /// Provider for the remote catalog datasource.
 final catalogRemoteDataSourceProvider = Provider<CatalogRemoteDataSource>((ref) {
@@ -18,32 +21,50 @@ final catalogRepositoryProvider = Provider<CatalogRepository>((ref) {
   return CatalogRepositoryImpl(dataSource);
 });
 
+/// Provider for the GetSpecialtiesUseCase.
+final getSpecialtiesUseCaseProvider = Provider<GetSpecialtiesUseCase>((ref) {
+  final repository = ref.watch(catalogRepositoryProvider);
+  return GetSpecialtiesUseCase(repository);
+});
+
+/// Provider for the GetRootCategoriesUseCase.
+final getRootCategoriesUseCaseProvider = Provider<GetRootCategoriesUseCase>((ref) {
+  final repository = ref.watch(catalogRepositoryProvider);
+  return GetRootCategoriesUseCase(repository);
+});
+
+/// Provider for the GetSubcategoriesUseCase.
+final getSubcategoriesUseCaseProvider = Provider<GetSubcategoriesUseCase>((ref) {
+  final repository = ref.watch(catalogRepositoryProvider);
+  return GetSubcategoriesUseCase(repository);
+});
+
 /// Provider exposing specialties fetched from the backend.
 final specialtiesProvider = FutureProvider.autoDispose<List<Specialty>>((ref) async {
-  final repository = ref.watch(catalogRepositoryProvider);
-  final result = await repository.getSpecialties();
+  final useCase = ref.watch(getSpecialtiesUseCaseProvider);
+  final result = await useCase();
   return result.fold(
-    (failure) => throw Exception(failure.message),
+    (failure) => throw failure,
     (specialties) => specialties,
   );
 });
 
 /// Provider exposing root categories fetched from the backend.
 final categoriesProvider = FutureProvider.autoDispose<List<Category>>((ref) async {
-  final repository = ref.watch(catalogRepositoryProvider);
-  final result = await repository.getRootCategories();
+  final useCase = ref.watch(getRootCategoriesUseCaseProvider);
+  final result = await useCase();
   return result.fold(
-    (failure) => throw Exception(failure.message),
+    (failure) => throw failure,
     (categories) => categories,
   );
 });
 
 /// Provider exposing subcategories for a specific category id.
 final subcategoriesProvider = FutureProvider.family.autoDispose<List<Category>, String>((ref, categoryId) async {
-  final repository = ref.watch(catalogRepositoryProvider);
-  final result = await repository.getSubcategories(categoryId);
+  final useCase = ref.watch(getSubcategoriesUseCaseProvider);
+  final result = await useCase(categoryId);
   return result.fold(
-    (failure) => throw Exception(failure.message),
+    (failure) => throw failure,
     (subcategories) => subcategories,
   );
 });

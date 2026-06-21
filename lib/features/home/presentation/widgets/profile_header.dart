@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/entities/user.dart';
 
@@ -24,22 +25,31 @@ class ProfileHeader extends StatelessWidget {
     final Color roleColor;
     final Color roleBgColor;
 
-    switch (user.role?.toUpperCase()) {
-      case 'CONSUMER':
-      case 'USER':
+    switch (user.role) {
+      case UserRole.consumer:
         roleLabel = 'Consumidor';
         roleColor = AppColors.primary;
         roleBgColor = AppColors.primaryMuted;
         break;
-      case 'MECHANIC':
+      case UserRole.mechanic:
         roleLabel = 'Mecánico';
         roleColor = AppColors.secondary;
         roleBgColor = AppColors.grey200;
         break;
-      case 'STORE':
+      case UserRole.store:
         roleLabel = 'Tienda';
         roleColor = const Color(0xFF3B82F6);
         roleBgColor = const Color(0xFFEFF6FF);
+        break;
+      case UserRole.workshop:
+        roleLabel = 'Taller';
+        roleColor = const Color(0xFF10B981);
+        roleBgColor = const Color(0xFFECFDF5);
+        break;
+      case UserRole.admin:
+        roleLabel = 'Administrador';
+        roleColor = const Color(0xFFEF4444);
+        roleBgColor = const Color(0xFFFEF2F2);
         break;
       default:
         roleLabel = 'Usuario';

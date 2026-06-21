@@ -5,9 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/async_error_listener.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../domain/entities/brand.dart';
 import '../providers/register_vehicles_provider.dart';
 import '../providers/vehicle_providers.dart';
 import '../widgets/vehicle_selection_modal.dart';
@@ -371,70 +369,6 @@ class _FieldLabel extends StatelessWidget {
     );
   }
 }
-
-class _SelectorField extends StatelessWidget {
-  final IconData icon;
-  final String? value;
-  final String placeholder;
-  final VoidCallback onTap;
-  final bool enabled;
-
-  const _SelectorField({
-    required this.icon,
-    required this.value,
-    required this.placeholder,
-    required this.onTap,
-    this.enabled = true,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final hasValue = value != null;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: GestureDetector(
-        onTap: enabled ? onTap : null,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-          decoration: BoxDecoration(
-            color: enabled ? Colors.white : const Color(0xFFF3F4F6),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: hasValue ? AppColors.primary : AppColors.border,
-              width: hasValue ? 1.5 : 1.0,
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: hasValue ? AppColors.primary : AppColors.textSecondary,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  value ?? placeholder,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 16,
-                    fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
-                    color: hasValue ? AppColors.textPrimary : AppColors.textDisabled,
-                  ),
-                ),
-              ),
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 20,
-                color: hasValue ? AppColors.primary : AppColors.textSecondary,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _UserCarItemCard extends StatelessWidget {
   final String brand;
   final String model;
