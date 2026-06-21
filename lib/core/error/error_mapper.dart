@@ -52,16 +52,15 @@ class ErrorMapper {
         return const NetworkFailure();
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode ?? 0;
-        final message = _extractMessage(e.response?.data) ??
-            e.message ??
-            'Error del servidor.';
+        final serverMessage = _extractMessage(e.response?.data);
+        final message = serverMessage ?? e.message ?? 'Error del servidor.';
         switch (statusCode) {
           case 401:
-            return const UnauthorizedFailure();
+            return UnauthorizedFailure(message: serverMessage ?? 'Sesión expirada. Inicia sesión nuevamente.');
           case 403:
-            return const ForbiddenFailure();
+            return ForbiddenFailure(message: serverMessage ?? 'No tienes permisos para esta acción.');
           case 404:
-            return const NotFoundFailure();
+            return NotFoundFailure(message: serverMessage ?? 'Recurso no encontrado.');
           case 400:
           case 422:
             return ValidationFailure(message: message);

@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_text_field.dart';
+import '../../../../shared/widgets/api_error_message.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
 
@@ -29,6 +30,9 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authProvider.notifier).clearError();
+    });
     for (final controller in [
       _nameController,
       _emailController,
@@ -56,6 +60,11 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
     final valido = nombreValido && correoValido && passValido && confirmValido;
     if (valido != _formularioValido) {
       setState(() => _formularioValido = valido);
+    }
+    
+    // Si hay un error mostrado y el usuario empieza a escribir, limpiarlo
+    if (ref.read(authProvider).errorMessage != null) {
+      ref.read(authProvider.notifier).clearError();
     }
   }
 
@@ -96,19 +105,6 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
           context.go(RouteNames.registerVehicles);
         }
       }
-      if (next.hasError && next.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.errorMessage!),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-        );
-        ref.read(authProvider.notifier).clearError();
-      }
     });
 
     final state = ref.watch(authProvider);
@@ -130,7 +126,6 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                     child: IntrinsicHeight(
                       child: Form(
                         key: _formKey,
-                        autovalidateMode: AutovalidateMode.onUserInteraction,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -140,6 +135,10 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                             const SizedBox(height: 24),
                             _tituloPaso(),
                             const SizedBox(height: 24),
+                            ApiErrorMessage(
+                              message: state.errorMessage,
+                              onClose: () => ref.read(authProvider.notifier).clearError(),
+                            ),
                             AppTextField(
                               label: 'NOMBRE COMPLETO',
                               controller: _nameController,

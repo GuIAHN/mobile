@@ -8,6 +8,7 @@ class User extends Equatable {
   final String? avatarUrl;
   final String? phone;
   final String? role;
+  final bool approved;
 
   const User({
     required this.id,
@@ -16,8 +17,9 @@ class User extends Equatable {
     this.avatarUrl,
     this.phone,
     this.role,
+    this.approved = true,
   });
 
   @override
-  List<Object?> get props => [id, email, name, avatarUrl, phone, role];
+  List<Object?> get props => [id, email, name, avatarUrl, phone, role, approved];
 }

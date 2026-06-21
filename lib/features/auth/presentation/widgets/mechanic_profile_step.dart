@@ -166,7 +166,7 @@ class MechanicProfileStep extends StatelessWidget {
                     onCedulaTipoChanged(newValue);
                   }
                 },
-                items: <String>['V', 'E', 'J'].map<DropdownMenuItem<String>>((String value) {
+                items: <String>['V', 'E'].map<DropdownMenuItem<String>>((String value) {
                   return DropdownMenuItem<String>(
                     value: value,
                     child: Text(value),

@@ -9,6 +9,7 @@ import '../../domain/repositories/home_repository.dart';
 import '../../domain/usecases/get_home_items_usecase.dart';
 import '../../domain/usecases/get_promos_usecase.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../vehicles/domain/entities/user_car.dart';
 
 // ── Repositorio e Use Cases Providers ────────────────────────────────────────
 final homeRepositoryProvider = Provider<HomeRepository>((ref) {
@@ -43,6 +44,11 @@ final isLocationSharedProvider = StateProvider<bool>((ref) {
 /// Query de búsqueda textual
 final searchQueryProvider = StateProvider<String>((ref) {
   return '';
+});
+
+/// Vehículo seleccionado para buscar mecánicos o talleres
+final searchVehicleProvider = StateProvider<UserCar?>((ref) {
+  return null;
 });
 
 /// Índice de la pestaña activa en la barra de navegación (0: Home, 1: Chats, 2: Perfil)

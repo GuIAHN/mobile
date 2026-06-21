@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/async_error_listener.dart';
 import '../../../catalog/domain/entities/category.dart';
 import '../../../vehicles/domain/entities/brand.dart';
 import '../../../vehicles/presentation/providers/vehicle_providers.dart';
@@ -84,8 +85,9 @@ class _SheetMarcasState extends ConsumerState<SheetMarcas> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listenAsyncError(brandsProvider, context);
     final brandsAsync = ref.watch(brandsProvider);
-    final allBrands = brandsAsync.value ?? [];
+    final allBrands = brandsAsync.valueOrNull ?? [];
 
     final filtradas = allBrands
         .where((m) => m.name.toLowerCase().contains(_filtro.toLowerCase()))

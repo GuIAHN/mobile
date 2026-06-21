@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/async_error_listener.dart';
+import '../../../../shared/widgets/api_error_message.dart';
 import '../../../catalog/domain/entities/category.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../providers/auth_provider.dart';
@@ -45,6 +47,9 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authProvider.notifier).clearError();
+    });
     for (final c in [_nombreCtrl, _emailCtrl, _telefonoCtrl, _rifCtrl, _passwordCtrl, _confirmPasswordCtrl]) {
       c.addListener(() => setState(() {}));
     }
@@ -190,24 +195,12 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       if (next.isAuthenticated) {
         setState(() => _paso = 5);
       }
-      if (next.hasError && next.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.errorMessage!),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-        );
-        ref.read(authProvider.notifier).clearError();
-      }
     });
 
     final authState = ref.watch(authProvider);
+    ref.listenAsyncError(categoriesProvider, context);
     final categoriesAsync = ref.watch(categoriesProvider);
-    final categories = categoriesAsync.value ?? [];
+    final categories = categoriesAsync.valueOrNull ?? [];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -233,6 +226,11 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                             _indicadorPasos(),
                             const SizedBox(height: 16),
                             _tituloPaso(),
+                            const SizedBox(height: 16),
+                            ApiErrorMessage(
+                              message: authState.errorMessage,
+                              onClose: () => ref.read(authProvider.notifier).clearError(),
+                            ),
                           ],
                           const SizedBox(height: 8),
                           Expanded(

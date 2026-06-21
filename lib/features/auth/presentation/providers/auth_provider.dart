@@ -235,7 +235,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// Clears the current error.
   void clearError() {
-    state = state.copyWith(status: AuthStatus.initial, errorMessage: null);
+    if (state.errorMessage != null) {
+      state = AuthState(
+        status: AuthStatus.initial,
+        user: state.user,
+        errorMessage: null,
+      );
+    }
   }
 
   /// Logs out by clearing tokens from secure storage and resetting to initial state.

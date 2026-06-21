@@ -10,6 +10,7 @@ class UserModel extends User {
     super.avatarUrl,
     super.phone,
     super.role,
+    super.approved,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +30,7 @@ class UserModel extends User {
       avatarUrl: json['avatarUrl'] as String? ?? json['photo'] as String?,
       phone: parsedPhone,
       role: json['role'] as String? ?? json['userType'] as String?,
+      approved: json['approved'] as bool? ?? true,
     );
   }
 
@@ -39,6 +41,7 @@ class UserModel extends User {
         if (avatarUrl != null) 'avatarUrl': avatarUrl,
         if (phone != null) 'phone': phone,
         if (role != null) 'role': role,
+        'approved': approved,
       };
 }
 
