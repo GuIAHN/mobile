@@ -7,12 +7,16 @@ import 'shared/widgets/app_notification_host.dart';
 import 'shared/widgets/maintenance_page.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/presentation/providers/auth_state.dart';
+import 'core/storage/secure_storage.dart';
 
 class GuiAutomotrizApp extends ConsumerWidget {
   const GuiAutomotrizApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // ⚠️ Línea temporal para forzar reset al Onboarding. Coméntala tras reiniciar.
+    ref.read(secureStorageProvider).clearAll();
+
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(themeModeProvider);
 

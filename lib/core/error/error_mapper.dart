@@ -25,10 +25,14 @@ class ErrorMapper {
       return ValidationFailure(message: e.message, errors: e.errors);
     }
     if (e is ServerException) {
+      final parsedMessage = parseErrorMessage(e.message);
       if (e.statusCode >= 500) {
+        if (parsedMessage != e.message) {
+          return ServerFailure(message: parsedMessage, code: e.statusCode);
+        }
         return ServerFailure(message: 'El sistema está en mantenimiento. Inténtalo más tarde.', code: e.statusCode);
       }
-      return ServerFailure(message: e.message, code: e.statusCode);
+      return ServerFailure(message: parsedMessage, code: e.statusCode);
     }
     if (e is NetworkException) {
       return const NetworkFailure(message: 'El sistema está en mantenimiento. Inténtalo más tarde.');
@@ -56,8 +60,13 @@ class ErrorMapper {
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode ?? 0;
         final serverMessage = _extractMessage(e.response?.data);
-        final message = serverMessage ?? e.message ?? 'Error del servidor.';
+        final rawMessage = serverMessage ?? e.message ?? 'Error del servidor.';
+        final message = parseErrorMessage(rawMessage);
+        
         if (statusCode >= 500) {
+          if (message != rawMessage) {
+            return ServerFailure(message: message, code: statusCode);
+          }
           return ServerFailure(message: 'El sistema está en mantenimiento. Inténtalo más tarde.', code: statusCode);
         }
         switch (statusCode) {
@@ -81,6 +90,37 @@ class ErrorMapper {
       default:
         return const UnexpectedFailure();
     }
+  }
+
+  /// Analiza los detalles del mensaje de error del backend/BD para retornar algo amigable en español.
+  static String parseErrorMessage(String originalMessage) {
+    final lower = originalMessage.toLowerCase();
+    
+    // Restricciones de unicidad (Unique constraint failed)
+    if (lower.contains('unique constraint failed') || lower.contains('already exists') || lower.contains('duplicate key')) {
+      if (lower.contains('number') || lower.contains('telefono') || lower.contains('phone')) {
+        return 'El número de teléfono ya está registrado por otro usuario o comercio.';
+      }
+      if (lower.contains('email') || lower.contains('correo')) {
+        return 'El correo electrónico ya está registrado.';
+      }
+      if (lower.contains('rif')) {
+        return 'El RIF ya está registrado.';
+      }
+      if (lower.contains('identification') || lower.contains('cedula') || lower.contains('cédula')) {
+        return 'El documento de identidad ya está registrado.';
+      }
+    }
+
+    // Errores de Prisma / base de datos crudos sobre teléfonos o campos específicos
+    if (lower.contains('tx.phone.create') || lower.contains('prisma') || lower.contains('database') || lower.contains('sql')) {
+      if (lower.contains('phone') || lower.contains('number')) {
+        return 'El número de teléfono ya está registrado por otro usuario o comercio.';
+      }
+      return 'Error de base de datos en el servidor. Por favor, verifica los datos ingresados.';
+    }
+
+    return originalMessage;
   }
 
   /// Extracts the error message from various API response formats.
