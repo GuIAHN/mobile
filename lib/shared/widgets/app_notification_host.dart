@@ -35,7 +35,7 @@ class AppNotificationHost extends ConsumerWidget {
           Positioned(
             left: 16,
             right: 16,
-            bottom: 0,
+            top: 0,
             child: SafeArea(
               child: _NotificationStack(
                 notifications: notifications,

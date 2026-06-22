@@ -224,8 +224,8 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                                   _ => RegistrationCompletedStep(
                                       title: '¡REGISTRO\nCOMPLETADO!',
                                       description: 'Tu solicitud ha sido recibida con éxito. Actualmente estamos verificando las credenciales de tu taller para garantizar la integridad de nuestra red profesional.',
-                                      buttonLabel: 'Ir al Panel de Control',
-                                      buttonIcon: Icons.grid_view,
+                                      buttonLabel: 'Finalizar Registro',
+                                      buttonIcon: Icons.check_circle_outline,
                                       cards: const [
                                         CompletedStepCardItem(
                                           icon: Icons.verified_user_outlined,
@@ -247,7 +247,10 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                                         ),
                                       ],
                                       onFinish: () {
-                                        context.go(RouteNames.login);
+                                        ref.read(authProvider.notifier).logout().then((_) {
+                                          if (!mounted) return;
+                                          context.go(RouteNames.login);
+                                        });
                                       },
                                     ),
                                 },

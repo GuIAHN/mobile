@@ -291,7 +291,10 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                                         ),
                                       ],
                                       onFinish: () {
-                                        context.go(RouteNames.login);
+                                        ref.read(authProvider.notifier).logout().then((_) {
+                                          if (!mounted) return;
+                                          context.go(RouteNames.login);
+                                        });
                                       },
                                     ),
                                 },

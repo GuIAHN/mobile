@@ -66,7 +66,7 @@ class _AppNotificationToastState extends State<AppNotificationToast>
     );
 
     _slideUp = Tween<Offset>(
-      begin: const Offset(0, 0.4),
+      begin: const Offset(0, -0.4),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _enterController,

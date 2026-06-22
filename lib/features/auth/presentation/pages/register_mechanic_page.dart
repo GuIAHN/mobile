@@ -246,7 +246,10 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
                                         ),
                                       ],
                                       onFinish: () {
-                                        context.go(RouteNames.login);
+                                        ref.read(authProvider.notifier).logout().then((_) {
+                                          if (!mounted) return;
+                                          context.go(RouteNames.login);
+                                        });
                                       },
                                     ),
                                 },
