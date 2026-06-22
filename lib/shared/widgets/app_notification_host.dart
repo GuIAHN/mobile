@@ -6,14 +6,17 @@ import 'app_notification_toast.dart';
 
 /// Host del sistema de notificaciones AppNotification.
 ///
-/// **Debe insertarse una única vez**, envolviendo [MaterialApp] en `app.dart`.
+/// **Debe insertarse una única vez**, en el `builder` de [MaterialApp.router] en `app.dart`.
 ///
 /// Observa el [notificationProvider] y renderiza los toasts activos apilados
 /// en la parte inferior-central de la pantalla con un offset entre ellos.
 ///
 /// ```dart
-/// AppNotificationHost(
-///   child: MaterialApp.router(...),
+/// MaterialApp.router(
+///   ...
+///   builder: (context, child) => AppNotificationHost(
+///     child: child ?? const SizedBox.shrink(),
+///   ),
 /// )
 /// ```
 class AppNotificationHost extends ConsumerWidget {

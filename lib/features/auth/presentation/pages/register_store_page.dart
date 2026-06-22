@@ -13,6 +13,7 @@ import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../domain/entities/store_category_config.dart';
 import '../widgets/registration_completed_step.dart';
 import '../widgets/store_catalog_helper.dart';
 import '../widgets/store_catalog_step.dart';

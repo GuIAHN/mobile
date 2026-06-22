@@ -62,11 +62,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final result = await _authRepository.getCurrentUser();
     result.fold(
       (failure) {
-        _secureStorage.clearTokens();
-        state = state.copyWith(
-          status: AuthStatus.unauthenticated,
-          errorMessage: failure.message,
-        );
+        if (failure is UnauthorizedFailure) {
+          _secureStorage.clearTokens();
+          state = state.copyWith(
+            status: AuthStatus.unauthenticated,
+            errorMessage: failure.message,
+          );
+        } else {
+          state = state.copyWith(
+            status: AuthStatus.error,
+            errorMessage: failure.message,
+          );
+        }
       },
       (user) {
         state = state.copyWith(

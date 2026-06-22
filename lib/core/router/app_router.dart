@@ -5,6 +5,7 @@ import '../../core/storage/secure_storage.dart';
 import '../../core/domain/enums/user_role.dart';
 import '../../core/providers/current_user_provider.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../../features/auth/presentation/providers/auth_state.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_type_page.dart';
 import '../../features/auth/presentation/pages/register_user_page.dart';
@@ -16,21 +17,40 @@ import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import 'route_names.dart';
 
+class RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+
+  RouterNotifier(this._ref) {
+    _ref.listen<AuthState>(
+      authProvider,
+      (previous, next) {
+        notifyListeners();
+      },
+    );
+  }
+}
+
+final routerNotifierProvider = Provider<RouterNotifier>((ref) {
+  return RouterNotifier(ref);
+});
+
 /// Proveedor global del router de la app.
-/// Reactive: se reconstruye si el estado de autenticación cambia.
 final appRouterProvider = Provider<GoRouter>((ref) {
-  ref.watch(authProvider);
-  return AppRouter(ref).router;
+  final storage = ref.watch(secureStorageProvider);
+  final listenable = ref.watch(routerNotifierProvider);
+  return AppRouter(storage, listenable).router;
 });
 
 class AppRouter {
-  final Ref _ref;
+  final SecureStorage _storage;
+  final Listenable _listenable;
 
-  AppRouter(this._ref);
+  AppRouter(this._storage, this._listenable);
 
   GoRouter get router => GoRouter(
         initialLocation: RouteNames.splash,
         debugLogDiagnostics: true,
+        refreshListenable: _listenable,
         redirect: _redirect,
         routes: [
           // ── Splash / Auth guard ─────────────────────────────────────────
@@ -120,9 +140,8 @@ class AppRouter {
 
   /// Guard global: redirige según estado de auth y onboarding.
   Future<String?> _redirect(BuildContext context, GoRouterState state) async {
-    final storage = _ref.read(secureStorageProvider);
-    final hasToken = await storage.hasToken();
-    final seenOnboarding = await storage.hasSeenOnboarding();
+    final hasToken = await _storage.hasToken();
+    final seenOnboarding = await _storage.hasSeenOnboarding();
 
     final isAuthRoute = state.matchedLocation == RouteNames.login ||
         state.matchedLocation == RouteNames.register ||
