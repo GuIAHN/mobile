@@ -15,7 +15,7 @@ class GuiAutomotrizApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // ⚠️ Línea temporal para forzar reset al Onboarding. Coméntala tras reiniciar.
-    ref.read(secureStorageProvider).clearAll();
+    
 
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(themeModeProvider);
