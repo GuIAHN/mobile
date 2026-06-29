@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/home_item.dart';
-import '../../domain/entities/service_type.dart';
+import '../../../../core/domain/enums/service_type.dart';
 import 'icon_mapper.dart';
 
 class ItemCard extends StatefulWidget {

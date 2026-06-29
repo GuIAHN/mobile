@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../domain/entities/service_type.dart';
+import '../../../../core/domain/enums/service_type.dart';
 import '../providers/home_providers.dart';
 
 class CategorySelector extends ConsumerWidget {

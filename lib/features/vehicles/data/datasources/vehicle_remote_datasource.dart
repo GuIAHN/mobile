@@ -78,4 +78,13 @@ class VehicleRemoteDataSource {
       rethrow;
     }
   }
+
+  /// Deletes a car from the user's garage.
+  Future<void> deleteCarFromGarage(String carId) async {
+    try {
+      await _client.delete<void>('/me/cars/$carId');
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

@@ -3,7 +3,7 @@ import '../../data/repositories/home_repository_impl.dart';
 import '../../domain/entities/home_filters.dart';
 import '../../domain/entities/home_item.dart';
 import '../../domain/entities/promo.dart';
-import '../../domain/entities/service_type.dart';
+import '../../../../core/domain/enums/service_type.dart';
 import '../../domain/entities/sort_option.dart';
 import '../../domain/repositories/home_repository.dart';
 import '../../domain/usecases/get_home_items_usecase.dart';

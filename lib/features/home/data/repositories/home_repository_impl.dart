@@ -2,7 +2,7 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/home_item.dart';
 import '../../domain/entities/promo.dart';
-import '../../domain/entities/service_type.dart';
+import '../../../../core/domain/enums/service_type.dart';
 import '../../domain/repositories/home_repository.dart';
 import '../models/home_item_model.dart';
 import '../models/promo_model.dart';

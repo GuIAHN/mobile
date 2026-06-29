@@ -1,0 +1,23 @@
+import 'package:dartz/dartz.dart';
+import '../../../../core/error/failures.dart';
+import '../entities/chat_thread.dart';
+import '../entities/chat_conversation.dart';
+import '../entities/chat_message.dart';
+
+abstract class ChatRepository {
+  Future<Either<Failure, List<ChatThread>>> getChatThreads();
+  
+  Future<Either<Failure, List<ChatConversation>>> getConversations(String threadId);
+  
+  Future<Either<Failure, List<ChatMessage>>> getMessages(String conversationId);
+  
+  Future<Either<Failure, ChatMessage>> sendMessage(String conversationId, String content);
+  
+  Future<Either<Failure, ChatConversation>> createQuote({
+    required String threadId,
+    required bool isFixedPrice,
+    double? price,
+    double? minPrice,
+    double? maxPrice,
+  });
+}

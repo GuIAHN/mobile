@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/extensions.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/register_vehicles_provider.dart';
 import '../providers/vehicle_providers.dart';
@@ -55,15 +56,9 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
     ref.read(authProvider.notifier).logout().then((_) {
       if (!mounted) return;
       ref.read(registerVehiclesProvider.notifier).clear();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Registro completado. Por favor inicia sesión.'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
+      context.showSnackBar(
+        'Registro completado. Por favor inicia sesión.',
+        isSuccess: true,
       );
       context.go(RouteNames.login);
     });

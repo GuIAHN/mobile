@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../domain/entities/home_filters.dart';
-import '../../domain/entities/service_type.dart';
+import '../../../../core/domain/enums/service_type.dart';
 import '../../domain/entities/sort_option.dart';
 import '../providers/home_providers.dart';
 import '../widgets/bottom_burbuja.dart';
@@ -20,6 +20,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../vehicles/domain/entities/user_car.dart';
 import '../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../../../vehicles/presentation/widgets/vehicle_selection_modal.dart';
+import '../../../chat/presentation/pages/chat_inbox_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -134,10 +135,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               child: activeTab == 0
                   ? _buildHomeTab()
                   : activeTab == 1
-                      ? _buildPlaceholderTab(
-                          Icons.chat_bubble_outline_rounded,
-                          'Chats',
-                          'Tus conversaciones de servicio aparecerán aquí.')
+                      ? const ChatInboxPage()
                       : const ProfileTab(),
             ),
           ),
@@ -184,162 +182,80 @@ class _HomePageState extends ConsumerState<HomePage> {
           child: CategorySelector(),
         ),
 
-        if (!isSpareParts && searchVehicle == null)
-          _buildVehicleRequiredState()
-        else ...[
-          // 3. Barra de búsqueda y botón filtros (solo si no es repuestos)
-          if (!isSpareParts) ...[
-            _buildSelectedVehicleBar(searchVehicle!),
-            _buildSearchBar(filters.activeCount),
-          ],
+        // 3. Barra de vehículo y búsqueda
+        if (!isSpareParts) ...[
+          if (searchVehicle != null)
+            _buildSelectedVehicleBar(searchVehicle)
+          else
+            _buildSelectVehiclePromptBar(),
+          _buildSearchBar(filters.activeCount),
+        ],
 
-          // 4. Carrusel de Promociones
-          promosAsync.when(
-            data: (promos) => Padding(
-              padding: const EdgeInsets.only(top: 12, left: 20, right: 20),
-              child: PromoCarousel(promos: promos),
-            ),
-            loading: () => const Padding(
-              padding: EdgeInsets.only(top: 24),
-              child: Center(
-                  child: CircularProgressIndicator(color: AppColors.primary)),
-            ),
-            error: (_, __) => const SizedBox.shrink(),
+        // 4. Carrusel de Promociones
+        promosAsync.when(
+          data: (promos) => Padding(
+            padding: const EdgeInsets.only(top: 12, left: 20, right: 20),
+            child: PromoCarousel(promos: promos),
           ),
+          loading: () => const Padding(
+            padding: EdgeInsets.only(top: 24),
+            child: Center(
+                child: CircularProgressIndicator(color: AppColors.primary)),
+          ),
+          error: (_, __) => const SizedBox.shrink(),
+        ),
 
-          // Si es repuestos, mostramos el formulario de solicitud
-          if (isSpareParts)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: RequestSparePartForm(
-                onSubmitted: () {
-                  _scrollController.animateTo(
-                    0.0,
-                    duration: const Duration(milliseconds: 600),
-                    curve: Curves.easeInOutCubic,
-                  );
-                },
+        // Si es repuestos, mostramos el formulario de solicitud
+        if (isSpareParts)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: RequestSparePartForm(
+              onSubmitted: () {
+                _scrollController.animateTo(
+                  0.0,
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.easeInOutCubic,
+                );
+              },
+            ),
+          )
+        else ...[
+          // 5. Encabezado de la lista
+          _buildListHeader(
+              filteredItemsAsync.value?.length ?? 0, filters.activeCount > 0),
+
+          // 6. Chips con los filtros aplicados
+          if (filters.activeCount > 0) _buildActiveFilterChips(filters),
+
+          // 7. Lista de Items filtrados
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: filteredItemsAsync.when(
+              data: (items) {
+                if (items.isEmpty) {
+                  return _buildEmptyState();
+                }
+                return Column(
+                  children: items.map((item) => ItemCard(item: item)).toList(),
+                );
+              },
+              loading: () => const Padding(
+                padding: EdgeInsets.only(top: 48),
+                child: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary)),
               ),
-            )
-          else ...[
-            // 5. Encabezado de la lista
-            _buildListHeader(
-                filteredItemsAsync.value?.length ?? 0, filters.activeCount > 0),
-
-            // 6. Chips con los filtros aplicados
-            if (filters.activeCount > 0) _buildActiveFilterChips(filters),
-
-            // 7. Lista de Items filtrados
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: filteredItemsAsync.when(
-                data: (items) {
-                  if (items.isEmpty) {
-                    return _buildEmptyState();
-                  }
-                  return Column(
-                    children: items.map((item) => ItemCard(item: item)).toList(),
-                  );
-                },
-                loading: () => const Padding(
-                  padding: EdgeInsets.only(top: 48),
-                  child: Center(
-                      child: CircularProgressIndicator(color: AppColors.primary)),
-                ),
-                error: (err, _) => Padding(
-                  padding: const EdgeInsets.only(top: 48),
-                  child: Text(
-                    'Error al cargar: $err',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.hankenGrotesk(color: AppColors.error),
-                  ),
+              error: (err, _) => Padding(
+                padding: const EdgeInsets.only(top: 48),
+                child: Text(
+                  'Error al cargar: $err',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.hankenGrotesk(color: AppColors.error),
                 ),
               ),
             ),
-          ],
+          ),
         ],
       ],
-    );
-  }
-
-  Widget _buildVehicleRequiredState() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: const BoxDecoration(
-                color: AppColors.primaryMuted,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.directions_car_filled_outlined,
-                color: AppColors.primary,
-                size: 32,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Selecciona tu vehículo',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Para buscar mecánicos o talleres autorizados, primero debes especificar el modelo de tu vehículo para garantizar compatibilidad.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 13.5,
-                color: AppColors.textSecondary,
-                height: 1.45,
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => _abrirSelectorVehiculoSearch(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shadowColor: AppColors.primary.withValues(alpha: 0.35),
-                elevation: 4,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              icon: const Icon(Icons.commute_rounded, size: 20),
-              label: Text(
-                'SELECCIONAR VEHÍCULO',
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -399,6 +315,82 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
               child: Text(
                 'Cambiar',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectVehiclePromptBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.directions_car_filled_outlined,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'COMPATIBILIDAD:',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Selecciona tu vehículo',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () => _abrirSelectorVehiculoSearch(),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                backgroundColor: AppColors.primaryMuted,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              child: Text(
+                'Elegir',
                 style: GoogleFonts.hankenGrotesk(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,

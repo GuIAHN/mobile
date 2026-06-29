@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'service_type.dart';
+import '../../../../core/domain/enums/service_type.dart';
 
 class HomeItem extends Equatable {
   final String name;

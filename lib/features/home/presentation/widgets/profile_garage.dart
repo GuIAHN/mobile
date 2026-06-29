@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../vehicles/domain/entities/user_car.dart';
 import '../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../../../../core/utils/async_error_listener.dart';
+import '../../../../core/utils/extensions.dart';
 import '../../../vehicles/presentation/widgets/vehicle_selection_modal.dart';
 
 class ProfileGarage extends ConsumerWidget {
@@ -96,7 +97,7 @@ class ProfileGarage extends ConsumerWidget {
             }
 
             return Column(
-              children: cars.map((car) => _buildGarageCarCard(car)).toList(),
+              children: cars.map((car) => _buildGarageCarCard(context, ref, car)).toList(),
             );
           },
           loading: () => Container(
@@ -125,7 +126,7 @@ class ProfileGarage extends ConsumerWidget {
     );
   }
 
-  Widget _buildGarageCarCard(UserCar car) {
+  Widget _buildGarageCarCard(BuildContext context, WidgetRef ref, UserCar car) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -171,6 +172,10 @@ class ProfileGarage extends ConsumerWidget {
             fontWeight: FontWeight.w500,
           ),
         ),
+        trailing: IconButton(
+          icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+          onPressed: () => _confirmarEliminarVehiculo(context, ref, car),
+        ),
       ),
     );
   }
@@ -179,12 +184,6 @@ class ProfileGarage extends ConsumerWidget {
     final result = await VehicleSelectionModal.show(context);
     if (result != null) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Guardando vehículo en tu garage...'),
-          duration: Duration(seconds: 1),
-        ),
-      );
 
       final addCarUseCase = ref.read(addCarToGarageUseCaseProvider);
       final saveResult = await addCarUseCase(
@@ -194,29 +193,120 @@ class ProfileGarage extends ConsumerWidget {
       if (!context.mounted) return;
       saveResult.fold(
         (failure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: ${failure.message}'),
-              backgroundColor: AppColors.error,
-              behavior: SnackBarBehavior.floating,
-            ),
+          context.showSnackBar(
+            'Error: ${failure.message}',
+            isError: true,
           );
         },
         (car) {
           ref.invalidate(userCarsProvider);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('¡${car.brand} ${car.model} registrado exitosamente!'),
-              backgroundColor: AppColors.success,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
+          context.showSnackBar(
+            '¡${car.brand} ${car.model} registrado exitosamente!',
+            isSuccess: true,
           );
         },
       );
     }
+  }
+
+  void _confirmarEliminarVehiculo(BuildContext context, WidgetRef ref, UserCar car) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: Text(
+            '¿Eliminar vehículo?',
+            style: GoogleFonts.hankenGrotesk(
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          content: Text(
+            '¿Estás seguro de que deseas eliminar el ${car.brand} ${car.model} (${car.year}) de tu garage?',
+            style: GoogleFonts.hankenGrotesk(
+              color: AppColors.textSecondary,
+              fontSize: 14.5,
+            ),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.border, width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(32),
+                      ),
+                    ),
+                    child: Text(
+                      'Cancelar',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(dialogContext); // Cierra diálogo primero
+
+                      final deleteCarUseCase = ref.read(deleteCarUseCaseProvider);
+                      final deleteResult = await deleteCarUseCase(car.id);
+
+                      if (!context.mounted) return;
+                      deleteResult.fold(
+                        (failure) {
+                          context.showSnackBar(
+                            'Error: ${failure.message}',
+                            isError: true,
+                          );
+                        },
+                        (_) {
+                          ref.invalidate(userCarsProvider);
+                          context.showSnackBar(
+                            '${car.brand} ${car.model} eliminado del garage.',
+                            isSuccess: true,
+                          );
+                        },
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.error,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(32),
+                      ),
+                    ),
+                    child: Text(
+                      'Eliminar',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
   }
 }
 

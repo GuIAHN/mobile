@@ -10,6 +10,7 @@ import '../../domain/usecases/add_car_to_garage_usecase.dart';
 import '../../domain/usecases/get_brand_models_usecase.dart';
 import '../../domain/usecases/get_brands_usecase.dart';
 import '../../domain/usecases/get_user_cars_usecase.dart';
+import '../../domain/usecases/delete_car_usecase.dart';
 
 /// Remote data source provider.
 final vehicleRemoteDataSourceProvider = Provider<VehicleRemoteDataSource>((ref) {
@@ -39,6 +40,10 @@ final getUserCarsUseCaseProvider = Provider<GetUserCarsUseCase>((ref) {
 
 final addCarToGarageUseCaseProvider = Provider<AddCarToGarageUseCase>((ref) {
   return AddCarToGarageUseCase(ref.watch(vehicleRepositoryProvider));
+});
+
+final deleteCarUseCaseProvider = Provider<DeleteCarUseCase>((ref) {
+  return DeleteCarUseCase(ref.watch(vehicleRepositoryProvider));
 });
 
 // ── Presentation State Providers ─────────────────────────────────────────────

@@ -15,6 +15,9 @@ import '../../features/auth/presentation/pages/register_store_page.dart';
 import '../../features/vehicles/presentation/pages/register_vehicles_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/chat/presentation/pages/chat_inbox_page.dart';
+import '../../features/chat/presentation/pages/chat_thread_detail_page.dart';
+import '../../features/chat/presentation/pages/chat_conversation_page.dart';
 import 'route_names.dart';
 
 class RouterNotifier extends ChangeNotifier {
@@ -132,6 +135,37 @@ class AppRouter {
                   final id = state.pathParameters['id']!;
                   return _PlaceholderPage(title: 'Vehículo $id');
                 },
+              ),
+            ],
+          ),
+
+          // ── Chats ────────────────────────────────────────────────────────
+          GoRoute(
+            path: RouteNames.chatInbox,
+            name: 'chatInbox',
+            builder: (context, state) => const ChatInboxPage(),
+            routes: [
+              GoRoute(
+                path: ':threadId',
+                name: 'chatThread',
+                builder: (context, state) {
+                  final threadId = state.pathParameters['threadId']!;
+                  return ChatThreadDetailPage(threadId: threadId);
+                },
+                routes: [
+                  GoRoute(
+                    path: ':conversationId',
+                    name: 'chatConversation',
+                    builder: (context, state) {
+                      final threadId = state.pathParameters['threadId']!;
+                      final conversationId = state.pathParameters['conversationId']!;
+                      return ChatConversationPage(
+                        threadId: threadId,
+                        conversationId: conversationId,
+                      );
+                    },
+                  ),
+                ],
               ),
             ],
           ),

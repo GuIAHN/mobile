@@ -22,4 +22,9 @@ abstract class RouteNames {
   static const String vehicles = '/vehicles';
   static const String vehicleDetail = '/vehicles/:id';
   static String vehicleDetailPath(String id) => '/vehicles/$id';
+
+  // ── Chats ─────────────────────────────────────────────────────────────────
+  static const String chatInbox = '/chats';
+  static const String chatThread = '/chats/:threadId';
+  static const String chatConversation = '/chats/:threadId/:conversationId';
 }
