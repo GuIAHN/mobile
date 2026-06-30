@@ -21,10 +21,22 @@ class ChatConversationCard extends StatefulWidget {
 class _ChatConversationCardState extends State<ChatConversationCard> {
   bool _isPressed = false;
 
+  String _getStoreSubtext(String name) {
+    if (name.contains('El Amigo')) {
+      return '⭐ 4.9 (124 valoraciones) · Tegucigalpa';
+    } else if (name.contains('Automotriz H')) {
+      return '⭐ 4.7 (89 valoraciones) · San Pedro Sula';
+    } else if (name.contains('Japan Parts')) {
+      return '⭐ 4.8 (64 valoraciones) · Choluteca';
+    }
+    return '⭐ 4.8 (95 valoraciones) · Honduras';
+  }
+
   @override
   Widget build(BuildContext context) {
     final conv = widget.conversation;
     final timeStr = DateFormat('h:mm a').format(conv.lastMessageAt);
+    final subtext = _getStoreSubtext(conv.participantName);
 
     return GestureDetector(
       onTapDown: (_) => setState(() => _isPressed = true),
@@ -36,45 +48,48 @@ class _ChatConversationCardState extends State<ChatConversationCard> {
         duration: const Duration(milliseconds: 100),
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.border),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center, // Centrado vertical exacto para uniformidad
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Avatar
+              // Left: Square store visual (eBay product-style container)
               Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  color: AppColors.grey100,
-                  shape: BoxShape.circle,
+                width: 76,
+                height: 76,
+                decoration: BoxDecoration(
+                  color: AppColors.grey50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
                 ),
                 child: const Icon(
                   Icons.storefront_rounded,
-                  color: AppColors.textSecondary,
-                  size: 22,
+                  color: AppColors.primary,
+                  size: 26,
                 ),
               ),
               const SizedBox(width: 14),
 
-              // Info
+              // Right: Content info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Row 1: Name, Unread Dot & Time
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(
                           child: Text(
@@ -82,89 +97,78 @@ class _ChatConversationCardState extends State<ChatConversationCard> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.hankenGrotesk(
-                              fontSize: 14.5,
+                              fontSize: 14,
                               fontWeight: FontWeight.w800,
                               color: AppColors.textPrimary,
                             ),
                           ),
                         ),
-                        Text(
-                          timeStr,
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 11,
-                            color: AppColors.textDisabled,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        const SizedBox(width: 8),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (conv.unreadCount > 0) ...[
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            Text(
+                              timeStr,
+                              style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 10.5,
+                                  color: AppColors.textDisabled,
+                                  fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    
-                    // Pricing tag cotizada
+                    const SizedBox(height: 2),
+
+                    // Row 2: Ratings / Location
+                    Text(
+                      subtext,
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+
+                    // Row 3: Prominent Price
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: conv.hasQuote 
-                                ? AppColors.successLight 
-                                : AppColors.grey100,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.sell_rounded,
-                                size: 12,
-                                color: conv.hasQuote 
-                                    ? AppColors.success 
-                                    : AppColors.textDisabled,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                conv.formattedPrice,
-                                style: GoogleFonts.hankenGrotesk(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: conv.hasQuote 
-                                      ? AppColors.success 
-                                      : AppColors.textSecondary,
-                                ),
-                              ),
-                              if (conv.hasQuote && conv.isFixedPrice) ...[
-                                const SizedBox(width: 4),
-                                Text(
-                                  '(Fijo)',
-                                  style: GoogleFonts.hankenGrotesk(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.success,
-                                  ),
-                                ),
-                              ]
-                            ],
+                        Text(
+                          conv.formattedPrice,
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.textPrimary,
                           ),
                         ),
-                        
-                        if (conv.unreadCount > 0)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(99),
-                            ),
-                            child: Text(
-                              '${conv.unreadCount}',
-                              style: GoogleFonts.hankenGrotesk(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                              ),
+                        if (conv.hasQuote) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            conv.isFixedPrice ? 'Precio fijo' : 'Estimado',
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: conv.isFixedPrice 
+                                  ? AppColors.success 
+                                  : AppColors.tertiary,
                             ),
                           ),
+                        ],
                       ],
                     ),
                   ],

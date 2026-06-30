@@ -39,122 +39,125 @@ class _ChatThreadCardState extends State<ChatThreadCard> {
         duration: const Duration(milliseconds: 100),
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.border),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Icon Folder Widget
+              // Left: Square folder visual (matching the eBay style)
               Container(
-                width: 48,
-                height: 48,
+                width: 76,
+                height: 76,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryMuted,
-                  borderRadius: BorderRadius.circular(14),
+                  color: AppColors.grey50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
                 ),
                 child: const Icon(
                   Icons.folder_open_rounded,
                   color: AppColors.primary,
-                  size: 24,
+                  size: 26,
                 ),
               ),
-              const SizedBox(width: 16),
-              
-              // Metadata
+              const SizedBox(width: 14),
+
+              // Right: Content info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Row 1: Title, Unread Dot & Time
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.grey100,
-                            borderRadius: BorderRadius.circular(99),
-                          ),
+                        Expanded(
                           child: Text(
-                            thread.requestType.label.toUpperCase(),
+                            thread.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.hankenGrotesk(
-                              fontSize: 9,
+                              fontSize: 14,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.textSecondary,
-                              letterSpacing: 1.0,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                         ),
-                        Text(
-                          timeStr,
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 11,
-                            color: AppColors.textDisabled,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        const SizedBox(width: 8),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (thread.unreadCount > 0) ...[
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            Text(
+                              timeStr,
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 10.5,
+                                color: AppColors.textDisabled,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      thread.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
+                    const SizedBox(height: 4),
+
+                    // Row 2: Category / Request Type
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.grey100,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        thread.requestType.label.toUpperCase(),
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textSecondary,
+                          letterSpacing: 0.8,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
+
+                    // Row 3: Prominent offer count or client name
                     Text(
                       widget.showClientName && thread.clientName != null
                           ? 'Cliente: ${thread.clientName}'
                           : '${thread.conversationCount} respuestas recibidas',
                       style: GoogleFonts.hankenGrotesk(
                         fontSize: 13,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w700,
+                        color: thread.conversationCount > 0 
+                            ? AppColors.success 
+                            : AppColors.textSecondary,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-
-              // Unread Badges or Arrow indicator
-              if (thread.unreadCount > 0)
-                Container(
-                  width: 20,
-                  height: 20,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    '${thread.unreadCount}',
-                    style: GoogleFonts.hankenGrotesk(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                )
-              else
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 14,
-                  color: AppColors.textDisabled,
-                ),
             ],
           ),
         ),
