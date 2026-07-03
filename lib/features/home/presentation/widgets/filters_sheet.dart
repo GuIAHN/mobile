@@ -1,20 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/domain/enums/service_type.dart';
 import '../../domain/entities/home_filters.dart';
 import '../../domain/entities/sort_option.dart';
+import '../../../catalog/presentation/providers/catalog_providers.dart';
 
-class FiltersSheet extends StatefulWidget {
+class FiltersSheet extends ConsumerStatefulWidget {
   final HomeFilters initialFilters;
+  final ServiceType serviceType;
 
-  const FiltersSheet({super.key, required this.initialFilters});
+  const FiltersSheet({
+    super.key,
+    required this.initialFilters,
+    required this.serviceType,
+  });
 
   @override
-  State<FiltersSheet> createState() => _FiltersSheetState();
+  ConsumerState<FiltersSheet> createState() => _FiltersSheetState();
 }
 
-class _FiltersSheetState extends State<FiltersSheet> {
+class _FiltersSheetState extends ConsumerState<FiltersSheet> {
   late HomeFilters _tempFilters;
 
   @override
@@ -22,6 +30,10 @@ class _FiltersSheetState extends State<FiltersSheet> {
     super.initState();
     _tempFilters = widget.initialFilters;
   }
+
+  bool get _isProviderSearch =>
+      widget.serviceType == ServiceType.mechanic ||
+      widget.serviceType == ServiceType.workshops;
 
   @override
   Widget build(BuildContext context) {
@@ -32,9 +44,8 @@ class _FiltersSheetState extends State<FiltersSheet> {
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.9,
-      ),
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.92),
       padding: EdgeInsets.only(
         left: AppSpacing.xl,
         right: AppSpacing.xl,
@@ -47,7 +58,7 @@ class _FiltersSheetState extends State<FiltersSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Drag Handle
+            // ── Drag Handle ──────────────────────────────────────────────
             Center(
               child: Container(
                 width: 40,
@@ -60,7 +71,7 @@ class _FiltersSheetState extends State<FiltersSheet> {
               ),
             ),
 
-            // Header
+            // ── Header ───────────────────────────────────────────────────
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -85,7 +96,7 @@ class _FiltersSheetState extends State<FiltersSheet> {
             ),
             const SizedBox(height: 20),
 
-            // Ordenar por
+            // ── Ordenar por ───────────────────────────────────────────────
             _buildLabel('ORDENAR POR'),
             const SizedBox(height: 10),
             Row(
@@ -93,24 +104,20 @@ class _FiltersSheetState extends State<FiltersSheet> {
                 final isSelected = _tempFilters.sortBy == option;
                 return Expanded(
                   child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _tempFilters = _tempFilters.copyWith(sortBy: option);
-                      });
-                    },
+                    onTap: () => setState(
+                        () => _tempFilters = _tempFilters.copyWith(sortBy: option)),
                     child: Container(
                       margin: EdgeInsets.only(
-                        right: option == SortOption.values.last ? 0 : 8,
-                      ),
+                          right: option == SortOption.values.last ? 0 : 8),
                       padding: const EdgeInsets.symmetric(vertical: 11),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: isSelected ? AppColors.primary : Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color:
-                              isSelected ? AppColors.primary : AppColors.border,
-                          width: 1.0,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.border,
                         ),
                       ),
                       child: Text(
@@ -118,8 +125,9 @@ class _FiltersSheetState extends State<FiltersSheet> {
                         style: GoogleFonts.hankenGrotesk(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
-                          color:
-                              isSelected ? Colors.white : AppColors.textPrimary,
+                          color: isSelected
+                              ? Colors.white
+                              : AppColors.textPrimary,
                         ),
                       ),
                     ),
@@ -129,44 +137,43 @@ class _FiltersSheetState extends State<FiltersSheet> {
             ),
             const SizedBox(height: 24),
 
-            // Distancia Máxima
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildLabel('DISTANCIA MÁXIMA'),
-                Text(
-                  '${_tempFilters.maxDistance.toInt()} km',
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
+            // ── Radio de búsqueda (solo para mecánicos/talleres) ──────────
+            if (_isProviderSearch) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildLabel('RADIO DE BÚSQUEDA'),
+                  Text(
+                    '${_tempFilters.radioKm.toInt()} km',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                    ),
                   ),
+                ],
+              ),
+              SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  activeTrackColor: AppColors.primary,
+                  inactiveTrackColor: AppColors.grey100,
+                  thumbColor: AppColors.primary,
+                  overlayColor: AppColors.primary.withValues(alpha: 0.15),
+                  trackHeight: 4,
                 ),
-              ],
-            ),
-            SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                activeTrackColor: AppColors.primary,
-                inactiveTrackColor: AppColors.grey100,
-                thumbColor: AppColors.primary,
-                overlayColor: AppColors.primary.withValues(alpha: 0.15),
-                trackHeight: 4,
+                child: Slider(
+                  value: _tempFilters.radioKm,
+                  min: 5.0,
+                  max: 50.0,
+                  divisions: 9,
+                  onChanged: (val) => setState(
+                      () => _tempFilters = _tempFilters.copyWith(radioKm: val)),
+                ),
               ),
-              child: Slider(
-                value: _tempFilters.maxDistance,
-                min: 1.0,
-                max: 10.0,
-                divisions: 9,
-                onChanged: (val) {
-                  setState(() {
-                    _tempFilters = _tempFilters.copyWith(maxDistance: val);
-                  });
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 20),
+            ],
 
-            // Valoración mínima
+            // ── Valoración mínima ─────────────────────────────────────────
             _buildLabel('VALORACIÓN MÍNIMA'),
             const SizedBox(height: 10),
             Row(
@@ -174,24 +181,19 @@ class _FiltersSheetState extends State<FiltersSheet> {
                 final isSelected = _tempFilters.minRating == rating;
                 return Expanded(
                   child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _tempFilters = _tempFilters.copyWith(minRating: rating);
-                      });
-                    },
+                    onTap: () => setState(() =>
+                        _tempFilters = _tempFilters.copyWith(minRating: rating)),
                     child: Container(
-                      margin: EdgeInsets.only(
-                        right: rating == 4.5 ? 0 : 8,
-                      ),
+                      margin: EdgeInsets.only(right: rating == 4.5 ? 0 : 8),
                       padding: const EdgeInsets.symmetric(vertical: 11),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color:
-                            isSelected ? AppColors.primaryMuted : Colors.white,
+                        color: isSelected ? AppColors.primaryMuted : Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color:
-                              isSelected ? AppColors.primary : AppColors.border,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.border,
                           width: 1.2,
                         ),
                       ),
@@ -209,13 +211,11 @@ class _FiltersSheetState extends State<FiltersSheet> {
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  Icons.star_rounded,
-                                  size: 13,
-                                  color: isSelected
-                                      ? AppColors.primary
-                                      : const Color(0xFFF59E0B),
-                                ),
+                                Icon(Icons.star_rounded,
+                                    size: 13,
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : const Color(0xFFF59E0B)),
                                 const SizedBox(width: 3),
                                 Text(
                                   '$rating+',
@@ -236,14 +236,19 @@ class _FiltersSheetState extends State<FiltersSheet> {
             ),
             const SizedBox(height: 24),
 
-            // Solo abiertos
+            // ── Especialidades (solo mecánicos/talleres) ──────────────────
+            if (_isProviderSearch) ...[
+              _buildLabel('ESPECIALIDADES'),
+              const SizedBox(height: 10),
+              _buildSpecialtyChips(),
+              const SizedBox(height: 24),
+            ],
+
+            // ── Solo abiertos ─────────────────────────────────────────────
             GestureDetector(
-              onTap: () {
-                setState(() {
+              onTap: () => setState(() =>
                   _tempFilters =
-                      _tempFilters.copyWith(onlyOpen: !_tempFilters.onlyOpen);
-                });
-              },
+                      _tempFilters.copyWith(onlyOpen: !_tempFilters.onlyOpen)),
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -260,16 +265,13 @@ class _FiltersSheetState extends State<FiltersSheet> {
                         color: Colors.white,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
-                        Icons.check,
-                        size: 16,
-                        color: AppColors.success,
-                      ),
+                      child: const Icon(Icons.check,
+                          size: 16, color: AppColors.success),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Mostrar solo abiertos ahora',
+                        'Mostrar solo disponibles ahora',
                         style: GoogleFonts.hankenGrotesk(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,
@@ -277,7 +279,6 @@ class _FiltersSheetState extends State<FiltersSheet> {
                         ),
                       ),
                     ),
-                    // Custom Toggle Switch
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       width: 48,
@@ -307,17 +308,13 @@ class _FiltersSheetState extends State<FiltersSheet> {
             ),
             const SizedBox(height: 32),
 
-            // Acciones
+            // ── Acciones ─────────────────────────────────────────────────
             Row(
               children: [
-                // Botón Limpiar
                 OutlinedButton(
                   onPressed: hasChanges
-                      ? () {
-                          setState(() {
-                            _tempFilters = const HomeFilters();
-                          });
-                        }
+                      ? () =>
+                          setState(() => _tempFilters = const HomeFilters())
                       : null,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textPrimary,
@@ -325,30 +322,22 @@ class _FiltersSheetState extends State<FiltersSheet> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 18, vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                        borderRadius: BorderRadius.circular(16)),
                   ),
                   child: Row(
                     children: [
                       const Icon(Icons.restart_alt, size: 16),
                       const SizedBox(width: 6),
-                      Text(
-                        'Limpiar',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      Text('Limpiar',
+                          style: GoogleFonts.hankenGrotesk(
+                              fontSize: 14, fontWeight: FontWeight.w700)),
                     ],
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Botón Aplicar
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context, _tempFilters);
-                    },
+                    onPressed: () => Navigator.pop(context, _tempFilters),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
@@ -356,8 +345,7 @@ class _FiltersSheetState extends State<FiltersSheet> {
                       elevation: 4,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                          borderRadius: BorderRadius.circular(16)),
                     ),
                     child: Text(
                       'APLICAR FILTROS',
@@ -373,6 +361,77 @@ class _FiltersSheetState extends State<FiltersSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Chips multi-selección de especialidades cargadas del catálogo.
+  Widget _buildSpecialtyChips() {
+    final specialtiesAsync = ref.watch(specialtiesProvider);
+    return specialtiesAsync.when(
+      data: (specialties) {
+        if (specialties.isEmpty) {
+          return Text(
+            'No hay especialidades disponibles',
+            style: GoogleFonts.hankenGrotesk(
+                fontSize: 13, color: AppColors.textSecondary),
+          );
+        }
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: specialties.map((specialty) {
+            final isSelected =
+                _tempFilters.specialtyIds.contains(specialty.id);
+            return GestureDetector(
+              onTap: () {
+                final current =
+                    List<String>.from(_tempFilters.specialtyIds);
+                if (isSelected) {
+                  current.remove(specialty.id);
+                } else {
+                  current.add(specialty.id);
+                }
+                setState(() =>
+                    _tempFilters = _tempFilters.copyWith(specialtyIds: current));
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primary : Colors.white,
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(
+                    color: isSelected ? AppColors.primary : AppColors.border,
+                    width: 1.2,
+                  ),
+                ),
+                child: Text(
+                  specialty.name,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: isSelected
+                        ? Colors.white
+                        : AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        );
+      },
+      loading: () => const SizedBox(
+        height: 32,
+        child: Center(
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: AppColors.primary)),
+      ),
+      error: (_, __) => Text(
+        'Error al cargar especialidades',
+        style: GoogleFonts.hankenGrotesk(
+            fontSize: 13, color: AppColors.textSecondary),
       ),
     );
   }

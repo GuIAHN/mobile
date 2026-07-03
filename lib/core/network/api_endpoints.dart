@@ -17,6 +17,14 @@ abstract class ApiEndpoints {
   static String vehicleById(String id) => 'vehicles/$id';
   static String vehicleServices(String id) => 'vehicles/$id/services';
 
+  // ── Búsqueda de Proveedores ───────────────────────────────────────────────
+  static const String searchMechanics = 'search/mechanics';
+  static const String searchWorkshops = 'search/workshops';
+
+  // ── Perfiles Públicos ─────────────────────────────────────────────────────
+  static String mechanicDetail(String id) => 'mechanics/$id';
+  static String storeDetail(String id) => 'stores/$id';
+
   // ── Home / Dashboard ──────────────────────────────────────────────────────
   static const String dashboard = 'dashboard';
 }

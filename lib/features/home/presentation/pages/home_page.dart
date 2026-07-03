@@ -51,12 +51,16 @@ class _HomePageState extends ConsumerState<HomePage> {
   // Abre la hoja de filtros y guarda el resultado
   Future<void> _openFilters() async {
     final currentFilters = ref.read(homeFiltersProvider);
+    final serviceType = ref.read(selectedServiceTypeProvider);
     final result = await showModalBottomSheet<HomeFilters>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.4),
-      builder: (_) => FiltersSheet(initialFilters: currentFilters),
+      builder: (_) => FiltersSheet(
+        initialFilters: currentFilters,
+        serviceType: serviceType,
+      ),
     );
 
     if (result != null) {

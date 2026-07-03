@@ -15,6 +15,8 @@ import '../../features/auth/presentation/pages/register_store_page.dart';
 import '../../features/vehicles/presentation/pages/register_vehicles_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/home/presentation/pages/mechanic_detail_page.dart';
+import '../../features/home/presentation/pages/store_detail_page.dart';
 import '../../features/chat/presentation/pages/chat_inbox_page.dart';
 import '../../features/chat/presentation/pages/chat_thread_detail_page.dart';
 import '../../features/chat/presentation/pages/chat_conversation_page.dart';
@@ -119,6 +121,22 @@ class AppRouter {
             path: RouteNames.home,
             name: 'home',
             builder: (context, state) => const HomePage(),
+          ),
+          GoRoute(
+            path: RouteNames.mechanicDetail,
+            name: 'mechanicDetail',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return MechanicDetailPage(mechanicId: id);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.storeDetail,
+            name: 'storeDetail',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return StoreDetailPage(storeId: id);
+            },
           ),
 
           // ── Vehículos ────────────────────────────────────────────────────
