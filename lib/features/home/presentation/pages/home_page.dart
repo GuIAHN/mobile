@@ -19,10 +19,10 @@ import '../../../../shared/widgets/empty_state.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../vehicles/domain/entities/user_car.dart';
 import '../../../vehicles/presentation/providers/vehicle_providers.dart';
-import '../../../vehicles/presentation/widgets/vehicle_selection_modal.dart';
 import '../../../chat/presentation/pages/chat_inbox_page.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../../../catalog/domain/entities/specialty.dart';
+import '../../../vehicles/presentation/widgets/garage_vehicle_selector_sheet.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -411,167 +411,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _abrirSelectorVehiculoSearch() {
-    final garageCarsAsync = ref.read(userCarsProvider);
-    final garageCars = garageCarsAsync.valueOrNull ?? [];
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 26,
-          ),
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.75,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 18),
-                  decoration: BoxDecoration(
-                    color: AppColors.grey300,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-              ),
-              Text(
-                'Selecciona un vehículo',
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (garageCars.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: Text(
-                    'No tienes vehículos en tu garaje.',
-                    style: GoogleFonts.hankenGrotesk(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
-                )
-              else
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: garageCars.length,
-                    itemBuilder: (context, index) {
-                      final car = garageCars[index];
-                      final currentVehicle = ref.read(searchVehicleProvider);
-                      final esSeleccionado = currentVehicle?.id == car.id &&
-                          currentVehicle?.brand == car.brand &&
-                          currentVehicle?.model == car.model &&
-                          currentVehicle?.year == car.year;
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: esSeleccionado ? AppColors.primary : AppColors.border,
-                            width: esSeleccionado ? 1.5 : 1.0,
-                          ),
-                        ),
-                        child: ListTile(
-                          leading: Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: esSeleccionado ? AppColors.primaryMuted : AppColors.grey100,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.directions_car_rounded,
-                              color: esSeleccionado ? AppColors.primary : AppColors.textSecondary,
-                              size: 20,
-                            ),
-                          ),
-                          title: Text(
-                            '${car.brand} ${car.model}',
-                            style: GoogleFonts.hankenGrotesk(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14.5,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          subtitle: Text(
-                            'Año ${car.year}',
-                            style: GoogleFonts.hankenGrotesk(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          trailing: esSeleccionado
-                              ? const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20)
-                              : null,
-                          onTap: () {
-                            ref.read(searchVehicleProvider.notifier).state = car;
-                            Navigator.pop(context);
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 10),
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    Navigator.pop(context); // close this sheet
-                    final result = await VehicleSelectionModal.show(context);
-                    if (result != null) {
-                      final newCar = UserCar(
-                        id: '', // denote manually selected
-                        brand: result.brand.name,
-                        model: result.modelName,
-                        year: result.year,
-                      );
-                      ref.read(searchVehicleProvider.notifier).state = newCar;
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    elevation: 0,
-                  ),
-                  icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
-                  label: Text(
-                    'Buscar otro modelo...',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14.5,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    GarageVehicleSelectorSheet.show(context);
   }
 
   Widget _buildHeader() {
@@ -990,64 +830,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                   fontSize: 13, fontWeight: FontWeight.w800),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlaceholderTab(IconData icon, String title, String subtitle) {
-    return Center(
-      key: ValueKey(title),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              decoration: const BoxDecoration(
-                color: AppColors.grey100,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 56, color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              title,
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primaryMuted,
-                borderRadius: BorderRadius.circular(99),
-              ),
-              child: Text(
-                'PRÓXIMAMENTE',
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.5,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );

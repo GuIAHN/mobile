@@ -27,4 +27,11 @@ abstract class ApiEndpoints {
 
   // ── Home / Dashboard ──────────────────────────────────────────────────────
   static const String dashboard = 'dashboard';
+
+  // ── Búsqueda de Repuestos ─────────────────────────────────────────────────
+  static const String search = 'search';
+  static const String searchMe = 'search/me';
+  static String searchById(String id) => 'search/$id';
+  static String searchClose(String id) => 'search/$id/close';
+  static String searchOffers(String id) => 'search/$id/offers';
 }

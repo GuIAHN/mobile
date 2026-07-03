@@ -1,20 +1,116 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/domain/enums/part_type.dart';
 import '../../data/datasources/search_remote_datasource.dart';
 import '../../data/repositories/home_repository_impl.dart';
+import '../../data/repositories/search_repository_impl.dart';
 import '../../domain/entities/home_filters.dart';
 import '../../domain/entities/home_item.dart';
 import '../../domain/entities/promo.dart';
 import '../../domain/entities/provider_detail.dart';
 import '../../domain/entities/sort_option.dart';
 import '../../domain/repositories/home_repository.dart';
+import '../../domain/repositories/search_repository.dart';
+import '../../domain/usecases/create_search_request_usecase.dart';
 import '../../domain/usecases/get_home_items_usecase.dart';
 import '../../domain/usecases/get_promos_usecase.dart';
 import '../../domain/usecases/get_provider_detail_usecase.dart';
 import '../../domain/usecases/search_providers_usecase.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../vehicles/domain/entities/user_car.dart';
+
+// ── Search Providers ────────────────────────────────────────────────────────
+final searchRepositoryProvider = Provider<SearchRepository>((ref) {
+  final dataSource = ref.watch(searchRemoteDatasourceProvider);
+  return SearchRepositoryImpl(dataSource);
+});
+
+final createSearchRequestUseCaseProvider = Provider<CreateSearchRequestUseCase>((ref) {
+  final repository = ref.watch(searchRepositoryProvider);
+  return CreateSearchRequestUseCase(repository);
+});
+
+enum SearchRequestStatus { idle, loading, success, error }
+
+class SearchRequestState {
+  final SearchRequestStatus status;
+  final String? errorMessage;
+  final Map<String, dynamic>? data;
+
+  const SearchRequestState({
+    this.status = SearchRequestStatus.idle,
+    this.errorMessage,
+    this.data,
+  });
+
+  SearchRequestState copyWith({
+    SearchRequestStatus? status,
+    String? errorMessage,
+    Map<String, dynamic>? data,
+  }) {
+    return SearchRequestState(
+      status: status ?? this.status,
+      errorMessage: errorMessage ?? this.errorMessage,
+      data: data ?? this.data,
+    );
+  }
+}
+
+class SearchRequestNotifier extends StateNotifier<SearchRequestState> {
+  final CreateSearchRequestUseCase _useCase;
+
+  SearchRequestNotifier(this._useCase) : super(const SearchRequestState());
+
+  Future<void> submitSearch({
+    required String userCarId,
+    required String subcategoryId,
+    String? details,
+    String? fotoUrl,
+    PartType? partType,
+    int? radioKm,
+    double? lat,
+    double? lon,
+  }) async {
+    state = const SearchRequestState(status: SearchRequestStatus.loading);
+
+    final result = await _useCase(
+      userCarId: userCarId,
+      subcategoryId: subcategoryId,
+      details: details,
+      fotoUrl: fotoUrl,
+      partType: partType,
+      radioKm: radioKm,
+      lat: lat,
+      lon: lon,
+    );
+
+    result.fold(
+      (failure) {
+        state = SearchRequestState(
+          status: SearchRequestStatus.error,
+          errorMessage: failure.message,
+        );
+      },
+      (data) {
+        state = SearchRequestState(
+          status: SearchRequestStatus.success,
+          data: data,
+        );
+      },
+    );
+  }
+
+  void reset() {
+    state = const SearchRequestState();
+  }
+}
+
+final searchRequestNotifierProvider =
+    StateNotifierProvider<SearchRequestNotifier, SearchRequestState>((ref) {
+  final useCase = ref.watch(createSearchRequestUseCaseProvider);
+  return SearchRequestNotifier(useCase);
+});
 
 // ── Datasource & Repositorio ──────────────────────────────────────────────────
 
@@ -74,7 +170,12 @@ final searchVehicleProvider = StateProvider<UserCar?>((ref) {
   return null;
 });
 
-/// Índice de la pestaña activa (0: Home, 1: Chats, 2: Perfil)
+/// ID de modelo de vehículo temporario/manual seleccionado
+final searchVehicleModelIdProvider = StateProvider<String?>((ref) {
+  return null;
+});
+
+/// Índice de la pestaña activa en la barra de navegación (0: Home, 1: Chats, 2: Perfil)
 final homeTabProvider = StateProvider<int>((ref) {
   return 0;
 });

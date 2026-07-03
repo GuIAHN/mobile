@@ -1,12 +1,26 @@
+import '../../../../core/error/exceptions.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/domain/enums/part_type.dart';
 
-/// Contrato del datasource remoto de búsqueda de proveedores.
+/// Contrato del datasource remoto de búsqueda de proveedores y creación de búsquedas de repuestos.
 abstract class SearchRemoteDatasource {
   Future<Map<String, dynamic>> searchMechanics(Map<String, dynamic> params);
   Future<Map<String, dynamic>> searchWorkshops(Map<String, dynamic> params);
   Future<Map<String, dynamic>> getMechanicDetail(String id);
   Future<Map<String, dynamic>> getStoreDetail(String id);
+
+  /// Envía la solicitud de búsqueda de repuesto al backend.
+  Future<Map<String, dynamic>> createSearchRequest({
+    required String userCarId,
+    required String subcategoryId,
+    String? details,
+    String? fotoUrl,
+    PartType? partType,
+    int? radioKm,
+    double? lat,
+    double? lon,
+  });
 }
 
 /// Implementación HTTP con [DioClient].
@@ -50,5 +64,43 @@ class SearchRemoteDatasourceImpl implements SearchRemoteDatasource {
       ApiEndpoints.storeDetail(id),
     );
     return response.data ?? {};
+  }
+
+  @override
+  Future<Map<String, dynamic>> createSearchRequest({
+    required String userCarId,
+    required String subcategoryId,
+    String? details,
+    String? fotoUrl,
+    PartType? partType,
+    int? radioKm,
+    double? lat,
+    double? lon,
+  }) async {
+    try {
+      final payload = {
+        'userCarId': userCarId,
+        'subcategoryId': subcategoryId,
+        if (details != null && details.isNotEmpty) 'details': details,
+        if (fotoUrl != null && fotoUrl.isNotEmpty) 'fotoUrl': fotoUrl,
+        if (partType != null) 'partType': partType.apiValue,
+        if (radioKm != null) 'radioKm': radioKm,
+        if (lat != null) 'lat': lat,
+        if (lon != null) 'lon': lon,
+      };
+
+      final response = await _client.post<Map<String, dynamic>>(
+        '/search',
+        data: payload,
+      );
+
+      if (response.data == null) {
+        throw const ParseException();
+      }
+
+      return response.data!;
+    } catch (e) {
+      rethrow;
+    }
   }
 }
