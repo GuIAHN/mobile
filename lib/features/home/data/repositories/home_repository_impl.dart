@@ -187,7 +187,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }) async {
     try {
       final Map<String, dynamic> json;
-      if (type == ServiceType.mechanic) {
+      if (type == ServiceType.mechanic || type == ServiceType.workshops) {
         json = await _remoteDatasource.getMechanicDetail(id);
         return Right(ProviderDetailModel.fromMechanicJson(json));
       } else {
