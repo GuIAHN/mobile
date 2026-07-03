@@ -21,6 +21,8 @@ import '../../../vehicles/domain/entities/user_car.dart';
 import '../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../../../vehicles/presentation/widgets/vehicle_selection_modal.dart';
 import '../../../chat/presentation/pages/chat_inbox_page.dart';
+import '../../../catalog/presentation/providers/catalog_providers.dart';
+import '../../../catalog/domain/entities/specialty.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -817,6 +819,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Widget _buildActiveFilterChips(HomeFilters filters) {
     final chips = <Widget>[];
+    final specialtiesAsync = ref.watch(specialtiesProvider);
 
     void addChip(Widget content, VoidCallback onRemove) {
       chips.add(
@@ -858,17 +861,17 @@ class _HomePageState extends ConsumerState<HomePage> {
       );
     }
 
-    if (filters.maxDistance != 5.0) {
+    if (filters.radioKm != 15.0) {
       addChip(
         Text(
-          '≤ ${filters.maxDistance.toInt()} km',
+          '≤ ${filters.radioKm.toInt()} km',
           style: GoogleFonts.hankenGrotesk(
               fontSize: 11.5,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary),
         ),
         () => ref.read(homeFiltersProvider.notifier).state =
-            filters.copyWith(maxDistance: 5.0),
+            filters.copyWith(radioKm: 15.0),
       );
     }
 
@@ -916,6 +919,32 @@ class _HomePageState extends ConsumerState<HomePage> {
         () => ref.read(homeFiltersProvider.notifier).state =
             filters.copyWith(onlyOpen: false),
       );
+    }
+
+    if (filters.specialtyIds.isNotEmpty) {
+      specialtiesAsync.whenData((specialties) {
+        for (final id in filters.specialtyIds) {
+          final specialty = specialties.firstWhere(
+            (s) => s.id == id,
+            orElse: () => Specialty(id: id, name: id),
+          );
+          addChip(
+            Text(
+              specialty.name,
+              style: GoogleFonts.hankenGrotesk(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary),
+            ),
+            () {
+              final newSpecialties = List<String>.from(filters.specialtyIds)
+                ..remove(id);
+              ref.read(homeFiltersProvider.notifier).state =
+                  filters.copyWith(specialtyIds: newSpecialties);
+            },
+          );
+        }
+      });
     }
 
     return SizedBox(

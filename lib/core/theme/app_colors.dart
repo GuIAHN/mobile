@@ -44,7 +44,7 @@ abstract class AppColors {
 
   // ── Superficie ──────────────────────────────────────────────────────────
   static const Color surface    = Color(0xFFFFFFFF);
-  static const Color background = Color(0xFFF8F9FA); // neutral del branding
+  static const Color background = Color(0xFFF5F6FA); // neutral del branding
 
   // ── Texto ───────────────────────────────────────────────────────────────
   static const Color textPrimary   = Color(0xFF1A1C1E); // secondary del branding

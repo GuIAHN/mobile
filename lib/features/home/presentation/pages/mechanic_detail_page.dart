@@ -16,7 +16,7 @@ class MechanicDetailPage extends ConsumerWidget {
         providerDetailProvider((id: mechanicId, type: ServiceType.mechanic)));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.background,
       body: detailAsync.when(
         loading: () => const _SkeletonLoader(),
         error: (e, _) => _ErrorView(message: e.toString()),
@@ -27,8 +27,8 @@ class MechanicDetailPage extends ConsumerWidget {
             SliverAppBar(
               expandedHeight: 220,
               pinned: true,
-              backgroundColor: Colors.white,
-              surfaceTintColor: Colors.white,
+              backgroundColor: AppColors.background,
+              surfaceTintColor: AppColors.background,
               leading: Padding(
                 padding: const EdgeInsets.all(8),
                 child: CircleAvatar(
@@ -52,7 +52,7 @@ class MechanicDetailPage extends ConsumerWidget {
             ),
 
             SliverPadding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   // Rating & distancia
@@ -61,12 +61,12 @@ class MechanicDetailPage extends ConsumerWidget {
                     distanciaKm: detail.distanciaKm,
                     tarifa: detail.tarifa,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
                   // Especialidades
                   if (detail.especialidades.isNotEmpty) ...[
-                    const _SectionTitle(title: 'Especialidades'),
-                    const SizedBox(height: 10),
+                    const _SectionTitle(title: 'ESPECIALIDADES'),
+                    const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -74,21 +74,21 @@ class MechanicDetailPage extends ConsumerWidget {
                           .map((e) => _SpecialtyChip(label: e))
                           .toList(),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                   ],
 
                   // Descripción
                   if (detail.descripcion != null &&
                       detail.descripcion!.isNotEmpty) ...[
-                    const _SectionTitle(title: 'Sobre el mecánico'),
-                    const SizedBox(height: 10),
+                    const _SectionTitle(title: 'SOBRE EL MECÁNICO'),
+                    const SizedBox(height: 12),
                     _DescriptionCard(text: detail.descripcion!),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                   ],
 
                   // Contacto
-                  const _SectionTitle(title: 'Contacto'),
-                  const SizedBox(height: 10),
+                  const _SectionTitle(title: 'CONTACTO'),
+                  const SizedBox(height: 12),
                   if (detail.telefono != null)
                     _ContactTile(
                       icon: Icons.phone_outlined,
@@ -101,39 +101,52 @@ class MechanicDetailPage extends ConsumerWidget {
                       label: detail.email!,
                       color: AppColors.primary,
                     ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 36),
 
                   // CTA
-                  SizedBox(
+                  Container(
                     width: double.infinity,
-                    child: ElevatedButton.icon(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(32),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.4),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton(
                       onPressed: () {
                         // TODO: Conectar con chat o WhatsApp
                       },
-                      icon: const Icon(Icons.chat_bubble_outline_rounded,
-                          size: 18),
-                      label: Text(
-                        'SOLICITAR SERVICIO',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 16),
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                        elevation: 4,
-                        shadowColor:
-                            AppColors.primary.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(32),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'SOLICITAR SERVICIO',
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 2.0,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
                 ]),
               ),
             ),
@@ -161,7 +174,7 @@ class _HeaderBackground extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFFF25C05), Color(0xFFF5813A)],
+          colors: [AppColors.primary, AppColors.primaryLight],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -235,9 +248,10 @@ class _StatsRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 4))
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
       child: Row(
@@ -328,9 +342,10 @@ class _SectionTitle extends StatelessWidget {
     return Text(
       title,
       style: GoogleFonts.hankenGrotesk(
-        fontSize: 15,
-        fontWeight: FontWeight.w800,
-        color: AppColors.textPrimary,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.5,
+        color: AppColors.textSecondary,
       ),
     );
   }
@@ -372,8 +387,14 @@ class _DescriptionCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Text(
         text,
@@ -398,12 +419,18 @@ class _ContactTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Row(
         children: [

@@ -7,7 +7,6 @@ import 'sort_option.dart';
 /// [onlyOpen], que es un filtro visual local (el backend no lo soporta aún).
 class HomeFilters extends Equatable {
   final SortOption sortBy;
-  final double maxDistance;
   final double minRating;
   final bool onlyOpen;
 
@@ -19,7 +18,6 @@ class HomeFilters extends Equatable {
 
   const HomeFilters({
     this.sortBy = SortOption.cercania,
-    this.maxDistance = 15.0,
     this.minRating = 0.0,
     this.onlyOpen = false,
     this.radioKm = 15.0,
@@ -28,7 +26,6 @@ class HomeFilters extends Equatable {
 
   HomeFilters copyWith({
     SortOption? sortBy,
-    double? maxDistance,
     double? minRating,
     bool? onlyOpen,
     double? radioKm,
@@ -36,7 +33,6 @@ class HomeFilters extends Equatable {
   }) {
     return HomeFilters(
       sortBy: sortBy ?? this.sortBy,
-      maxDistance: maxDistance ?? this.maxDistance,
       minRating: minRating ?? this.minRating,
       onlyOpen: onlyOpen ?? this.onlyOpen,
       radioKm: radioKm ?? this.radioKm,
@@ -46,7 +42,6 @@ class HomeFilters extends Equatable {
 
   bool get isDefault =>
       sortBy == SortOption.cercania &&
-      maxDistance == 15.0 &&
       minRating == 0.0 &&
       !onlyOpen &&
       radioKm == 15.0 &&
@@ -64,12 +59,12 @@ class HomeFilters extends Equatable {
     return {
       'radioKm': radioKm.toInt(),
       if (minRating > 0) 'minRating': minRating,
-      if (specialtyIds.isNotEmpty) 'specialtyIds[]': specialtyIds,
+      if (specialtyIds.isNotEmpty) 'specialtyIds': specialtyIds,
       'orderBy': sortBy == SortOption.rating ? 'rating' : 'distancia',
     };
   }
 
   @override
   List<Object?> get props =>
-      [sortBy, maxDistance, minRating, onlyOpen, radioKm, specialtyIds];
+      [sortBy, minRating, onlyOpen, radioKm, specialtyIds];
 }
