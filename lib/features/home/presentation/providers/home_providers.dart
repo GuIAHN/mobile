@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/domain/enums/part_type.dart';
+import '../../../../core/services/location_service.dart';
 import '../../data/datasources/search_remote_datasource.dart';
 import '../../data/repositories/home_repository_impl.dart';
 import '../../data/repositories/search_repository_impl.dart';
@@ -155,11 +156,6 @@ final homeFiltersProvider = StateProvider<HomeFilters>((ref) {
   return const HomeFilters();
 });
 
-/// Indica si la búsqueda por ubicación está activada/compartida
-final isLocationSharedProvider = StateProvider<bool>((ref) {
-  return false;
-});
-
 /// Query de búsqueda textual (filtro local sobre la lista)
 final searchQueryProvider = StateProvider<String>((ref) {
   return '';
@@ -209,7 +205,29 @@ final homeItemsProvider =
   }
 
   // Mecánicos y Talleres: usar búsqueda real con filtros actuales
-  final filters = ref.watch(homeFiltersProvider);
+  var filters = ref.watch(homeFiltersProvider);
+
+  final isLocationShared = ref.watch(isLocationSharedProvider);
+  if (isLocationShared) {
+    final locationAsync = ref.watch(userLocationProvider);
+    var location = locationAsync.valueOrNull;
+
+    if (location == null && locationAsync.isLoading) {
+      // Esperar a que la ubicación termine de cargar para mantener el estado loading del provider
+      await ref.watch(userLocationProvider.notifier).stream.firstWhere((state) => !state.isLoading);
+      location = ref.read(userLocationProvider).valueOrNull;
+    }
+
+    if (location != null) {
+      filters = filters.copyWith(
+        lat: location.latitude,
+        lon: location.longitude,
+      );
+    }
+  } else {
+    filters = filters.copyWith(clearLocation: true);
+  }
+
   final useCase = ref.watch(searchProvidersUseCaseProvider);
   final result = await useCase(type: type, filters: filters);
   return result.fold(

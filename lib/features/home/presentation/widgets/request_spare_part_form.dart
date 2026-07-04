@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,6 +16,7 @@ import '../providers/home_providers.dart';
 import '../../../../core/domain/enums/part_type.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../vehicles/presentation/widgets/garage_vehicle_selector_sheet.dart';
+import '../../../../core/services/location_service.dart';
 
 class RequestSparePartForm extends ConsumerStatefulWidget {
   final VoidCallback? onSubmitted;
@@ -34,7 +37,8 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
   Category? _selectedSubcategory;
   PartType? _selectedPartType;
 
-  bool _hasPhoto = false;
+  String? _selectedImagePath;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -45,6 +49,91 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
   void dispose() {
     _detailsController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImagePath = pickedFile.path;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        context.showSnackBar(
+          'Error al seleccionar imagen: $e',
+          isError: true,
+        );
+      }
+    }
+  }
+
+  void _mostrarSelectorDeImagen() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: AppColors.grey300,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+            Text(
+              'Adjuntar fotografía',
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: _BotonFuenteImagen(
+                    icon: Icons.camera_alt_outlined,
+                    label: 'Cámara',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _pickImage(ImageSource.camera);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _BotonFuenteImagen(
+                    icon: Icons.photo_library_outlined,
+                    label: 'Galería',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _pickImage(ImageSource.gallery);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
 
@@ -60,6 +149,17 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
 
   void _hideLoadingOverlay() {
     Navigator.pop(context);
+  }
+
+  void _abrirSelectorVehiculo() async {
+    final result = await GarageVehicleSelectorSheet.show(
+      context,
+      selectedCar: ref.read(searchVehicleProvider),
+    );
+    if (result != null) {
+      ref.read(searchVehicleModelIdProvider.notifier).state = result.modelId;
+      ref.read(searchVehicleProvider.notifier).state = result.car;
+    }
   }
 
   void _onSubmit() async {
@@ -109,12 +209,29 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
       userCarId = registeredCar.id;
     }
 
+    double? lat;
+    double? lon;
+    if (ref.read(isLocationSharedProvider)) {
+      final location = ref.read(userLocationProvider).valueOrNull;
+      if (location != null) {
+        lat = location.latitude;
+        lon = location.longitude;
+      }
+    }
+
+    final String? mockFotoUrl = _selectedImagePath != null 
+        ? 'https://guiautomotriz.com/uploads/temp_${DateTime.now().millisecondsSinceEpoch}.jpg' 
+        : null;
+
     _showLoadingOverlay();
     await ref.read(searchRequestNotifierProvider.notifier).submitSearch(
       userCarId: userCarId,
       subcategoryId: selectedSubcategory.id,
       details: _detailsController.text,
       partType: selectedPartType,
+      fotoUrl: mockFotoUrl,
+      lat: lat,
+      lon: lon,
     );
     _hideLoadingOverlay();
 
@@ -199,7 +316,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                     _selectedCategory = null;
                     _selectedSubcategory = null;
                     _selectedPartType = null;
-                    _hasPhoto = false;
+                    _selectedImagePath = null;
                   });
                   ref.read(searchVehicleProvider.notifier).state = null;
                   ref.read(searchVehicleModelIdProvider.notifier).state = null;
@@ -365,7 +482,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                   icon: Icons.directions_car_filled_outlined,
                   value: globalVehicle != null ? valorMostrado : null,
                   placeholder: 'Selecciona un vehículo de tu garaje',
-                  onTap: () => GarageVehicleSelectorSheet.show(context),
+                  onTap: _abrirSelectorVehiculo,
                 );
               },
               loading: () => _buildLoadingField('Cargando tus vehículos...'),
@@ -373,7 +490,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                 icon: Icons.directions_car_filled_outlined,
                 value: globalVehicle != null ? 'Otro: ${globalVehicle.brand} ${globalVehicle.model}' : null,
                 placeholder: 'Ingresa vehículo manual',
-                onTap: () => GarageVehicleSelectorSheet.show(context),
+                onTap: _abrirSelectorVehiculo,
               ),
             ),
           ] else ...[
@@ -383,7 +500,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                   ? '${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})'
                   : null,
               placeholder: 'Selecciona marca, modelo y año',
-              onTap: () => GarageVehicleSelectorSheet.show(context),
+              onTap: _abrirSelectorVehiculo,
             ),
           ],
           const SizedBox(height: 12),
@@ -471,43 +588,68 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
           // Campo 5: Fotografía
           _buildLabel('FOTOGRAFÍA DE REFERENCIA (OPCIONAL)'),
           const SizedBox(height: 6),
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _hasPhoto = !_hasPhoto;
-              });
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              width: double.infinity,
-              height: 90,
-              decoration: BoxDecoration(
-                color: _hasPhoto ? AppColors.primaryMuted : AppColors.grey50,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: _hasPhoto ? AppColors.primary : AppColors.border,
-                  style: BorderStyle.solid,
-                  width: 1.5,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: _hasPhoto
-                    ? [
-                        const Icon(Icons.photo_library_rounded, color: AppColors.primary, size: 24),
-                        const SizedBox(width: 12),
-                        Text(
-                           'foto_repuesto_2026.jpg adjunta',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
+          _selectedImagePath != null
+              ? Container(
+                  height: 120,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(13),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Image.file(
+                            File(_selectedImagePath!),
+                            fit: BoxFit.cover,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 16),
-                      ]
-                    : [
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedImagePath = null;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : GestureDetector(
+                  onTap: _mostrarSelectorDeImagen,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    width: double.infinity,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      color: AppColors.grey50,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: AppColors.border,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
                         const Icon(Icons.add_a_photo_outlined, color: AppColors.textSecondary, size: 24),
                         const SizedBox(width: 12),
                         Text(
@@ -519,9 +661,9 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                           ),
                         ),
                       ],
-              ),
-            ),
-          ),
+                    ),
+                  ),
+                ),
           const SizedBox(height: 20),
 
           // Botón de Enviar Solicitud
@@ -997,5 +1139,46 @@ class _CategorySubcategoryResult {
     required this.category,
     required this.subcategory,
   });
+}
+
+class _BotonFuenteImagen extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _BotonFuenteImagen({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: AppColors.grey50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: AppColors.primary, size: 28),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: GoogleFonts.hankenGrotesk(
+                fontWeight: FontWeight.w700,
+                fontSize: 14.5,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 

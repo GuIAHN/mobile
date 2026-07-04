@@ -3,28 +3,42 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../home/presentation/providers/home_providers.dart';
 import '../../domain/entities/user_car.dart';
 import '../providers/vehicle_providers.dart';
 import 'vehicle_selection_modal.dart';
 
+class VehicleSelectorResult {
+  final UserCar car;
+  final String? modelId;
+
+  const VehicleSelectorResult({
+    required this.car,
+    this.modelId,
+  });
+}
+
 class GarageVehicleSelectorSheet extends ConsumerWidget {
-  const GarageVehicleSelectorSheet({super.key});
+  final UserCar? selectedCar;
+
+  const GarageVehicleSelectorSheet({
+    super.key,
+    this.selectedCar,
+  });
 
   /// Abre el modal y muestra la lista de selección.
-  static Future<void> show(BuildContext context) {
-    return showModalBottomSheet<void>(
+  static Future<VehicleSelectorResult?> show(BuildContext context, {UserCar? selectedCar}) {
+    return showModalBottomSheet<VehicleSelectorResult>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const GarageVehicleSelectorSheet(),
+      builder: (_) => GarageVehicleSelectorSheet(selectedCar: selectedCar),
     );
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final garageCarsAsync = ref.watch(userCarsProvider);
-    final currentVehicle = ref.watch(searchVehicleProvider);
+    final currentVehicle = selectedCar;
 
     return Container(
       decoration: const BoxDecoration(
@@ -133,9 +147,10 @@ class GarageVehicleSelectorSheet extends ConsumerWidget {
                             ? const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20)
                             : null,
                         onTap: () {
-                          ref.read(searchVehicleModelIdProvider.notifier).state = null;
-                          ref.read(searchVehicleProvider.notifier).state = car;
-                          Navigator.pop(context);
+                          Navigator.pop(
+                            context,
+                            VehicleSelectorResult(car: car),
+                          );
                         },
                       ),
                     );
@@ -159,7 +174,6 @@ class GarageVehicleSelectorSheet extends ConsumerWidget {
             margin: const EdgeInsets.only(bottom: 10),
             child: ElevatedButton.icon(
               onPressed: () async {
-                Navigator.pop(context); // close this sheet
                 final result = await VehicleSelectionModal.show(context);
                 if (result != null) {
                   final newCar = UserCar(
@@ -168,8 +182,12 @@ class GarageVehicleSelectorSheet extends ConsumerWidget {
                     model: result.modelName,
                     year: result.year,
                   );
-                  ref.read(searchVehicleModelIdProvider.notifier).state = result.modelId;
-                  ref.read(searchVehicleProvider.notifier).state = newCar;
+                  if (context.mounted) {
+                    Navigator.pop(
+                      context,
+                      VehicleSelectorResult(car: newCar, modelId: result.modelId),
+                    );
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(

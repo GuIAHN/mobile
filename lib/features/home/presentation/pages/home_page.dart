@@ -7,6 +7,8 @@ import '../../domain/entities/home_filters.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../domain/entities/sort_option.dart';
 import '../providers/home_providers.dart';
+import '../../../../core/services/location_service.dart';
+import 'package:geolocator/geolocator.dart';
 import '../widgets/bottom_burbuja.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/filters_sheet.dart';
@@ -40,6 +42,10 @@ class _HomePageState extends ConsumerState<HomePage> {
     super.initState();
     _searchController.addListener(() {
       ref.read(searchQueryProvider.notifier).state = _searchController.text;
+    });
+    // Auto-activar si el permiso ya fue concedido previamente
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkInitialLocationPermission();
     });
   }
 
@@ -410,8 +416,15 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  void _abrirSelectorVehiculoSearch() {
-    GarageVehicleSelectorSheet.show(context);
+  void _abrirSelectorVehiculoSearch() async {
+    final result = await GarageVehicleSelectorSheet.show(
+      context,
+      selectedCar: ref.read(searchVehicleProvider),
+    );
+    if (result != null) {
+      ref.read(searchVehicleModelIdProvider.notifier).state = result.modelId;
+      ref.read(searchVehicleProvider.notifier).state = result.car;
+    }
   }
 
   Widget _buildHeader() {
@@ -442,10 +455,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           const Spacer(),
           // Toggle de Compartir Ubicación
           GestureDetector(
-            onTap: () {
-              ref.read(isLocationSharedProvider.notifier).state =
-                  !isLocationShared;
-            },
+            onTap: () => _handleLocationToggle(context),
             behavior: HitTestBehavior.opaque,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
@@ -476,6 +486,255 @@ class _HomePageState extends ConsumerState<HomePage> {
                 size: 20,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _checkInitialLocationPermission() async {
+    final service = ref.read(locationServiceProvider);
+    final permission = await service.checkPermission();
+    if (permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always) {
+      final isServiceEnabled = await service.isLocationServiceEnabled();
+      if (isServiceEnabled) {
+        ref.read(isLocationSharedProvider.notifier).state = true;
+        await ref.read(userLocationProvider.notifier).updateLocation();
+      }
+    }
+  }
+
+  Future<void> _handleLocationToggle(BuildContext context) async {
+    final isCurrentlyShared = ref.read(isLocationSharedProvider);
+    if (isCurrentlyShared) {
+      ref.read(isLocationSharedProvider.notifier).state = false;
+      return;
+    }
+
+    final service = ref.read(locationServiceProvider);
+    
+    // 1. Verificar si el GPS está habilitado
+    final isServiceEnabled = await service.isLocationServiceEnabled();
+    if (!isServiceEnabled) {
+      if (!context.mounted) return;
+      _showGpsDisabledDialog(context);
+      return;
+    }
+
+    // 2. Verificar y solicitar permisos
+    var permission = await service.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await service.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Permiso de ubicación denegado por el usuario.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      if (!context.mounted) return;
+      _showSettingsRedirectDialog(context);
+      return;
+    }
+
+    // 3. Activar compartir ubicación
+    ref.read(isLocationSharedProvider.notifier).state = true;
+    final success = await ref.read(userLocationProvider.notifier).updateLocation();
+    if (!success) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo obtener la ubicación exacta. Usando última conocida.'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+    }
+  }
+
+  void _showGpsDisabledDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            const Icon(Icons.location_off_rounded, color: AppColors.primary, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'GPS Desactivado',
+                style: GoogleFonts.hankenGrotesk(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'El servicio de ubicación (GPS) está apagado en tu dispositivo. Puedes activarlo en tu configuración o continuar usando la última ubicación conocida.',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+            height: 1.5,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    side: const BorderSide(color: AppColors.border),
+                  ),
+                  child: Text(
+                    'Cancelar',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    final service = ref.read(locationServiceProvider);
+                    final lastKnown = await service.getLastKnownPosition();
+                    if (lastKnown != null) {
+                      ref.read(isLocationSharedProvider.notifier).state = true;
+                      ref.read(userLocationProvider.notifier).updateLocation();
+                    } else {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('No hay ubicación conocida anterior. Activa el GPS.'),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'Usar última',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSettingsRedirectDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            const Icon(Icons.settings_applications_rounded, color: AppColors.primary, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Permiso de Ubicación',
+                style: GoogleFonts.hankenGrotesk(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Para buscar talleres o repuestos cercanos a ti, la aplicación necesita acceder a tu ubicación. Por favor, actívala en los Ajustes del sistema.',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+            height: 1.5,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    side: const BorderSide(color: AppColors.border),
+                  ),
+                  child: Text(
+                    'Cancelar',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    ref.read(locationServiceProvider).openAppSettings();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'Ir a Ajustes',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

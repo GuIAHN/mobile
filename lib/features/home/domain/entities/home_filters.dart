@@ -16,12 +16,18 @@ class HomeFilters extends Equatable {
   /// IDs de especialidades seleccionadas para filtrar.
   final List<String> specialtyIds;
 
+  /// Coordenadas opcionales para búsqueda cercana.
+  final double? lat;
+  final double? lon;
+
   const HomeFilters({
     this.sortBy = SortOption.cercania,
     this.minRating = 0.0,
     this.onlyOpen = false,
     this.radioKm = 15.0,
     this.specialtyIds = const [],
+    this.lat,
+    this.lon,
   });
 
   HomeFilters copyWith({
@@ -30,6 +36,9 @@ class HomeFilters extends Equatable {
     bool? onlyOpen,
     double? radioKm,
     List<String>? specialtyIds,
+    double? lat,
+    double? lon,
+    bool clearLocation = false,
   }) {
     return HomeFilters(
       sortBy: sortBy ?? this.sortBy,
@@ -37,6 +46,8 @@ class HomeFilters extends Equatable {
       onlyOpen: onlyOpen ?? this.onlyOpen,
       radioKm: radioKm ?? this.radioKm,
       specialtyIds: specialtyIds ?? this.specialtyIds,
+      lat: clearLocation ? null : (lat ?? this.lat),
+      lon: clearLocation ? null : (lon ?? this.lon),
     );
   }
 
@@ -45,7 +56,9 @@ class HomeFilters extends Equatable {
       minRating == 0.0 &&
       !onlyOpen &&
       radioKm == 15.0 &&
-      specialtyIds.isEmpty;
+      specialtyIds.isEmpty &&
+      lat == null &&
+      lon == null;
 
   int get activeCount =>
       (sortBy != SortOption.cercania ? 1 : 0) +
@@ -61,10 +74,12 @@ class HomeFilters extends Equatable {
       if (minRating > 0) 'minRating': minRating,
       if (specialtyIds.isNotEmpty) 'specialtyIds': specialtyIds,
       'orderBy': sortBy == SortOption.rating ? 'rating' : 'distancia',
+      if (lat != null) 'lat': lat,
+      if (lon != null) 'lng': lon,
     };
   }
 
   @override
   List<Object?> get props =>
-      [sortBy, minRating, onlyOpen, radioKm, specialtyIds];
+      [sortBy, minRating, onlyOpen, radioKm, specialtyIds, lat, lon];
 }
