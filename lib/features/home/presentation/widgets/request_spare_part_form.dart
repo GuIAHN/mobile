@@ -355,6 +355,42 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
     final user = authState.user;
     final isConsumer = user == null || user.role == UserRole.consumer;
 
+    if (user != null && !user.role.canRequestSpareParts) {
+      return Container(
+        margin: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.storefront_rounded, size: 48, color: AppColors.primary),
+            const SizedBox(height: 16),
+            Text(
+              'Función no disponible',
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Las cuentas de tipo Tienda no pueden solicitar repuestos, únicamente cotizar y responder a las solicitudes de clientes.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     // Cargar vehículos del garaje
     ref.listenAsyncError(userCarsProvider, context);
     final userCarsAsync = ref.watch(userCarsProvider);

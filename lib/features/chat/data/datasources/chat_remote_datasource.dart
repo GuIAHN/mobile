@@ -17,6 +17,7 @@ class ChatRemoteDataSource {
       lastActivityAt: DateTime.now().subtract(const Duration(minutes: 5)),
       clientName: 'Juan Pérez (Taller)',
       clientId: 'client_juan',
+      fotoUrl: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=500&q=80',
     ),
     ChatThreadModel(
       id: 'thread_2',
@@ -27,6 +28,7 @@ class ChatRemoteDataSource {
       lastActivityAt: DateTime.now().subtract(const Duration(hours: 2)),
       clientName: 'María Rodríguez (Consumidor)',
       clientId: 'client_maria',
+      fotoUrl: null,
     ),
     ChatThreadModel(
       id: 'thread_3',
@@ -37,6 +39,7 @@ class ChatRemoteDataSource {
       lastActivityAt: DateTime.now().subtract(const Duration(hours: 4)),
       clientName: 'Carlos Gómez (Mecánico)',
       clientId: 'client_carlos',
+      fotoUrl: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=500&q=80',
     ),
   ];
 

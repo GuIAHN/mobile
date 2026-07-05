@@ -11,6 +11,7 @@ class ChatThread extends Equatable {
   final bool isOpen;
   final String? clientName; // Nombre del creador (para vista de tienda)
   final String? clientId;
+  final String? fotoUrl;
 
   const ChatThread({
     required this.id,
@@ -22,6 +23,7 @@ class ChatThread extends Equatable {
     this.isOpen = true,
     this.clientName,
     this.clientId,
+    this.fotoUrl,
   });
 
   @override
@@ -35,5 +37,6 @@ class ChatThread extends Equatable {
         isOpen,
         clientName,
         clientId,
+        fotoUrl,
       ];
 }

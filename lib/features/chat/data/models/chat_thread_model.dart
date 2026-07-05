@@ -12,6 +12,7 @@ class ChatThreadModel extends ChatThread {
     super.isOpen,
     super.clientName,
     super.clientId,
+    super.fotoUrl,
   });
 
   factory ChatThreadModel.fromJson(Map<String, dynamic> json) {
@@ -28,6 +29,7 @@ class ChatThreadModel extends ChatThread {
       isOpen: json['isOpen'] as bool? ?? true,
       clientName: json['clientName'] as String?,
       clientId: json['clientId'] as String?,
+      fotoUrl: json['fotoUrl'] as String? ?? json['foto_url'] as String?,
     );
   }
 
@@ -41,5 +43,6 @@ class ChatThreadModel extends ChatThread {
         'isOpen': isOpen,
         'clientName': clientName,
         'clientId': clientId,
+        'fotoUrl': fotoUrl,
       };
 }

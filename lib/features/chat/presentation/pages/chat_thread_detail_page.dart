@@ -211,6 +211,50 @@ class ChatThreadDetailPage extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 14),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                height: 180,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppColors.grey50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Image.network(
+                  // Temporal: Si thread.fotoUrl es nulo/vacío, forzamos imagen mock para que el cliente pueda ver el flujo
+                  (thread.fotoUrl != null && thread.fotoUrl!.isNotEmpty)
+                      ? thread.fotoUrl!
+                      : 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=600&q=80',
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.broken_image_outlined, color: AppColors.textSecondary),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Error al cargar imagen',
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return const Center(
+                      child: CircularProgressIndicator(color: AppColors.primary),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(

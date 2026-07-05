@@ -3,6 +3,8 @@ import '../../../../core/domain/enums/service_type.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/domain/enums/part_type.dart';
 import '../../../../core/services/location_service.dart';
+import '../../../../core/providers/current_user_provider.dart';
+import '../../../../core/domain/enums/user_role.dart';
 import '../../data/datasources/search_remote_datasource.dart';
 import '../../data/repositories/home_repository_impl.dart';
 import '../../data/repositories/search_repository_impl.dart';
@@ -148,7 +150,13 @@ final getProviderDetailUseCaseProvider =
 
 /// Categoría seleccionada (Mecánicos, Repuestos, Talleres)
 final selectedServiceTypeProvider = StateProvider<ServiceType>((ref) {
-  return ServiceType.spareParts;
+  final role = ref.watch(currentRoleProvider);
+  if (role.allowedServiceTypes.contains(ServiceType.spareParts)) {
+    return ServiceType.spareParts;
+  }
+  return role.allowedServiceTypes.isNotEmpty
+      ? role.allowedServiceTypes.first
+      : ServiceType.workshops;
 });
 
 /// Filtros de búsqueda (se envían al backend en mecánicos/talleres)

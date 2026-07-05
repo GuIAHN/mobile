@@ -55,7 +55,7 @@ class _ChatThreadCardState extends State<ChatThreadCard> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Left: Square folder visual (matching the eBay style)
+              // Left: Square folder visual or reference image preview
               Container(
                 width: 76,
                 height: 76,
@@ -64,14 +64,40 @@ class _ChatThreadCardState extends State<ChatThreadCard> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.border),
                 ),
-                child: const Icon(
-                  Icons.folder_open_rounded,
-                  color: AppColors.primary,
-                  size: 26,
-                ),
+                child: thread.fotoUrl != null && thread.fotoUrl!.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(11),
+                        child: Image.network(
+                          thread.fotoUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.broken_image_rounded,
+                            color: AppColors.textSecondary,
+                            size: 24,
+                          ),
+                          loadingBuilder: (context, child, progress) {
+                            if (progress == null) return child;
+                            return const Center(
+                              child: SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                    : const Icon(
+                        Icons.folder_open_rounded,
+                        color: AppColors.primary,
+                        size: 26,
+                      ),
               ),
               const SizedBox(width: 14),
-
+ 
               // Right: Content info
               Expanded(
                 child: Column(
@@ -122,26 +148,57 @@ class _ChatThreadCardState extends State<ChatThreadCard> {
                       ],
                     ),
                     const SizedBox(height: 4),
-
-                    // Row 2: Category / Request Type
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.grey100,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        thread.requestType.label.toUpperCase(),
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textSecondary,
-                          letterSpacing: 0.8,
+ 
+                    // Row 2: Category / Request Type & State Badge
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.grey100,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            thread.requestType.label.toUpperCase(),
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textSecondary,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
                         ),
-                      ),
+                        if (widget.showClientName) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: thread.conversationCount == 0
+                                  ? Colors.orange.withValues(alpha: 0.12)
+                                  : AppColors.successLight.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: thread.conversationCount == 0
+                                    ? Colors.orange.withValues(alpha: 0.4)
+                                    : AppColors.success.withValues(alpha: 0.4),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              thread.conversationCount == 0 ? 'NUEVA SOLICITUD' : 'COTIZADA',
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: thread.conversationCount == 0 ? Colors.orange[800] : AppColors.success,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 8),
-
+ 
                     // Row 3: Prominent offer count or client name
                     Text(
                       widget.showClientName && thread.clientName != null

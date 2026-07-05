@@ -7,6 +7,7 @@ import '../providers/chat_providers.dart';
 import '../widgets/chat_message_bubble.dart';
 import '../../domain/entities/chat_conversation.dart';
 import '../../domain/entities/chat_message.dart';
+import '../../domain/entities/chat_thread.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
@@ -66,6 +67,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
   Widget build(BuildContext context) {
     final messagesAsync = ref.watch(chatMessagesProvider(widget.conversationId));
     final conversationsAsync = ref.watch(chatConversationsProvider(widget.threadId));
+    final threadsAsync = ref.watch(chatThreadsProvider);
     final currentRole = ref.watch(currentRoleProvider);
     final isStore = currentRole == UserRole.store;
     
@@ -181,7 +183,94 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                 );
               },
             ),
-
+ 
+            // Banner de Imagen del Repuesto de Referencia
+            threadsAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (threads) {
+                final thread = threads.cast<ChatThread>().firstWhere(
+                  (t) => t.id == widget.threadId,
+                  orElse: () => threads.first,
+                );
+                if (thread.fotoUrl == null || thread.fotoUrl!.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border(
+                      bottom: BorderSide(color: AppColors.border.withValues(alpha: 0.8), width: 0.8),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          color: AppColors.grey50,
+                          child: Image.network(
+                            thread.fotoUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.broken_image_outlined,
+                              color: AppColors.textSecondary,
+                              size: 20,
+                            ),
+                            loadingBuilder: (context, child, progress) {
+                              if (progress == null) return child;
+                              return const Center(
+                                child: SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'REPUESTO DE REFERENCIA',
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.textSecondary,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              thread.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+ 
             // Messages feed
             Expanded(
               child: messagesAsync.when(

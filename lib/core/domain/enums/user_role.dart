@@ -1,3 +1,5 @@
+import 'service_type.dart';
+
 /// Roles system mapping the backend user roles: CONSUMER, ADMIN, STORE, MECHANIC, WORKSHOP
 enum UserRole {
   consumer('CONSUMER'),
@@ -27,4 +29,23 @@ enum UserRole {
   bool get isConsumer => this == UserRole.consumer;
 
   bool get isAdmin => this == UserRole.admin;
+
+  bool get isStore => this == UserRole.store;
+  bool get isMechanic => this == UserRole.mechanic;
+  bool get isWorkshop => this == UserRole.workshop;
+
+  /// Tipos de servicio visibles en el CategorySelector del home según el rol.
+  /// La STORE puede buscar mecánicos y talleres, pero no repuestos.
+  /// Consumidores, mecánicos y talleres pueden ver y buscar todo.
+  List<ServiceType> get allowedServiceTypes {
+    if (isStore) {
+      return const [ServiceType.mechanic, ServiceType.workshops];
+    }
+    return ServiceType.values;
+  }
+
+  /// Si el rol está autorizado para enviar solicitudes de cotización de repuestos.
+  /// STORE es quien las recibe y cotiza, por ende no puede auto-solicitarse.
+  bool get canRequestSpareParts => !isStore;
 }
+
