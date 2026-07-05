@@ -36,33 +36,55 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage> {
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
+  ProviderSubscription<ServiceType>? _serviceTypeSub;
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(() {
-      ref.read(searchQueryProvider.notifier).state = _searchController.text;
-    });
     // Auto-activar si el permiso ya fue concedido previamente
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkInitialLocationPermission();
+    });
+
+    // Escuchar cambios de tipo de servicio para limpiar búsqueda y filtros.
+    // Se hace aquí (fuera de build) para no mutar estado durante el build,
+    // lo que corrompe el árbol semántico y lanza !semantics.parentDataDirty.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _serviceTypeSub = ref.listenManual<ServiceType>(
+        selectedServiceTypeProvider,
+        (previous, next) {
+          if (previous != null && previous != next) {
+            _searchController.clear();
+            ref.read(searchQueryProvider.notifier).state = '';
+            ref.read(homeFiltersProvider.notifier).state = const HomeFilters();
+          }
+        },
+      );
     });
   }
 
   @override
   void dispose() {
+    _serviceTypeSub?.close();
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  // Abre la hoja de filtros y guarda el resultado
+  // Abre la hoja de filtros y guarda el resultado.
+  // Espera un frame completo antes de mostrar el modal para que el
+  // frame actual (tap) termine su fase de layout/semantics sin conflictos.
   Future<void> _openFilters() async {
+    FocusScope.of(context).unfocus();
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
     final currentFilters = ref.read(homeFiltersProvider);
     final serviceType = ref.read(selectedServiceTypeProvider);
     final result = await showModalBottomSheet<HomeFilters>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: false,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.4),
       builder: (_) => FiltersSheet(
@@ -81,6 +103,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final activeTab = ref.watch(homeTabProvider);
     final authState = ref.watch(authProvider);
     final user = authState.user;
+    final selectedType = ref.watch(selectedServiceTypeProvider);
 
     // Show a friendly welcome greeting if authenticated and not shown yet in this session
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -175,6 +198,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final filters = ref.watch(homeFiltersProvider);
     final isSpareParts = selectedType == ServiceType.spareParts;
     final searchVehicle = ref.watch(searchVehicleProvider);
+    final searchQuery = ref.watch(searchQueryProvider);
 
     // Pre-trigger user cars loading
     ref.watch(userCarsProvider);
@@ -194,7 +218,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           child: CategorySelector(),
         ),
 
-        // 3. Barra de vehículo y búsqueda
+        // 3. Barra de vehículo y búsqueda (solo mecánicos/talleres)
         if (!isSpareParts) ...[
           if (searchVehicle != null)
             _buildSelectedVehicleBar(searchVehicle)
@@ -742,6 +766,9 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildSearchBar(int activeFilters) {
+    final selectedType = ref.watch(selectedServiceTypeProvider);
+    final searchQuery = ref.watch(searchQueryProvider);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
       child: Container(
@@ -767,6 +794,9 @@ class _HomePageState extends ConsumerState<HomePage> {
             Expanded(
               child: TextField(
                 controller: _searchController,
+                onChanged: (val) {
+                  ref.read(searchQueryProvider.notifier).state = val;
+                },
                 style: GoogleFonts.hankenGrotesk(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w600,
@@ -781,7 +811,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   disabledBorder: InputBorder.none,
                   filled: false,
                   isCollapsed: true,
-                  hintText: 'Buscar repuestos, talleres o mecánicos...',
+                  hintText: selectedType.hint,
                   hintStyle: GoogleFonts.hankenGrotesk(
                     fontSize: 14,
                     fontWeight: FontWeight.w400,
@@ -791,13 +821,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ),
               ),
             ),
-            if (_searchController.text.isNotEmpty) ...[
+            if (searchQuery.isNotEmpty) ...[
               GestureDetector(
                 onTap: () {
-                  setState(() {
-                    _searchController.clear();
-                    ref.read(searchQueryProvider.notifier).state = '';
-                  });
+                  _searchController.clear();
+                  ref.read(searchQueryProvider.notifier).state = '';
                 },
                 child: const Icon(Icons.cancel_rounded,
                     color: AppColors.textDisabled, size: 18),

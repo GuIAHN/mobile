@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../storage/secure_storage.dart';
 import '../api_endpoints.dart';
+import '../../../features/auth/presentation/providers/auth_provider.dart';
 
 /// Interceptor de autenticación.
 /// - Agrega el Bearer token a cada petición.
@@ -112,6 +113,23 @@ class AuthInterceptor extends Interceptor {
       } finally {
         _isRefreshing = false;
       }
+    } else if (err.response?.statusCode == 404) {
+      final responseData = err.response?.data;
+      bool isUserNotFound = false;
+      if (responseData is Map<String, dynamic>) {
+        final message = responseData['message'];
+        if (message == 'User not found' ||
+            (message is List && message.contains('User not found'))) {
+          isUserNotFound = true;
+        }
+      } else if (responseData is String && responseData.contains('User not found')) {
+        isUserNotFound = true;
+      }
+
+      if (isUserNotFound) {
+        _ref.read(authProvider.notifier).logout();
+      }
+      handler.next(err);
     } else {
       handler.next(err);
     }

@@ -24,7 +24,7 @@ class HomeFilters extends Equatable {
     this.sortBy = SortOption.cercania,
     this.minRating = 0.0,
     this.onlyOpen = false,
-    this.radioKm = 15.0,
+    this.radioKm = 20.0,
     this.specialtyIds = const [],
     this.lat,
     this.lon,
@@ -55,7 +55,7 @@ class HomeFilters extends Equatable {
       sortBy == SortOption.cercania &&
       minRating == 0.0 &&
       !onlyOpen &&
-      radioKm == 15.0 &&
+      radioKm == 20.0 &&
       specialtyIds.isEmpty &&
       lat == null &&
       lon == null;
@@ -63,7 +63,7 @@ class HomeFilters extends Equatable {
   int get activeCount =>
       (sortBy != SortOption.cercania ? 1 : 0) +
       (minRating != 0.0 ? 1 : 0) +
-      (radioKm != 15.0 ? 1 : 0) +
+      (radioKm != 20.0 ? 1 : 0) +
       (specialtyIds.isNotEmpty ? 1 : 0) +
       (onlyOpen ? 1 : 0);
 
