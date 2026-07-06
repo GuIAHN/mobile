@@ -17,7 +17,7 @@ class ChatInboxPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final threadsAsync = ref.watch(chatThreadsProvider);
     final currentRole = ref.watch(currentRoleProvider);
-    final isStore = currentRole == UserRole.store;
+    final isProvider = currentRole.isProvider;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -46,7 +46,7 @@ class ChatInboxPage extends ConsumerWidget {
           if (threads.isEmpty) {
             return EmptyState(
               title: 'Sin conversaciones',
-              subtitle: isStore
+              subtitle: isProvider
                   ? 'No hay solicitudes activas para cotizar en este momento.'
                   : 'Tus solicitudes de repuesto o servicio aparecerán aquí.',
               icon: Icons.chat_bubble_outline_rounded,
@@ -66,25 +66,25 @@ class ChatInboxPage extends ConsumerWidget {
                 final thread = threads[index];
                 return ChatThreadCard(
                   thread: thread,
-                  showClientName: isStore,
+                  showClientName: isProvider,
                   onTap: () async {
-                    if (isStore) {
-                      // Check if store has already quoted in this thread
+                    if (isProvider) {
+                      // Check if provider has already responded in this thread
                       final convsAsync = await ref.read(chatConversationsProvider(thread.id).future);
                       if (convsAsync.isNotEmpty) {
-                        // Store already responded -> Go directly to the conversation page
+                        // Provider already responded -> Go directly to the conversation page
                         final conversation = convsAsync.first;
                         if (context.mounted) {
                           context.push('/chats/${thread.id}/${conversation.id}');
                         }
                       } else {
-                        // Store hasn't responded yet -> Go to thread detail page to submit a quote
+                        // Provider hasn't responded yet -> Go to thread detail page to view or quote
                         if (context.mounted) {
                           context.push('/chats/${thread.id}');
                         }
                       }
                     } else {
-                      // Requester -> Opens list of stores that replied
+                      // Requester -> Opens list of providers that replied
                       context.push('/chats/${thread.id}');
                     }
                   },
