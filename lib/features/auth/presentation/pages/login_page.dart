@@ -107,7 +107,7 @@ class _BrandHeader extends StatelessWidget {
       children: [
         Image.asset(
           'assets/images/logo.png',
-          height: 60,
+          height: 100,
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
             return const Text(

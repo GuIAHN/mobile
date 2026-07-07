@@ -459,22 +459,29 @@ class _HomePageState extends ConsumerState<HomePage> {
       child: Row(
         children: [
           // Logo oficial "GuIA"
-          RichText(
-            text: TextSpan(
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 25,
-                fontWeight: FontWeight.w900,
-                color: AppColors.textPrimary,
-                letterSpacing: -0.5,
-              ),
-              children: const [
-                TextSpan(text: 'Gu'),
-                TextSpan(
-                  text: 'IA',
-                  style: TextStyle(color: AppColors.primary),
+          Image.asset(
+            'assets/images/logo_icon.png',
+            height: 72,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return RichText(
+                text: TextSpan(
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.5,
+                  ),
+                  children: const [
+                    TextSpan(text: 'Gu'),
+                    TextSpan(
+                      text: 'IA',
+                      style: TextStyle(color: AppColors.primary),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
           const Spacer(),
           // Toggle de Compartir Ubicación
