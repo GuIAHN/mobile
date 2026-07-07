@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../shared/widgets/image_source_selector_sheet.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -74,66 +75,11 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
     }
   }
 
-  void _mostrarSelectorDeImagen() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 24),
-              decoration: BoxDecoration(
-                color: AppColors.grey300,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-            Text(
-              'Adjuntar fotografía',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: _BotonFuenteImagen(
-                    icon: Icons.camera_alt_outlined,
-                    label: 'Cámara',
-                    onTap: () {
-                      Navigator.pop(context);
-                      _pickImage(ImageSource.camera);
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _BotonFuenteImagen(
-                    icon: Icons.photo_library_outlined,
-                    label: 'Galería',
-                    onTap: () {
-                      Navigator.pop(context);
-                      _pickImage(ImageSource.gallery);
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+  void _mostrarSelectorDeImagen() async {
+    final source = await ImageSourceSelectorSheet.show(context);
+    if (source != null) {
+      _pickImage(source);
+    }
   }
 
 
@@ -471,7 +417,6 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
           _buildLabel('CATEGORÍA DE REPUESTO *'),
           const SizedBox(height: 6),
           _SelectorField(
-            icon: Icons.category_outlined,
             value: _selectedCategory != null && _selectedSubcategory != null
                 ? '${_selectedCategory!.name}  ▸  ${_selectedSubcategory!.name}'
                 : null,
@@ -515,7 +460,6 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                 }
 
                 return _SelectorField(
-                  icon: Icons.directions_car_filled_outlined,
                   value: globalVehicle != null ? valorMostrado : null,
                   placeholder: 'Selecciona un vehículo de tu garaje',
                   onTap: _abrirSelectorVehiculo,
@@ -523,7 +467,6 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
               },
               loading: () => _buildLoadingField('Cargando tus vehículos...'),
               error: (_, __) => _SelectorField(
-                icon: Icons.directions_car_filled_outlined,
                 value: globalVehicle != null ? 'Otro: ${globalVehicle.brand} ${globalVehicle.model}' : null,
                 placeholder: 'Ingresa vehículo manual',
                 onTap: _abrirSelectorVehiculo,
@@ -531,7 +474,6 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
             ),
           ] else ...[
             _SelectorField(
-              icon: Icons.directions_car_filled_outlined,
               value: globalVehicle != null
                   ? '${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})'
                   : null,
@@ -616,7 +558,6 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
           _buildTextField(
             controller: _detailsController,
             hint: 'Ej. Alternador para motor 1.8L, lado derecho, marca Denso...',
-            icon: Icons.description_outlined,
             maxLines: 2,
           ),
           const SizedBox(height: 12),
@@ -683,20 +624,15 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                         width: 1.5,
                       ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.add_a_photo_outlined, color: AppColors.textSecondary, size: 24),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Presiona para adjuntar foto',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
-                          ),
+                    child: Center(
+                      child: Text(
+                        'Presiona para adjuntar foto',
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -785,7 +721,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
   Widget _buildTextField({
     required TextEditingController controller,
     required String hint,
-    required IconData icon,
+    IconData? icon,
     int maxLines = 1,
   }) {
     return Container(
@@ -798,10 +734,11 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
       child: Row(
         crossAxisAlignment: maxLines > 1 ? CrossAxisAlignment.start : CrossAxisAlignment.center,
         children: [
-          Padding(
-            padding: EdgeInsets.only(top: maxLines > 1 ? 14 : 0, right: 12),
-            child: Icon(icon, color: AppColors.textSecondary, size: 20),
-          ),
+          if (icon != null)
+            Padding(
+              padding: EdgeInsets.only(top: maxLines > 1 ? 14 : 0, right: 12),
+              child: Icon(icon, color: AppColors.textSecondary, size: 20),
+            ),
           Expanded(
             child: TextField(
               controller: controller,
@@ -837,14 +774,14 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
 }
 
 class _SelectorField extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
   final String? value;
   final String placeholder;
   final VoidCallback onTap;
   final bool enabled;
 
   const _SelectorField({
-    required this.icon,
+    this.icon,
     required this.value,
     required this.placeholder,
     required this.onTap,
@@ -869,12 +806,14 @@ class _SelectorField extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              size: 20,
-              color: hasValue ? AppColors.primary : AppColors.textSecondary,
-            ),
-            const SizedBox(width: 12),
+            if (icon != null) ...[
+              Icon(
+                icon!,
+                size: 20,
+                color: hasValue ? AppColors.primary : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 12),
+            ],
             Expanded(
               child: Text(
                 value ?? placeholder,
@@ -1175,46 +1114,5 @@ class _CategorySubcategoryResult {
     required this.category,
     required this.subcategory,
   });
-}
-
-class _BotonFuenteImagen extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _BotonFuenteImagen({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: AppColors.grey50,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: AppColors.primary, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: GoogleFonts.hankenGrotesk(
-                fontWeight: FontWeight.w700,
-                fontSize: 14.5,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 

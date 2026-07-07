@@ -70,5 +70,9 @@
 	<string>Necesitamos tu ubicación para buscar los talleres, mecánicos y repuestos más cercanos a ti.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Necesitamos tu ubicación para buscar los talleres, mecánicos y repuestos más cercanos a ti.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Necesitamos acceso a la cámara para que puedas tomar una foto para tu perfil.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Necesitamos acceso a la galería para que puedas seleccionar una foto para tu perfil.</string>
 </dict>
 </plist>

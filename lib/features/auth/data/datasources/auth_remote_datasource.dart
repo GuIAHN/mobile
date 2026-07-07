@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/dio_client.dart';
@@ -205,6 +206,53 @@ class AuthRemoteDataSource {
           'sparePartsTypes': sparePartsTypes,
         },
       );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Uploads an image file to the server and returns its relative URL.
+  Future<String> uploadImage(String filePath) async {
+    try {
+      final fileName = filePath.split('/').last;
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(
+          filePath,
+          filename: fileName,
+        ),
+      });
+
+      final response = await _client.post<Map<String, dynamic>>(
+        'upload/image',
+        data: formData,
+      );
+
+      if (response.data == null || response.data!['url'] == null) {
+        throw const ParseException();
+      }
+
+      return response.data!['url'] as String;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Updates the current user's profile details.
+  Future<UserModel> updateProfile({String? name, String? photo}) async {
+    try {
+      final response = await _client.patch<Map<String, dynamic>>(
+        ApiEndpoints.me,
+        data: {
+          if (name != null) 'name': name,
+          if (photo != null) 'photo': photo,
+        },
+      );
+
+      if (response.data == null) {
+        throw const ParseException();
+      }
+
+      return UserModel.fromJson(response.data!);
     } catch (e) {
       rethrow;
     }

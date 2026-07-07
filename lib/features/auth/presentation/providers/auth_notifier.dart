@@ -184,6 +184,39 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _secureStorage.clearTokens();
     state = const AuthState.initial();
   }
+
+  /// Uploads the photo at [filePath] and updates the user's avatar.
+  Future<void> updateProfilePhoto(String filePath) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+
+    final uploadResult = await _authRepository.uploadImage(filePath);
+
+    await uploadResult.fold(
+      (failure) async {
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          errorMessage: failure.message,
+        );
+      },
+      (photoUrl) async {
+        final updateResult = await _authRepository.updateProfile(photo: photoUrl);
+        updateResult.fold(
+          (failure) {
+            state = state.copyWith(
+              status: AuthStatus.authenticated,
+              errorMessage: failure.message,
+            );
+          },
+          (updatedUser) {
+            state = state.copyWith(
+              status: AuthStatus.authenticated,
+              user: updatedUser,
+            );
+          },
+        );
+      },
+    );
+  }
 }
 
 /// Main auth state provider. Consumed by login and registration screens.

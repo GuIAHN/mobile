@@ -199,5 +199,25 @@ class AuthRepositoryImpl implements AuthRepository {
       return Left(ErrorMapper.map(e));
     }
   }
+
+  @override
+  Future<Either<Failure, String>> uploadImage(String filePath) async {
+    try {
+      final url = await remoteDataSource.uploadImage(filePath);
+      return Right(url);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, User>> updateProfile({String? name, String? photo}) async {
+    try {
+      final user = await remoteDataSource.updateProfile(name: name, photo: photo);
+      return Right(user);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
 }
 
