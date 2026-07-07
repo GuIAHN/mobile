@@ -1,21 +1,7 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/user.dart';
-
-/// Store category configuration in the spare parts catalog.
-class StoreCategoryConfig {
-  final String categoryId;
-  final double minPrice;
-  final bool servesAllBrands;
-  final List<String> brandIds;
-
-  const StoreCategoryConfig({
-    required this.categoryId,
-    this.minPrice = 1.0,
-    this.servesAllBrands = false,
-    required this.brandIds,
-  });
-}
+import '../entities/store_category_config.dart';
 
 /// Authentication repository contract (pure domain).
 /// The implementation resides in the data layer.
@@ -68,5 +54,11 @@ abstract class AuthRepository {
 
   /// Returns the currently authenticated user (by stored token).
   Future<Either<Failure, User>> getCurrentUser();
+
+  /// Uploads an image file to the server and returns its relative URL.
+  Future<Either<Failure, String>> uploadImage(String filePath);
+
+  /// Updates the current user's profile details.
+  Future<Either<Failure, User>> updateProfile({String? name, String? photo});
 }
 

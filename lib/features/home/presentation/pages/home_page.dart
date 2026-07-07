@@ -4,9 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../domain/entities/home_filters.dart';
-import '../../domain/entities/service_type.dart';
+import '../../../../core/domain/enums/service_type.dart';
 import '../../domain/entities/sort_option.dart';
 import '../providers/home_providers.dart';
+import '../../../../core/services/location_service.dart';
+import 'package:geolocator/geolocator.dart';
 import '../widgets/bottom_burbuja.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/filters_sheet.dart';
@@ -14,8 +16,15 @@ import '../widgets/item_card.dart';
 import '../widgets/promo_carousel.dart';
 import '../widgets/request_spare_part_form.dart';
 import '../widgets/profile_tab.dart';
+import '../widgets/unapproved_overlay.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../vehicles/domain/entities/user_car.dart';
+import '../../../vehicles/presentation/providers/vehicle_providers.dart';
+import '../../../chat/presentation/pages/chat_inbox_page.dart';
+import '../../../catalog/presentation/providers/catalog_providers.dart';
+import '../../../catalog/domain/entities/specialty.dart';
+import '../../../vehicles/presentation/widgets/garage_vehicle_selector_sheet.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -27,31 +36,61 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage> {
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
+  ProviderSubscription<ServiceType>? _serviceTypeSub;
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(() {
-      ref.read(searchQueryProvider.notifier).state = _searchController.text;
+    // Auto-activar si el permiso ya fue concedido previamente
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkInitialLocationPermission();
+    });
+
+    // Escuchar cambios de tipo de servicio para limpiar búsqueda y filtros.
+    // Se hace aquí (fuera de build) para no mutar estado durante el build,
+    // lo que corrompe el árbol semántico y lanza !semantics.parentDataDirty.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _serviceTypeSub = ref.listenManual<ServiceType>(
+        selectedServiceTypeProvider,
+        (previous, next) {
+          if (previous != null && previous != next) {
+            _searchController.clear();
+            ref.read(searchQueryProvider.notifier).state = '';
+            ref.read(homeFiltersProvider.notifier).state = const HomeFilters();
+          }
+        },
+      );
     });
   }
 
   @override
   void dispose() {
+    _serviceTypeSub?.close();
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  // Abre la hoja de filtros y guarda el resultado
+  // Abre la hoja de filtros y guarda el resultado.
+  // Espera un frame completo antes de mostrar el modal para que el
+  // frame actual (tap) termine su fase de layout/semantics sin conflictos.
   Future<void> _openFilters() async {
+    FocusScope.of(context).unfocus();
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
     final currentFilters = ref.read(homeFiltersProvider);
+    final serviceType = ref.read(selectedServiceTypeProvider);
     final result = await showModalBottomSheet<HomeFilters>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: false,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.4),
-      builder: (_) => FiltersSheet(initialFilters: currentFilters),
+      builder: (_) => FiltersSheet(
+        initialFilters: currentFilters,
+        serviceType: serviceType,
+      ),
     );
 
     if (result != null) {
@@ -64,6 +103,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final activeTab = ref.watch(homeTabProvider);
     final authState = ref.watch(authProvider);
     final user = authState.user;
+    final selectedType = ref.watch(selectedServiceTypeProvider);
 
     // Show a friendly welcome greeting if authenticated and not shown yet in this session
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -130,10 +170,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               child: activeTab == 0
                   ? _buildHomeTab()
                   : activeTab == 1
-                      ? _buildPlaceholderTab(
-                          Icons.chat_bubble_outline_rounded,
-                          'Chats',
-                          'Tus conversaciones de servicio aparecerán aquí.')
+                      ? const ChatInboxPage()
                       : const ProfileTab(),
             ),
           ),
@@ -144,6 +181,11 @@ class _HomePageState extends ConsumerState<HomePage> {
             bottom: 0,
             child: BottomBurbuja(),
           ),
+          // Capa de bloqueo para usuarios no aprobados (mecánicos, talleres, etc)
+          if (user != null && !user.approved)
+            const Positioned.fill(
+              child: UnapprovedOverlay(),
+            ),
         ],
       ),
     );
@@ -155,6 +197,11 @@ class _HomePageState extends ConsumerState<HomePage> {
     final filteredItemsAsync = ref.watch(filteredHomeItemsProvider);
     final filters = ref.watch(homeFiltersProvider);
     final isSpareParts = selectedType == ServiceType.spareParts;
+    final searchVehicle = ref.watch(searchVehicleProvider);
+    final searchQuery = ref.watch(searchQueryProvider);
+
+    // Pre-trigger user cars loading
+    ref.watch(userCarsProvider);
 
     return ListView(
       controller: _scrollController,
@@ -171,8 +218,14 @@ class _HomePageState extends ConsumerState<HomePage> {
           child: CategorySelector(),
         ),
 
-        // 3. Barra de búsqueda y botón filtros (solo si no es repuestos)
-        if (!isSpareParts) _buildSearchBar(filters.activeCount),
+        // 3. Barra de vehículo y búsqueda (solo mecánicos/talleres)
+        if (!isSpareParts) ...[
+          if (searchVehicle != null)
+            _buildSelectedVehicleBar(searchVehicle)
+          else
+            _buildSelectVehiclePromptBar(),
+          _buildSearchBar(filters.activeCount),
+        ],
 
         // 4. Carrusel de Promociones
         promosAsync.when(
@@ -242,6 +295,162 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
+  Widget _buildSelectedVehicleBar(UserCar car) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.primaryMuted,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.directions_car_filled_rounded,
+              color: AppColors.primary,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'BUSCANDO PARA:',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${car.brand} ${car.model} (${car.year})',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () => _abrirSelectorVehiculoSearch(),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              child: Text(
+                'Cambiar',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectVehiclePromptBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.directions_car_filled_outlined,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'COMPATIBILIDAD:',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Selecciona tu vehículo',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () => _abrirSelectorVehiculoSearch(),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                backgroundColor: AppColors.primaryMuted,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              child: Text(
+                'Elegir',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _abrirSelectorVehiculoSearch() async {
+    final result = await GarageVehicleSelectorSheet.show(
+      context,
+      selectedCar: ref.read(searchVehicleProvider),
+    );
+    if (result != null) {
+      ref.read(searchVehicleModelIdProvider.notifier).state = result.modelId;
+      ref.read(searchVehicleProvider.notifier).state = result.car;
+    }
+  }
+
   Widget _buildHeader() {
     final isLocationShared = ref.watch(isLocationSharedProvider);
 
@@ -250,30 +459,34 @@ class _HomePageState extends ConsumerState<HomePage> {
       child: Row(
         children: [
           // Logo oficial "GuIA"
-          RichText(
-            text: TextSpan(
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 25,
-                fontWeight: FontWeight.w900,
-                color: AppColors.textPrimary,
-                letterSpacing: -0.5,
-              ),
-              children: const [
-                TextSpan(text: 'Gu'),
-                TextSpan(
-                  text: 'IA',
-                  style: TextStyle(color: AppColors.primary),
+          Image.asset(
+            'assets/images/logo_icon.png',
+            height: 72,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return RichText(
+                text: TextSpan(
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.5,
+                  ),
+                  children: const [
+                    TextSpan(text: 'Gu'),
+                    TextSpan(
+                      text: 'IA',
+                      style: TextStyle(color: AppColors.primary),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
           const Spacer(),
           // Toggle de Compartir Ubicación
           GestureDetector(
-            onTap: () {
-              ref.read(isLocationSharedProvider.notifier).state =
-                  !isLocationShared;
-            },
+            onTap: () => _handleLocationToggle(context),
             behavior: HitTestBehavior.opaque,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
@@ -310,7 +523,259 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
+  Future<void> _checkInitialLocationPermission() async {
+    final service = ref.read(locationServiceProvider);
+    final permission = await service.checkPermission();
+    if (permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always) {
+      final isServiceEnabled = await service.isLocationServiceEnabled();
+      if (isServiceEnabled) {
+        ref.read(isLocationSharedProvider.notifier).state = true;
+        await ref.read(userLocationProvider.notifier).updateLocation();
+      }
+    }
+  }
+
+  Future<void> _handleLocationToggle(BuildContext context) async {
+    final isCurrentlyShared = ref.read(isLocationSharedProvider);
+    if (isCurrentlyShared) {
+      ref.read(isLocationSharedProvider.notifier).state = false;
+      return;
+    }
+
+    final service = ref.read(locationServiceProvider);
+    
+    // 1. Verificar si el GPS está habilitado
+    final isServiceEnabled = await service.isLocationServiceEnabled();
+    if (!isServiceEnabled) {
+      if (!context.mounted) return;
+      _showGpsDisabledDialog(context);
+      return;
+    }
+
+    // 2. Verificar y solicitar permisos
+    var permission = await service.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await service.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Permiso de ubicación denegado por el usuario.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      if (!context.mounted) return;
+      _showSettingsRedirectDialog(context);
+      return;
+    }
+
+    // 3. Activar compartir ubicación
+    ref.read(isLocationSharedProvider.notifier).state = true;
+    final success = await ref.read(userLocationProvider.notifier).updateLocation();
+    if (!success) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo obtener la ubicación exacta. Usando última conocida.'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+    }
+  }
+
+  void _showGpsDisabledDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            const Icon(Icons.location_off_rounded, color: AppColors.primary, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'GPS Desactivado',
+                style: GoogleFonts.hankenGrotesk(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'El servicio de ubicación (GPS) está apagado en tu dispositivo. Puedes activarlo en tu configuración o continuar usando la última ubicación conocida.',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+            height: 1.5,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    side: const BorderSide(color: AppColors.border),
+                  ),
+                  child: Text(
+                    'Cancelar',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    final service = ref.read(locationServiceProvider);
+                    final lastKnown = await service.getLastKnownPosition();
+                    if (lastKnown != null) {
+                      ref.read(isLocationSharedProvider.notifier).state = true;
+                      ref.read(userLocationProvider.notifier).updateLocation();
+                    } else {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('No hay ubicación conocida anterior. Activa el GPS.'),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'Usar última',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSettingsRedirectDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            const Icon(Icons.settings_applications_rounded, color: AppColors.primary, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Permiso de Ubicación',
+                style: GoogleFonts.hankenGrotesk(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Para buscar talleres o repuestos cercanos a ti, la aplicación necesita acceder a tu ubicación. Por favor, actívala en los Ajustes del sistema.',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+            height: 1.5,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    side: const BorderSide(color: AppColors.border),
+                  ),
+                  child: Text(
+                    'Cancelar',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    ref.read(locationServiceProvider).openAppSettings();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'Ir a Ajustes',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSearchBar(int activeFilters) {
+    final selectedType = ref.watch(selectedServiceTypeProvider);
+    final searchQuery = ref.watch(searchQueryProvider);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
       child: Container(
@@ -336,6 +801,9 @@ class _HomePageState extends ConsumerState<HomePage> {
             Expanded(
               child: TextField(
                 controller: _searchController,
+                onChanged: (val) {
+                  ref.read(searchQueryProvider.notifier).state = val;
+                },
                 style: GoogleFonts.hankenGrotesk(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w600,
@@ -350,7 +818,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   disabledBorder: InputBorder.none,
                   filled: false,
                   isCollapsed: true,
-                  hintText: 'Buscar repuestos, talleres o mecánicos...',
+                  hintText: selectedType.hint,
                   hintStyle: GoogleFonts.hankenGrotesk(
                     fontSize: 14,
                     fontWeight: FontWeight.w400,
@@ -360,13 +828,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ),
               ),
             ),
-            if (_searchController.text.isNotEmpty) ...[
+            if (searchQuery.isNotEmpty) ...[
               GestureDetector(
                 onTap: () {
-                  setState(() {
-                    _searchController.clear();
-                    ref.read(searchQueryProvider.notifier).state = '';
-                  });
+                  _searchController.clear();
+                  ref.read(searchQueryProvider.notifier).state = '';
                 },
                 child: const Icon(Icons.cancel_rounded,
                     color: AppColors.textDisabled, size: 18),
@@ -487,6 +953,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Widget _buildActiveFilterChips(HomeFilters filters) {
     final chips = <Widget>[];
+    final specialtiesAsync = ref.watch(specialtiesProvider);
 
     void addChip(Widget content, VoidCallback onRemove) {
       chips.add(
@@ -528,17 +995,17 @@ class _HomePageState extends ConsumerState<HomePage> {
       );
     }
 
-    if (filters.maxDistance != 5.0) {
+    if (filters.radioKm != 15.0) {
       addChip(
         Text(
-          '≤ ${filters.maxDistance.toInt()} km',
+          '≤ ${filters.radioKm.toInt()} km',
           style: GoogleFonts.hankenGrotesk(
               fontSize: 11.5,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary),
         ),
         () => ref.read(homeFiltersProvider.notifier).state =
-            filters.copyWith(maxDistance: 5.0),
+            filters.copyWith(radioKm: 15.0),
       );
     }
 
@@ -588,6 +1055,32 @@ class _HomePageState extends ConsumerState<HomePage> {
       );
     }
 
+    if (filters.specialtyIds.isNotEmpty) {
+      specialtiesAsync.whenData((specialties) {
+        for (final id in filters.specialtyIds) {
+          final specialty = specialties.firstWhere(
+            (s) => s.id == id,
+            orElse: () => Specialty(id: id, name: id),
+          );
+          addChip(
+            Text(
+              specialty.name,
+              style: GoogleFonts.hankenGrotesk(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary),
+            ),
+            () {
+              final newSpecialties = List<String>.from(filters.specialtyIds)
+                ..remove(id);
+              ref.read(homeFiltersProvider.notifier).state =
+                  filters.copyWith(specialtyIds: newSpecialties);
+            },
+          );
+        }
+      });
+    }
+
     return SizedBox(
       height: 38,
       child: ListView(
@@ -631,64 +1124,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                   fontSize: 13, fontWeight: FontWeight.w800),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlaceholderTab(IconData icon, String title, String subtitle) {
-    return Center(
-      key: ValueKey(title),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              decoration: const BoxDecoration(
-                color: AppColors.grey100,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 56, color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              title,
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primaryMuted,
-                borderRadius: BorderRadius.circular(99),
-              ),
-              child: Text(
-                'PRÓXIMAMENTE',
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.5,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );

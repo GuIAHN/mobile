@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -24,7 +25,7 @@ class ProfileTab extends ConsumerWidget {
       );
     }
 
-    final isConsumer = user.role == 'CONSUMER' || user.role == 'user' || user.role == null;
+    final isConsumer = user.role == UserRole.consumer || user.role == UserRole.unknown;
 
     return ListView(
       physics: const BouncingScrollPhysics(),

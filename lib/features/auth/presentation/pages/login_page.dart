@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/widgets/api_error_message.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
 
@@ -21,6 +22,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authProvider.notifier).clearError();
+    });
+  }
 
   @override
   void dispose() {
@@ -41,19 +50,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Widget build(BuildContext context) {
     ref.listen<AuthState>(authProvider, (_, next) {
       if (next.isAuthenticated) context.go(RouteNames.home);
-      if (next.hasError && next.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.errorMessage!),
-            backgroundColor: AppColors.loginError,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-            ),
-          ),
-        );
-        ref.read(authProvider.notifier).clearError();
-      }
     });
 
     final state = ref.watch(authProvider);
@@ -80,6 +76,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     passwordController: _passwordController,
                     obscurePassword: _obscurePassword,
                     isLoading: state.isLoading,
+                    errorMessage: state.errorMessage,
+                    onClearError: () => ref.read(authProvider.notifier).clearError(),
                     onToggleObscure: () =>
                         setState(() => _obscurePassword = !_obscurePassword),
                     onSubmit: _submit,
@@ -109,7 +107,7 @@ class _BrandHeader extends StatelessWidget {
       children: [
         Image.asset(
           'assets/images/logo.png',
-          height: 60,
+          height: 100,
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
             return const Text(
@@ -145,6 +143,8 @@ class _LoginCard extends StatelessWidget {
   final TextEditingController passwordController;
   final bool obscurePassword;
   final bool isLoading;
+  final String? errorMessage;
+  final VoidCallback onClearError;
   final VoidCallback onToggleObscure;
   final VoidCallback onSubmit;
 
@@ -154,6 +154,8 @@ class _LoginCard extends StatelessWidget {
     required this.passwordController,
     required this.obscurePassword,
     required this.isLoading,
+    required this.errorMessage,
+    required this.onClearError,
     required this.onToggleObscure,
     required this.onSubmit,
   });
@@ -186,6 +188,10 @@ class _LoginCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            ApiErrorMessage(
+              message: errorMessage,
+              onClose: onClearError,
+            ),
             // Email
             _FieldLabel('CORREO ELECTRÓNICO'),
             const SizedBox(height: AppSpacing.xs),
@@ -203,6 +209,9 @@ class _LoginCard extends StatelessWidget {
                   return 'Correo inválido';
                 }
                 return null;
+              },
+              onChanged: (_) {
+                if (errorMessage != null) onClearError();
               },
             ),
             const SizedBox(height: AppSpacing.md),
@@ -247,6 +256,9 @@ class _LoginCard extends StatelessWidget {
                 if (v == null || v.isEmpty) return 'Ingresa tu contraseña';
                 if (v.length < 6) return 'Mínimo 6 caracteres';
                 return null;
+              },
+              onChanged: (_) {
+                if (errorMessage != null) onClearError();
               },
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -305,6 +317,7 @@ class _LoginTextField extends StatefulWidget {
   final Widget? suffixIcon;
   final String? Function(String?)? validator;
   final void Function(String)? onSubmitted;
+  final void Function(String)? onChanged;
 
   const _LoginTextField({
     required this.controller,
@@ -316,6 +329,7 @@ class _LoginTextField extends StatefulWidget {
     this.suffixIcon,
     this.validator,
     this.onSubmitted,
+    this.onChanged,
   });
 
   @override
@@ -337,6 +351,7 @@ class _LoginTextFieldState extends State<_LoginTextField> {
         textInputAction: widget.textInputAction,
         textAlignVertical: TextAlignVertical.center,
         onFieldSubmitted: widget.onSubmitted,
+        onChanged: widget.onChanged,
         validator: widget.validator,
         autovalidateMode: AutovalidateMode.disabled,
         style: const TextStyle(

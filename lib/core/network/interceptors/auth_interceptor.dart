@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../storage/secure_storage.dart';
 import '../api_endpoints.dart';
+import '../../../features/auth/presentation/providers/auth_provider.dart';
 
 /// Interceptor de autenticación.
 /// - Agrega el Bearer token a cada petición.
@@ -12,7 +13,7 @@ class AuthInterceptor extends Interceptor {
 
   // Previene múltiples refreshes simultáneos.
   bool _isRefreshing = false;
-  final List<RequestOptions> _pendingRequests = [];
+  final List<_PendingRequest> _pendingRequests = [];
 
   AuthInterceptor(this._ref, this._dio);
 
@@ -44,7 +45,7 @@ class AuthInterceptor extends Interceptor {
 
       if (_isRefreshing) {
         // Encolar la petición para reintentarla cuando se refresque el token.
-        _pendingRequests.add(err.requestOptions);
+        _pendingRequests.add(_PendingRequest(err, handler));
         return;
       }
 
@@ -56,6 +57,7 @@ class AuthInterceptor extends Interceptor {
 
         if (refreshToken == null) {
           await storage.clearTokens();
+          _rejectPendingRequests();
           return handler.next(err);
         }
 
@@ -80,23 +82,70 @@ class AuthInterceptor extends Interceptor {
 
           // Reintentar peticiones pendientes.
           for (final pending in _pendingRequests) {
-            pending.headers['Authorization'] = 'Bearer $newToken';
-            _dio.fetch(pending).ignore();
+            pending.err.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+            _dio.fetch(pending.err.requestOptions).then(
+              (resp) => pending.handler.resolve(resp),
+              onError: (dynamic error) {
+                if (error is DioException) {
+                  pending.handler.reject(error);
+                } else {
+                  pending.handler.reject(
+                    DioException(
+                      requestOptions: pending.err.requestOptions,
+                      error: error,
+                    ),
+                  );
+                }
+              },
+            ).ignore();
           }
           _pendingRequests.clear();
         } else {
           await storage.clearTokens();
+          _rejectPendingRequests();
           handler.next(err);
         }
-      } catch (_) {
+      } catch (e) {
         final storage = _ref.read(secureStorageProvider);
         await storage.clearTokens();
+        _rejectPendingRequests();
         handler.next(err);
       } finally {
         _isRefreshing = false;
       }
+    } else if (err.response?.statusCode == 404) {
+      final responseData = err.response?.data;
+      bool isUserNotFound = false;
+      if (responseData is Map<String, dynamic>) {
+        final message = responseData['message'];
+        if (message == 'User not found' ||
+            (message is List && message.contains('User not found'))) {
+          isUserNotFound = true;
+        }
+      } else if (responseData is String && responseData.contains('User not found')) {
+        isUserNotFound = true;
+      }
+
+      if (isUserNotFound) {
+        _ref.read(authProvider.notifier).logout();
+      }
+      handler.next(err);
     } else {
       handler.next(err);
     }
   }
+
+  void _rejectPendingRequests() {
+    for (final pending in _pendingRequests) {
+      pending.handler.reject(pending.err);
+    }
+    _pendingRequests.clear();
+  }
+}
+
+class _PendingRequest {
+  final DioException err;
+  final ErrorInterceptorHandler handler;
+
+  _PendingRequest(this.err, this.handler);
 }

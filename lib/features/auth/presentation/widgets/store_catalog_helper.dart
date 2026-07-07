@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/async_error_listener.dart';
 import '../../../catalog/domain/entities/category.dart';
 import '../../../vehicles/domain/entities/brand.dart';
 import '../../../vehicles/presentation/providers/vehicle_providers.dart';
@@ -11,16 +12,25 @@ import '../../../vehicles/presentation/providers/vehicle_providers.dart';
 class LineaCatalogo {
   final Category category;
   Set<Brand> brands;
+  Set<String> sparePartsTypes;
+
   LineaCatalogo({
     required this.category,
     required this.brands,
+    required this.sparePartsTypes,
   });
 }
 
 class ResultadoSheet {
   final bool eliminar;
   final Set<Brand> brands;
-  const ResultadoSheet({this.eliminar = false, this.brands = const {}});
+  final Set<String> sparePartsTypes;
+
+  const ResultadoSheet({
+    this.eliminar = false,
+    this.brands = const {},
+    this.sparePartsTypes = const {},
+  });
 }
 
 /* ───────────────── Funciones Auxiliares ───────────────── */
@@ -52,12 +62,14 @@ String getCategoryDescription(String name) {
 class SheetMarcas extends ConsumerStatefulWidget {
   final Category category;
   final Set<Brand> seleccionInicial;
+  final Set<String> typesInicial;
   final bool existia;
 
   const SheetMarcas({
     super.key,
     required this.category,
     required this.seleccionInicial,
+    required this.typesInicial,
     required this.existia,
   });
 
@@ -67,6 +79,7 @@ class SheetMarcas extends ConsumerStatefulWidget {
 
 class _SheetMarcasState extends ConsumerState<SheetMarcas> {
   late Set<Brand> _tempSeleccion;
+  late Set<String> _tempTypes;
   String _filtro = '';
   final _filtroController = TextEditingController();
 
@@ -74,6 +87,7 @@ class _SheetMarcasState extends ConsumerState<SheetMarcas> {
   void initState() {
     super.initState();
     _tempSeleccion = Set.from(widget.seleccionInicial);
+    _tempTypes = Set.from(widget.typesInicial);
   }
 
   @override
@@ -82,10 +96,51 @@ class _SheetMarcasState extends ConsumerState<SheetMarcas> {
     super.dispose();
   }
 
+  Widget _buildTypeChip(String value, String label) {
+    final selected = _tempTypes.contains(value);
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            if (selected) {
+              if (_tempTypes.length > 1) {
+                _tempTypes.remove(value);
+              }
+            } else {
+              _tempTypes.add(value);
+            }
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primaryMuted : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? AppColors.primary : AppColors.border,
+              width: selected ? 1.6 : 1.0,
+            ),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: selected ? AppColors.primary : AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listenAsyncError(brandsProvider, context);
     final brandsAsync = ref.watch(brandsProvider);
-    final allBrands = brandsAsync.value ?? [];
+    final allBrands = brandsAsync.valueOrNull ?? [];
 
     final filtradas = allBrands
         .where((m) => m.name.toLowerCase().contains(_filtro.toLowerCase()))
@@ -186,6 +241,26 @@ class _SheetMarcasState extends ConsumerState<SheetMarcas> {
                         ),
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'TIPOS DE REPUESTO',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _buildTypeChip('ORIGINAL', 'Original'),
+                      const SizedBox(width: 8),
+                      _buildTypeChip('GENERIC', 'Genérico'),
+                      const SizedBox(width: 8),
+                      _buildTypeChip('PERFORMANCE', 'Performance'),
+                    ],
                   ),
                   const SizedBox(height: 14),
                 ],
@@ -300,7 +375,7 @@ class _SheetMarcasState extends ConsumerState<SheetMarcas> {
                     child: Container(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(32),
-                        boxShadow: (_tempSeleccion.isNotEmpty || widget.existia)
+                        boxShadow: (_tempSeleccion.isNotEmpty && _tempTypes.isNotEmpty)
                             ? [
                                 BoxShadow(
                                   color: AppColors.primary.withOpacity(0.35),
@@ -311,10 +386,13 @@ class _SheetMarcasState extends ConsumerState<SheetMarcas> {
                             : [],
                       ),
                       child: ElevatedButton(
-                        onPressed: (_tempSeleccion.isNotEmpty || widget.existia)
+                        onPressed: (_tempSeleccion.isNotEmpty && _tempTypes.isNotEmpty)
                             ? () => Navigator.pop(
                                   context,
-                                  ResultadoSheet(brands: _tempSeleccion),
+                                  ResultadoSheet(
+                                    brands: _tempSeleccion,
+                                    sparePartsTypes: _tempTypes,
+                                  ),
                                 )
                             : null,
                         style: ElevatedButton.styleFrom(

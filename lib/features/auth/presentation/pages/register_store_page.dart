@@ -5,11 +5,14 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/async_error_listener.dart';
+import '../../../../core/utils/validators.dart';
+import '../../../../shared/widgets/api_error_message.dart';
 import '../../../catalog/domain/entities/category.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
-import '../../domain/repositories/auth_repository.dart';
+import '../../domain/entities/store_category_config.dart';
 import '../widgets/registration_completed_step.dart';
 import '../widgets/store_catalog_helper.dart';
 import '../widgets/store_catalog_step.dart';
@@ -45,6 +48,9 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authProvider.notifier).clearError();
+    });
     for (final c in [_nombreCtrl, _emailCtrl, _telefonoCtrl, _rifCtrl, _passwordCtrl, _confirmPasswordCtrl]) {
       c.addListener(() => setState(() {}));
     }
@@ -79,6 +85,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       builder: (_) => SheetMarcas(
         category: category,
         seleccionInicial: existente?.brands ?? {},
+        typesInicial: existente?.sparePartsTypes ?? {'ORIGINAL'},
         existia: existente != null,
       ),
     );
@@ -86,37 +93,35 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     if (resultado == null) return;
 
     setState(() {
-      if (resultado.eliminar || resultado.brands.isEmpty) {
+      if (resultado.eliminar || resultado.brands.isEmpty || resultado.sparePartsTypes.isEmpty) {
         _catalogo.removeWhere((l) => l.category.id == category.id);
       } else if (existente != null) {
         existente.brands = resultado.brands;
+        existente.sparePartsTypes = resultado.sparePartsTypes;
       } else {
         _catalogo.add(LineaCatalogo(
           category: category,
           brands: resultado.brands,
+          sparePartsTypes: resultado.sparePartsTypes,
         ));
       }
     });
   }
 
   bool get _passwordValida {
-    final p = _passwordCtrl.text;
-    return p.length >= 8 &&
-        p.contains(RegExp(r'[0-9]')) &&
-        p.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-]'));
+    return Validators.password(_passwordCtrl.text) == null;
   }
 
   // ===== Validación por paso =====
   bool get _pasoValido {
     switch (_paso) {
       case 1:
-        return _nombreCtrl.text.trim().isNotEmpty &&
-            _emailCtrl.text.trim().isNotEmpty &&
-            RegExp(r'^[\w\.\-]+@[\w\-]+\.\w{2,}$').hasMatch(_emailCtrl.text.trim()) &&
-            _telefonoCtrl.text.trim().isNotEmpty &&
-            _rifCtrl.text.trim().isNotEmpty &&
+        return Validators.required(_nombreCtrl.text) == null &&
+            Validators.email(_emailCtrl.text) == null &&
+            Validators.phone(_telefonoCtrl.text) == null &&
+            Validators.required(_rifCtrl.text) == null &&
             _passwordValida &&
-            _confirmPasswordCtrl.text == _passwordCtrl.text;
+            Validators.confirmPassword(_confirmPasswordCtrl.text, _passwordCtrl.text) == null;
       case 2:
       case 3:
         return _catalogo.isNotEmpty;
@@ -149,6 +154,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
         minPrice: 1.0,
         servesAllBrands: false,
         brandIds: l.brands.map((b) => b.id).toList(),
+        sparePartsTypes: l.sparePartsTypes.toList(),
       );
     }).toList();
 
@@ -190,24 +196,12 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       if (next.isAuthenticated) {
         setState(() => _paso = 5);
       }
-      if (next.hasError && next.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.errorMessage!),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-        );
-        ref.read(authProvider.notifier).clearError();
-      }
     });
 
     final authState = ref.watch(authProvider);
+    ref.listenAsyncError(categoriesProvider, context);
     final categoriesAsync = ref.watch(categoriesProvider);
-    final categories = categoriesAsync.value ?? [];
+    final categories = categoriesAsync.valueOrNull ?? [];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -233,6 +227,11 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                             _indicadorPasos(),
                             const SizedBox(height: 16),
                             _tituloPaso(),
+                            const SizedBox(height: 16),
+                            ApiErrorMessage(
+                              message: authState.errorMessage,
+                              onClose: () => ref.read(authProvider.notifier).clearError(),
+                            ),
                           ],
                           const SizedBox(height: 8),
                           Expanded(
@@ -295,7 +294,10 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                                         ),
                                       ],
                                       onFinish: () {
-                                        context.go(RouteNames.login);
+                                        ref.read(authProvider.notifier).logout().then((_) {
+                                          if (!mounted) return;
+                                          context.go(RouteNames.login);
+                                        });
                                       },
                                     ),
                                 },

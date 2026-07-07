@@ -35,6 +35,10 @@ dependencies:
   cupertino_icons: ^1.0.8
   google_fonts: ^6.2.1
 
+  # Geolocalización
+  geolocator: ^11.0.0
+  image_picker: ^1.2.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -46,3 +50,4 @@ flutter:
   assets:
     - assets/images/onboarding/
     - assets/images/logo.png
+    - assets/images/logo_icon.png

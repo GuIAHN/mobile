@@ -3,6 +3,7 @@ import '../../../../core/error/error_mapper.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../domain/entities/user.dart';
+import '../../domain/entities/store_category_config.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
 
@@ -155,6 +156,7 @@ class AuthRepositoryImpl implements AuthRepository {
         longitude: longitude,
         address: address,
         rif: rif,
+        catalog: catalog,
       );
 
       final loginResponse = await remoteDataSource.login(
@@ -167,16 +169,6 @@ class AuthRepositoryImpl implements AuthRepository {
         await secureStorage.saveRefreshToken(loginResponse.refreshToken!);
       }
       await secureStorage.saveUserId(registeredUser.id);
-
-      // Configure initial catalog categories
-      for (final config in catalog) {
-        await remoteDataSource.configureStoreCategory(
-          categoryId: config.categoryId,
-          minPrice: config.minPrice,
-          servesAllBrands: config.servesAllBrands,
-          brandIds: config.brandIds,
-        );
-      }
 
       final finalUser = await remoteDataSource.getCurrentUser();
       return Right(finalUser);
@@ -202,6 +194,26 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, User>> getCurrentUser() async {
     try {
       final user = await remoteDataSource.getCurrentUser();
+      return Right(user);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> uploadImage(String filePath) async {
+    try {
+      final url = await remoteDataSource.uploadImage(filePath);
+      return Right(url);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, User>> updateProfile({String? name, String? photo}) async {
+    try {
+      final user = await remoteDataSource.updateProfile(name: name, photo: photo);
       return Right(user);
     } catch (e) {
       return Left(ErrorMapper.map(e));

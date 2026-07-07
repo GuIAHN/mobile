@@ -60,4 +60,14 @@ class VehicleRepositoryImpl implements VehicleRepository {
       return Left(ErrorMapper.map(e));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> deleteCarFromGarage(String carId) async {
+    try {
+      await remoteDataSource.deleteCarFromGarage(carId);
+      return const Right(null);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
 }

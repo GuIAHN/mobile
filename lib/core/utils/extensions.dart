@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../notifications/notification_provider.dart';
+import '../notifications/notification_type.dart';
 
 /// Extensiones de utilidad para tipos comunes de Flutter.
 /// Agrega métodos de conveniencia sin necesidad de wrappers.
@@ -95,15 +98,47 @@ extension BuildContextExtensions on BuildContext {
 
   bool get isDarkMode => Theme.of(this).brightness == Brightness.dark;
 
-  void showSnackBar(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(this).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError
-            ? Theme.of(this).colorScheme.error
-            : null,
-      ),
-    );
+  void showSnackBar(
+    String message, {
+    bool isError = false,
+    bool isSuccess = false,
+    String? title,
+    Duration? duration,
+    bool clearQueue = true,
+  }) {
+    try {
+      final container = ProviderScope.containerOf(this);
+      final notifier = container.read(notificationProvider.notifier);
+      if (clearQueue) {
+        notifier.dismissAll();
+      }
+      
+      final type = isError
+          ? NotificationType.error
+          : (isSuccess ? NotificationType.success : NotificationType.info);
+      
+      notifier.show(
+        type: type,
+        message: message,
+        title: title,
+        duration: duration,
+      );
+    } catch (e) {
+      // Fallback a ScaffoldMessenger si no hay ProviderScope
+      final messenger = ScaffoldMessenger.of(this);
+      if (clearQueue) {
+        messenger.clearSnackBars();
+      }
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: isError
+              ? Theme.of(this).colorScheme.error
+              : (isSuccess ? Colors.green : null),
+          duration: duration ?? const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 }
 

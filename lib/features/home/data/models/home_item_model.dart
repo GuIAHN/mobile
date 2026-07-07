@@ -1,5 +1,5 @@
 import '../../domain/entities/home_item.dart';
-import '../../domain/entities/service_type.dart';
+import '../../../../core/domain/enums/service_type.dart';
 
 class HomeItemModel extends HomeItem {
   const HomeItemModel({

@@ -1,6 +1,8 @@
+import 'package:dio/dio.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../domain/entities/store_category_config.dart';
 import '../models/user_model.dart';
 
 /// Remote data source for authentication.
@@ -146,6 +148,7 @@ class AuthRemoteDataSource {
     required double longitude,
     required String address,
     required String rif,
+    required List<StoreCategoryConfig> catalog,
   }) async {
     try {
       final response = await _client.post<Map<String, dynamic>>(
@@ -161,6 +164,13 @@ class AuthRemoteDataSource {
           },
           'direccion': address,
           'rif': rif,
+          'categories': catalog.map((c) => {
+            'categoryId': c.categoryId,
+            'priceDesde': c.minPrice,
+            'atiendeTodasMarcas': c.servesAllBrands,
+            'brandIds': c.brandIds,
+            'sparePartsTypes': c.sparePartsTypes,
+          }).toList(),
         },
       );
 
@@ -183,6 +193,7 @@ class AuthRemoteDataSource {
     required double minPrice,
     required bool servesAllBrands,
     required List<String> brandIds,
+    required List<String> sparePartsTypes,
   }) async {
     try {
       await _client.post<Map<String, dynamic>>(
@@ -192,8 +203,56 @@ class AuthRemoteDataSource {
           'priceDesde': minPrice,
           'atiendeTodasMarcas': servesAllBrands,
           'brandIds': brandIds,
+          'sparePartsTypes': sparePartsTypes,
         },
       );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Uploads an image file to the server and returns its relative URL.
+  Future<String> uploadImage(String filePath) async {
+    try {
+      final fileName = filePath.split('/').last;
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(
+          filePath,
+          filename: fileName,
+        ),
+      });
+
+      final response = await _client.post<Map<String, dynamic>>(
+        'upload/image',
+        data: formData,
+      );
+
+      if (response.data == null || response.data!['url'] == null) {
+        throw const ParseException();
+      }
+
+      return response.data!['url'] as String;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Updates the current user's profile details.
+  Future<UserModel> updateProfile({String? name, String? photo}) async {
+    try {
+      final response = await _client.patch<Map<String, dynamic>>(
+        ApiEndpoints.me,
+        data: {
+          if (name != null) 'name': name,
+          if (photo != null) 'photo': photo,
+        },
+      );
+
+      if (response.data == null) {
+        throw const ParseException();
+      }
+
+      return UserModel.fromJson(response.data!);
     } catch (e) {
       rethrow;
     }

@@ -18,6 +18,7 @@ class AppTextField extends StatefulWidget {
   final Widget? suffixWidget;
   final String? helperText;
   final Widget Function(BuildContext context, bool isFocused)? prefixBuilder;
+  final AutovalidateMode? autovalidateMode;
 
   const AppTextField({
     super.key,
@@ -34,6 +35,7 @@ class AppTextField extends StatefulWidget {
     this.suffixWidget,
     this.helperText,
     this.prefixBuilder,
+    this.autovalidateMode = AutovalidateMode.onUserInteraction,
   });
 
   @override
@@ -100,6 +102,7 @@ class _AppTextFieldState extends State<AppTextField> {
             textInputAction: widget.textInputAction,
             onFieldSubmitted: widget.onFieldSubmitted,
             enabled: widget.enabled,
+            autovalidateMode: widget.autovalidateMode,
             style: GoogleFonts.hankenGrotesk(
               fontSize: 16,
               fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,

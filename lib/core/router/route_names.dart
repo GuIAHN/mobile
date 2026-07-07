@@ -18,8 +18,19 @@ abstract class RouteNames {
   // ── Home ──────────────────────────────────────────────────────────────────
   static const String home = '/home';
 
+  // ── Proveedores: Mecánicos y Talleres ─────────────────────────────────────
+  static const String mechanicDetail = '/mechanics/:id';
+  static String mechanicDetailPath(String id) => '/mechanics/$id';
+  static const String storeDetail = '/stores/:id';
+  static String storeDetailPath(String id) => '/stores/$id';
+
   // ── Vehículos ─────────────────────────────────────────────────────────────
   static const String vehicles = '/vehicles';
   static const String vehicleDetail = '/vehicles/:id';
   static String vehicleDetailPath(String id) => '/vehicles/$id';
+
+  // ── Chats ─────────────────────────────────────────────────────────────────
+  static const String chatInbox = '/chats';
+  static const String chatThread = '/chats/:threadId';
+  static const String chatConversation = '/chats/:threadId/:conversationId';
 }

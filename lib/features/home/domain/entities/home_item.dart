@@ -1,7 +1,9 @@
 import 'package:equatable/equatable.dart';
-import 'service_type.dart';
+import '../../../../core/domain/enums/service_type.dart';
 
 class HomeItem extends Equatable {
+  /// ID del proveedor en el backend (null en mocks de spareParts)
+  final String? id;
   final String name;
   final String detail;
   final double rating;
@@ -12,7 +14,14 @@ class HomeItem extends Equatable {
   final ServiceType type;
   final List<int>? gradientColors;
 
+  /// Especialidades del mecánico / taller (vacío en mocks)
+  final List<String> especialidades;
+
+  /// Tarifa por hora (solo mecánicos, null en mocks y talleres)
+  final double? tarifa;
+
   const HomeItem({
+    this.id,
     required this.name,
     required this.detail,
     required this.rating,
@@ -22,10 +31,13 @@ class HomeItem extends Equatable {
     required this.iconName,
     required this.type,
     this.gradientColors,
+    this.especialidades = const [],
+    this.tarifa,
   });
 
   @override
   List<Object?> get props => [
+        id,
         name,
         detail,
         rating,
@@ -35,5 +47,7 @@ class HomeItem extends Equatable {
         iconName,
         type,
         gradientColors,
+        especialidades,
+        tarifa,
       ];
 }

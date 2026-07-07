@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../domain/entities/service_type.dart';
+import '../../../../core/domain/enums/service_type.dart';
+import '../../../../core/providers/current_user_provider.dart';
+import '../../../../core/domain/enums/user_role.dart';
 import '../providers/home_providers.dart';
 
 class CategorySelector extends ConsumerWidget {
@@ -12,9 +14,11 @@ class CategorySelector extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedType = ref.watch(selectedServiceTypeProvider);
+    final currentRole = ref.watch(currentRoleProvider);
+    final allowedTypes = currentRole.allowedServiceTypes;
 
     return Row(
-      children: ServiceType.values.map((type) {
+      children: ServiceType.values.where((type) => allowedTypes.contains(type)).map((type) {
         final isActive = type == selectedType;
 
         // Obtener colores personalizados por categoría para mayor dinamismo

@@ -25,6 +25,10 @@ abstract class Validators {
     if (value.length < 8) {
       return 'La contraseña debe tener al menos 8 caracteres.';
     }
+    if (!value.contains(RegExp(r'[0-9]')) ||
+        !value.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-]'))) {
+      return 'Debe contener al menos un número y un símbolo especial.';
+    }
     return null;
   }
 

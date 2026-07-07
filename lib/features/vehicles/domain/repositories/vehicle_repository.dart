@@ -21,4 +21,7 @@ abstract class VehicleRepository {
 
   /// Fetches all cars from the user's garage.
   Future<Either<Failure, List<UserCar>>> getUserCars();
+
+  /// Deletes a car from the user's garage.
+  Future<Either<Failure, void>> deleteCarFromGarage(String carId);
 }

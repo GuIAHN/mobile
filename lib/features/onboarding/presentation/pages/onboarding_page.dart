@@ -111,21 +111,28 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  RichText(
-                    text: const TextSpan(
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                      children: [
-                        TextSpan(text: 'Gu'),
-                        TextSpan(
-                          text: 'IA',
-                          style: TextStyle(color: AppColors.primary),
+                  Image.asset(
+                    'assets/images/logo_icon.png',
+                    height: 72,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return RichText(
+                        text: const TextSpan(
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                          children: [
+                            TextSpan(text: 'Gu'),
+                            TextSpan(
+                              text: 'IA',
+                              style: TextStyle(color: AppColors.primary),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                   if (!isLast)
                     TextButton(
