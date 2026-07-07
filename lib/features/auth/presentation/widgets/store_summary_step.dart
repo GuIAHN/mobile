@@ -139,14 +139,34 @@ class _CardLinea extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    brandNames,
+                    'Marcas: $brandNames',
                     style: GoogleFonts.hankenGrotesk(
                       fontSize: 13,
                       color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Calidad: ${linea.sparePartsTypes.map((t) {
+                      switch (t) {
+                        case 'ORIGINAL':
+                          return 'Original';
+                        case 'GENERIC':
+                          return 'Genérico';
+                        case 'PERFORMANCE':
+                          return 'Performance';
+                        default:
+                          return t;
+                      }
+                    }).join(", ")}',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 12.5,
+                      color: AppColors.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

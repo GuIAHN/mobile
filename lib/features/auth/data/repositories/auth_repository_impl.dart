@@ -156,6 +156,7 @@ class AuthRepositoryImpl implements AuthRepository {
         longitude: longitude,
         address: address,
         rif: rif,
+        catalog: catalog,
       );
 
       final loginResponse = await remoteDataSource.login(
@@ -168,16 +169,6 @@ class AuthRepositoryImpl implements AuthRepository {
         await secureStorage.saveRefreshToken(loginResponse.refreshToken!);
       }
       await secureStorage.saveUserId(registeredUser.id);
-
-      // Configure initial catalog categories
-      for (final config in catalog) {
-        await remoteDataSource.configureStoreCategory(
-          categoryId: config.categoryId,
-          minPrice: config.minPrice,
-          servesAllBrands: config.servesAllBrands,
-          brandIds: config.brandIds,
-        );
-      }
 
       final finalUser = await remoteDataSource.getCurrentUser();
       return Right(finalUser);

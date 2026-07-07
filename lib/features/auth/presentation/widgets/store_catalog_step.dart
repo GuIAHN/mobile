@@ -173,15 +173,52 @@ class _CardCategoria extends StatelessWidget {
                       ),
               ],
             ),
-            /* Marcas seleccionadas */
+            /* Marcas y tipos seleccionados */
             if (activa) ...[
               const SizedBox(height: 14),
               const Divider(color: AppColors.border, height: 1),
               const SizedBox(height: 12),
+              Text(
+                'MARCAS:',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textDisabled,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 6),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: marcas.map((m) => _ChipMarca(m.name)).toList(),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'TIPOS DE REPUESTO:',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textDisabled,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: linea!.sparePartsTypes.map((t) {
+                  switch (t) {
+                    case 'ORIGINAL':
+                      return const _ChipTipo('Original');
+                    case 'GENERIC':
+                      return const _ChipTipo('Genérico');
+                    case 'PERFORMANCE':
+                      return const _ChipTipo('Performance');
+                    default:
+                      return _ChipTipo(t);
+                  }
+                }).toList(),
               ),
             ],
           ],
@@ -213,6 +250,34 @@ class _ChipMarca extends StatelessWidget {
           fontSize: 12,
           fontWeight: FontWeight.w700,
           color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+}
+
+class _ChipTipo extends StatelessWidget {
+  final String tipo;
+  const _ChipTipo(this.tipo);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1.2,
+        ),
+      ),
+      child: Text(
+        tipo,
+        style: GoogleFonts.hankenGrotesk(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textSecondary,
         ),
       ),
     );

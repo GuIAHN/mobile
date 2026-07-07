@@ -12,7 +12,6 @@ import '../../../catalog/domain/entities/category.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
-import '../../domain/repositories/auth_repository.dart';
 import '../../domain/entities/store_category_config.dart';
 import '../widgets/registration_completed_step.dart';
 import '../widgets/store_catalog_helper.dart';
@@ -86,6 +85,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       builder: (_) => SheetMarcas(
         category: category,
         seleccionInicial: existente?.brands ?? {},
+        typesInicial: existente?.sparePartsTypes ?? {'ORIGINAL'},
         existia: existente != null,
       ),
     );
@@ -93,14 +93,16 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     if (resultado == null) return;
 
     setState(() {
-      if (resultado.eliminar || resultado.brands.isEmpty) {
+      if (resultado.eliminar || resultado.brands.isEmpty || resultado.sparePartsTypes.isEmpty) {
         _catalogo.removeWhere((l) => l.category.id == category.id);
       } else if (existente != null) {
         existente.brands = resultado.brands;
+        existente.sparePartsTypes = resultado.sparePartsTypes;
       } else {
         _catalogo.add(LineaCatalogo(
           category: category,
           brands: resultado.brands,
+          sparePartsTypes: resultado.sparePartsTypes,
         ));
       }
     });
@@ -152,6 +154,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
         minPrice: 1.0,
         servesAllBrands: false,
         brandIds: l.brands.map((b) => b.id).toList(),
+        sparePartsTypes: l.sparePartsTypes.toList(),
       );
     }).toList();
 
