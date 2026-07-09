@@ -13,19 +13,27 @@ abstract class AuthRepository {
     required String password,
   });
 
+  /// Logs in using social credentials (Google or Apple).
+  Future<Either<Failure, User>> socialLogin({
+    required String idToken,
+    required String provider,
+  });
+
   /// Registers a new user with their respective role.
   Future<Either<Failure, User>> register({
     required String email,
-    required String password,
+    String? password,
     required String name,
     required String role,
     String? phone,
+    String? idToken,
+    String? provider,
   });
 
   /// Registers a mechanic or workshop.
   Future<Either<Failure, User>> registerMechanic({
     required String email,
-    required String password,
+    String? password,
     required String name,
     required String phone,
     required double latitude,
@@ -34,12 +42,14 @@ abstract class AuthRepository {
     required bool isWorkshop,
     required String identification,
     required List<String> specialtyIds,
+    String? idToken,
+    String? provider,
   });
 
   /// Registers a store and configures its initial catalog.
   Future<Either<Failure, User>> registerStore({
     required String email,
-    required String password,
+    String? password,
     required String name,
     required String phone,
     required double latitude,
@@ -47,6 +57,8 @@ abstract class AuthRepository {
     required String address,
     required String rif,
     required List<StoreCategoryConfig> catalog,
+    String? idToken,
+    String? provider,
   });
 
   /// Closes the current session and clears stored tokens.

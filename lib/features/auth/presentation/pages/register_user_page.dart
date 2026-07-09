@@ -10,6 +10,7 @@ import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/api_error_message.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
+import '../providers/social_registration_state.dart';
 
 class RegisterUserPage extends ConsumerStatefulWidget {
   const RegisterUserPage({super.key});
@@ -33,6 +34,12 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(authProvider.notifier).clearError();
+      final socialData = ref.read(socialRegistrationProvider);
+      if (socialData != null) {
+        _nameController.text = socialData.name;
+        _emailController.text = socialData.email;
+        _validarFormulario();
+      }
     });
     for (final controller in [
       _nameController,
@@ -49,11 +56,14 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   }
 
   void _validarFormulario() {
+    final socialData = ref.read(socialRegistrationProvider);
+    final isSocial = socialData != null;
+
     final nombreValido = Validators.required(_nameController.text, fieldName: 'Nombre') == null &&
         _nameController.text.trim().split(' ').length >= 2;
     final correoValido = Validators.email(_emailController.text) == null;
-    final passValido = _passwordValida;
-    final confirmValido = Validators.confirmPassword(_confirmPasswordController.text, _passwordController.text) == null;
+    final passValido = isSocial || _passwordValida;
+    final confirmValido = isSocial || Validators.confirmPassword(_confirmPasswordController.text, _passwordController.text) == null;
 
     final valido = nombreValido && correoValido && passValido && confirmValido;
     if (valido != _formularioValido) {
@@ -86,12 +96,16 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
       sanitizedPhone = clean.startsWith('0') ? clean.substring(1) : clean;
     }
 
+    final socialData = ref.read(socialRegistrationProvider);
+
     await ref.read(authProvider.notifier).register(
           email: _emailController.text.trim(),
-          password: _passwordController.text,
+          password: socialData == null ? _passwordController.text : null,
           name: _nameController.text.trim(),
           role: 'CONSUMER',
           phone: sanitizedPhone,
+          idToken: socialData?.idToken,
+          provider: socialData?.provider,
         );
   }
 
@@ -106,6 +120,8 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
     });
 
     final state = ref.watch(authProvider);
+    final socialData = ref.watch(socialRegistrationProvider);
+    final isSocial = socialData != null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -143,6 +159,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                               hint: 'Tu nombre y apellido',
                               prefixIcon: Icons.person_outline,
                               textInputAction: TextInputAction.next,
+                              enabled: !isSocial,
                               validator: (v) {
                                 final err = Validators.required(v, fieldName: 'El nombre');
                                 if (err != null) return err;
@@ -159,6 +176,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                               prefixIcon: Icons.mail_outline,
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
+                              enabled: !isSocial,
                               validator: Validators.email,
                             ),
                             AppTextField(
@@ -168,7 +186,14 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                               helperText: 'Ingresa el número de teléfono móvil',
                               prefixIcon: Icons.smartphone_outlined,
                               keyboardType: TextInputType.phone,
-                              textInputAction: TextInputAction.next,
+                              textInputAction: isSocial ? TextInputAction.done : TextInputAction.next,
+                              onFieldSubmitted: isSocial
+                                  ? (_) {
+                                      if (_formularioValido && !state.isLoading) {
+                                        _submit();
+                                      }
+                                    }
+                                  : null,
                               validator: (v) {
                                 if (v != null && v.isNotEmpty) {
                                   return Validators.phone(v);
@@ -176,39 +201,41 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                                 return null;
                               },
                             ),
-                            AppTextField(
-                              label: 'CONTRASEÑA',
-                              controller: _passwordController,
-                              hint: '••••••••••',
-                              prefixIcon: Icons.lock_outline,
-                              obscureText: true,
-                              textInputAction: TextInputAction.next,
-                              validator: Validators.password,
-                            ),
-                            AppTextField(
-                              label: 'CONFIRMAR CONTRASEÑA',
-                              controller: _confirmPasswordController,
-                              hint: '••••••••••',
-                              prefixIcon: Icons.lock_outline,
-                              obscureText: true,
-                              textInputAction: TextInputAction.done,
-                              validator: (v) => Validators.confirmPassword(v, _passwordController.text),
-                              onFieldSubmitted: (_) {
-                                if (_formularioValido && !state.isLoading) {
-                                  _submit();
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Mín. 8 caracteres con al menos un número y un símbolo especial.',
-                              style: GoogleFonts.hankenGrotesk(
-                                fontSize: 11.5,
-                                color: _passwordController.text.isEmpty
-                                    ? AppColors.textSecondary
-                                    : (_passwordValida ? AppColors.success : AppColors.primary),
+                            if (!isSocial) ...[
+                              AppTextField(
+                                label: 'CONTRASEÑA',
+                                controller: _passwordController,
+                                hint: '••••••••••',
+                                prefixIcon: Icons.lock_outline,
+                                obscureText: true,
+                                textInputAction: TextInputAction.next,
+                                validator: Validators.password,
                               ),
-                            ),
+                              AppTextField(
+                                label: 'CONFIRMAR CONTRASEÑA',
+                                controller: _confirmPasswordController,
+                                hint: '••••••••••',
+                                prefixIcon: Icons.lock_outline,
+                                obscureText: true,
+                                textInputAction: TextInputAction.done,
+                                validator: (v) => Validators.confirmPassword(v, _passwordController.text),
+                                onFieldSubmitted: (_) {
+                                  if (_formularioValido && !state.isLoading) {
+                                    _submit();
+                                  }
+                                },
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Mín. 8 caracteres con al menos un número y un símbolo especial.',
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 11.5,
+                                  color: _passwordController.text.isEmpty
+                                      ? AppColors.textSecondary
+                                      : (_passwordValida ? AppColors.success : AppColors.primary),
+                                ),
+                              ),
+                            ],
                             const Spacer(),
                             const SizedBox(height: 32),
                             _loginLink(),

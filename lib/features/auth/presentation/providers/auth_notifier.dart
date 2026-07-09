@@ -92,13 +92,42 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _runAuthAction(() => _loginUseCase(LoginParams(email: email, password: password)));
   }
 
+  /// Executes social login.
+  Future<Either<Failure, User>> socialLogin({
+    required String idToken,
+    required String provider,
+  }) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    final result = await _authRepository.socialLogin(
+      idToken: idToken,
+      provider: provider,
+    );
+    result.fold(
+      (failure) {
+        state = state.copyWith(
+          status: AuthStatus.unauthenticated,
+          errorMessage: failure is SocialNotRegisteredFailure ? null : failure.message,
+        );
+      },
+      (user) {
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          user: user,
+        );
+      },
+    );
+    return result;
+  }
+
   /// Executes user registration.
   Future<void> register({
     required String email,
-    required String password,
+    String? password,
     required String name,
     required String role,
     String? phone,
+    String? idToken,
+    String? provider,
   }) async {
     await _runAuthAction(
       () => _registerUseCase(
@@ -108,6 +137,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
           name: name,
           role: role,
           phone: phone,
+          idToken: idToken,
+          provider: provider,
         ),
       ),
     );
@@ -116,7 +147,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Executes mechanic or workshop registration.
   Future<void> registerMechanic({
     required String email,
-    required String password,
+    String? password,
     required String name,
     required String phone,
     required double latitude,
@@ -125,6 +156,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required bool isWorkshop,
     required String identification,
     required List<String> specialtyIds,
+    String? idToken,
+    String? provider,
   }) async {
     await _runAuthAction(
       () => _authRepository.registerMechanic(
@@ -138,6 +171,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isWorkshop: isWorkshop,
         identification: identification,
         specialtyIds: specialtyIds,
+        idToken: idToken,
+        provider: provider,
       ),
     );
   }
@@ -145,7 +180,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Executes store and catalog registration.
   Future<void> registerStore({
     required String email,
-    required String password,
+    String? password,
     required String name,
     required String phone,
     required double latitude,
@@ -153,6 +188,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String address,
     required String rif,
     required List<StoreCategoryConfig> catalog,
+    String? idToken,
+    String? provider,
   }) async {
     await _runAuthAction(
       () => _authRepository.registerStore(
@@ -165,6 +202,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         address: address,
         rif: rif,
         catalog: catalog,
+        idToken: idToken,
+        provider: provider,
       ),
     );
   }

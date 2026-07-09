@@ -9,6 +9,13 @@ class ErrorMapper {
 
   /// Mapea una excepción a su [Failure] correspondiente.
   static Failure map(Object e) {
+    if (e is SocialNotRegisteredException) {
+      return SocialNotRegisteredFailure(
+        email: e.email,
+        name: e.name,
+        sub: e.sub,
+      );
+    }
     if (e is UnauthorizedException) {
       return const UnauthorizedFailure();
     }

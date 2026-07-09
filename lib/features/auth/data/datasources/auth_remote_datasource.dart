@@ -40,21 +40,67 @@ class AuthRemoteDataSource {
     // The current backend does not have a logout endpoint; token expiration is client-side.
   }
 
+  /// Calls POST /auth/social/login and returns the parsed response, or throws SocialNotRegisteredException.
+  Future<LoginResponseModel> socialLogin({
+    required String idToken,
+    required String provider,
+  }) async {
+    try {
+      final response = await _client.post<Map<String, dynamic>>(
+        ApiEndpoints.socialLogin,
+        data: {
+          'idToken': idToken,
+          'provider': provider,
+        },
+      );
+
+      if (response.data == null) {
+        throw const ParseException();
+      }
+
+      return LoginResponseModel.fromJson(response.data!);
+    } on ParseException {
+      rethrow;
+    } catch (e) {
+      if (e is DioException) {
+        final res = e.response;
+        if (res != null && res.statusCode == 401) {
+          final data = res.data;
+          if (data is Map<String, dynamic>) {
+            final payload = data['data'] ?? data['message'];
+            if (payload is Map<String, dynamic> && payload['registered'] == false) {
+              throw SocialNotRegisteredException(
+                email: payload['email'] as String? ?? '',
+                name: payload['name'] as String? ?? '',
+                sub: payload['sub'] as String? ?? '',
+              );
+            }
+          }
+        }
+      }
+      rethrow;
+    }
+  }
+
   /// Calls POST /auth/register and returns the created user info.
   Future<UserModel> register({
     required String email,
-    required String password,
+    String? password,
     required String name,
     required String role,
+    String? idToken,
+    String? provider,
   }) async {
     try {
       final response = await _client.post<Map<String, dynamic>>(
         ApiEndpoints.register,
         data: {
           'email': email,
-          'password': password,
+          if (password != null) 'password': password,
           'name': name,
           'userType': role,
+          if (idToken != null) 'idToken': idToken,
+          if (provider != null) 'provider': provider,
         },
       );
 
@@ -96,7 +142,7 @@ class AuthRemoteDataSource {
   /// Calls POST /mechanics/register to register a mechanic or workshop.
   Future<UserModel> registerMechanic({
     required String email,
-    required String password,
+    String? password,
     required String name,
     required String phone,
     required double latitude,
@@ -105,23 +151,27 @@ class AuthRemoteDataSource {
     required bool isWorkshop,
     required String identification,
     required List<String> specialtyIds,
+    String? idToken,
+    String? provider,
   }) async {
     try {
       final response = await _client.post<Map<String, dynamic>>(
         'mechanics/register',
         data: {
           'email': email,
-          'password': password,
+          if (password != null) 'password': password,
           'name': name,
-          'telefono': phone,
-          'ubicacion': {
+          'phone': phone,
+          'location': {
             'lat': latitude,
             'lon': longitude,
           },
-          'descripcion': description,
-          'esTaller': isWorkshop,
+          'description': description,
+          'isWorkshop': isWorkshop,
           'identification': identification,
           'specialtyIds': specialtyIds,
+          if (idToken != null) 'idToken': idToken,
+          if (provider != null) 'provider': provider,
         },
       );
 
@@ -141,7 +191,7 @@ class AuthRemoteDataSource {
   /// Calls POST /stores/register to register a spare parts store.
   Future<UserModel> registerStore({
     required String email,
-    required String password,
+    String? password,
     required String name,
     required String phone,
     required double latitude,
@@ -149,28 +199,32 @@ class AuthRemoteDataSource {
     required String address,
     required String rif,
     required List<StoreCategoryConfig> catalog,
+    String? idToken,
+    String? provider,
   }) async {
     try {
       final response = await _client.post<Map<String, dynamic>>(
         'stores/register',
         data: {
           'email': email,
-          'password': password,
+          if (password != null) 'password': password,
           'name': name,
-          'telefono': phone,
-          'ubicacion': {
+          'phone': phone,
+          'location': {
             'lat': latitude,
             'lon': longitude,
           },
-          'direccion': address,
+          'address': address,
           'rif': rif,
           'categories': catalog.map((c) => {
             'categoryId': c.categoryId,
-            'priceDesde': c.minPrice,
-            'atiendeTodasMarcas': c.servesAllBrands,
+            'startingPrice': c.minPrice,
+            'servesAllBrands': c.servesAllBrands,
             'brandIds': c.brandIds,
             'sparePartsTypes': c.sparePartsTypes,
           }).toList(),
+          if (idToken != null) 'idToken': idToken,
+          if (provider != null) 'provider': provider,
         },
       );
 
@@ -200,8 +254,8 @@ class AuthRemoteDataSource {
         'stores/me/categories',
         data: {
           'categoryId': categoryId,
-          'priceDesde': minPrice,
-          'atiendeTodasMarcas': servesAllBrands,
+          'startingPrice': minPrice,
+          'servesAllBrands': servesAllBrands,
           'brandIds': brandIds,
           'sparePartsTypes': sparePartsTypes,
         },

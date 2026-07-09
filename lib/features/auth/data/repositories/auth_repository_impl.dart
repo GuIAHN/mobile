@@ -6,6 +6,7 @@ import '../../domain/entities/user.dart';
 import '../../domain/entities/store_category_config.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
+import '../models/user_model.dart';
 
 /// Concrete implementation of the authentication repository.
 /// Orchestrates the datasource and secure token storage.
@@ -46,12 +47,41 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, User>> socialLogin({
+    required String idToken,
+    required String provider,
+  }) async {
+    try {
+      final response = await remoteDataSource.socialLogin(
+        idToken: idToken,
+        provider: provider,
+      );
+
+      // Save tokens securely.
+      await secureStorage.saveToken(response.accessToken);
+      if (response.refreshToken != null) {
+        await secureStorage.saveRefreshToken(response.refreshToken!);
+      }
+
+      // Fetch the actual user profile from the API.
+      final user = await remoteDataSource.getCurrentUser();
+      await secureStorage.saveUserId(user.id);
+
+      return Right(user);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
   Future<Either<Failure, User>> register({
     required String email,
-    required String password,
+    String? password,
     required String name,
     required String role,
     String? phone,
+    String? idToken,
+    String? provider,
   }) async {
     try {
       // 1. Create the user in the backend.
@@ -60,13 +90,23 @@ class AuthRepositoryImpl implements AuthRepository {
         password: password,
         name: name,
         role: role,
+        idToken: idToken,
+        provider: provider,
       );
 
       // 2. Log in automatically to obtain tokens for the active session.
-      final loginResponse = await remoteDataSource.login(
-        email: email,
-        password: password,
-      );
+      final LoginResponseModel loginResponse;
+      if (idToken != null && provider != null) {
+        loginResponse = await remoteDataSource.socialLogin(
+          idToken: idToken,
+          provider: provider,
+        );
+      } else {
+        loginResponse = await remoteDataSource.login(
+          email: email,
+          password: password!,
+        );
+      }
 
       // Save obtained tokens securely.
       await secureStorage.saveToken(loginResponse.accessToken);
@@ -92,7 +132,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, User>> registerMechanic({
     required String email,
-    required String password,
+    String? password,
     required String name,
     required String phone,
     required double latitude,
@@ -101,6 +141,8 @@ class AuthRepositoryImpl implements AuthRepository {
     required bool isWorkshop,
     required String identification,
     required List<String> specialtyIds,
+    String? idToken,
+    String? provider,
   }) async {
     try {
       final registeredUser = await remoteDataSource.registerMechanic(
@@ -114,12 +156,22 @@ class AuthRepositoryImpl implements AuthRepository {
         isWorkshop: isWorkshop,
         identification: identification,
         specialtyIds: specialtyIds,
+        idToken: idToken,
+        provider: provider,
       );
 
-      final loginResponse = await remoteDataSource.login(
-        email: email,
-        password: password,
-      );
+      final LoginResponseModel loginResponse;
+      if (idToken != null && provider != null) {
+        loginResponse = await remoteDataSource.socialLogin(
+          idToken: idToken,
+          provider: provider,
+        );
+      } else {
+        loginResponse = await remoteDataSource.login(
+          email: email,
+          password: password!,
+        );
+      }
 
       await secureStorage.saveToken(loginResponse.accessToken);
       if (loginResponse.refreshToken != null) {
@@ -137,7 +189,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, User>> registerStore({
     required String email,
-    required String password,
+    String? password,
     required String name,
     required String phone,
     required double latitude,
@@ -145,6 +197,8 @@ class AuthRepositoryImpl implements AuthRepository {
     required String address,
     required String rif,
     required List<StoreCategoryConfig> catalog,
+    String? idToken,
+    String? provider,
   }) async {
     try {
       final registeredUser = await remoteDataSource.registerStore(
@@ -157,12 +211,22 @@ class AuthRepositoryImpl implements AuthRepository {
         address: address,
         rif: rif,
         catalog: catalog,
+        idToken: idToken,
+        provider: provider,
       );
 
-      final loginResponse = await remoteDataSource.login(
-        email: email,
-        password: password,
-      );
+      final LoginResponseModel loginResponse;
+      if (idToken != null && provider != null) {
+        loginResponse = await remoteDataSource.socialLogin(
+          idToken: idToken,
+          provider: provider,
+        );
+      } else {
+        loginResponse = await remoteDataSource.login(
+          email: email,
+          password: password!,
+        );
+      }
 
       await secureStorage.saveToken(loginResponse.accessToken);
       if (loginResponse.refreshToken != null) {

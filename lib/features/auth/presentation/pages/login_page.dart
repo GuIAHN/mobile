@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/error/failures.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/api_error_message.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
+import '../providers/social_registration_state.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -36,6 +38,69 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleSocialLogin(String provider) async {
+    final email = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final controller = TextEditingController(text: 'cega2005@gmail.com');
+        return AlertDialog(
+          title: Text('Simulador Login Social ($provider)'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Ingresa un correo para simular el inicio de sesión social:'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'Correo Electrónico',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, controller.text.trim()),
+              child: const Text('Continuar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (email == null || email.isEmpty) return;
+
+    final mockToken = 'mock-token:$email:Usuario Social';
+
+    final result = await ref.read(authProvider.notifier).socialLogin(
+          idToken: mockToken,
+          provider: provider,
+        );
+
+    result.fold(
+      (failure) {
+        if (failure is SocialNotRegisteredFailure) {
+          ref.read(socialRegistrationProvider.notifier).setData(
+                idToken: mockToken,
+                provider: provider,
+                email: email,
+                name: 'Usuario Social',
+              );
+          context.go(RouteNames.register);
+        }
+      },
+      (user) {
+        // Success handles automatically by listener redirect
+      },
+    );
   }
 
   Future<void> _submit() async {
@@ -81,6 +146,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     onToggleObscure: () =>
                         setState(() => _obscurePassword = !_obscurePassword),
                     onSubmit: _submit,
+                    onGoogleLogin: () => _handleSocialLogin('GOOGLE'),
+                    onAppleLogin: () => _handleSocialLogin('APPLE'),
                   ),
                   const SizedBox(height: AppSpacing.xl3),
                   _RegisterFooter(),
@@ -147,6 +214,8 @@ class _LoginCard extends StatelessWidget {
   final VoidCallback onClearError;
   final VoidCallback onToggleObscure;
   final VoidCallback onSubmit;
+  final VoidCallback onGoogleLogin;
+  final VoidCallback onAppleLogin;
 
   const _LoginCard({
     required this.formKey,
@@ -158,6 +227,8 @@ class _LoginCard extends StatelessWidget {
     required this.onClearError,
     required this.onToggleObscure,
     required this.onSubmit,
+    required this.onGoogleLogin,
+    required this.onAppleLogin,
   });
 
   @override
@@ -273,9 +344,17 @@ class _LoginCard extends StatelessWidget {
             // Botones sociales
             Row(
               children: [
-                Expanded(child: _SocialButton.google()),
+                Expanded(
+                  child: _SocialButton.google(
+                    onPressed: onGoogleLogin,
+                  ),
+                ),
                 const SizedBox(width: AppSpacing.lg),
-                Expanded(child: _SocialButton.apple()),
+                Expanded(
+                  child: _SocialButton.apple(
+                    onPressed: onAppleLogin,
+                  ),
+                ),
               ],
             ),
           ],
@@ -530,17 +609,24 @@ class _DividerWithLabel extends StatelessWidget {
 class _SocialButton extends StatelessWidget {
   final Widget icon;
   final String label;
+  final VoidCallback onPressed;
 
-  const _SocialButton({required this.icon, required this.label});
+  const _SocialButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
 
-  factory _SocialButton.google() => const _SocialButton(
-        icon: _GoogleIcon(),
+  factory _SocialButton.google({required VoidCallback onPressed}) => _SocialButton(
+        icon: const _GoogleIcon(),
         label: 'Google',
+        onPressed: onPressed,
       );
 
-  factory _SocialButton.apple() => _SocialButton(
+  factory _SocialButton.apple({required VoidCallback onPressed}) => _SocialButton(
         icon: const Icon(Icons.apple_rounded, size: 20, color: AppColors.loginOnSurface),
         label: 'Apple',
+        onPressed: onPressed,
       );
 
   @override
@@ -548,7 +634,7 @@ class _SocialButton extends StatelessWidget {
     return SizedBox(
       height: 40,
       child: OutlinedButton(
-        onPressed: () {},
+        onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           backgroundColor: AppColors.loginSurfaceHigh.withValues(alpha: 0.6),
           side: const BorderSide(color: AppColors.loginOutlineVar),

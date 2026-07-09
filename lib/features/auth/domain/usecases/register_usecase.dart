@@ -7,21 +7,25 @@ import '../repositories/auth_repository.dart';
 /// Parámetros del caso de uso de registro.
 class RegisterParams extends Equatable {
   final String email;
-  final String password;
+  final String? password;
   final String name;
   final String role;
   final String? phone;
+  final String? idToken;
+  final String? provider;
 
   const RegisterParams({
     required this.email,
-    required this.password,
+    this.password,
     required this.name,
     required this.role,
     this.phone,
+    this.idToken,
+    this.provider,
   });
 
   @override
-  List<Object?> get props => [email, password, name, role, phone];
+  List<Object?> get props => [email, password, name, role, phone, idToken, provider];
 }
 
 /// Caso de uso: Registrar un nuevo usuario.
@@ -37,6 +41,8 @@ class RegisterUseCase {
       name: params.name,
       role: params.role,
       phone: params.phone,
+      idToken: params.idToken,
+      provider: params.provider,
     );
   }
 }
