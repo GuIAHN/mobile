@@ -6,10 +6,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
-import 'profile_basic_data.dart';
-import 'profile_garage.dart';
-import 'profile_header.dart';
+import '../../../vehicles/presentation/widgets/profile_garage.dart';
+import '../providers/auth_provider.dart';
+import '../widgets/profile_basic_data.dart';
+import '../widgets/profile_header.dart';
 
 class ProfileTab extends ConsumerWidget {
   const ProfileTab({super.key});

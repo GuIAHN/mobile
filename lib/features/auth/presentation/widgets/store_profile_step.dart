@@ -10,6 +10,7 @@ class StoreProfileStep extends StatelessWidget {
   final TextEditingController rifController;
   final TextEditingController passwordController;
   final TextEditingController confirmPasswordController;
+  final bool isSocial;
 
   const StoreProfileStep({
     super.key,
@@ -19,6 +20,7 @@ class StoreProfileStep extends StatelessWidget {
     required this.rifController,
     required this.passwordController,
     required this.confirmPasswordController,
+    this.isSocial = false,
   });
 
   @override
@@ -32,6 +34,7 @@ class StoreProfileStep extends StatelessWidget {
           hint: 'Ej: Repuestos El Motor',
           prefixIcon: Icons.storefront_outlined,
           textInputAction: TextInputAction.next,
+          enabled: !isSocial,
         ),
         AppTextField(
           label: 'CORREO ELECTRÓNICO',
@@ -40,6 +43,7 @@ class StoreProfileStep extends StatelessWidget {
           prefixIcon: Icons.mail_outline,
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
+          enabled: !isSocial,
         ),
         AppTextField(
           label: 'NÚMERO DE TELÉFONO',
@@ -56,7 +60,7 @@ class StoreProfileStep extends StatelessWidget {
           hint: '123456789',
           prefixIcon: Icons.badge_outlined,
           keyboardType: TextInputType.number,
-          textInputAction: TextInputAction.next,
+          textInputAction: isSocial ? TextInputAction.done : TextInputAction.next,
           prefixBuilder: (context, isFocused) {
             return Row(
               mainAxisSize: MainAxisSize.min,
@@ -86,22 +90,24 @@ class StoreProfileStep extends StatelessWidget {
             );
           },
         ),
-        AppTextField(
-          label: 'CONTRASEÑA',
-          controller: passwordController,
-          hint: '••••••••••',
-          prefixIcon: Icons.lock_outline,
-          obscureText: true,
-          textInputAction: TextInputAction.next,
-        ),
-        AppTextField(
-          label: 'CONFIRMAR CONTRASEÑA',
-          controller: confirmPasswordController,
-          hint: '••••••••••',
-          prefixIcon: Icons.lock_outline,
-          obscureText: true,
-          textInputAction: TextInputAction.done,
-        ),
+        if (!isSocial) ...[
+          AppTextField(
+            label: 'CONTRASEÑA',
+            controller: passwordController,
+            hint: '••••••••••',
+            prefixIcon: Icons.lock_outline,
+            obscureText: true,
+            textInputAction: TextInputAction.next,
+          ),
+          AppTextField(
+            label: 'CONFIRMAR CONTRASEÑA',
+            controller: confirmPasswordController,
+            hint: '••••••••••',
+            prefixIcon: Icons.lock_outline,
+            obscureText: true,
+            textInputAction: TextInputAction.done,
+          ),
+        ],
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(16),

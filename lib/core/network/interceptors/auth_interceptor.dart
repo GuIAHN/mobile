@@ -38,8 +38,12 @@ class AuthInterceptor extends Interceptor {
     ErrorInterceptorHandler handler,
   ) async {
     if (err.response?.statusCode == 401) {
-      // Evitar bucle infinito: si el refresh mismo falla, propagar el error.
-      if (err.requestOptions.path == ApiEndpoints.refreshToken) {
+      final path = err.requestOptions.path;
+      // Excluir endpoints de autenticación y refresco de tokens de la rotación automática.
+      if (path == ApiEndpoints.login ||
+          path == ApiEndpoints.socialLogin ||
+          path == ApiEndpoints.register ||
+          path == ApiEndpoints.refreshToken) {
         return handler.next(err);
       }
 

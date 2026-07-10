@@ -13,6 +13,7 @@ class MechanicProfileStep extends StatelessWidget {
   final bool passwordValida;
   final String cedulaTipo;
   final ValueChanged<String> onCedulaTipoChanged;
+  final bool isSocial;
 
   const MechanicProfileStep({
     super.key,
@@ -25,6 +26,7 @@ class MechanicProfileStep extends StatelessWidget {
     required this.passwordValida,
     required this.cedulaTipo,
     required this.onCedulaTipoChanged,
+    this.isSocial = false,
   });
 
   @override
@@ -38,6 +40,7 @@ class MechanicProfileStep extends StatelessWidget {
           hint: 'Ej: Marcus Vane',
           icono: Icons.person_outline,
           textInputAction: TextInputAction.next,
+          enabled: !isSocial,
         ),
         _campo(
           label: 'NÚMERO DE TELÉFONO',
@@ -45,7 +48,7 @@ class MechanicProfileStep extends StatelessWidget {
           hint: '414 123 4567',
           icono: Icons.call_outlined,
           teclado: TextInputType.phone,
-          textInputAction: TextInputAction.next,
+          textInputAction: isSocial ? TextInputAction.next : TextInputAction.next,
           helperText: 'Ingresa el número sin el "0" ni "+58" (ej. 4141234567)',
         ),
         _campo(
@@ -55,6 +58,7 @@ class MechanicProfileStep extends StatelessWidget {
           icono: Icons.mail_outline,
           teclado: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
+          enabled: !isSocial,
         ),
         _campoCedula(
           label: 'CÉDULA DE IDENTIDAD',
@@ -62,36 +66,38 @@ class MechanicProfileStep extends StatelessWidget {
           hint: '12343224',
           icono: Icons.badge_outlined,
           teclado: TextInputType.number,
-          textInputAction: TextInputAction.next,
+          textInputAction: isSocial ? TextInputAction.done : TextInputAction.next,
           cedulaTipo: cedulaTipo,
           onCedulaTipoChanged: onCedulaTipoChanged,
         ),
-        _campo(
-          label: 'CONTRASEÑA SEGURA',
-          ctrl: passwordController,
-          hint: '••••••••••',
-          icono: Icons.lock_outline,
-          obscureText: true,
-          textInputAction: TextInputAction.next,
-        ),
-        _campo(
-          label: 'CONFIRMAR CONTRASEÑA',
-          ctrl: confirmPasswordController,
-          hint: '••••••••••',
-          icono: Icons.lock_outline,
-          obscureText: true,
-          textInputAction: TextInputAction.done,
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Mín. 8 caracteres con al menos un número y un símbolo especial.',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 11.5,
-            color: passwordController.text.isEmpty
-                ? AppColors.textSecondary
-                : (passwordValida ? AppColors.success : AppColors.primary),
+        if (!isSocial) ...[
+          _campo(
+            label: 'CONTRASEÑA SEGURA',
+            ctrl: passwordController,
+            hint: '••••••••••',
+            icono: Icons.lock_outline,
+            obscureText: true,
+            textInputAction: TextInputAction.next,
           ),
-        ),
+          _campo(
+            label: 'CONFIRMAR CONTRASEÑA',
+            ctrl: confirmPasswordController,
+            hint: '••••••••••',
+            icono: Icons.lock_outline,
+            obscureText: true,
+            textInputAction: TextInputAction.done,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Mín. 8 caracteres con al menos un número y un símbolo especial.',
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 11.5,
+              color: passwordController.text.isEmpty
+                  ? AppColors.textSecondary
+                  : (passwordValida ? AppColors.success : AppColors.primary),
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
       ],
     );
@@ -106,6 +112,7 @@ class MechanicProfileStep extends StatelessWidget {
     TextInputAction textInputAction = TextInputAction.next,
     bool obscureText = false,
     String? helperText,
+    bool enabled = true,
   }) {
     return AppTextField(
       label: label,
@@ -116,6 +123,7 @@ class MechanicProfileStep extends StatelessWidget {
       obscureText: obscureText,
       textInputAction: textInputAction,
       helperText: helperText,
+      enabled: enabled,
     );
   }
 

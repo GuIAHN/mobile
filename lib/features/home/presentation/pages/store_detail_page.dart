@@ -228,32 +228,29 @@ class _StatsRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          if (rating != null) ...[
-            Expanded(
-              child: _StatItem(
-                icon: Icons.star_rounded,
-                iconColor: const Color(0xFFF59E0B),
-                value: rating!.toStringAsFixed(1),
-                label: 'Rating',
-              ),
+          Expanded(
+            child: _StatItem(
+              icon: Icons.star_rounded,
+              iconColor: const Color(0xFFF59E0B),
+              value: rating != null ? rating!.toStringAsFixed(1) : 'N/D',
+              label: 'Rating',
             ),
-          ],
-          if (distanciaKm != null) ...[
-            Container(
-                width: 1,
-                height: 36,
-                color: AppColors.grey200,
-                margin:
-                    const EdgeInsets.symmetric(horizontal: 8)),
-            Expanded(
-              child: _StatItem(
-                icon: Icons.near_me_rounded,
-                iconColor: AppColors.primary,
-                value: '${distanciaKm!.toStringAsFixed(1)} km',
-                label: 'Distancia',
-              ),
+          ),
+          Container(
+              width: 1,
+              height: 36,
+              color: AppColors.grey200,
+              margin: const EdgeInsets.symmetric(horizontal: 8)),
+          Expanded(
+            child: _StatItem(
+              icon: Icons.near_me_rounded,
+              iconColor: AppColors.primary,
+              value: distanciaKm != null
+                  ? '${distanciaKm!.toStringAsFixed(1)} km'
+                  : 'N/D',
+              label: 'Distancia',
             ),
-          ],
+          ),
         ],
       ),
     );

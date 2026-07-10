@@ -12,6 +12,7 @@ import '../../../catalog/domain/entities/category.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
+import '../providers/social_registration_state.dart';
 import '../../domain/entities/store_category_config.dart';
 import '../widgets/registration_completed_step.dart';
 import '../widgets/store_catalog_helper.dart';
@@ -50,6 +51,12 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(authProvider.notifier).clearError();
+      final socialData = ref.read(socialRegistrationProvider);
+      if (socialData != null) {
+        _nombreCtrl.text = socialData.name;
+        _emailCtrl.text = socialData.email;
+        setState(() {});
+      }
     });
     for (final c in [_nombreCtrl, _emailCtrl, _telefonoCtrl, _rifCtrl, _passwordCtrl, _confirmPasswordCtrl]) {
       c.addListener(() => setState(() {}));
@@ -114,14 +121,17 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
 
   // ===== Validación por paso =====
   bool get _pasoValido {
+    final socialData = ref.read(socialRegistrationProvider);
+    final isSocial = socialData != null;
+
     switch (_paso) {
       case 1:
         return Validators.required(_nombreCtrl.text) == null &&
             Validators.email(_emailCtrl.text) == null &&
             Validators.phone(_telefonoCtrl.text) == null &&
             Validators.required(_rifCtrl.text) == null &&
-            _passwordValida &&
-            Validators.confirmPassword(_confirmPasswordCtrl.text, _passwordCtrl.text) == null;
+            (isSocial || (_passwordValida &&
+            Validators.confirmPassword(_confirmPasswordCtrl.text, _passwordCtrl.text) == null));
       case 2:
       case 3:
         return _catalogo.isNotEmpty;
@@ -169,9 +179,11 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       rif = rif.substring(1);
     }
 
+    final socialData = ref.read(socialRegistrationProvider);
+
     await ref.read(authProvider.notifier).registerStore(
       email: _emailCtrl.text.trim(),
-      password: _passwordCtrl.text,
+      password: socialData == null ? _passwordCtrl.text : null,
       name: _nombreCtrl.text.trim(),
       phone: sanitizedPhone,
       latitude: latitude,
@@ -179,6 +191,8 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       address: 'Dirección física de la tienda.',
       rif: 'J$rif',
       catalog: catalogConfigs,
+      idToken: socialData?.idToken,
+      provider: socialData?.provider,
     );
   }
 
@@ -199,6 +213,8 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     });
 
     final authState = ref.watch(authProvider);
+    final socialData = ref.watch(socialRegistrationProvider);
+    final isSocial = socialData != null;
     ref.listenAsyncError(categoriesProvider, context);
     final categoriesAsync = ref.watch(categoriesProvider);
     final categories = categoriesAsync.valueOrNull ?? [];
@@ -257,6 +273,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                                        rifController: _rifCtrl,
                                        passwordController: _passwordCtrl,
                                        confirmPasswordController: _confirmPasswordCtrl,
+                                       isSocial: isSocial,
                                      ),
                                   2 => StoreCatalogStep(
                                        catalogo: _catalogo,

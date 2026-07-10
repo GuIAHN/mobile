@@ -73,3 +73,19 @@ class ValidationFailure extends Failure {
 class UnexpectedFailure extends Failure {
   const UnexpectedFailure({super.message = 'Ocurrió un error inesperado.'});
 }
+
+class SocialNotRegisteredFailure extends Failure {
+  final String email;
+  final String name;
+  final String sub;
+
+  const SocialNotRegisteredFailure({
+    required this.email,
+    required this.name,
+    required this.sub,
+    super.message = 'Usuario no registrado en el sistema.',
+  });
+
+  @override
+  List<Object?> get props => [message, code, email, name, sub];
+}
