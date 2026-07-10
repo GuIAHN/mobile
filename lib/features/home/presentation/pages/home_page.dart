@@ -15,7 +15,7 @@ import '../widgets/filters_sheet.dart';
 import '../widgets/item_card.dart';
 import '../widgets/promo_carousel.dart';
 import '../widgets/request_spare_part_form.dart';
-import '../widgets/profile_tab.dart';
+import '../../../auth/presentation/pages/profile_tab.dart';
 import '../widgets/unapproved_overlay.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';

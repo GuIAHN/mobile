@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../vehicles/domain/entities/user_car.dart';
-import '../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../../../../core/utils/async_error_listener.dart';
 import '../../../../core/utils/extensions.dart';
-import '../../../vehicles/presentation/widgets/vehicle_selection_modal.dart';
+import '../../domain/entities/user_car.dart';
+import '../providers/vehicle_providers.dart';
+import 'vehicle_selection_modal.dart';
 
 class ProfileGarage extends ConsumerWidget {
   const ProfileGarage({super.key});

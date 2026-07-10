@@ -7,23 +7,30 @@ import '../../domain/entities/store_category_config.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
-import 'auth_provider.dart';
+import '../../domain/usecases/update_profile_usecase.dart';
+import '../../domain/usecases/upload_avatar_usecase.dart';
 import 'auth_state.dart';
 
 /// Notifier that manages the app's authentication state (login and registration).
 class AuthNotifier extends StateNotifier<AuthState> {
   final LoginUseCase _loginUseCase;
   final RegisterUseCase _registerUseCase;
+  final UpdateProfileUseCase _updateProfileUseCase;
+  final UploadAvatarUseCase _uploadAvatarUseCase;
   final AuthRepository _authRepository;
   final SecureStorage _secureStorage;
 
   AuthNotifier({
     required LoginUseCase loginUseCase,
     required RegisterUseCase registerUseCase,
+    required UpdateProfileUseCase updateProfileUseCase,
+    required UploadAvatarUseCase uploadAvatarUseCase,
     required AuthRepository authRepository,
     required SecureStorage secureStorage,
   })  : _loginUseCase = loginUseCase,
         _registerUseCase = registerUseCase,
+        _updateProfileUseCase = updateProfileUseCase,
+        _uploadAvatarUseCase = uploadAvatarUseCase,
         _authRepository = authRepository,
         _secureStorage = secureStorage,
         super(const AuthState.initial()) {
@@ -228,42 +235,53 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> updateProfilePhoto(String filePath) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
 
-    final uploadResult = await _authRepository.uploadImage(filePath);
+    final result = await _uploadAvatarUseCase(filePath);
 
-    await uploadResult.fold(
-      (failure) async {
+    result.fold(
+      (failure) {
         state = state.copyWith(
           status: AuthStatus.authenticated,
           errorMessage: failure.message,
         );
       },
-      (photoUrl) async {
-        final updateResult = await _authRepository.updateProfile(photo: photoUrl);
-        updateResult.fold(
-          (failure) {
-            state = state.copyWith(
-              status: AuthStatus.authenticated,
-              errorMessage: failure.message,
-            );
-          },
-          (updatedUser) {
-            state = state.copyWith(
-              status: AuthStatus.authenticated,
-              user: updatedUser,
-            );
-          },
+      (updatedUser) {
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          user: updatedUser,
+        );
+      },
+    );
+  }
+
+  /// Updates the current user's profile details.
+  Future<void> updateProfile({
+    String? name,
+    String? phone,
+    double? latitude,
+    double? longitude,
+  }) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+
+    final result = await _updateProfileUseCase(
+      name: name,
+      phone: phone,
+      latitude: latitude,
+      longitude: longitude,
+    );
+
+    result.fold(
+      (failure) {
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          errorMessage: failure.message,
+        );
+      },
+      (updatedUser) {
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          user: updatedUser,
         );
       },
     );
   }
 }
-
-/// Main auth state provider. Consumed by login and registration screens.
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  return AuthNotifier(
-    loginUseCase: ref.watch(loginUseCaseProvider),
-    registerUseCase: ref.watch(registerUseCaseProvider),
-    authRepository: ref.watch(authRepositoryProvider),
-    secureStorage: ref.watch(secureStorageProvider),
-  );
-});

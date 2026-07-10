@@ -7,9 +7,9 @@ import '../../../../core/config/env.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/image_source_selector_sheet.dart';
-import '../../../auth/domain/entities/user.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../auth/presentation/providers/auth_state.dart';
+import '../../domain/entities/user.dart';
+import '../providers/auth_provider.dart';
+import '../providers/auth_state.dart';
 
 class ProfileHeader extends ConsumerWidget {
   final User user;

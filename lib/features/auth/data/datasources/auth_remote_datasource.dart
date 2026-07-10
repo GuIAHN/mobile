@@ -131,13 +131,6 @@ class AuthRemoteDataSource {
     return UserModel.fromJson(response.data!);
   }
 
-  /// Calls PUT /users/me/phone to update the phone number.
-  Future<void> updatePhone(String phone) async {
-    await _client.put<Map<String, dynamic>>(
-      '/users/me/phone',
-      data: {'number': phone},
-    );
-  }
 
   /// Calls POST /mechanics/register to register a mechanic or workshop.
   Future<UserModel> registerMechanic({
@@ -265,8 +258,8 @@ class AuthRemoteDataSource {
     }
   }
 
-  /// Uploads an image file to the server and returns its relative URL.
-  Future<String> uploadImage(String filePath) async {
+  /// Uploads or replaces the current user's profile photo (avatar).
+  Future<UserModel> uploadAvatar(String filePath) async {
     try {
       final fileName = filePath.split('/').last;
       final formData = FormData.fromMap({
@@ -277,28 +270,40 @@ class AuthRemoteDataSource {
       });
 
       final response = await _client.post<Map<String, dynamic>>(
-        'upload/image',
+        'users/me/avatar',
         data: formData,
       );
 
-      if (response.data == null || response.data!['url'] == null) {
+      if (response.data == null) {
         throw const ParseException();
       }
 
-      return response.data!['url'] as String;
+      return UserModel.fromJson(response.data!);
     } catch (e) {
       rethrow;
     }
   }
 
   /// Updates the current user's profile details.
-  Future<UserModel> updateProfile({String? name, String? photo}) async {
+  Future<UserModel> updateProfile({
+    String? name,
+    String? photo,
+    String? phone,
+    double? latitude,
+    double? longitude,
+  }) async {
     try {
       final response = await _client.patch<Map<String, dynamic>>(
         ApiEndpoints.me,
         data: {
           if (name != null) 'name': name,
           if (photo != null) 'photo': photo,
+          if (phone != null) 'phone': phone,
+          if (latitude != null && longitude != null)
+            'location': {
+              'lat': latitude,
+              'lon': longitude,
+            },
         },
       );
 

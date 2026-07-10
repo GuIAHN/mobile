@@ -115,9 +115,9 @@ class AuthRepositoryImpl implements AuthRepository {
       }
       await secureStorage.saveUserId(registeredUser.id);
 
-      // 3. Register the phone number in a separate endpoint if specified.
+      // 3. Register the phone number if specified.
       if (phone != null && phone.trim().isNotEmpty) {
-        await remoteDataSource.updatePhone(phone);
+        await remoteDataSource.updateProfile(phone: phone);
       }
 
       // 4. Retrieve the updated full profile from the API.
@@ -265,19 +265,31 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, String>> uploadImage(String filePath) async {
+  Future<Either<Failure, User>> uploadAvatar(String filePath) async {
     try {
-      final url = await remoteDataSource.uploadImage(filePath);
-      return Right(url);
+      final user = await remoteDataSource.uploadAvatar(filePath);
+      return Right(user);
     } catch (e) {
       return Left(ErrorMapper.map(e));
     }
   }
 
   @override
-  Future<Either<Failure, User>> updateProfile({String? name, String? photo}) async {
+  Future<Either<Failure, User>> updateProfile({
+    String? name,
+    String? photo,
+    String? phone,
+    double? latitude,
+    double? longitude,
+  }) async {
     try {
-      final user = await remoteDataSource.updateProfile(name: name, photo: photo);
+      final user = await remoteDataSource.updateProfile(
+        name: name,
+        photo: photo,
+        phone: phone,
+        latitude: latitude,
+        longitude: longitude,
+      );
       return Right(user);
     } catch (e) {
       return Left(ErrorMapper.map(e));

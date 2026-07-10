@@ -67,10 +67,16 @@ abstract class AuthRepository {
   /// Returns the currently authenticated user (by stored token).
   Future<Either<Failure, User>> getCurrentUser();
 
-  /// Uploads an image file to the server and returns its relative URL.
-  Future<Either<Failure, String>> uploadImage(String filePath);
+  /// Uploads an avatar image file to the server and returns the updated user profile.
+  Future<Either<Failure, User>> uploadAvatar(String filePath);
 
   /// Updates the current user's profile details.
-  Future<Either<Failure, User>> updateProfile({String? name, String? photo});
+  Future<Either<Failure, User>> updateProfile({
+    String? name,
+    String? photo,
+    String? phone,
+    double? latitude,
+    double? longitude,
+  });
 }
 
