@@ -9,6 +9,9 @@ import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/presentation/providers/auth_state.dart';
 import 'core/storage/secure_storage.dart';
 
+import 'core/services/socket_service.dart';
+import 'features/chat/presentation/providers/chat_providers.dart';
+
 class GuiAutomotrizApp extends ConsumerWidget {
   const GuiAutomotrizApp({super.key});
 
@@ -19,6 +22,17 @@ class GuiAutomotrizApp extends ConsumerWidget {
 
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(themeModeProvider);
+
+    ref.listen<AuthStatus>(authProvider.select((s) => s.status), (previous, current) {
+      final socket = ref.read(socketServiceProvider);
+      if (current == AuthStatus.authenticated) {
+        socket.connect();
+        socket.onSearchMatched.listen((_) => ref.invalidate(chatThreadsProvider));
+        socket.onOfferUpdated.listen((_) => ref.invalidate(chatThreadsProvider));
+      } else {
+        socket.disconnect();
+      }
+    });
 
     return MaterialApp.router(
       title: 'guIAutomotriz',

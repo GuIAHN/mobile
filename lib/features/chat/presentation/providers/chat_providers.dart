@@ -14,8 +14,11 @@ import '../../../../core/providers/current_user_provider.dart';
 
 // ── Dependency Providers ─────────────────────────────────────────────────────
 
+import '../../../../core/network/dio_client.dart';
+
 final chatRemoteDataSourceProvider = Provider<ChatRemoteDataSource>((ref) {
-  return ChatRemoteDataSource();
+  final dioClient = ref.watch(dioClientProvider);
+  return ChatRemoteDataSource(dioClient);
 });
 
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {

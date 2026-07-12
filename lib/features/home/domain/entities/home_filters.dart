@@ -70,7 +70,7 @@ class HomeFilters extends Equatable {
   /// Convierte los filtros a query params para el backend.
   Map<String, dynamic> toQueryParams() {
     return {
-      'radioKm': radioKm.toInt(),
+      'radiusKm': radioKm.toInt(),
       if (minRating > 0) 'minRating': minRating,
       if (specialtyIds.isNotEmpty) 'specialtyIds': specialtyIds,
       'orderBy': sortBy == SortOption.rating ? 'rating' : 'distancia',

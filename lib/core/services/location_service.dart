@@ -59,44 +59,21 @@ class UserLocationNotifier extends StateNotifier<AsyncValue<Position?>> {
   /// Retorna un boolean que indica si se logró obtener una posición (actual o fallback).
   Future<bool> updateLocation() async {
     state = const AsyncValue.loading();
-    try {
-      final isServiceEnabled =
-          await _locationService.isLocationServiceEnabled();
-      if (!isServiceEnabled) {
-        // Intenta obtener la última ubicación conocida como fallback
-        final lastKnown = await _locationService.getLastKnownPosition();
-        if (lastKnown != null) {
-          state = AsyncValue.data(lastKnown);
-          return true;
-        }
-        state = AsyncValue.error('GPS desactivado', StackTrace.current);
-        return false;
-      }
-
-      final permission = await _locationService.checkPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        state = AsyncValue.error(
-            'Permiso de ubicación denegado', StackTrace.current);
-        return false;
-      }
-
-      final position = await _locationService.getCurrentPosition();
-      state = AsyncValue.data(position);
-      return true;
-    } catch (e, stack) {
-      // Fallback a la última ubicación conocida en caso de timeout u otro error
-      try {
-        final lastKnown = await _locationService.getLastKnownPosition();
-        if (lastKnown != null) {
-          state = AsyncValue.data(lastKnown);
-          return true;
-        }
-      } catch (_) {}
-
-      state = AsyncValue.error(e, stack);
-      return false;
-    }
+    // TEST ONLY: Hardcoded coordinates
+    final mockPosition = Position(
+      longitude: -66.857611,
+      latitude: 10.543833,
+      timestamp: DateTime.now(),
+      accuracy: 100.0,
+      altitude: 0.0,
+      heading: 0.0,
+      speed: 0.0,
+      speedAccuracy: 0.0,
+      altitudeAccuracy: 0.0,
+      headingAccuracy: 0.0,
+    );
+    state = AsyncValue.data(mockPosition);
+    return true;
   }
 
   /// Limpia la ubicación guardada.

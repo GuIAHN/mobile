@@ -12,6 +12,12 @@ class ChatThread extends Equatable {
   final String? clientName; // Nombre del creador (para vista de tienda)
   final String? clientId;
   final String? fotoUrl;
+  
+  // Extra details for the UI
+  final String? details;
+  final String? partType;
+  final int? vehicleYear;
+  final String? subcategory;
 
   const ChatThread({
     required this.id,
@@ -24,6 +30,10 @@ class ChatThread extends Equatable {
     this.clientName,
     this.clientId,
     this.fotoUrl,
+    this.details,
+    this.partType,
+    this.vehicleYear,
+    this.subcategory,
   });
 
   @override
@@ -38,5 +48,9 @@ class ChatThread extends Equatable {
         clientName,
         clientId,
         fotoUrl,
+        details,
+        partType,
+        vehicleYear,
+        subcategory,
       ];
 }

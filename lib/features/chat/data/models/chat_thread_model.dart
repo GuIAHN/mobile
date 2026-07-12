@@ -13,6 +13,10 @@ class ChatThreadModel extends ChatThread {
     super.clientName,
     super.clientId,
     super.fotoUrl,
+    super.details,
+    super.partType,
+    super.vehicleYear,
+    super.subcategory,
   });
 
   factory ChatThreadModel.fromJson(Map<String, dynamic> json) {
@@ -30,6 +34,10 @@ class ChatThreadModel extends ChatThread {
       clientName: json['clientName'] as String?,
       clientId: json['clientId'] as String?,
       fotoUrl: json['fotoUrl'] as String? ?? json['foto_url'] as String?,
+      details: json['details'] as String?,
+      partType: json['partType'] as String?,
+      vehicleYear: json['vehicleYear'] as int?,
+      subcategory: json['subcategory'] as String?,
     );
   }
 
@@ -44,5 +52,9 @@ class ChatThreadModel extends ChatThread {
         'clientName': clientName,
         'clientId': clientId,
         'fotoUrl': fotoUrl,
+        'details': details,
+        'partType': partType,
+        'vehicleYear': vehicleYear,
+        'subcategory': subcategory,
       };
 }

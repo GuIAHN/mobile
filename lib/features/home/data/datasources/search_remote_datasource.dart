@@ -82,9 +82,9 @@ class SearchRemoteDatasourceImpl implements SearchRemoteDatasource {
         'userCarId': userCarId,
         'subcategoryId': subcategoryId,
         if (details != null && details.isNotEmpty) 'details': details,
-        if (fotoUrl != null && fotoUrl.isNotEmpty) 'fotoUrl': fotoUrl,
+        if (fotoUrl != null && fotoUrl.isNotEmpty) 'photoUrl': fotoUrl,
         if (partType != null) 'partType': partType.apiValue,
-        if (radioKm != null) 'radioKm': radioKm,
+        if (radioKm != null) 'radiusKm': radioKm,
         if (lat != null) 'lat': lat,
         if (lon != null) 'lon': lon,
       };
