@@ -19,6 +19,7 @@ class ProviderDetailModel extends ProviderDetail {
     super.verified,
     super.telefono,
     super.email,
+    super.hasDelivery,
   });
 
   factory ProviderDetailModel.fromMechanicJson(Map<String, dynamic> json) {
@@ -57,6 +58,7 @@ class ProviderDetailModel extends ProviderDetail {
       rating: (json['rating'] as num?)?.toDouble(),
       email: json['email'] as String?,
       telefono: json['telefono'] as String?,
+      hasDelivery: json['hasDelivery'] as bool? ?? false,
     );
   }
 }

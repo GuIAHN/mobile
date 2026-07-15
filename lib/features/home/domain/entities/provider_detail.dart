@@ -14,6 +14,7 @@ class ProviderDetail extends Equatable {
   final bool verified;
   final String? telefono;
   final String? email;
+  final bool hasDelivery;
 
   const ProviderDetail({
     required this.id,
@@ -27,6 +28,7 @@ class ProviderDetail extends Equatable {
     this.verified = false,
     this.telefono,
     this.email,
+    this.hasDelivery = false,
   });
 
   String get displayType => esTaller ? 'Taller Mecánico' : 'Mecánico';
@@ -44,5 +46,6 @@ class ProviderDetail extends Equatable {
         verified,
         telefono,
         email,
+        hasDelivery,
       ];
 }

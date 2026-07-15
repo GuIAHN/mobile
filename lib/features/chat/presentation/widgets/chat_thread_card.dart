@@ -200,18 +200,42 @@ class _ChatThreadCardState extends State<ChatThreadCard> {
                     const SizedBox(height: 8),
  
                     // Row 3: Prominent offer count or client name
-                    Text(
-                      widget.showClientName && thread.clientName != null
-                          ? 'Cliente: ${thread.clientName}'
-                          : '${thread.conversationCount} respuestas recibidas',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: thread.conversationCount > 0 
-                            ? AppColors.success 
-                            : AppColors.textSecondary,
+                    if (!widget.showClientName && thread.conversationCount > 0)
+                      Container(
+                        margin: const EdgeInsets.only(top: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.successLight.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.local_offer_rounded, size: 14, color: AppColors.success),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${thread.conversationCount} ofertas recibidas',
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.success,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Text(
+                        widget.showClientName && thread.clientName != null
+                            ? 'Cliente: ${thread.clientName}'
+                            : (thread.conversationCount > 0 ? '${thread.conversationCount} respuestas recibidas' : 'Buscando ofertas...'),
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),

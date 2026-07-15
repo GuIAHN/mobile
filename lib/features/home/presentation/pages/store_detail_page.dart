@@ -54,7 +54,35 @@ class StoreDetailPage extends ConsumerWidget {
                   _StatsRow(
                       rating: detail.rating,
                       distanciaKm: detail.distanciaKm),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+
+                  // Badge de Delivery (si aplica)
+                  if (detail.hasDelivery)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.successLight.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.local_shipping_rounded, color: AppColors.success, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Esta tienda ofrece delivery',
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.success,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (detail.hasDelivery) const SizedBox(height: 24),
+                  if (!detail.hasDelivery) const SizedBox(height: 8),
 
                   // Especialidades / servicios
                   if (detail.especialidades.isNotEmpty) ...[

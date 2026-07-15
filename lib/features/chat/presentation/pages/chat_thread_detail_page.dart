@@ -377,6 +377,8 @@ class ChatThreadDetailPage extends ConsumerWidget {
                   final price = result['price'] as double?;
                   final minPrice = result['minPrice'] as double?;
                   final maxPrice = result['maxPrice'] as double?;
+                  final brand = result['brand'] as String?;
+                  final photoPath = result['photoPath'] as String?;
 
                   final useCase = ref.read(createQuoteUseCaseProvider);
                   final quoteRes = await useCase(
@@ -385,6 +387,8 @@ class ChatThreadDetailPage extends ConsumerWidget {
                     price: price,
                     minPrice: minPrice,
                     maxPrice: maxPrice,
+                    brand: brand,
+                    photoPath: photoPath,
                   );
 
                   quoteRes.fold(

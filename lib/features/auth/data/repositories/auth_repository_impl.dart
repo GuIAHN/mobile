@@ -197,6 +197,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required String address,
     required String rif,
     required List<StoreCategoryConfig> catalog,
+    required bool hasDelivery,
     String? idToken,
     String? provider,
   }) async {
@@ -211,6 +212,7 @@ class AuthRepositoryImpl implements AuthRepository {
         address: address,
         rif: rif,
         catalog: catalog,
+        hasDelivery: hasDelivery,
         idToken: idToken,
         provider: provider,
       );

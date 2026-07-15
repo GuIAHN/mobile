@@ -10,6 +10,8 @@ class StoreProfileStep extends StatelessWidget {
   final TextEditingController rifController;
   final TextEditingController passwordController;
   final TextEditingController confirmPasswordController;
+  final bool hasDelivery;
+  final ValueChanged<bool> onHasDeliveryChanged;
   final bool isSocial;
 
   const StoreProfileStep({
@@ -20,6 +22,8 @@ class StoreProfileStep extends StatelessWidget {
     required this.rifController,
     required this.passwordController,
     required this.confirmPasswordController,
+    required this.hasDelivery,
+    required this.onHasDeliveryChanged,
     this.isSocial = false,
   });
 
@@ -108,7 +112,36 @@ class StoreProfileStep extends StatelessWidget {
             textInputAction: TextInputAction.done,
           ),
         ],
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.local_shipping_outlined, color: AppColors.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Ofrece servicio de delivery',
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              Switch(
+                value: hasDelivery,
+                onChanged: onHasDeliveryChanged,
+                activeColor: AppColors.primary,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(

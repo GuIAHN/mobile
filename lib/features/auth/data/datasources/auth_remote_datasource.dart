@@ -192,6 +192,7 @@ class AuthRemoteDataSource {
     required String address,
     required String rif,
     required List<StoreCategoryConfig> catalog,
+    required bool hasDelivery,
     String? idToken,
     String? provider,
   }) async {

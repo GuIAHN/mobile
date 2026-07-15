@@ -14,6 +14,8 @@ class ChatConversationModel extends ChatConversation {
     super.price,
     super.minPrice,
     super.maxPrice,
+    super.spareBrand,
+    super.sparePhotoUrl,
   });
 
   factory ChatConversationModel.fromJson(Map<String, dynamic> json) {
@@ -30,6 +32,8 @@ class ChatConversationModel extends ChatConversation {
       price: (json['price'] as num?)?.toDouble(),
       minPrice: (json['minPrice'] as num?)?.toDouble(),
       maxPrice: (json['maxPrice'] as num?)?.toDouble(),
+      spareBrand: json['spareBrand'] as String?,
+      sparePhotoUrl: json['sparePhotoUrl'] as String?,
     );
   }
 
@@ -46,5 +50,7 @@ class ChatConversationModel extends ChatConversation {
         'price': price,
         'minPrice': minPrice,
         'maxPrice': maxPrice,
+        'spareBrand': spareBrand,
+        'sparePhotoUrl': sparePhotoUrl,
       };
 }

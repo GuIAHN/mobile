@@ -19,5 +19,7 @@ abstract class ChatRepository {
     double? price,
     double? minPrice,
     double? maxPrice,
+    String? brand,
+    String? photoPath,
   });
 }

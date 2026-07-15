@@ -25,6 +25,8 @@ import '../../../chat/presentation/pages/chat_inbox_page.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../../../catalog/domain/entities/specialty.dart';
 import '../../../vehicles/presentation/widgets/garage_vehicle_selector_sheet.dart';
+import '../../../../shared/widgets/skeleton_loader.dart';
+import '../../../../shared/widgets/staggered_entrance.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -234,9 +236,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             child: PromoCarousel(promos: promos),
           ),
           loading: () => const Padding(
-            padding: EdgeInsets.only(top: 24),
-            child: Center(
-                child: CircularProgressIndicator(color: AppColors.primary)),
+            padding: EdgeInsets.only(top: 12, left: 20, right: 20),
+            child: PromoSkeleton(),
           ),
           error: (_, __) => const SizedBox.shrink(),
         ),
@@ -272,13 +273,21 @@ class _HomePageState extends ConsumerState<HomePage> {
                   return _buildEmptyState();
                 }
                 return Column(
-                  children: items.map((item) => ItemCard(item: item)).toList(),
+                  children: [
+                    for (var i = 0; i < items.length; i++)
+                      StaggeredEntrance(
+                        index: i,
+                        child: ItemCard(item: items[i]),
+                      ),
+                  ],
                 );
               },
-              loading: () => const Padding(
-                padding: EdgeInsets.only(top: 48),
-                child: Center(
-                    child: CircularProgressIndicator(color: AppColors.primary)),
+              loading: () => const Column(
+                children: [
+                  ItemCardSkeleton(),
+                  ItemCardSkeleton(),
+                  ItemCardSkeleton(),
+                ],
               ),
               error: (err, _) => Padding(
                 padding: const EdgeInsets.only(top: 48),
@@ -341,7 +350,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             TextButton(
               onPressed: () => _abrirSelectorVehiculoSearch(),
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 backgroundColor: Colors.white,
@@ -417,7 +427,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             TextButton(
               onPressed: () => _abrirSelectorVehiculoSearch(),
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 backgroundColor: AppColors.primaryMuted,
@@ -544,7 +555,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
 
     final service = ref.read(locationServiceProvider);
-    
+
     // 1. Verificar si el GPS está habilitado
     final isServiceEnabled = await service.isLocationServiceEnabled();
     if (!isServiceEnabled) {
@@ -577,12 +588,14 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     // 3. Activar compartir ubicación
     ref.read(isLocationSharedProvider.notifier).state = true;
-    final success = await ref.read(userLocationProvider.notifier).updateLocation();
+    final success =
+        await ref.read(userLocationProvider.notifier).updateLocation();
     if (!success) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No se pudo obtener la ubicación exacta. Usando última conocida.'),
+          content: Text(
+              'No se pudo obtener la ubicación exacta. Usando última conocida.'),
           backgroundColor: AppColors.primary,
         ),
       );
@@ -598,7 +611,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
         title: Row(
           children: [
-            const Icon(Icons.location_off_rounded, color: AppColors.primary, size: 28),
+            const Icon(Icons.location_off_rounded,
+                color: AppColors.primary, size: 28),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -657,7 +671,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('No hay ubicación conocida anterior. Activa el GPS.'),
+                          content: Text(
+                              'No hay ubicación conocida anterior. Activa el GPS.'),
                           backgroundColor: AppColors.error,
                         ),
                       );
@@ -696,7 +711,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
         title: Row(
           children: [
-            const Icon(Icons.settings_applications_rounded, color: AppColors.primary, size: 28),
+            const Icon(Icons.settings_applications_rounded,
+                color: AppColors.primary, size: 28),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -829,56 +845,65 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
             ),
             if (searchQuery.isNotEmpty) ...[
-              GestureDetector(
-                onTap: () {
+              IconButton(
+                tooltip: 'Limpiar búsqueda',
+                onPressed: () {
                   _searchController.clear();
                   ref.read(searchQueryProvider.notifier).state = '';
                 },
-                child: const Icon(Icons.cancel_rounded,
+                icon: const Icon(Icons.cancel_rounded,
                     color: AppColors.textDisabled, size: 18),
+                iconSize: 18,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
-              const SizedBox(width: 8),
             ],
-            const SizedBox(width: 4),
             // Botón de filtros integrado en la misma barra
-            GestureDetector(
-              onTap: _openFilters,
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Icon(
-                      Icons.tune_rounded,
-                      color: activeFilters > 0
-                          ? AppColors.primary
-                          : AppColors.textSecondary,
-                      size: 20,
-                    ),
-                    if (activeFilters > 0)
-                      Positioned(
-                        top: -6,
-                        right: -6,
-                        child: Container(
-                          width: 14,
-                          height: 14,
-                          alignment: Alignment.center,
-                          decoration: const BoxDecoration(
-                            color: AppColors.error,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            '$activeFilters',
-                            style: GoogleFonts.hankenGrotesk(
-                              color: Colors.white,
-                              fontSize: 8,
-                              fontWeight: FontWeight.w800,
+            Semantics(
+              button: true,
+              label: activeFilters > 0
+                  ? 'Filtros de búsqueda, $activeFilters activos'
+                  : 'Filtros de búsqueda',
+              child: GestureDetector(
+                onTap: _openFilters,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(
+                        Icons.tune_rounded,
+                        color: activeFilters > 0
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
+                        size: 20,
+                      ),
+                      if (activeFilters > 0)
+                        Positioned(
+                          top: -6,
+                          right: -6,
+                          child: Container(
+                            width: 14,
+                            height: 14,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                              color: AppColors.error,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '$activeFilters',
+                              style: GoogleFonts.hankenGrotesk(
+                                color: Colors.white,
+                                fontSize: 8,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

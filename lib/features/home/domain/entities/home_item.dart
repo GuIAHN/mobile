@@ -20,6 +20,9 @@ class HomeItem extends Equatable {
   /// Tarifa por hora (solo mecánicos, null en mocks y talleres)
   final double? tarifa;
 
+  /// Indicates if the store has delivery
+  final bool hasDelivery;
+
   const HomeItem({
     this.id,
     required this.name,
@@ -33,6 +36,7 @@ class HomeItem extends Equatable {
     this.gradientColors,
     this.especialidades = const [],
     this.tarifa,
+    this.hasDelivery = false,
   });
 
   @override
@@ -49,5 +53,6 @@ class HomeItem extends Equatable {
         gradientColors,
         especialidades,
         tarifa,
+        hasDelivery,
       ];
 }

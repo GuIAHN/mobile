@@ -15,6 +15,8 @@ class ChatConversation extends Equatable {
   final double? price;
   final double? minPrice;
   final double? maxPrice;
+  final String? spareBrand;
+  final String? sparePhotoUrl;
 
   const ChatConversation({
     required this.id,
@@ -29,6 +31,8 @@ class ChatConversation extends Equatable {
     this.price,
     this.minPrice,
     this.maxPrice,
+    this.spareBrand,
+    this.sparePhotoUrl,
   });
 
   String get formattedPrice {
@@ -54,5 +58,7 @@ class ChatConversation extends Equatable {
         price,
         minPrice,
         maxPrice,
+        spareBrand,
+        sparePhotoUrl,
       ];
 }

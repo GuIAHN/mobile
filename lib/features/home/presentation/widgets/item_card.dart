@@ -227,6 +227,31 @@ class _ItemCardState extends State<ItemCard> {
                             ),
                           ),
                         ],
+
+                        // Delivery Tag
+                        if (item.hasDelivery) ...[
+                          const SizedBox(width: 8),
+                          _Tag(
+                            backgroundColor: AppColors.success
+                                .withValues(alpha: 0.08),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.local_shipping_rounded,
+                                    size: 11, color: AppColors.success),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Delivery',
+                                  style: GoogleFonts.hankenGrotesk(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.success,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],

@@ -38,6 +38,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
   final _rifCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
+  bool _hasDelivery = false;
 
   // ===== Paso 2: Catálogo =====
   final List<LineaCatalogo> _catalogo = [];
@@ -191,6 +192,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       address: 'Dirección física de la tienda.',
       rif: 'J$rif',
       catalog: catalogConfigs,
+      hasDelivery: _hasDelivery,
       idToken: socialData?.idToken,
       provider: socialData?.provider,
     );
@@ -273,6 +275,8 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                                        rifController: _rifCtrl,
                                        passwordController: _passwordCtrl,
                                        confirmPasswordController: _confirmPasswordCtrl,
+                                       hasDelivery: _hasDelivery,
+                                       onHasDeliveryChanged: (v) => setState(() => _hasDelivery = v),
                                        isSocial: isSocial,
                                      ),
                                   2 => StoreCatalogStep(

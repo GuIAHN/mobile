@@ -104,6 +104,8 @@ class ChatRemoteDataSource {
         hasQuote: true,
         isFixedPrice: true,
         price: json['price'] != null ? double.tryParse(json['price'].toString()) : null,
+        spareBrand: json['spareBrand'],
+        sparePhotoUrl: json['sparePhotoUrl'],
       );
     }).toList();
   }
@@ -124,6 +126,8 @@ class ChatRemoteDataSource {
     double? price,
     double? minPrice,
     double? maxPrice,
+    String? brand,
+    String? photoPath,
   }) async {
     // Store sends an offer to a SearchMatch
     // 1. Get searchMatchId by listing requests
@@ -137,10 +141,16 @@ class ChatRemoteDataSource {
 
     final searchMatchId = match['searchMatchId'];
     
+    final String? mockFotoUrl = photoPath != null 
+        ? 'https://guiautomotriz.com/uploads/temp_${DateTime.now().millisecondsSinceEpoch}.jpg' 
+        : null;
+
     final payload = {
       'searchMatchId': searchMatchId,
       'price': isFixedPrice ? price : minPrice,
-      'message': 'Nueva oferta enviada'
+      'message': 'Nueva oferta enviada',
+      if (brand != null && brand.isNotEmpty) 'spareBrand': brand,
+      if (mockFotoUrl != null) 'sparePhotoUrl': mockFotoUrl,
     };
 
     final response = await _dioClient.post('offers', data: payload);
@@ -156,6 +166,8 @@ class ChatRemoteDataSource {
       hasQuote: true,
       isFixedPrice: true,
       price: json['price'] != null ? double.tryParse(json['price'].toString()) : null,
+      spareBrand: json['spareBrand'],
+      sparePhotoUrl: json['sparePhotoUrl'],
     );
   }
 }

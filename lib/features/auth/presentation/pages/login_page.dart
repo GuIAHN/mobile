@@ -51,7 +51,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Ingresa un correo para simular el inicio de sesión social:'),
+              const Text(
+                  'Ingresa un correo para simular el inicio de sesión social:'),
               const SizedBox(height: 12),
               TextField(
                 controller: controller,
@@ -130,28 +131,31 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 400),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _BrandHeader(),
-                  const SizedBox(height: AppSpacing.xl3),
-                  _LoginCard(
-                    formKey: _formKey,
-                    emailController: _emailController,
-                    passwordController: _passwordController,
-                    obscurePassword: _obscurePassword,
-                    isLoading: state.isLoading,
-                    errorMessage: state.errorMessage,
-                    onClearError: () => ref.read(authProvider.notifier).clearError(),
-                    onToggleObscure: () =>
-                        setState(() => _obscurePassword = !_obscurePassword),
-                    onSubmit: _submit,
-                    onGoogleLogin: () => _handleSocialLogin('GOOGLE'),
-                    onAppleLogin: () => _handleSocialLogin('APPLE'),
-                  ),
-                  const SizedBox(height: AppSpacing.xl3),
-                  _RegisterFooter(),
-                ],
+              child: _EntranceFade(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _BrandHeader(),
+                    const SizedBox(height: AppSpacing.xl3),
+                    _LoginCard(
+                      formKey: _formKey,
+                      emailController: _emailController,
+                      passwordController: _passwordController,
+                      obscurePassword: _obscurePassword,
+                      isLoading: state.isLoading,
+                      errorMessage: state.errorMessage,
+                      onClearError: () =>
+                          ref.read(authProvider.notifier).clearError(),
+                      onToggleObscure: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                      onSubmit: _submit,
+                      onGoogleLogin: () => _handleSocialLogin('GOOGLE'),
+                      onAppleLogin: () => _handleSocialLogin('APPLE'),
+                    ),
+                    const SizedBox(height: AppSpacing.xl3),
+                    _RegisterFooter(),
+                  ],
+                ),
               ),
             ),
           ),
@@ -161,6 +165,47 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         height: 3,
         color: AppColors.loginPrimary,
       ),
+    );
+  }
+}
+
+// ── Entrance Animation ───────────────────────────────────────────────────────
+// Fade + slide de entrada (350ms ease), según sección 4 del design system.
+
+class _EntranceFade extends StatefulWidget {
+  final Widget child;
+  const _EntranceFade({required this.child});
+
+  @override
+  State<_EntranceFade> createState() => _EntranceFadeState();
+}
+
+class _EntranceFadeState extends State<_EntranceFade>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 350),
+  )..forward();
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOut,
+  );
+  late final Animation<Offset> _slide = Tween<Offset>(
+    begin: const Offset(0, 0.04),
+    end: Offset.zero,
+  ).animate(_fade);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(position: _slide, child: widget.child),
     );
   }
 }
@@ -191,10 +236,12 @@ class _BrandHeader extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         const Text(
           'Inicia sesión para continuar',
+          textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 15,
             color: AppColors.loginOnSurfaceVar,
             fontWeight: FontWeight.w400,
+            height: 1.45,
           ),
         ),
       ],
@@ -293,13 +340,17 @@ class _LoginCard extends StatelessWidget {
               children: [
                 _FieldLabel('CONTRASEÑA'),
                 GestureDetector(
-                  onTap: () {},
-                  child: const Text(
-                    '¿Olvidaste tu contraseña?',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.loginPrimary,
+                  onTap: () => context.push(RouteNames.forgotPassword),
+                  behavior: HitTestBehavior.opaque,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                    child: Text(
+                      '¿Olvidaste tu contraseña?',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.loginPrimary,
+                      ),
                     ),
                   ),
                 ),
@@ -314,11 +365,14 @@ class _LoginCard extends StatelessWidget {
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => onSubmit(),
               suffixIcon: IconButton(
+                tooltip: obscurePassword
+                    ? 'Mostrar contraseña'
+                    : 'Ocultar contraseña',
                 icon: Icon(
                   obscurePassword
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined,
-                  size: 18,
+                  size: 20,
                   color: AppColors.loginOnSurfaceVar,
                 ),
                 onPressed: onToggleObscure,
@@ -420,7 +474,7 @@ class _LoginTextFieldState extends State<_LoginTextField> {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppSpacing.radiusSm);
+    final radius = BorderRadius.circular(14);
     return Focus(
       onFocusChange: (f) => setState(() => _focused = f),
       child: TextFormField(
@@ -434,35 +488,36 @@ class _LoginTextFieldState extends State<_LoginTextField> {
         validator: widget.validator,
         autovalidateMode: AutovalidateMode.disabled,
         style: const TextStyle(
-          fontSize: 13,
+          fontSize: 16,
           color: AppColors.loginOnSurface,
         ),
         decoration: InputDecoration(
           hintText: widget.hintText,
           hintStyle: const TextStyle(
             color: AppColors.loginOnSurfaceVar,
-            fontSize: 13,
+            fontSize: 16,
           ),
           prefixIconConstraints: const BoxConstraints(
-            minWidth: 36,
-            minHeight: 36,
+            minWidth: 44,
+            minHeight: 44,
           ),
           prefixIcon: Padding(
-            padding: const EdgeInsets.only(left: 10, right: 6),
+            padding: const EdgeInsets.only(left: 12, right: 6),
             child: Icon(
               widget.prefixIcon,
-              size: 16,
+              size: 20,
               color: AppColors.loginOnSurfaceVar,
             ),
           ),
           suffixIconConstraints: const BoxConstraints(
-            minWidth: 36,
-            minHeight: 36,
+            minWidth: 44,
+            minHeight: 44,
           ),
           suffixIcon: widget.suffixIcon,
           filled: true,
           fillColor: widget.controller.text.isEmpty
-              ? AppColors.loginSurfaceHigh.withValues(alpha: _focused ? 0.9 : 0.6)
+              ? AppColors.loginSurfaceHigh
+                  .withValues(alpha: _focused ? 0.9 : 0.6)
               : AppColors.loginSurface.withValues(alpha: 0.9),
           border: OutlineInputBorder(
             borderRadius: radius,
@@ -497,15 +552,14 @@ class _LoginTextFieldState extends State<_LoginTextField> {
             ),
           ),
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: 10,
+            horizontal: AppSpacing.lg,
+            vertical: 15,
           ),
           errorStyle: const TextStyle(
             color: AppColors.loginErrorText,
-            fontSize: 11,
+            fontSize: 12,
             height: 1.2,
           ),
-          isDense: true,
         ),
       ),
     );
@@ -522,18 +576,31 @@ class _LoginButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: AppSpacing.buttonHeightMd,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      height: AppSpacing.buttonHeightLg,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+        boxShadow: isLoading
+            ? null
+            : [
+                BoxShadow(
+                  color: AppColors.loginPrimary.withValues(alpha: 0.4),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+      ),
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.loginPrimary,
-          disabledBackgroundColor: const Color(0x99FF5C00),
+          disabledBackgroundColor: const Color(0xFFD9DCE1),
+          disabledForegroundColor: const Color(0xFF9AA0A8),
           foregroundColor: Colors.white,
-          elevation: 3,
-          shadowColor: const Color(0x4DFF5C00),
+          elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
           ),
         ),
         child: AnimatedSwitcher(
@@ -541,8 +608,8 @@ class _LoginButton extends StatelessWidget {
           child: isLoading
               ? const SizedBox(
                   key: ValueKey('loader'),
-                  width: 20,
-                  height: 20,
+                  width: 22,
+                  height: 22,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.5,
                     color: Colors.white,
@@ -555,10 +622,10 @@ class _LoginButton extends StatelessWidget {
                     Text(
                       'INICIAR SESIÓN',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
-                        letterSpacing: 0.5,
+                        letterSpacing: 2,
                       ),
                     ),
                     SizedBox(width: AppSpacing.sm),
@@ -617,14 +684,17 @@ class _SocialButton extends StatelessWidget {
     required this.onPressed,
   });
 
-  factory _SocialButton.google({required VoidCallback onPressed}) => _SocialButton(
+  factory _SocialButton.google({required VoidCallback onPressed}) =>
+      _SocialButton(
         icon: const _GoogleIcon(),
         label: 'Google',
         onPressed: onPressed,
       );
 
-  factory _SocialButton.apple({required VoidCallback onPressed}) => _SocialButton(
-        icon: const Icon(Icons.apple_rounded, size: 20, color: AppColors.loginOnSurface),
+  factory _SocialButton.apple({required VoidCallback onPressed}) =>
+      _SocialButton(
+        icon: const Icon(Icons.apple_rounded,
+            size: 20, color: AppColors.loginOnSurface),
         label: 'Apple',
         onPressed: onPressed,
       );
@@ -632,7 +702,7 @@ class _SocialButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 40,
+      height: 48,
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
@@ -652,7 +722,7 @@ class _SocialButton extends StatelessWidget {
             Text(
               label,
               style: const TextStyle(
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: AppColors.loginOnSurface,
               ),
@@ -696,8 +766,8 @@ class _GoogleLogoPainter extends CustomPainter {
     ];
     for (final s in segments) {
       paint.color = Color(s[0] as int);
-      canvas.drawArc(Rect.fromCircle(center: center, radius: r),
-          s[1] as double, 1.57, true, paint);
+      canvas.drawArc(Rect.fromCircle(center: center, radius: r), s[1] as double,
+          1.57, true, paint);
     }
     paint.color = Colors.white;
     canvas.drawCircle(center, r * 0.65, paint);

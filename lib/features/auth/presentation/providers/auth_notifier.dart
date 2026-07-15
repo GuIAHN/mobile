@@ -195,6 +195,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String address,
     required String rif,
     required List<StoreCategoryConfig> catalog,
+    required bool hasDelivery,
     String? idToken,
     String? provider,
   }) async {
@@ -209,6 +210,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         address: address,
         rif: rif,
         catalog: catalog,
+        hasDelivery: hasDelivery,
         idToken: idToken,
         provider: provider,
       ),

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../../../shared/widgets/image_source_selector_sheet.dart';
+import 'dart:io';
 
 class QuoteInputDialog extends StatefulWidget {
   final String requestTitle;
@@ -28,6 +31,9 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
   final _priceController = TextEditingController();
   final _minPriceController = TextEditingController();
   final _maxPriceController = TextEditingController();
+  final _brandController = TextEditingController();
+  String? _selectedImagePath;
+  final ImagePicker _picker = ImagePicker();
   String? _errorMessage;
 
   @override
@@ -35,6 +41,7 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
     _priceController.dispose();
     _minPriceController.dispose();
     _maxPriceController.dispose();
+    _brandController.dispose();
     super.dispose();
   }
 
@@ -42,6 +49,8 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
     setState(() {
       _errorMessage = null;
     });
+
+    final brandStr = _brandController.text.trim();
 
     if (_isFixedPrice) {
       final priceStr = _priceController.text.trim();
@@ -57,6 +66,8 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
       Navigator.pop(context, {
         'isFixedPrice': true,
         'price': price,
+        if (brandStr.isNotEmpty) 'brand': brandStr,
+        if (_selectedImagePath != null) 'photoPath': _selectedImagePath,
       });
     } else {
       final minStr = _minPriceController.text.trim();
@@ -84,6 +95,8 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
         'isFixedPrice': false,
         'minPrice': minPrice,
         'maxPrice': maxPrice,
+        if (brandStr.isNotEmpty) 'brand': brandStr,
+        if (_selectedImagePath != null) 'photoPath': _selectedImagePath,
       });
     }
   }
@@ -220,6 +233,100 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 200),
             child: _isFixedPrice ? _buildFixedPriceInput() : _buildRangePriceInput(),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Brand Input Field
+          Text(
+            'MARCA DEL REPUESTO (OPCIONAL)',
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: TextField(
+              controller: _brandController,
+              textCapitalization: TextCapitalization.words,
+              style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                hintText: 'Ej. Bosch, Toyota, etc.',
+                hintStyle: GoogleFonts.hankenGrotesk(color: AppColors.textDisabled, fontWeight: FontWeight.w400),
+                prefixIcon: const Icon(Icons.branding_watermark_outlined, color: AppColors.textSecondary, size: 20),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Image Picker
+          Text(
+            'FOTO DEL REPUESTO (OPCIONAL)',
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _mostrarSelectorDeImagen,
+            child: Container(
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: _selectedImagePath != null
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.file(
+                            File(_selectedImagePath!),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            color: Colors.black.withOpacity(0.3),
+                          ),
+                        ),
+                        const Center(
+                          child: Icon(Icons.edit_outlined, color: Colors.white, size: 28),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.add_photo_alternate_outlined, color: AppColors.primary, size: 28),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Agregar Foto',
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
           ),
 
           if (_errorMessage != null) ...[
@@ -378,5 +485,34 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
         ),
       ],
     );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImagePath = pickedFile.path;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al seleccionar imagen: $e')),
+        );
+      }
+    }
+  }
+
+  void _mostrarSelectorDeImagen() async {
+    final source = await ImageSourceSelectorSheet.show(context);
+    if (source != null) {
+      _pickImage(source);
+    }
   }
 }

@@ -30,6 +30,7 @@ class ProviderModel extends HomeItem {
     required super.type,
     required super.especialidades,
     super.tarifa,
+    super.hasDelivery,
   });
 
   factory ProviderModel.fromJson(
@@ -59,6 +60,7 @@ class ProviderModel extends HomeItem {
       type: type,
       especialidades: especialidades,
       tarifa: (json['tarifa'] as num?)?.toDouble(),
+      hasDelivery: json['hasDelivery'] as bool? ?? json['has_delivery'] as bool? ?? false,
     );
   }
 

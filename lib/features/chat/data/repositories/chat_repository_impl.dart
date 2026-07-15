@@ -68,6 +68,8 @@ class ChatRepositoryImpl implements ChatRepository {
     double? price,
     double? minPrice,
     double? maxPrice,
+    String? brand,
+    String? photoPath,
   }) async {
     try {
       final conversation = await remoteDataSource.createQuote(
@@ -76,6 +78,8 @@ class ChatRepositoryImpl implements ChatRepository {
         price: price,
         minPrice: minPrice,
         maxPrice: maxPrice,
+        brand: brand,
+        photoPath: photoPath,
       );
       return Right(conversation);
     } catch (e) {
