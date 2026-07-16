@@ -4,11 +4,13 @@ import '../../domain/entities/provider_detail.dart';
 /// - [GET /mechanics/:id]
 /// - [GET /stores/:id]
 ///
-/// Ambos endpoints retornan campos similares; los específicos de stores
-/// (e.g. categorías) se ignorarán hasta que se agreguen al dominio.
+/// El backend responde con claves en inglés (`description`, `rate`, `phone`,
+/// `isWorkshop`...); se mantienen las claves en español como fallback por
+/// compatibilidad con versiones anteriores de la API.
 class ProviderDetailModel extends ProviderDetail {
   const ProviderDetailModel({
     required super.id,
+    super.userId,
     required super.nombre,
     required super.esTaller,
     super.descripcion,
@@ -19,46 +21,73 @@ class ProviderDetailModel extends ProviderDetail {
     super.verified,
     super.telefono,
     super.email,
+    super.direccion,
     super.hasDelivery,
+    super.categorias,
   });
 
+  static double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString());
+  }
+
   factory ProviderDetailModel.fromMechanicJson(Map<String, dynamic> json) {
-    final especialidades =
-        (json['specialties'] as List<dynamic>? ?? [])
-            .map((s) => s is Map ? s['name'].toString() : s.toString())
-            .toList();
+    final especialidades = (json['specialties'] as List<dynamic>? ?? [])
+        .map((s) => s is Map ? s['name'].toString() : s.toString())
+        .toList();
 
     return ProviderDetailModel(
       id: json['id'] as String,
-      nombre: json['nombre'] as String? ??
+      userId: json['userId'] as String? ??
+          (json['user'] as Map?)?['id'] as String?,
+      nombre: json['name'] as String? ??
+          json['nombre'] as String? ??
           (json['user'] as Map?)?['name'] as String? ??
           'Sin nombre',
-      esTaller: json['esTaller'] as bool? ?? false,
-      descripcion: json['descripcion'] as String?,
-      rating: (json['rating'] as num?)?.toDouble(),
-      tarifa: (json['tarifa'] as num?)?.toDouble(),
+      esTaller: json['isWorkshop'] as bool? ?? json['esTaller'] as bool? ?? false,
+      descripcion:
+          json['description'] as String? ?? json['descripcion'] as String?,
+      rating: _toDouble(json['rating']),
+      tarifa: _toDouble(json['rate'] ?? json['tarifa']),
       especialidades: especialidades,
       verified: json['verified'] as bool? ?? false,
-      telefono: json['telefono'] as String?,
+      telefono: json['phone'] as String? ?? json['telefono'] as String?,
       email: json['email'] as String?,
     );
   }
 
   factory ProviderDetailModel.fromStoreJson(Map<String, dynamic> json) {
-    // El perfil público de stores tiene estructura diferente a mechanics
     final nombre = json['nombre'] as String? ??
+        json['name'] as String? ??
         (json['user'] as Map?)?['name'] as String? ??
         'Sin nombre';
 
+    final categorias = (json['categories'] as List<dynamic>? ?? [])
+        .whereType<Map>()
+        .map((c) => ProviderCategory(
+              name: c['categoryName']?.toString() ?? 'Categoría',
+              startingPrice: _toDouble(c['startingPrice']),
+              brands: (c['brands'] as List<dynamic>? ?? [])
+                  .map((b) => b is Map ? b['name'].toString() : b.toString())
+                  .toList(),
+            ))
+        .toList();
+
     return ProviderDetailModel(
       id: json['id'] as String,
+      userId: json['userId'] as String? ??
+          (json['user'] as Map?)?['id'] as String?,
       nombre: nombre,
       esTaller: true,
-      descripcion: json['descripcion'] as String?,
-      rating: (json['rating'] as num?)?.toDouble(),
+      descripcion:
+          json['description'] as String? ?? json['descripcion'] as String?,
+      rating: _toDouble(json['rating']),
       email: json['email'] as String?,
-      telefono: json['telefono'] as String?,
+      telefono: json['phone'] as String? ?? json['telefono'] as String?,
+      direccion: json['address'] as String?,
       hasDelivery: json['hasDelivery'] as bool? ?? false,
+      categorias: categorias,
     );
   }
 }

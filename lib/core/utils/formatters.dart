@@ -47,16 +47,28 @@ abstract class Formatters {
 
   // ── Números ───────────────────────────────────────────────────────────────
 
+  // Lempira hondureño. intl no trae datos para 'es_HN', por eso se usa
+  // 'es_419' (español latinoamericano) con símbolo manual.
   static final _currencyFormat = NumberFormat.currency(
-    locale: 'es_VE',
-    symbol: 'Bs. ',
+    locale: 'es_419',
+    symbol: 'L ',
     decimalDigits: 2,
+  );
+
+  static final _currencyNoDecimals = NumberFormat.currency(
+    locale: 'es_419',
+    symbol: 'L ',
+    decimalDigits: 0,
   );
 
   static final _compactFormat = NumberFormat.compact(locale: 'es');
 
-  /// `1500000.50` → `Bs. 1.500.000,50`
+  /// `1500000.50` → `L 1,500,000.50` (Lempira hondureño)
   static String currency(double amount) => _currencyFormat.format(amount);
+
+  /// `1500` → `L 1,500` (sin decimales, para precios "desde")
+  static String currencyCompact(double amount) =>
+      _currencyNoDecimals.format(amount);
 
   /// `1500000` → `1,5M`
   static String compact(num number) => _compactFormat.format(number);

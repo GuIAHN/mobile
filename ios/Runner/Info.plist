@@ -74,5 +74,10 @@
 	<string>Necesitamos acceso a la cámara para que puedas tomar una foto para tu perfil.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Necesitamos acceso a la galería para que puedas seleccionar una foto para tu perfil.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+		<string>mailto</string>
+	</array>
 </dict>
 </plist>

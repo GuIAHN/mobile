@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/domain/enums/service_type.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/router/route_names.dart';
 import '../../domain/entities/home_item.dart';
 import 'icon_mapper.dart';
@@ -89,17 +91,21 @@ class _ItemCardState extends State<ItemCard> {
               Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: softBgColor,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(
-                      getIconData(item.iconName),
-                      color: accentColor,
-                      size: 22,
+                  _HeroWrapper(
+                    // Continuidad espacial hacia la pantalla de detalle
+                    tag: item.id != null ? 'provider-avatar-${item.id}' : null,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: softBgColor,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(
+                        getIconData(item.iconName),
+                        color: accentColor,
+                        size: 22,
+                      ),
                     ),
                   ),
                   Positioned(
@@ -151,8 +157,10 @@ class _ItemCardState extends State<ItemCard> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         // Rating Tag
                         _Tag(
@@ -185,7 +193,6 @@ class _ItemCardState extends State<ItemCard> {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 8),
 
                         // Distancia Tag
                         _Tag(
@@ -213,12 +220,11 @@ class _ItemCardState extends State<ItemCard> {
 
                         // Tarifa Tag (solo mecánicos con tarifa)
                         if (item.tarifa != null) ...[
-                          const SizedBox(width: 8),
                           _Tag(
                             backgroundColor: AppColors.success
                                 .withValues(alpha: 0.08),
                             child: Text(
-                              '\$${item.tarifa!.toStringAsFixed(0)}/h',
+                              '${Formatters.currencyCompact(item.tarifa!)}/h',
                               style: GoogleFonts.hankenGrotesk(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
@@ -230,7 +236,6 @@ class _ItemCardState extends State<ItemCard> {
 
                         // Delivery Tag
                         if (item.hasDelivery) ...[
-                          const SizedBox(width: 8),
                           _Tag(
                             backgroundColor: AppColors.success
                                 .withValues(alpha: 0.08),
@@ -259,35 +264,54 @@ class _ItemCardState extends State<ItemCard> {
               ),
               const SizedBox(width: 8),
 
-              // Botón Favorito
-              GestureDetector(
-                onTap: () =>
-                    setState(() => _isFavorite = !_isFavorite),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: _isFavorite
-                        ? AppColors.primaryMuted
-                        : AppColors.grey50,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: _isFavorite
-                          ? AppColors.primary
-                              .withValues(alpha: 0.2)
-                          : AppColors.border,
-                      width: 1.0,
+              // Botón Favorito (target táctil ≥44px + semántica de toggle)
+              Semantics(
+                button: true,
+                label: _isFavorite
+                    ? 'Quitar de favoritos'
+                    : 'Agregar a favoritos',
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    setState(() => _isFavorite = !_isFavorite);
+                  },
+                  child: SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Center(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: _isFavorite
+                              ? AppColors.primaryMuted
+                              : AppColors.grey50,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: _isFavorite
+                                ? AppColors.primary.withValues(alpha: 0.2)
+                                : AppColors.border,
+                            width: 1.0,
+                          ),
+                        ),
+                        child: AnimatedScale(
+                          scale: _isFavorite ? 1.0 : 0.9,
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeOutBack,
+                          child: Icon(
+                            _isFavorite
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            size: 18,
+                            color: _isFavorite
+                                ? AppColors.primary
+                                : AppColors.textDisabled,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                  child: Icon(
-                    _isFavorite
-                        ? Icons.favorite
-                        : Icons.favorite_border,
-                    size: 18,
-                    color: _isFavorite
-                        ? AppColors.primary
-                        : AppColors.textDisabled,
                   ),
                 ),
               ),
@@ -296,6 +320,20 @@ class _ItemCardState extends State<ItemCard> {
         ),
       ),
     );
+  }
+}
+
+/// Envuelve en Hero solo si hay tag (los items sin id no navegan a detalle).
+class _HeroWrapper extends StatelessWidget {
+  final String? tag;
+  final Widget child;
+
+  const _HeroWrapper({required this.tag, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    if (tag == null) return child;
+    return Hero(tag: tag!, child: child);
   }
 }
 
