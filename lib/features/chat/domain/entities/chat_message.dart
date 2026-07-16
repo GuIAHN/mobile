@@ -3,7 +3,7 @@ import 'package:equatable/equatable.dart';
 enum MessageType {
   text,
   image,
-  offer,
+  system,
 }
 
 class ChatMessage extends Equatable {
@@ -14,7 +14,7 @@ class ChatMessage extends Equatable {
   final bool isFromMe;
   final String content;
   final MessageType type;
-  final DateTime sentAt;
+  final DateTime createdAt;
   final bool isRead;
 
   const ChatMessage({
@@ -25,7 +25,7 @@ class ChatMessage extends Equatable {
     required this.isFromMe,
     required this.content,
     this.type = MessageType.text,
-    required this.sentAt,
+    required this.createdAt,
     this.isRead = false,
   });
 
@@ -38,7 +38,7 @@ class ChatMessage extends Equatable {
         isFromMe,
         content,
         type,
-        sentAt,
+        createdAt,
         isRead,
       ];
 }

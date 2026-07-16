@@ -11,6 +11,7 @@ import '../../domain/usecases/get_messages_usecase.dart';
 import '../../domain/usecases/send_message_usecase.dart';
 import '../../domain/usecases/create_quote_usecase.dart';
 import '../../../../core/providers/current_user_provider.dart';
+import '../../../../core/services/socket_service.dart';
 
 // ── Dependency Providers ─────────────────────────────────────────────────────
 
@@ -18,7 +19,10 @@ import '../../../../core/network/dio_client.dart';
 
 final chatRemoteDataSourceProvider = Provider<ChatRemoteDataSource>((ref) {
   final dioClient = ref.watch(dioClientProvider);
-  return ChatRemoteDataSource(dioClient);
+  return ChatRemoteDataSource(
+    dioClient,
+    () => ref.read(currentUserProvider)?.id ?? '',
+  );
 });
 
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {
@@ -52,7 +56,7 @@ final createQuoteUseCaseProvider = Provider<CreateQuoteUseCase>((ref) {
 // ── State Providers ──────────────────────────────────────────────────────────
 
 /// Hilos o carpetas activas.
-final chatThreadsProvider = FutureProvider.autoDispose<List<ChatThread>>((ref) async {
+final chatThreadsProvider = FutureProvider<List<ChatThread>>((ref) async {
   final useCase = ref.watch(getChatThreadsUseCaseProvider);
   final result = await useCase();
   return result.fold(
@@ -61,8 +65,26 @@ final chatThreadsProvider = FutureProvider.autoDispose<List<ChatThread>>((ref) a
   );
 });
 
+final myConversationsProvider = FutureProvider<List<ChatConversation>>((ref) async {
+  final repository = ref.watch(chatRepositoryProvider);
+  final result = await repository.getMyConversations();
+  return result.fold(
+    (failure) => throw Exception(failure.message),
+    (conversations) => conversations,
+  );
+});
+
+final chatConversationDetailsProvider = FutureProvider.family<ChatConversation, String>((ref, conversationId) async {
+  final repository = ref.watch(chatRepositoryProvider);
+  final result = await repository.getConversationDetails(conversationId);
+  return result.fold(
+    (failure) => throw Exception(failure.message),
+    (conversation) => conversation,
+  );
+});
+
 /// Conversaciones/ofertas dentro de una carpeta específica.
-final chatConversationsProvider = FutureProvider.autoDispose.family<List<ChatConversation>, String>((ref, threadId) async {
+final chatConversationsProvider = FutureProvider.family<List<ChatConversation>, String>((ref, threadId) async {
   final useCase = ref.watch(getConversationsUseCaseProvider);
   final result = await useCase(threadId);
   return result.fold(
@@ -75,42 +97,46 @@ final chatConversationsProvider = FutureProvider.autoDispose.family<List<ChatCon
 
 class ChatMessagesNotifier extends StateNotifier<AsyncValue<List<ChatMessage>>> {
   final GetMessagesUseCase _getMessagesUseCase;
-  final SendMessageUseCase _sendMessageUseCase;
+  final SocketService _socketService;
   final String _conversationId;
 
   ChatMessagesNotifier({
     required GetMessagesUseCase getMessagesUseCase,
-    required SendMessageUseCase sendMessageUseCase,
+    required SocketService socketService,
     required String conversationId,
   })  : _getMessagesUseCase = getMessagesUseCase,
-        _sendMessageUseCase = sendMessageUseCase,
+        _socketService = socketService,
         _conversationId = conversationId,
         super(const AsyncValue.loading()) {
     loadMessages();
+    _socketService.joinConversation(_conversationId);
+    
+    // Escuchar nuevos mensajes
+    _socketService.onMessage.listen((data) {
+      if (data['conversationId'] == _conversationId) {
+        loadMessages();
+      }
+    });
   }
 
   Future<void> loadMessages() async {
-    state = const AsyncValue.loading();
     final result = await _getMessagesUseCase(_conversationId);
-    state = result.fold(
-      (failure) => AsyncValue.error(failure.message, StackTrace.current),
-      (messages) => AsyncValue.data(messages),
+    result.fold(
+      (failure) => state = AsyncValue.error(failure.message, StackTrace.current),
+      (messages) => state = AsyncValue.data(messages),
     );
   }
 
-  Future<bool> sendMessage(String content) async {
-    if (content.trim().isEmpty) return false;
-    
-    final result = await _sendMessageUseCase(_conversationId, content);
-    return result.fold(
-      (failure) => false,
-      (newMessage) {
-        state.whenData((currentList) {
-          state = AsyncValue.data([...currentList, newMessage]);
-        });
-        return true;
-      },
-    );
+  Future<void> sendMessage(String content) async {
+    if (content.trim().isEmpty) return;
+    try {
+      final success = await _socketService.sendMessage(_conversationId, content);
+      if (!success) {
+        throw Exception('Sin conexión al servidor de chat. Verifica tu red o recarga la app.');
+      }
+    } catch (e) {
+      throw Exception(e.toString());
+    }
   }
 }
 
@@ -118,7 +144,7 @@ final chatMessagesProvider = StateNotifierProvider.family.autoDispose<
     ChatMessagesNotifier, AsyncValue<List<ChatMessage>>, String>((ref, conversationId) {
   return ChatMessagesNotifier(
     getMessagesUseCase: ref.watch(getMessagesUseCaseProvider),
-    sendMessageUseCase: ref.watch(sendMessageUseCaseProvider),
+    socketService: ref.watch(socketServiceProvider),
     conversationId: conversationId,
   );
 });

@@ -28,7 +28,12 @@ class GuiAutomotrizApp extends ConsumerWidget {
       if (current == AuthStatus.authenticated) {
         socket.connect();
         socket.onSearchMatched.listen((_) => ref.invalidate(chatThreadsProvider));
-        socket.onOfferUpdated.listen((_) => ref.invalidate(chatThreadsProvider));
+        socket.onOfferUpdated.listen((data) {
+          ref.invalidate(chatThreadsProvider);
+          if (data != null && data['searchRequestId'] != null) {
+            ref.invalidate(chatConversationsProvider(data['searchRequestId'].toString()));
+          }
+        });
       } else {
         socket.disconnect();
       }

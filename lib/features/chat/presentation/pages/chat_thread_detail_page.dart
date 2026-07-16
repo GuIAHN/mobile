@@ -109,19 +109,50 @@ class ChatThreadDetailPage extends ConsumerWidget {
             );
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            itemCount: conversations.length,
-            itemBuilder: (context, index) {
-              final conv = conversations[index];
-              return ChatConversationCard(
-                conversation: conv,
-                onTap: () {
-                  context.push('/chats/$threadId/${conv.id}');
-                },
-              );
-            },
-          );
+            return ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              itemCount: conversations.length,
+              itemBuilder: (context, index) {
+                final conv = conversations[index];
+                return ChatConversationCard(
+                  conversation: conv,
+                  onTap: () async {
+                    if (isStore) {
+                      context.push('/chats/$threadId/${conv.id}');
+                    } else {
+                      // Show loading dialog
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                      );
+                      
+                      final repo = ref.read(chatRepositoryProvider);
+                      // conv.id is the offerId here because searchOffers returns offers
+                      final res = await repo.startChatFromOffer(conv.id);
+                      
+                      // Hide loading dialog
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                      }
+                      
+                      res.fold(
+                        (failure) {
+                          if (context.mounted) {
+                            context.showSnackBar('Error al abrir chat: ${failure.message}', isError: true);
+                          }
+                        },
+                        (realConversationId) {
+                          if (context.mounted) {
+                            context.push('/chats/$threadId/$realConversationId');
+                          }
+                        },
+                      );
+                    }
+                  },
+                );
+              },
+            );
         },
       ),
     );
@@ -404,6 +435,8 @@ class ChatThreadDetailPage extends ConsumerWidget {
                       ref.invalidate(chatConversationsProvider(threadId));
                       // Refresh inbox
                       ref.invalidate(chatThreadsProvider);
+                      // Refresh my conversations
+                      ref.invalidate(myConversationsProvider);
                       // Navigate straight to the chat conversation
                       context.pushReplacement('/chats/$threadId/${newConv.id}');
                     },

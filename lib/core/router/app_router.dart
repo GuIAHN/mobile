@@ -178,7 +178,6 @@ class AppRouter {
                       final threadId = state.pathParameters['threadId']!;
                       final conversationId = state.pathParameters['conversationId']!;
                       return ChatConversationPage(
-                        threadId: threadId,
                         conversationId: conversationId,
                       );
                     },

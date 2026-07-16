@@ -40,128 +40,182 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
   @override
   Widget build(BuildContext context) {
     final threadsAsync = ref.watch(chatThreadsProvider);
+    final myConversationsAsync = ref.watch(myConversationsProvider);
     final currentRole = ref.watch(currentRoleProvider);
     final isProvider = currentRole.isProvider;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: threadsAsync.when(
-          loading: () => Column(
+    if (!isProvider) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          elevation: 0,
+          toolbarHeight: 0,
+        ),
+        body: SafeArea(
+          child: threadsAsync.when(
+            loading: () => _buildLoadingState(isProvider),
+            error: (err, _) => _buildErrorState(err.toString(), isProvider),
+            data: (threads) {
+              final filtered = _filterThreads(threads);
+              return _buildThreadsList(threads, filtered, isProvider);
+            },
+          ),
+        ),
+      );
+    }
+
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          elevation: 0,
+          toolbarHeight: 0,
+          bottom: TabBar(
+            labelColor: AppColors.primary,
+            unselectedLabelColor: AppColors.textSecondary,
+            indicatorColor: AppColors.primary,
+            labelStyle: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.bold),
+            unselectedLabelStyle: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.w600),
+            tabs: const [
+              Tab(text: 'Solicitudes'),
+              Tab(text: 'Mis Chats'),
+            ],
+          ),
+        ),
+        body: SafeArea(
+          child: TabBarView(
             children: [
-              _buildHeader(
-                threads: const [],
-                isProvider: isProvider,
-                isLoading: true,
+              // Tab 1: Solicitudes (Search Requests)
+              threadsAsync.when(
+                loading: () => _buildLoadingState(isProvider),
+                error: (err, _) => _buildErrorState(err.toString(), isProvider),
+                data: (threads) {
+                  final filtered = _filterThreads(threads);
+                  return _buildThreadsList(threads, filtered, isProvider);
+                },
               ),
-              Expanded(
-                child: ListView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  children: const [
-                    ThreadCardSkeleton(),
-                    ThreadCardSkeleton(),
-                    ThreadCardSkeleton(),
-                    ThreadCardSkeleton(),
-                  ],
-                ),
+              // Tab 2: Mis Chats (Conversations)
+              myConversationsAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, _) => Center(child: Text('Error: $err')),
+                data: (conversations) {
+                  if (conversations.isEmpty) {
+                    return EmptyState(
+                      title: 'Sin chats activos',
+                      subtitle: 'Aún no tienes conversaciones iniciadas.',
+                      icon: Icons.chat_bubble_outline_rounded,
+                    );
+                  }
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    itemCount: conversations.length,
+                    itemBuilder: (context, index) {
+                      final conv = conversations[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                          backgroundImage: conv.participantAvatarUrl != null ? NetworkImage(conv.participantAvatarUrl!) : null,
+                          child: conv.participantAvatarUrl == null ? const Icon(Icons.person, color: AppColors.primary) : null,
+                        ),
+                        title: Text(conv.participantName, style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.bold)),
+                        subtitle: Text(conv.spareBrand ?? (conv.hasQuote ? 'Cotización enviada' : 'Chat directo'), maxLines: 1),
+                        trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.border),
+                        onTap: () {
+                          context.push('/chats/${conv.threadId}/${conv.id}');
+                        },
+                      );
+                    },
+                  );
+                },
               ),
             ],
           ),
-          error: (err, _) => Column(
-            children: [
-              _buildHeader(
-                threads: const [],
-                isProvider: isProvider,
-                isLoading: false,
-              ),
-              Expanded(
-                child: Center(
-                  child: Text(
-                    'Error al cargar chats: $err',
-                    style: GoogleFonts.hankenGrotesk(color: AppColors.error),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          data: (threads) {
-            final filtered = _filterThreads(threads);
-            return Column(
-              children: [
-                _buildHeader(
-                  threads: threads,
-                  isProvider: isProvider,
-                  isLoading: false,
-                ),
-                Expanded(
-                  child: threads.isEmpty
-                      ? EmptyState(
-                          title: 'Sin conversaciones',
-                          subtitle: isProvider
-                              ? 'No hay solicitudes activas para cotizar en este momento.'
-                              : 'Tus solicitudes de repuesto o servicio aparecerán aquí.',
-                          icon: Icons.chat_bubble_outline_rounded,
-                        )
-                      : filtered.isEmpty
-                          ? EmptyState(
-                              title: 'Sin resultados',
-                              subtitle:
-                                  'No encontramos conversaciones para "$_query".',
-                              icon: Icons.search_off_rounded,
-                            )
-                          : RefreshIndicator(
-                              onRefresh: () =>
-                                  ref.refresh(chatThreadsProvider.future),
-                              color: AppColors.primary,
-                              child: ListView.builder(
-                                physics: const AlwaysScrollableScrollPhysics(
-                                  parent: BouncingScrollPhysics(),
-                                ),
-                                padding:
-                                    const EdgeInsets.fromLTRB(24, 8, 24, 24),
-                                itemCount: filtered.length,
-                                itemBuilder: (context, index) {
-                                  final thread = filtered[index];
-                                  return StaggeredEntrance(
-                                    index: index,
-                                    child: ChatThreadCard(
-                                      thread: thread,
-                                      showClientName: isProvider,
-                                      onTap: () async {
-                                        if (isProvider) {
-                                          final convsAsync = await ref.read(
-                                              chatConversationsProvider(
-                                                      thread.id)
-                                                  .future);
-                                          if (convsAsync.isNotEmpty) {
-                                            final conversation =
-                                                convsAsync.first;
-                                            if (context.mounted) {
-                                              context.push(
-                                                  '/chats/${thread.id}/${conversation.id}');
-                                            }
-                                          } else {
-                                            if (context.mounted) {
-                                              context
-                                                  .push('/chats/${thread.id}');
-                                            }
-                                          }
-                                        } else {
-                                          context.push('/chats/${thread.id}');
-                                        }
-                                      },
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                ),
-              ],
-            );
-          },
         ),
       ),
+    );
+  }
+
+  Widget _buildLoadingState(bool isProvider) {
+    return Column(
+      children: [
+        _buildHeader(threads: const [], isProvider: isProvider, isLoading: true),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            children: const [
+              ThreadCardSkeleton(),
+              ThreadCardSkeleton(),
+              ThreadCardSkeleton(),
+              ThreadCardSkeleton(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildErrorState(String err, bool isProvider) {
+    return Column(
+      children: [
+        _buildHeader(threads: const [], isProvider: isProvider, isLoading: false),
+        Expanded(
+          child: Center(
+            child: Text(
+              'Error al cargar chats: $err',
+              style: GoogleFonts.hankenGrotesk(color: AppColors.error),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildThreadsList(List<ChatThread> threads, List<ChatThread> filtered, bool isProvider) {
+    return Column(
+      children: [
+        _buildHeader(threads: threads, isProvider: isProvider, isLoading: false),
+        Expanded(
+          child: threads.isEmpty
+              ? EmptyState(
+                  title: 'Sin conversaciones',
+                  subtitle: isProvider
+                      ? 'No hay solicitudes activas para cotizar en este momento.'
+                      : 'Tus solicitudes de repuesto o servicio aparecerán aquí.',
+                  icon: Icons.chat_bubble_outline_rounded,
+                )
+              : filtered.isEmpty
+                  ? EmptyState(
+                      title: 'Sin resultados',
+                      subtitle: 'No encontramos conversaciones para "$_query".',
+                      icon: Icons.search_off_rounded,
+                    )
+                  : RefreshIndicator(
+                      onRefresh: () => ref.refresh(chatThreadsProvider.future),
+                      color: AppColors.primary,
+                      child: ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) {
+                          final thread = filtered[index];
+                          return StaggeredEntrance(
+                            index: index,
+                            child: ChatThreadCard(
+                              thread: thread,
+                              showClientName: isProvider,
+                              onTap: () {
+                                context.push('/chats/${thread.id}');
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+        ),
+      ],
     );
   }
 

@@ -22,4 +22,10 @@ abstract class ChatRepository {
     String? brand,
     String? photoPath,
   });
+
+  Future<Either<Failure, String>> startChatFromOffer(String offerId);
+  
+  Future<Either<Failure, List<ChatConversation>>> getMyConversations();
+  
+  Future<Either<Failure, ChatConversation>> getConversationDetails(String conversationId);
 }

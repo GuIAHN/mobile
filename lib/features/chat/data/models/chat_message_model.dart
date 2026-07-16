@@ -9,24 +9,24 @@ class ChatMessageModel extends ChatMessage {
     required super.isFromMe,
     required super.content,
     super.type,
-    required super.sentAt,
+    required super.createdAt,
     super.isRead,
   });
 
-  factory ChatMessageModel.fromJson(Map<String, dynamic> json) {
+  factory ChatMessageModel.fromJson(Map<String, dynamic> json, String currentUserId) {
     return ChatMessageModel(
-      id: json['id'] as String,
+      id: json['_id'] as String,
       conversationId: json['conversationId'] as String,
       senderId: json['senderId'] as String,
-      senderName: json['senderName'] as String,
-      isFromMe: json['isFromMe'] as bool? ?? false,
+      senderName: json['senderName'] ?? 'Usuario',
+      isFromMe: json['senderId'] == currentUserId,
       content: json['content'] as String,
       type: MessageType.values.firstWhere(
         (e) => e.name == json['type'],
         orElse: () => MessageType.text,
       ),
-      sentAt: DateTime.parse(json['sentAt'] as String),
-      isRead: json['isRead'] as bool? ?? false,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      isRead: json['read'] as bool? ?? false,
     );
   }
 
@@ -38,7 +38,7 @@ class ChatMessageModel extends ChatMessage {
         'isFromMe': isFromMe,
         'content': content,
         'type': type.name,
-        'sentAt': sentAt.toIso8601String(),
+        'createdAt': createdAt.toIso8601String(),
         'isRead': isRead,
       };
 }

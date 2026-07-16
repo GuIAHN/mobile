@@ -36,4 +36,11 @@ abstract class ApiEndpoints {
   static String searchById(String id) => 'search/$id';
   static String searchClose(String id) => 'search/$id/close';
   static String searchOffers(String id) => 'search/$id/offers';
+
+  // ── Chat / Mensajería ──────────────────────────────────────────────────────
+
+  static const String conversationsFromOffer = 'conversations/from-offer';
+  static const String conversationsDirect = 'conversations/direct';
+  static String conversationMessages(String id) => 'conversations/$id/messages';
+  static String conversationRead(String id) => 'conversations/$id/read';
 }

@@ -86,4 +86,34 @@ class ChatRepositoryImpl implements ChatRepository {
       return Left(ErrorMapper.map(e));
     }
   }
+
+  @override
+  Future<Either<Failure, String>> startChatFromOffer(String offerId) async {
+    try {
+      final conversationId = await remoteDataSource.startChatFromOffer(offerId);
+      return Right(conversationId);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<ChatConversation>>> getMyConversations() async {
+    try {
+      final conversations = await remoteDataSource.getMyConversations();
+      return Right(conversations);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ChatConversation>> getConversationDetails(String conversationId) async {
+    try {
+      final conversation = await remoteDataSource.getConversationDetails(conversationId);
+      return Right(conversation);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
 }

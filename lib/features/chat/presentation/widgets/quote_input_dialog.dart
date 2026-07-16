@@ -27,10 +27,7 @@ class QuoteInputDialog extends StatefulWidget {
 }
 
 class _QuoteInputDialogState extends State<QuoteInputDialog> {
-  bool _isFixedPrice = true;
   final _priceController = TextEditingController();
-  final _minPriceController = TextEditingController();
-  final _maxPriceController = TextEditingController();
   final _brandController = TextEditingController();
   String? _selectedImagePath;
   final ImagePicker _picker = ImagePicker();
@@ -39,8 +36,6 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
   @override
   void dispose() {
     _priceController.dispose();
-    _minPriceController.dispose();
-    _maxPriceController.dispose();
     _brandController.dispose();
     super.dispose();
   }
@@ -51,54 +46,25 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
     });
 
     final brandStr = _brandController.text.trim();
-
-    if (_isFixedPrice) {
-      final priceStr = _priceController.text.trim();
-      if (priceStr.isEmpty) {
-        setState(() => _errorMessage = 'Por favor ingresa el precio.');
-        return;
-      }
-      final price = double.tryParse(priceStr);
-      if (price == null || price <= 0) {
-        setState(() => _errorMessage = 'Ingresa un precio válido mayor a 0.');
-        return;
-      }
-      Navigator.pop(context, {
-        'isFixedPrice': true,
-        'price': price,
-        if (brandStr.isNotEmpty) 'brand': brandStr,
-        if (_selectedImagePath != null) 'photoPath': _selectedImagePath,
-      });
-    } else {
-      final minStr = _minPriceController.text.trim();
-      final maxStr = _maxPriceController.text.trim();
-
-      if (minStr.isEmpty || maxStr.isEmpty) {
-        setState(() => _errorMessage = 'Completa ambos precios del rango.');
-        return;
-      }
-
-      final minPrice = double.tryParse(minStr);
-      final maxPrice = double.tryParse(maxStr);
-
-      if (minPrice == null || minPrice <= 0 || maxPrice == null || maxPrice <= 0) {
-        setState(() => _errorMessage = 'Ingresa precios válidos mayores a 0.');
-        return;
-      }
-
-      if (minPrice >= maxPrice) {
-        setState(() => _errorMessage = 'El precio mínimo debe ser menor al máximo.');
-        return;
-      }
-
-      Navigator.pop(context, {
-        'isFixedPrice': false,
-        'minPrice': minPrice,
-        'maxPrice': maxPrice,
-        if (brandStr.isNotEmpty) 'brand': brandStr,
-        if (_selectedImagePath != null) 'photoPath': _selectedImagePath,
-      });
+    final priceStr = _priceController.text.trim();
+    
+    if (priceStr.isEmpty) {
+      setState(() => _errorMessage = 'Por favor ingresa el precio.');
+      return;
     }
+    
+    final price = double.tryParse(priceStr);
+    if (price == null || price <= 0) {
+      setState(() => _errorMessage = 'Ingresa un precio válido mayor a 0.');
+      return;
+    }
+    
+    Navigator.pop(context, {
+      'isFixedPrice': true,
+      'price': price,
+      if (brandStr.isNotEmpty) 'brand': brandStr,
+      if (_selectedImagePath != null) 'photoPath': _selectedImagePath,
+    });
   }
 
   @override
@@ -155,85 +121,7 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
           ),
           const SizedBox(height: 20),
 
-          // Price Type Selection (Fixed vs Range)
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: AppColors.grey100,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _isFixedPrice = true),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _isFixedPrice ? Colors.white : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: _isFixedPrice
-                            ? [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                )
-                              ]
-                            : [],
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        'Precio Fijo',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 13.5,
-                          fontWeight: _isFixedPrice ? FontWeight.w800 : FontWeight.w600,
-                          color: _isFixedPrice ? AppColors.textPrimary : AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _isFixedPrice = false),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: !_isFixedPrice ? Colors.white : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: !_isFixedPrice
-                            ? [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                )
-                              ]
-                            : [],
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        'Rango Estimado',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 13.5,
-                          fontWeight: !_isFixedPrice ? FontWeight.w800 : FontWeight.w600,
-                          color: !_isFixedPrice ? AppColors.textPrimary : AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Dynamic Price Input Field(s)
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: _isFixedPrice ? _buildFixedPriceInput() : _buildRangePriceInput(),
-          ),
+          _buildFixedPriceInput(),
 
           const SizedBox(height: 20),
 
@@ -408,84 +296,7 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
     );
   }
 
-  Widget _buildRangePriceInput() {
-    return Row(
-      key: const ValueKey('range'),
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'MÍNIMO (\$)',
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary,
-                  letterSpacing: 1.0,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: TextField(
-                  controller: _minPriceController,
-                  keyboardType: TextInputType.number,
-                  style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    hintText: 'Ej. 800',
-                    hintStyle: GoogleFonts.hankenGrotesk(color: AppColors.textDisabled, fontWeight: FontWeight.w400),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'MÁXIMO (\$)',
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary,
-                  letterSpacing: 1.0,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: TextField(
-                  controller: _maxPriceController,
-                  keyboardType: TextInputType.number,
-                  style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    hintText: 'Ej. 1000',
-                    hintStyle: GoogleFonts.hankenGrotesk(color: AppColors.textDisabled, fontWeight: FontWeight.w400),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+
 
   Future<void> _pickImage(ImageSource source) async {
     try {

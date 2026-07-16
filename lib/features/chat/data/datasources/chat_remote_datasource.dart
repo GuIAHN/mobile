@@ -9,8 +9,9 @@ import '../../../../core/domain/enums/user_role.dart';
 
 class ChatRemoteDataSource {
   final DioClient _dioClient;
+  final String Function() getCurrentUserId;
 
-  ChatRemoteDataSource(this._dioClient);
+  ChatRemoteDataSource(this._dioClient, this.getCurrentUserId);
 
   Future<List<ChatThreadModel>> getChatThreads(UserRole role) async {
     final isStore = role == UserRole.store;
@@ -53,8 +54,8 @@ class ChatRemoteDataSource {
           id: json['id'],
           title: title.isEmpty ? (subcategoryName ?? 'Solicitud') : title,
           requestType: ServiceType.spareParts,
-          unreadCount: 0,
-          conversationCount: 0,
+          unreadCount: json['_count']?['offers'] ?? 0,
+          conversationCount: json['_count']?['offers'] ?? 0,
           lastActivityAt: DateTime.parse(json['createdAt']),
           isOpen: json['status'] == 'OPEN',
           clientName: null,
@@ -111,13 +112,60 @@ class ChatRemoteDataSource {
   }
 
   Future<List<ChatMessageModel>> getMessages(String conversationId, UserRole role) async {
-    // Currently no message history API, just offers.
-    return [];
+    final response = await _dioClient.get('conversations/$conversationId/messages');
+    final data = response.data as List;
+    final currentUserId = getCurrentUserId();
+    return data.map((json) => ChatMessageModel.fromJson(json, currentUserId)).toList();
   }
 
   Future<ChatMessageModel> sendMessage(String conversationId, String content, UserRole role) async {
-    // We mock this since there is no standard messaging in backend yet (only offers)
+    // Handled by sockets now
     throw UnimplementedError();
+  }
+
+  Future<String> startChatFromOffer(String offerId) async {
+    final response = await _dioClient.post('conversations/from-offer', data: {'offerId': offerId});
+    return response.data['id'];
+  }
+
+  Future<List<ChatConversationModel>> getMyConversations() async {
+    final response = await _dioClient.get('conversations/me');
+    final data = response.data as List;
+    return data.map((json) {
+      return ChatConversationModel(
+        id: json['id'],
+        threadId: json['offerId'] ?? 'DIRECT', // Fallback for direct chats
+        participantName: json['participantName'],
+        participantAvatarUrl: json['participantAvatarUrl'],
+        lastMessage: '', // Messages are inside the conversation
+        unreadCount: json['unreadCount'] ?? 0,
+        lastMessageAt: json['lastMessageAt'] != null ? DateTime.parse(json['lastMessageAt']) : DateTime.now(),
+        hasQuote: json['hasQuote'] ?? false,
+        isFixedPrice: json['isFixedPrice'] ?? false,
+        price: json['price'] != null ? double.tryParse(json['price'].toString()) : null,
+        spareBrand: json['spareBrand'],
+        sparePhotoUrl: json['sparePhotoUrl'],
+      );
+    }).toList();
+  }
+
+  Future<ChatConversationModel> getConversationDetails(String conversationId) async {
+    final response = await _dioClient.get('conversations/$conversationId');
+    final json = response.data;
+    return ChatConversationModel(
+      id: json['id'],
+      threadId: json['offerId'] ?? 'DIRECT',
+      participantName: json['participantName'],
+      participantAvatarUrl: json['participantAvatarUrl'],
+      lastMessage: '',
+      unreadCount: json['unreadCount'] ?? 0,
+      lastMessageAt: json['lastMessageAt'] != null ? DateTime.parse(json['lastMessageAt']) : DateTime.now(),
+      hasQuote: json['hasQuote'] ?? false,
+      isFixedPrice: json['isFixedPrice'] ?? false,
+      price: json['price'] != null ? double.tryParse(json['price'].toString()) : null,
+      spareBrand: json['spareBrand'],
+      sparePhotoUrl: json['sparePhotoUrl'],
+    );
   }
 
   Future<ChatConversationModel> createQuote({

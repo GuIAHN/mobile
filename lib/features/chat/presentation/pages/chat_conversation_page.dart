@@ -7,18 +7,15 @@ import '../providers/chat_providers.dart';
 import '../widgets/chat_message_bubble.dart';
 import '../../domain/entities/chat_conversation.dart';
 import '../../domain/entities/chat_message.dart';
-import '../../domain/entities/chat_thread.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 
 class ChatConversationPage extends ConsumerStatefulWidget {
-  final String threadId;
   final String conversationId;
 
   const ChatConversationPage({
     super.key,
-    required this.threadId,
     required this.conversationId,
   });
 
@@ -69,17 +66,24 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
     if (text.isEmpty || _isSending) return;
 
     setState(() => _isSending = true);
-    _messageController.clear();
     final notifier =
         ref.read(chatMessagesProvider(widget.conversationId).notifier);
-    final success = await notifier.sendMessage(text);
-    if (mounted) setState(() => _isSending = false);
-
-    if (success) {
-      // Small post-frame delay to ensure widget is rendered before scrolling
+    
+    try {
+      await notifier.sendMessage(text);
+      _messageController.clear();
+      if (mounted) setState(() => _isSending = false);
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
-      // Refresh thread list to update preview
-      ref.invalidate(chatThreadsProvider);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSending = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception:', '').trim()),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -87,9 +91,6 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
   Widget build(BuildContext context) {
     final messagesAsync =
         ref.watch(chatMessagesProvider(widget.conversationId));
-    final conversationsAsync =
-        ref.watch(chatConversationsProvider(widget.threadId));
-    final threadsAsync = ref.watch(chatThreadsProvider);
     final currentRole = ref.watch(currentRoleProvider);
     final isStore = currentRole == UserRole.store;
 
@@ -104,6 +105,8 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
       }
     });
 
+    final detailsAsync = ref.watch(chatConversationDetailsProvider(widget.conversationId));
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -116,235 +119,116 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
               color: AppColors.textPrimary),
           onPressed: () => context.pop(),
         ),
-        title: conversationsAsync.when(
-          loading: () => const Text('Cargando chat...'),
-          error: (_, __) => const Text('Conversación'),
-          data: (conversations) {
-            final conv = conversations.cast<ChatConversation>().firstWhere(
-                  (c) => c.id == widget.conversationId,
-                  orElse: () => conversations.first,
-                );
-            return Row(
-              children: [
-                const CircleAvatar(
-                  backgroundColor: AppColors.grey200,
-                  radius: 18,
-                  child: Icon(Icons.storefront_rounded,
-                      color: AppColors.textSecondary, size: 18),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        conv.participantName,
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
+        title: detailsAsync.when(
+          loading: () => const Text('Cargando...'),
+          error: (_, __) => const Text('Chat'),
+          data: (details) => Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: AppColors.grey200,
+                backgroundImage: details.participantAvatarUrl != null ? NetworkImage(details.participantAvatarUrl!) : null,
+                radius: 18,
+                child: details.participantAvatarUrl == null 
+                  ? const Icon(Icons.person_rounded, color: AppColors.textSecondary, size: 18)
+                  : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      details.participantName,
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
                       ),
-                      Text(
-                        conv.hasQuote
-                            ? conv.formattedPrice
-                            : 'Cotización pendiente',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: conv.hasQuote
-                              ? AppColors.success
-                              : AppColors.textSecondary,
-                        ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      'Conversación en progreso',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.success,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            );
-          },
+              ),
+            ],
+          ),
         ),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Sticky Quote banner if exists
-            conversationsAsync.when(
+            // Offer Header
+            detailsAsync.when(
               loading: () => const SizedBox.shrink(),
               error: (_, __) => const SizedBox.shrink(),
-              data: (conversations) {
-                final conv = conversations.cast<ChatConversation>().firstWhere(
-                      (c) => c.id == widget.conversationId,
-                      orElse: () => conversations.first,
-                    );
-                if (!conv.hasQuote) return const SizedBox.shrink();
+              data: (details) {
+                if (!details.hasQuote) return const SizedBox.shrink();
                 return Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                  color: AppColors.successLight.withValues(alpha: 0.8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.sell_rounded,
-                                  size: 14, color: AppColors.success),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Cotización Activa:',
-                                style: GoogleFonts.hankenGrotesk(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.success,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Text(
-                            conv.formattedPrice,
-                            style: GoogleFonts.hankenGrotesk(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.success,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (conv.spareBrand != null &&
-                          conv.spareBrand!.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            const Icon(Icons.branding_watermark_outlined,
-                                size: 14, color: AppColors.success),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Marca ofrecida: ${conv.spareBrand}',
-                              style: GoogleFonts.hankenGrotesk(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.success,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                      if (conv.sparePhotoUrl != null &&
-                          conv.sparePhotoUrl!.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            height: 100,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.5),
-                              border: Border.all(
-                                  color: AppColors.success.withOpacity(0.3)),
-                            ),
-                            child: Image.network(
-                              conv.sparePhotoUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Center(
-                                child: Icon(Icons.broken_image_outlined,
-                                    color: AppColors.success, size: 24),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-              },
-            ),
-
-            // Banner de Imagen del Repuesto de Referencia
-            threadsAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (threads) {
-                final thread = threads.cast<ChatThread>().firstWhere(
-                      (t) => t.id == widget.threadId,
-                      orElse: () => threads.first,
-                    );
-                if (thread.fotoUrl == null || thread.fotoUrl!.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-                return Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border(
-                      bottom: BorderSide(
-                          color: AppColors.border.withValues(alpha: 0.8),
-                          width: 0.8),
-                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          width: 48,
-                          height: 48,
-                          color: AppColors.grey50,
+                      if (details.sparePhotoUrl != null) ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
                           child: Image.network(
-                            thread.fotoUrl!,
+                            details.sparePhotoUrl!,
+                            width: 60,
+                            height: 60,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Icon(
-                              Icons.broken_image_outlined,
-                              color: AppColors.textSecondary,
-                              size: 20,
-                            ),
-                            loadingBuilder: (context, child, progress) {
-                              if (progress == null) return child;
-                              return const Center(
-                                child: SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              );
-                            },
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
+                        const SizedBox(width: 12),
+                      ],
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'REPUESTO DE REFERENCIA',
+                              'Oferta Cotizada',
                               style: GoogleFonts.hankenGrotesk(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.textSecondary,
-                                letterSpacing: 0.8,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 4),
                             Text(
-                              thread.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              details.price != null ? 'L. ${details.price!.toStringAsFixed(2)}' : 'Precio a convenir',
                               style: GoogleFonts.hankenGrotesk(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
                                 color: AppColors.textPrimary,
                               ),
                             ),
+                            if (details.spareBrand != null)
+                              Text(
+                                'Marca: ${details.spareBrand}',
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -358,6 +242,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
             Expanded(
               child: messagesAsync.when(
                 loading: () => ListView(
+                  reverse: true,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                   children: const [
@@ -382,9 +267,9 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                       ),
                     );
                   }
-
                   return ListView.builder(
                     controller: _scrollController,
+                    reverse: true, // index 0 is the newest message and sits at the bottom
                     physics: const BouncingScrollPhysics(),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 18, vertical: 16),
