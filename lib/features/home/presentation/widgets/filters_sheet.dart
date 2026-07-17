@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -35,17 +36,23 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
       widget.serviceType == ServiceType.mechanic ||
       widget.serviceType == ServiceType.workshops;
 
+  bool get _isMechanic => widget.serviceType == ServiceType.mechanic;
+
   @override
   Widget build(BuildContext context) {
     final hasChanges = _tempFilters != const HomeFilters();
+    final activeCount = _tempFilters.activeCount;
     final mq = MediaQuery.of(context);
 
-    return SafeArea(
-      top: false,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: mq.size.height * 0.88,
-        ),
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: SafeArea(
+        top: false,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: mq.size.height * 0.88,
+            maxWidth: mq.size.width,
+          ),
         child: Material(
           color: Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -77,13 +84,45 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Filtros de Búsqueda',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryMuted,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.tune_rounded,
+                            color: AppColors.primary,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Filtros',
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            if (activeCount > 0)
+                              Text(
+                                '$activeCount filtro${activeCount > 1 ? 's' : ''} activo${activeCount > 1 ? 's' : ''}',
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
                     IconButton(
                       icon: const Icon(Icons.close, size: 20),
@@ -113,21 +152,42 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                             final isSelected = _tempFilters.sortBy == option;
                             return Expanded(
                               child: GestureDetector(
-                                onTap: () => setState(
-                                    () => _tempFilters = _tempFilters.copyWith(sortBy: option)),
-                                child: Container(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setState(() => _tempFilters =
+                                      _tempFilters.copyWith(sortBy: option));
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  curve: Curves.easeOut,
                                   margin: EdgeInsets.only(
-                                      right: option == SortOption.values.last ? 0 : 8),
-                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                      right: option == SortOption.values.last
+                                          ? 0
+                                          : 8),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 11),
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
-                                    color: isSelected ? AppColors.primary : Colors.white,
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : Colors.white,
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
                                       color: isSelected
                                           ? AppColors.primary
                                           : AppColors.border,
+                                      width: 1.2,
                                     ),
+                                    boxShadow: isSelected
+                                        ? [
+                                            BoxShadow(
+                                              color: AppColors.primary
+                                                  .withValues(alpha: 0.15),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                          ]
+                                        : null,
                                   ),
                                   child: Text(
                                     option.label,
@@ -146,34 +206,59 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                         ),
                         const SizedBox(height: 24),
 
-                        // ── Radio de búsqueda (solo mecánicos/talleres) ──
+                        // ── Radio de búsqueda ────────────────────────────
                         if (_isProviderSearch) ...[
                           _buildLabel('RADIO DE BÚSQUEDA'),
                           const SizedBox(height: 10),
                           Row(
-                            children: [5.0, 10.0, 20.0, 30.0, 50.0].map((km) {
+                            children:
+                                [5.0, 10.0, 20.0, 30.0, 50.0].map((km) {
                               final isSelected = _tempFilters.radioKm == km;
                               return Expanded(
                                 child: GestureDetector(
-                                  onTap: () => setState(
-                                      () => _tempFilters = _tempFilters.copyWith(radioKm: km)),
-                                  child: Container(
-                                    margin: EdgeInsets.only(right: km == 50.0 ? 0 : 6),
-                                    padding: const EdgeInsets.symmetric(vertical: 11),
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    setState(() => _tempFilters =
+                                        _tempFilters.copyWith(radioKm: km));
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    curve: Curves.easeOut,
+                                    margin: EdgeInsets.only(
+                                        right: km == 50.0 ? 0 : 6),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 11),
                                     alignment: Alignment.center,
                                     decoration: BoxDecoration(
-                                      color: isSelected ? AppColors.primary : Colors.white,
+                                      color: isSelected
+                                          ? AppColors.primary
+                                          : Colors.white,
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
-                                        color: isSelected ? AppColors.primary : AppColors.border,
+                                        color: isSelected
+                                            ? AppColors.primary
+                                            : AppColors.border,
+                                        width: 1.2,
                                       ),
+                                      boxShadow: isSelected
+                                          ? [
+                                              BoxShadow(
+                                                color: AppColors.primary
+                                                    .withValues(alpha: 0.15),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 3),
+                                              ),
+                                            ]
+                                          : null,
                                     ),
                                     child: Text(
                                       '${km.toInt()} km',
                                       style: GoogleFonts.hankenGrotesk(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w800,
-                                        color: isSelected ? Colors.white : AppColors.textPrimary,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : AppColors.textPrimary,
                                       ),
                                     ),
                                   ),
@@ -184,23 +269,33 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                           const SizedBox(height: 24),
                         ],
 
-
-                        // ── Valoración mínima ─────────────────────────────
+                        // ── Valoración mínima ────────────────────────────
                         _buildLabel('VALORACIÓN MÍNIMA'),
                         const SizedBox(height: 10),
                         Row(
                           children: [0.0, 3.0, 4.0, 4.5].map((rating) {
-                            final isSelected = _tempFilters.minRating == rating;
+                            final isSelected =
+                                _tempFilters.minRating == rating;
                             return Expanded(
                               child: GestureDetector(
-                                onTap: () => setState(() =>
-                                    _tempFilters = _tempFilters.copyWith(minRating: rating)),
-                                child: Container(
-                                  margin: EdgeInsets.only(right: rating == 4.5 ? 0 : 8),
-                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setState(() => _tempFilters =
+                                      _tempFilters.copyWith(
+                                          minRating: rating));
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  curve: Curves.easeOut,
+                                  margin: EdgeInsets.only(
+                                      right: rating == 4.5 ? 0 : 8),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 11),
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
-                                    color: isSelected ? AppColors.primaryMuted : Colors.white,
+                                    color: isSelected
+                                        ? AppColors.primaryMuted
+                                        : Colors.white,
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
                                       color: isSelected
@@ -221,7 +316,8 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                                           ),
                                         )
                                       : Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
                                             Icon(Icons.star_rounded,
                                                 size: 13,
@@ -248,7 +344,15 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                         ),
                         const SizedBox(height: 24),
 
-                        // ── Especialidades (solo mecánicos/talleres) ──────
+                        // ── Tarifa máxima (solo mecánicos) ───────────────
+                        if (_isMechanic) ...[
+                          _buildLabel('TARIFA MÁXIMA / HORA'),
+                          const SizedBox(height: 10),
+                          _buildTarifaChips(),
+                          const SizedBox(height: 24),
+                        ],
+
+                        // ── Especialidades ───────────────────────────────
                         if (_isProviderSearch) ...[
                           _buildLabel('ESPECIALIDADES'),
                           const SizedBox(height: 10),
@@ -256,68 +360,8 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                           const SizedBox(height: 24),
                         ],
 
-                        // ── Solo abiertos ─────────────────────────────────
-                        GestureDetector(
-                          onTap: () => setState(() =>
-                              _tempFilters =
-                                  _tempFilters.copyWith(onlyOpen: !_tempFilters.onlyOpen)),
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: AppColors.grey50,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AppColors.border, width: 0.5),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 32,
-                                  height: 32,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.check,
-                                      size: 16, color: AppColors.success),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    'Mostrar solo disponibles ahora',
-                                    style: GoogleFonts.hankenGrotesk(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                ),
-                                AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  width: 48,
-                                  height: 26,
-                                  padding: const EdgeInsets.all(2),
-                                  alignment: _tempFilters.onlyOpen
-                                      ? Alignment.centerRight
-                                      : Alignment.centerLeft,
-                                  decoration: BoxDecoration(
-                                    color: _tempFilters.onlyOpen
-                                        ? AppColors.primary
-                                        : AppColors.grey300,
-                                    borderRadius: BorderRadius.circular(99),
-                                  ),
-                                  child: Container(
-                                    width: 22,
-                                    height: 22,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        // ── Solo abiertos ────────────────────────────────
+                        _buildAvailabilityToggle(),
                         const SizedBox(height: 16),
                       ],
                     ),
@@ -331,8 +375,11 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                   children: [
                     OutlinedButton(
                       onPressed: hasChanges
-                          ? () =>
-                              setState(() => _tempFilters = const HomeFilters())
+                          ? () {
+                              HapticFeedback.lightImpact();
+                              setState(
+                                  () => _tempFilters = const HomeFilters());
+                            }
                           : null,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.textPrimary,
@@ -341,8 +388,10 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                             horizontal: 18, vertical: 14),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16)),
+                        minimumSize: const Size(0, 48),
                       ),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(Icons.restart_alt, size: 16),
                           const SizedBox(width: 6),
@@ -355,18 +404,24 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () => Navigator.pop(context, _tempFilters),
+                        onPressed: () {
+                          HapticFeedback.mediumImpact();
+                          Navigator.pop(context, _tempFilters);
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
-                          shadowColor: AppColors.primary.withValues(alpha: 0.35),
+                          shadowColor:
+                              AppColors.primary.withValues(alpha: 0.35),
                           elevation: 4,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16)),
                         ),
                         child: Text(
-                          'APLICAR FILTROS',
+                          activeCount > 0
+                              ? 'APLICAR ($activeCount)'
+                              : 'APLICAR FILTROS',
                           style: GoogleFonts.hankenGrotesk(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w800,
@@ -382,10 +437,68 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
           ),
         ),
       ),
+    ));
+  }
+
+  // ── Tarifa Chips (solo mecánicos) ─────────────────────────────────────────
+
+  Widget _buildTarifaChips() {
+    final options = <double?>[null, 200, 300, 500, 800];
+    final labels = ['Sin límite', 'L.200', 'L.300', 'L.500', 'L.800'];
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: List.generate(options.length, (i) {
+        final value = options[i];
+        final isSelected = _tempFilters.maxTarifa == value;
+        return GestureDetector(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            setState(() {
+              if (value == null) {
+                _tempFilters = _tempFilters.copyWith(clearMaxTarifa: true);
+              } else {
+                _tempFilters = _tempFilters.copyWith(maxTarifa: value);
+              }
+            });
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.primary : Colors.white,
+              borderRadius: BorderRadius.circular(99),
+              border: Border.all(
+                color: isSelected ? AppColors.primary : AppColors.border,
+                width: 1.2,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.15),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Text(
+              labels[i],
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: isSelected ? Colors.white : AppColors.textPrimary,
+              ),
+            ),
+          ),
+        );
+      }),
     );
   }
 
-  /// Chips multi-selección de especialidades cargadas del catálogo.
+  // ── Specialty Chips ───────────────────────────────────────────────────────
+
   Widget _buildSpecialtyChips() {
     final specialtiesAsync = ref.watch(specialtiesProvider);
     return specialtiesAsync.when(
@@ -405,6 +518,7 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                 _tempFilters.specialtyIds.contains(specialty.id);
             return GestureDetector(
               onTap: () {
+                HapticFeedback.selectionClick();
                 final current =
                     List<String>.from(_tempFilters.specialtyIds);
                 if (isSelected) {
@@ -412,13 +526,13 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                 } else {
                   current.add(specialty.id);
                 }
-                setState(() =>
-                    _tempFilters = _tempFilters.copyWith(specialtyIds: current));
+                setState(() => _tempFilters =
+                    _tempFilters.copyWith(specialtyIds: current));
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   color: isSelected ? AppColors.primary : Colors.white,
                   borderRadius: BorderRadius.circular(99),
@@ -426,15 +540,24 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                     color: isSelected ? AppColors.primary : AppColors.border,
                     width: 1.2,
                   ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color:
+                                AppColors.primary.withValues(alpha: 0.15),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : null,
                 ),
                 child: Text(
                   specialty.name,
                   style: GoogleFonts.hankenGrotesk(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
-                    color: isSelected
-                        ? Colors.white
-                        : AppColors.textPrimary,
+                    color:
+                        isSelected ? Colors.white : AppColors.textPrimary,
                   ),
                 ),
               ),
@@ -456,15 +579,124 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
     );
   }
 
-  Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: GoogleFonts.hankenGrotesk(
-        fontSize: 10.5,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 1.5,
-        color: AppColors.textSecondary,
+  // ── Availability Toggle ───────────────────────────────────────────────────
+
+  Widget _buildAvailabilityToggle() {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _tempFilters =
+            _tempFilters.copyWith(onlyOpen: !_tempFilters.onlyOpen));
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: _tempFilters.onlyOpen ? AppColors.primaryMuted : AppColors.grey50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _tempFilters.onlyOpen
+                ? AppColors.primary.withValues(alpha: 0.4)
+                : AppColors.border,
+            width: _tempFilters.onlyOpen ? 1.5 : 0.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: _tempFilters.onlyOpen
+                    ? AppColors.primary
+                    : Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _tempFilters.onlyOpen
+                    ? Icons.check_rounded
+                    : Icons.schedule_rounded,
+                size: 16,
+                color: _tempFilters.onlyOpen
+                    ? Colors.white
+                    : AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Mostrar solo disponibles ahora',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 48,
+              height: 26,
+              padding: const EdgeInsets.all(2),
+              alignment: _tempFilters.onlyOpen
+                  ? Alignment.centerRight
+                  : Alignment.centerLeft,
+              decoration: BoxDecoration(
+                color: _tempFilters.onlyOpen
+                    ? AppColors.primary
+                    : AppColors.grey300,
+                borderRadius: BorderRadius.circular(99),
+              ),
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _buildLabel(String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(_labelIcon(text), size: 14, color: AppColors.textSecondary),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  IconData _labelIcon(String label) {
+    switch (label) {
+      case 'ORDENAR POR':
+        return Icons.swap_vert_rounded;
+      case 'RADIO DE BÚSQUEDA':
+        return Icons.radar_rounded;
+      case 'VALORACIÓN MÍNIMA':
+        return Icons.star_border_rounded;
+      case 'TARIFA MÁXIMA / HORA':
+        return Icons.payments_outlined;
+      case 'ESPECIALIDADES':
+        return Icons.build_circle_outlined;
+      default:
+        return Icons.filter_list;
+    }
   }
 }

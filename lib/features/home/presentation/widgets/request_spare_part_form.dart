@@ -1206,7 +1206,9 @@ class _CategorySubcategorySelectorSheetState
             child: asyncValue.when(
               data: (opciones) {
                 final opcionesFiltradas = opciones.where((op) {
-                  return op.name.toLowerCase().contains(_filtro.toLowerCase());
+                  final nameLower = op.name.toLowerCase();
+                  if (nameLower == 'otro' || nameLower == 'otra') return false;
+                  return nameLower.contains(_filtro.toLowerCase());
                 }).toList();
 
                 if (opcionesFiltradas.isEmpty) {
