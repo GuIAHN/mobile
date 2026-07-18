@@ -15,7 +15,8 @@ class ChatRemoteDataSource {
 
   Future<List<ChatThreadModel>> getChatThreads(UserRole role) async {
     final isStore = role == UserRole.store;
-    final endpoint = isStore ? ApiEndpoints.storeSearchRequests : ApiEndpoints.searchMe;
+    final endpoint =
+        isStore ? ApiEndpoints.storeSearchRequests : ApiEndpoints.searchMe;
 
     final response = await _dioClient.get(endpoint);
     final data = response.data as List;
@@ -26,7 +27,7 @@ class ChatRemoteDataSource {
         final modelName = json['vehicle']?['model'] ?? '';
         final title = '$brandName $modelName'.trim();
         final subcategoryName = json['subcategory']?['name'];
-        
+
         return ChatThreadModel(
           id: json['id'],
           title: title.isEmpty ? (subcategoryName ?? 'Solicitud') : title,
@@ -49,7 +50,7 @@ class ChatRemoteDataSource {
         final modelName = model?['name'] ?? '';
         final title = '$brandName $modelName'.trim();
         final subcategoryName = json['subcategory']?['name'];
-        
+
         return ChatThreadModel(
           id: json['id'],
           title: title.isEmpty ? (subcategoryName ?? 'Solicitud') : title,
@@ -70,7 +71,8 @@ class ChatRemoteDataSource {
     }).toList();
   }
 
-  Future<List<ChatConversationModel>> getConversations(String threadId, UserRole role) async {
+  Future<List<ChatConversationModel>> getConversations(
+      String threadId, UserRole role) async {
     // For a store, they shouldn't query search offers endpoint because they don't see others' offers
     // But our API allows consumer to get offers. Let's see how Store sees its own offer.
     // If it's consumer, get all offers for the search request.
@@ -79,10 +81,11 @@ class ChatRemoteDataSource {
       // Get the visible requests to find the searchMatchId
       final reqsRes = await _dioClient.get(ApiEndpoints.storeSearchRequests);
       final reqs = reqsRes.data as List;
-      final match = reqs.firstWhere((r) => r['id'] == threadId, orElse: () => null);
+      final match =
+          reqs.firstWhere((r) => r['id'] == threadId, orElse: () => null);
       if (match != null && match['searchMatchId'] != null) {
         // Return a dummy conversation representing the chat with the client
-        // To be accurate we should fetch if they already made an offer, but for now we just return an empty list 
+        // To be accurate we should fetch if they already made an offer, but for now we just return an empty list
         // or a single local conversation object.
         return [];
       }
@@ -94,37 +97,53 @@ class ChatRemoteDataSource {
     final data = response.data as List;
 
     return data.map((json) {
+      final store = json['store'] as Map<String, dynamic>?;
       return ChatConversationModel(
         id: json['id'],
         threadId: threadId,
-        participantName: json['store']?['name'] ?? 'Tienda',
-        participantAvatarUrl: null,
+        participantName: store?['name'] ?? 'Tienda',
+        participantAvatarUrl: store?['logoUrl'] as String?,
         lastMessage: json['message'] ?? '',
         unreadCount: 0,
         lastMessageAt: DateTime.parse(json['createdAt']),
         hasQuote: true,
         isFixedPrice: true,
-        price: json['price'] != null ? double.tryParse(json['price'].toString()) : null,
+        price: json['price'] != null
+            ? double.tryParse(json['price'].toString())
+            : null,
         spareBrand: json['spareBrand'],
         sparePhotoUrl: json['sparePhotoUrl'],
+        // Señales de confianza reales de la tienda (enriquecidas por el API)
+        storeLogoUrl: store?['logoUrl'] as String?,
+        verified: store?['verified'] as bool? ?? false,
+        hasDelivery: store?['hasDelivery'] as bool? ?? false,
+        distanceKm: (store?['distance'] as num?)?.toDouble(),
+        note: json['message'] as String?,
+        hasConversation: json['has_conversation'] as bool? ?? false,
       );
     }).toList();
   }
 
-  Future<List<ChatMessageModel>> getMessages(String conversationId, UserRole role) async {
-    final response = await _dioClient.get('conversations/$conversationId/messages');
+  Future<List<ChatMessageModel>> getMessages(
+      String conversationId, UserRole role) async {
+    final response =
+        await _dioClient.get('conversations/$conversationId/messages');
     final data = response.data as List;
     final currentUserId = getCurrentUserId();
-    return data.map((json) => ChatMessageModel.fromJson(json, currentUserId)).toList();
+    return data
+        .map((json) => ChatMessageModel.fromJson(json, currentUserId))
+        .toList();
   }
 
-  Future<ChatMessageModel> sendMessage(String conversationId, String content, UserRole role) async {
+  Future<ChatMessageModel> sendMessage(
+      String conversationId, String content, UserRole role) async {
     // Handled by sockets now
     throw UnimplementedError();
   }
 
   Future<String> startChatFromOffer(String offerId) async {
-    final response = await _dioClient.post('conversations/from-offer', data: {'offerId': offerId});
+    final response = await _dioClient
+        .post('conversations/from-offer', data: {'offerId': offerId});
     return response.data['id'];
   }
 
@@ -139,17 +158,22 @@ class ChatRemoteDataSource {
         participantAvatarUrl: json['participantAvatarUrl'],
         lastMessage: '', // Messages are inside the conversation
         unreadCount: json['unreadCount'] ?? 0,
-        lastMessageAt: json['lastMessageAt'] != null ? DateTime.parse(json['lastMessageAt']) : DateTime.now(),
+        lastMessageAt: json['lastMessageAt'] != null
+            ? DateTime.parse(json['lastMessageAt'])
+            : DateTime.now(),
         hasQuote: json['hasQuote'] ?? false,
         isFixedPrice: json['isFixedPrice'] ?? false,
-        price: json['price'] != null ? double.tryParse(json['price'].toString()) : null,
+        price: json['price'] != null
+            ? double.tryParse(json['price'].toString())
+            : null,
         spareBrand: json['spareBrand'],
         sparePhotoUrl: json['sparePhotoUrl'],
       );
     }).toList();
   }
 
-  Future<ChatConversationModel> getConversationDetails(String conversationId) async {
+  Future<ChatConversationModel> getConversationDetails(
+      String conversationId) async {
     final response = await _dioClient.get('conversations/$conversationId');
     final json = response.data;
     return ChatConversationModel(
@@ -159,10 +183,14 @@ class ChatRemoteDataSource {
       participantAvatarUrl: json['participantAvatarUrl'],
       lastMessage: '',
       unreadCount: json['unreadCount'] ?? 0,
-      lastMessageAt: json['lastMessageAt'] != null ? DateTime.parse(json['lastMessageAt']) : DateTime.now(),
+      lastMessageAt: json['lastMessageAt'] != null
+          ? DateTime.parse(json['lastMessageAt'])
+          : DateTime.now(),
       hasQuote: json['hasQuote'] ?? false,
       isFixedPrice: json['isFixedPrice'] ?? false,
-      price: json['price'] != null ? double.tryParse(json['price'].toString()) : null,
+      price: json['price'] != null
+          ? double.tryParse(json['price'].toString())
+          : null,
       spareBrand: json['spareBrand'],
       sparePhotoUrl: json['sparePhotoUrl'],
     );
@@ -181,16 +209,17 @@ class ChatRemoteDataSource {
     // 1. Get searchMatchId by listing requests
     final reqsRes = await _dioClient.get(ApiEndpoints.storeSearchRequests);
     final reqs = reqsRes.data as List;
-    final match = reqs.firstWhere((r) => r['id'] == threadId, orElse: () => null);
-    
+    final match =
+        reqs.firstWhere((r) => r['id'] == threadId, orElse: () => null);
+
     if (match == null || match['searchMatchId'] == null) {
       throw Exception('SearchMatch not found for this request');
     }
 
     final searchMatchId = match['searchMatchId'];
-    
-    final String? mockFotoUrl = photoPath != null 
-        ? 'https://guiautomotriz.com/uploads/temp_${DateTime.now().millisecondsSinceEpoch}.jpg' 
+
+    final String? mockFotoUrl = photoPath != null
+        ? 'https://guiautomotriz.com/uploads/temp_${DateTime.now().millisecondsSinceEpoch}.jpg'
         : null;
 
     final payload = {
@@ -213,7 +242,9 @@ class ChatRemoteDataSource {
       lastMessageAt: DateTime.parse(json['createdAt']),
       hasQuote: true,
       isFixedPrice: true,
-      price: json['price'] != null ? double.tryParse(json['price'].toString()) : null,
+      price: json['price'] != null
+          ? double.tryParse(json['price'].toString())
+          : null,
       spareBrand: json['spareBrand'],
       sparePhotoUrl: json['sparePhotoUrl'],
     );

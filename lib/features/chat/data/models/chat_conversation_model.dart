@@ -16,6 +16,12 @@ class ChatConversationModel extends ChatConversation {
     super.maxPrice,
     super.spareBrand,
     super.sparePhotoUrl,
+    super.storeLogoUrl,
+    super.verified,
+    super.hasDelivery,
+    super.distanceKm,
+    super.note,
+    super.hasConversation,
   });
 
   factory ChatConversationModel.fromJson(Map<String, dynamic> json) {

@@ -10,7 +10,8 @@ import '../providers/chat_providers.dart';
 import '../widgets/chat_conversation_card.dart';
 import '../widgets/quote_input_dialog.dart';
 import '../../domain/entities/chat_thread.dart';
-import '../../../../shared/widgets/loading_indicator.dart';
+import '../../../../shared/widgets/skeleton_loader.dart';
+import '../../../../shared/widgets/staggered_entrance.dart';
 
 class ChatThreadDetailPage extends ConsumerWidget {
   final String threadId;
@@ -33,7 +34,8 @@ class ChatThreadDetailPage extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: AppColors.textPrimary),
           onPressed: () => context.pop(),
         ),
         title: threadsAsync.when(
@@ -41,9 +43,9 @@ class ChatThreadDetailPage extends ConsumerWidget {
           error: (_, __) => const Text('Detalle de Solicitud'),
           data: (threads) {
             final thread = threads.cast<ChatThread>().firstWhere(
-              (t) => t.id == threadId,
-              orElse: () => threads.first,
-            );
+                  (t) => t.id == threadId,
+                  orElse: () => threads.first,
+                );
             return Text(
               thread.title,
               style: GoogleFonts.hankenGrotesk(
@@ -56,7 +58,14 @@ class ChatThreadDetailPage extends ConsumerWidget {
         ),
       ),
       body: conversationsAsync.when(
-        loading: () => const LoadingIndicator(),
+        loading: () => ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          children: const [
+            OfferCardSkeleton(),
+            OfferCardSkeleton(),
+            OfferCardSkeleton(),
+          ],
+        ),
         error: (err, _) => Center(
           child: Text(
             'Error al cargar ofertas: $err',
@@ -82,7 +91,8 @@ class ChatThreadDetailPage extends ConsumerWidget {
                         color: AppColors.primaryMuted,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.forum_outlined, size: 40, color: AppColors.primary),
+                      child: const Icon(Icons.forum_outlined,
+                          size: 40, color: AppColors.primary),
                     ),
                     const SizedBox(height: 18),
                     Text(
@@ -109,12 +119,20 @@ class ChatThreadDetailPage extends ConsumerWidget {
             );
           }
 
-            return ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              itemCount: conversations.length,
-              itemBuilder: (context, index) {
-                final conv = conversations[index];
-                return ChatConversationCard(
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+            itemCount: conversations.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return _OffersCountHeader(
+                  count: conversations.length,
+                  isStore: isStore,
+                );
+              }
+              final conv = conversations[index - 1];
+              return StaggeredEntrance(
+                index: index - 1,
+                child: ChatConversationCard(
                   conversation: conv,
                   onTap: () async {
                     if (isStore) {
@@ -124,35 +142,41 @@ class ChatThreadDetailPage extends ConsumerWidget {
                       showDialog(
                         context: context,
                         barrierDismissible: false,
-                        builder: (_) => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                        builder: (_) => const Center(
+                            child: CircularProgressIndicator(
+                                color: AppColors.primary)),
                       );
-                      
+
                       final repo = ref.read(chatRepositoryProvider);
                       // conv.id is the offerId here because searchOffers returns offers
                       final res = await repo.startChatFromOffer(conv.id);
-                      
+
                       // Hide loading dialog
                       if (context.mounted) {
                         Navigator.of(context).pop();
                       }
-                      
+
                       res.fold(
                         (failure) {
                           if (context.mounted) {
-                            context.showSnackBar('Error al abrir chat: ${failure.message}', isError: true);
+                            context.showSnackBar(
+                                'Error al abrir chat: ${failure.message}',
+                                isError: true);
                           }
                         },
                         (realConversationId) {
                           if (context.mounted) {
-                            context.push('/chats/$threadId/$realConversationId');
+                            context
+                                .push('/chats/$threadId/$realConversationId');
                           }
                         },
                       );
                     }
                   },
-                );
-              },
-            );
+                ),
+              );
+            },
+          );
         },
       ),
     );
@@ -160,21 +184,24 @@ class ChatThreadDetailPage extends ConsumerWidget {
 
   Widget _buildStoreTakeRequestView(BuildContext context, WidgetRef ref) {
     final threads = ref.read(chatThreadsProvider).valueOrNull ?? [];
-    
+
     if (threads.isEmpty) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return const Center(
+          child: CircularProgressIndicator(color: AppColors.primary));
     }
 
     final thread = threads.cast<ChatThread>().firstWhere(
-      (t) => t.id == threadId, 
-      orElse: () => threads.first,
-    );
+          (t) => t.id == threadId,
+          orElse: () => threads.first,
+        );
 
     // Format part type if available
     String partTypeLabel = 'Cualquiera';
     if (thread.partType != null) {
-      if (thread.partType == 'ORIGINAL') partTypeLabel = 'Original';
-      else if (thread.partType == 'GENERIC') partTypeLabel = 'Genérico';
+      if (thread.partType == 'ORIGINAL')
+        partTypeLabel = 'Original';
+      else if (thread.partType == 'GENERIC')
+        partTypeLabel = 'Genérico';
       else if (thread.partType == 'PERFORMANCE') partTypeLabel = 'Performance';
     }
 
@@ -206,7 +233,8 @@ class ChatThreadDetailPage extends ConsumerWidget {
                     color: AppColors.primary.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.inventory_2_outlined, color: AppColors.primary, size: 28),
+                  child: const Icon(Icons.inventory_2_outlined,
+                      color: AppColors.primary, size: 28),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -237,7 +265,7 @@ class ChatThreadDetailPage extends ConsumerWidget {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 24),
 
             // Vehicle Information Card
@@ -249,7 +277,8 @@ class ChatThreadDetailPage extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.directions_car_outlined, color: AppColors.textSecondary, size: 24),
+                  const Icon(Icons.directions_car_outlined,
+                      color: AppColors.textSecondary, size: 24),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -318,12 +347,14 @@ class ChatThreadDetailPage extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.03),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+                  border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.1)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.format_quote_rounded, color: AppColors.primary, size: 20),
+                    const Icon(Icons.format_quote_rounded,
+                        color: AppColors.primary, size: 20),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -342,7 +373,7 @@ class ChatThreadDetailPage extends ConsumerWidget {
             ],
 
             const SizedBox(height: 24),
-            
+
             // Image Preview
             if (thread.fotoUrl != null && thread.fotoUrl!.isNotEmpty) ...[
               Text(
@@ -372,7 +403,8 @@ class ChatThreadDetailPage extends ConsumerWidget {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.broken_image_outlined, color: AppColors.textSecondary, size: 40),
+                            const Icon(Icons.broken_image_outlined,
+                                color: AppColors.textSecondary, size: 40),
                             const SizedBox(height: 8),
                             Text(
                               'Imagen no disponible',
@@ -388,7 +420,8 @@ class ChatThreadDetailPage extends ConsumerWidget {
                     loadingBuilder: (context, child, loadingProgress) {
                       if (loadingProgress == null) return child;
                       return const Center(
-                        child: CircularProgressIndicator(color: AppColors.primary),
+                        child:
+                            CircularProgressIndicator(color: AppColors.primary),
                       );
                     },
                   ),
@@ -397,11 +430,12 @@ class ChatThreadDetailPage extends ConsumerWidget {
               const SizedBox(height: 32),
             ] else
               const SizedBox(height: 10),
-            
+
             // Action Button
             ElevatedButton(
               onPressed: () async {
-                final result = await QuoteInputDialog.show(context, thread.title);
+                final result =
+                    await QuoteInputDialog.show(context, thread.title);
                 if (result != null) {
                   // Submit initial quote
                   final isFixed = result['isFixedPrice'] as bool;
@@ -475,7 +509,8 @@ class ChatThreadDetailPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildDetailChip({required IconData icon, required String label, required String value}) {
+  Widget _buildDetailChip(
+      {required IconData icon, required String label, required String value}) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -509,6 +544,55 @@ class ChatThreadDetailPage extends ConsumerWidget {
               color: AppColors.textPrimary,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Encabezado con el conteo de ofertas recibidas, sobre la lista de cards.
+class _OffersCountHeader extends StatelessWidget {
+  final int count;
+  final bool isStore;
+
+  const _OffersCountHeader({required this.count, required this.isStore});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = isStore
+        ? (count == 1 ? '1 cotización' : '$count cotizaciones')
+        : (count == 1 ? '1 oferta recibida' : '$count ofertas recibidas');
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14, top: 4),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          if (!isStore) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.primaryMuted,
+                borderRadius: BorderRadius.circular(99),
+              ),
+              child: Text(
+                'Compara y elige',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

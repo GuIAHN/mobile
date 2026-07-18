@@ -164,6 +164,50 @@ class ThreadCardSkeleton extends StatelessWidget {
   }
 }
 
+/// Skeleton de una card de oferta (estilo marketplace): imagen de producto
+/// grande + precio + tienda + chips.
+class OfferCardSkeleton extends StatelessWidget {
+  const OfferCardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SkeletonBox(width: 92, height: 92, borderRadius: 14),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SkeletonBox(width: 110, height: 20, borderRadius: 6),
+                const SizedBox(height: 10),
+                const SkeletonBox(width: 140, height: 13, borderRadius: 6),
+                const SizedBox(height: 12),
+                Row(
+                  children: const [
+                    SkeletonBox(width: 56, height: 20, borderRadius: 8),
+                    SizedBox(width: 6),
+                    SkeletonBox(width: 56, height: 20, borderRadius: 8),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Skeleton de una burbuja de mensaje (alterna lado izq/der).
 class MessageBubbleSkeleton extends StatelessWidget {
   final bool alignRight;

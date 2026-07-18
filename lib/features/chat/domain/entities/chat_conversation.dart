@@ -8,7 +8,7 @@ class ChatConversation extends Equatable {
   final String lastMessage;
   final int unreadCount;
   final DateTime lastMessageAt;
-  
+
   // Pricing Quote Fields
   final bool hasQuote;
   final bool isFixedPrice;
@@ -17,6 +17,14 @@ class ChatConversation extends Equatable {
   final double? maxPrice;
   final String? spareBrand;
   final String? sparePhotoUrl;
+
+  // Store trust signals (offer card, estilo marketplace)
+  final String? storeLogoUrl;
+  final bool verified;
+  final bool hasDelivery;
+  final double? distanceKm;
+  final String? note;
+  final bool hasConversation;
 
   const ChatConversation({
     required this.id,
@@ -33,6 +41,12 @@ class ChatConversation extends Equatable {
     this.maxPrice,
     this.spareBrand,
     this.sparePhotoUrl,
+    this.storeLogoUrl,
+    this.verified = false,
+    this.hasDelivery = false,
+    this.distanceKm,
+    this.note,
+    this.hasConversation = false,
   });
 
   String get formattedPrice {
@@ -42,6 +56,13 @@ class ChatConversation extends Equatable {
     } else {
       return '\$${minPrice?.toStringAsFixed(0)} - \$${maxPrice?.toStringAsFixed(0)}';
     }
+  }
+
+  /// Distancia legible para chips ("1.2 km"). Null si no hay dato válido.
+  String? get formattedDistance {
+    final d = distanceKm;
+    if (d == null || d <= 0) return null;
+    return '${d.toStringAsFixed(1)} km';
   }
 
   @override
@@ -60,5 +81,11 @@ class ChatConversation extends Equatable {
         maxPrice,
         spareBrand,
         sparePhotoUrl,
+        storeLogoUrl,
+        verified,
+        hasDelivery,
+        distanceKm,
+        note,
+        hasConversation,
       ];
 }

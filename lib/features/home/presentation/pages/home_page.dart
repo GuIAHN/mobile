@@ -472,30 +472,74 @@ class _HomePageState extends ConsumerState<HomePage> {
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
       child: Row(
         children: [
-          // Logo oficial "GuIA"
-          Image.asset(
-            'assets/images/logo_icon.png',
-            height: 72,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) {
-              return RichText(
+          // Logo + Nombre de la App "GUIA HN" con toques naranja (Todo Mayúsculas)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(
+                'assets/images/logo_icon.png',
+                height: 72,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return const SizedBox.shrink();
+                },
+              ),
+              const SizedBox(width: 10),
+              RichText(
                 text: TextSpan(
                   style: GoogleFonts.hankenGrotesk(
-                    fontSize: 25,
+                    fontSize: 28,
                     fontWeight: FontWeight.w900,
                     color: AppColors.textPrimary,
                     letterSpacing: -0.5,
                   ),
-                  children: const [
-                    TextSpan(text: 'Gu'),
+                  children: [
+                    const TextSpan(text: 'GU'),
                     TextSpan(
                       text: 'IA',
-                      style: TextStyle(color: AppColors.primary),
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        shadows: [
+                          Shadow(
+                            color: AppColors.primary.withValues(alpha: 0.25),
+                            offset: const Offset(0, 2),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
-              );
-            },
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppColors.primary, AppColors.primaryLight],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.25),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  'HN',
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
           ),
           const Spacer(),
           // Toggle de Compartir Ubicación
