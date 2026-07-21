@@ -9,6 +9,9 @@ class ChatConversation extends Equatable {
   final int unreadCount;
   final DateTime lastMessageAt;
 
+  final String? offerId;
+  final String? offerStatus;
+
   // Pricing Quote Fields
   final bool hasQuote;
   final bool isFixedPrice;
@@ -34,6 +37,8 @@ class ChatConversation extends Equatable {
     required this.lastMessage,
     required this.unreadCount,
     required this.lastMessageAt,
+    this.offerId,
+    this.offerStatus,
     this.hasQuote = false,
     this.isFixedPrice = true,
     this.price,
@@ -74,6 +79,8 @@ class ChatConversation extends Equatable {
         lastMessage,
         unreadCount,
         lastMessageAt,
+        offerId,
+        offerStatus,
         hasQuote,
         isFixedPrice,
         price,

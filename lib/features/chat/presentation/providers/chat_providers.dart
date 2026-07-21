@@ -10,6 +10,8 @@ import '../../domain/usecases/get_conversations_usecase.dart';
 import '../../domain/usecases/get_messages_usecase.dart';
 import '../../domain/usecases/send_message_usecase.dart';
 import '../../domain/usecases/create_quote_usecase.dart';
+import '../../domain/usecases/buy_offer_usecase.dart';
+import '../../domain/usecases/deliver_offer_usecase.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/services/socket_service.dart';
 
@@ -53,6 +55,14 @@ final createQuoteUseCaseProvider = Provider<CreateQuoteUseCase>((ref) {
   return CreateQuoteUseCase(ref.watch(chatRepositoryProvider));
 });
 
+final buyOfferUseCaseProvider = Provider<BuyOfferUseCase>((ref) {
+  return BuyOfferUseCase(ref.watch(chatRepositoryProvider));
+});
+
+final deliverOfferUseCaseProvider = Provider<DeliverOfferUseCase>((ref) {
+  return DeliverOfferUseCase(ref.watch(chatRepositoryProvider));
+});
+
 // ── State Providers ──────────────────────────────────────────────────────────
 
 /// Hilos o carpetas activas.
@@ -67,6 +77,13 @@ final chatThreadsProvider = FutureProvider<List<ChatThread>>((ref) async {
 
 final myConversationsProvider = FutureProvider<List<ChatConversation>>((ref) async {
   final repository = ref.watch(chatRepositoryProvider);
+  final socketService = ref.watch(socketServiceProvider);
+  
+  final sub = socketService.onMessage.listen((_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(() => sub.cancel());
+
   final result = await repository.getMyConversations();
   return result.fold(
     (failure) => throw Exception(failure.message),

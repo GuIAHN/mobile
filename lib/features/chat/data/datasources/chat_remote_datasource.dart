@@ -106,6 +106,8 @@ class ChatRemoteDataSource {
         lastMessage: json['message'] ?? '',
         unreadCount: 0,
         lastMessageAt: DateTime.parse(json['createdAt']),
+        offerId: json['id'],
+        offerStatus: json['status'],
         hasQuote: true,
         isFixedPrice: true,
         price: json['price'] != null
@@ -161,6 +163,8 @@ class ChatRemoteDataSource {
         lastMessageAt: json['lastMessageAt'] != null
             ? DateTime.parse(json['lastMessageAt'])
             : DateTime.now(),
+        offerId: json['offerId'],
+        offerStatus: json['offerStatus'],
         hasQuote: json['hasQuote'] ?? false,
         isFixedPrice: json['isFixedPrice'] ?? false,
         price: json['price'] != null
@@ -186,6 +190,8 @@ class ChatRemoteDataSource {
       lastMessageAt: json['lastMessageAt'] != null
           ? DateTime.parse(json['lastMessageAt'])
           : DateTime.now(),
+      offerId: json['offerId'],
+      offerStatus: json['offerStatus'],
       hasQuote: json['hasQuote'] ?? false,
       isFixedPrice: json['isFixedPrice'] ?? false,
       price: json['price'] != null
@@ -240,6 +246,8 @@ class ChatRemoteDataSource {
       lastMessage: json['message'],
       unreadCount: 0,
       lastMessageAt: DateTime.parse(json['createdAt']),
+      offerId: json['id'],
+      offerStatus: json['status'],
       hasQuote: true,
       isFixedPrice: true,
       price: json['price'] != null
@@ -248,5 +256,13 @@ class ChatRemoteDataSource {
       spareBrand: json['spareBrand'],
       sparePhotoUrl: json['sparePhotoUrl'],
     );
+  }
+
+  Future<void> buyOffer(String offerId) async {
+    await _dioClient.post('offers/$offerId/buy');
+  }
+
+  Future<void> deliverOffer(String offerId) async {
+    await _dioClient.post('offers/$offerId/deliver');
   }
 }

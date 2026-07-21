@@ -110,17 +110,31 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
                 error: (err, _) => Center(child: Text('Error: $err')),
                 data: (conversations) {
                   if (conversations.isEmpty) {
-                    return const EmptyState(
-                      title: 'Sin chats activos',
-                      subtitle: 'Aún no tienes conversaciones iniciadas.',
-                      icon: Icons.chat_bubble_outline_rounded,
+                    return RefreshIndicator(
+                      onRefresh: () => ref.refresh(myConversationsProvider.future),
+                      color: AppColors.primary,
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: const [
+                          SizedBox(height: 80),
+                          EmptyState(
+                            title: 'Sin chats activos',
+                            subtitle: 'Aún no tienes conversaciones iniciadas.',
+                            icon: Icons.chat_bubble_outline_rounded,
+                          ),
+                        ],
+                      ),
                     );
                   }
-                  return ListView.builder(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    itemCount: conversations.length,
-                    itemBuilder: (context, index) {
+                  return RefreshIndicator(
+                    onRefresh: () => ref.refresh(myConversationsProvider.future),
+                    color: AppColors.primary,
+                    child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      itemCount: conversations.length,
+                      itemBuilder: (context, index) {
                       final conv = conversations[index];
                       return ListTile(
                         leading: CircleAvatar(
@@ -149,7 +163,8 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
                           context.push('/chats/${conv.threadId}/${conv.id}');
                         },
                       );
-                    },
+                        },
+                      ),
                   );
                 },
               ),

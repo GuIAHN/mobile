@@ -28,4 +28,8 @@ abstract class ChatRepository {
   Future<Either<Failure, List<ChatConversation>>> getMyConversations();
   
   Future<Either<Failure, ChatConversation>> getConversationDetails(String conversationId);
+
+  Future<Either<Failure, void>> buyOffer(String offerId);
+  
+  Future<Either<Failure, void>> deliverOffer(String offerId);
 }

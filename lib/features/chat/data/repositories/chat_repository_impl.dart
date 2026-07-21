@@ -116,4 +116,24 @@ class ChatRepositoryImpl implements ChatRepository {
       return Left(ErrorMapper.map(e));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> buyOffer(String offerId) async {
+    try {
+      await remoteDataSource.buyOffer(offerId);
+      return const Right(null);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deliverOffer(String offerId) async {
+    try {
+      await remoteDataSource.deliverOffer(offerId);
+      return const Right(null);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
 }
