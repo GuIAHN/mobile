@@ -93,6 +93,23 @@ class SocketService {
       }
     });
 
+    _socket?.on('notification.new', (data) {
+      debugPrint('Received notification.new: $data');
+      if (data != null && data is Map) {
+        final tipo = data['tipo'];
+        final payloadData = data['data'] ?? data;
+        
+        if (tipo == 'search.matched') {
+          _searchMatchedController.add(Map<String, dynamic>.from(payloadData));
+        } else if (tipo == 'offer.updated' || tipo == 'offer.new') {
+          _offerUpdatedController.add(Map<String, dynamic>.from(payloadData));
+        } else if (tipo == 'message.new') {
+          // Si el mensaje llega vía notificación en vez del chat gateway
+          _messageController.add(Map<String, dynamic>.from(payloadData));
+        }
+      }
+    });
+
     _socket?.on('message.new', (data) {
       if (data != null && data is Map) {
         _messageController.add(Map<String, dynamic>.from(data));
