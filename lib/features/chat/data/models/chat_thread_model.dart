@@ -17,6 +17,10 @@ class ChatThreadModel extends ChatThread {
     super.partType,
     super.vehicleYear,
     super.subcategory,
+    super.hasOffer,
+    super.offerStatus,
+    super.offerPrice,
+    super.lastMessage,
   });
 
   factory ChatThreadModel.fromJson(Map<String, dynamic> json) {
@@ -38,6 +42,12 @@ class ChatThreadModel extends ChatThread {
       partType: json['partType'] as String?,
       vehicleYear: json['vehicleYear'] as int?,
       subcategory: json['subcategory'] as String?,
+      hasOffer: json['hasOffer'] as bool? ?? false,
+      offerStatus: json['offerStatus'] as String?,
+      offerPrice: json['offerPrice'] != null
+          ? double.tryParse(json['offerPrice'].toString())
+          : null,
+      lastMessage: json['lastMessage'] as String?,
     );
   }
 
@@ -56,5 +66,9 @@ class ChatThreadModel extends ChatThread {
         'partType': partType,
         'vehicleYear': vehicleYear,
         'subcategory': subcategory,
+        'hasOffer': hasOffer,
+        'offerStatus': offerStatus,
+        'offerPrice': offerPrice,
+        'lastMessage': lastMessage,
       };
 }

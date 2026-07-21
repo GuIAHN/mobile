@@ -51,13 +51,13 @@ abstract class Formatters {
   // 'es_419' (español latinoamericano) con símbolo manual.
   static final _currencyFormat = NumberFormat.currency(
     locale: 'es_419',
-    symbol: 'L ',
+    symbol: r'$',
     decimalDigits: 2,
   );
 
   static final _currencyNoDecimals = NumberFormat.currency(
     locale: 'es_419',
-    symbol: 'L ',
+    symbol: r'$',
     decimalDigits: 0,
   );
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../domain/entities/chat_thread.dart';
 import '../../../../core/domain/enums/service_type.dart';
 
@@ -170,36 +171,13 @@ class _ChatThreadCardState extends State<ChatThreadCard> {
                         ),
                         if (widget.showClientName) ...[
                           const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: thread.conversationCount == 0
-                                  ? Colors.orange.withValues(alpha: 0.12)
-                                  : AppColors.successLight.withValues(alpha: 0.6),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: thread.conversationCount == 0
-                                    ? Colors.orange.withValues(alpha: 0.4)
-                                    : AppColors.success.withValues(alpha: 0.4),
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              thread.conversationCount == 0 ? 'NUEVA SOLICITUD' : 'COTIZADA',
-                              style: GoogleFonts.hankenGrotesk(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                color: thread.conversationCount == 0 ? Colors.orange[800] : AppColors.success,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                          ),
+                          _buildStoreRequestBadge(thread),
                         ],
                       ],
                     ),
                     const SizedBox(height: 8),
  
-                    // Row 3: Prominent offer count or client name
+                    // Row 3: Prominent offer count or client name / offer price
                     if (!widget.showClientName && thread.conversationCount > 0)
                       Container(
                         margin: const EdgeInsets.only(top: 6),
@@ -225,22 +203,168 @@ class _ChatThreadCardState extends State<ChatThreadCard> {
                           ],
                         ),
                       )
+                    else if (widget.showClientName)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            thread.clientName != null
+                                ? 'Cliente: ${thread.clientName}'
+                                : 'Cliente Anónimo',
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          if (thread.hasOffer && thread.offerPrice != null)
+                            Text(
+                              'Cotizado: ${Formatters.currency(thread.offerPrice!)}',
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                        ],
+                      )
                     else
                       Text(
-                        widget.showClientName && thread.clientName != null
-                            ? 'Cliente: ${thread.clientName}'
-                            : (thread.conversationCount > 0 ? '${thread.conversationCount} respuestas recibidas' : 'Buscando ofertas...'),
+                        thread.conversationCount > 0 ? '${thread.conversationCount} respuestas recibidas' : 'Buscando ofertas...',
                         style: GoogleFonts.hankenGrotesk(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textSecondary,
                         ),
                       ),
+                      
+                    // Row 4: Last Message Bubble
+                    if (thread.lastMessage != null && thread.lastMessage!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: thread.unreadCount > 0
+                              ? AppColors.primaryLight.withValues(alpha: 0.2)
+                              : AppColors.grey50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: thread.unreadCount > 0
+                                ? AppColors.primary.withValues(alpha: 0.3)
+                                : Colors.transparent,
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            if (thread.unreadCount > 0) ...[
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ] else ...[
+                              const Icon(Icons.done_all_rounded,
+                                  size: 14, color: AppColors.textDisabled),
+                              const SizedBox(width: 6),
+                            ],
+                            Expanded(
+                              child: Text(
+                                thread.lastMessage!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 12.5,
+                                  fontWeight: thread.unreadCount > 0
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: thread.unreadCount > 0
+                                      ? AppColors.textPrimary
+                                      : AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                            if (thread.unreadCount > 0) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${thread.unreadCount}',
+                                  style: GoogleFonts.hankenGrotesk(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStoreRequestBadge(ChatThread thread) {
+    Color bg;
+    Color fg;
+    String text;
+
+    if (thread.hasOffer) {
+      switch (thread.offerStatus) {
+        case 'BOUGHT':
+          bg = AppColors.successLight;
+          fg = AppColors.success;
+          text = '¡VENDIDA!';
+          break;
+        case 'DELIVERED':
+          bg = AppColors.grey100;
+          fg = AppColors.textSecondary;
+          text = 'ENTREGADA';
+          break;
+        default:
+          bg = AppColors.primaryMuted;
+          fg = AppColors.primary;
+          text = 'COTIZADA';
+      }
+    } else {
+      bg = Colors.orange.withValues(alpha: 0.12);
+      fg = Colors.orange[800]!;
+      text = 'NUEVA SOLICITUD';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: fg.withValues(alpha: 0.4),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        text,
+        style: GoogleFonts.hankenGrotesk(
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+          color: fg,
+          letterSpacing: 0.8,
         ),
       ),
     );

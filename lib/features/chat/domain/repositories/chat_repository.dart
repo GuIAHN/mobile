@@ -32,4 +32,6 @@ abstract class ChatRepository {
   Future<Either<Failure, void>> buyOffer(String offerId);
   
   Future<Either<Failure, void>> deliverOffer(String offerId);
+  
+  Future<Either<Failure, void>> markAsRead(String conversationId);
 }

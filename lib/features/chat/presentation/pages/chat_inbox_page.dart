@@ -7,12 +7,13 @@ import '../../../../core/providers/current_user_provider.dart';
 import '../providers/chat_providers.dart';
 import '../../domain/entities/chat_thread.dart';
 import '../widgets/chat_thread_card.dart';
+import '../widgets/store_chat_card.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/staggered_entrance.dart';
 
 /// Filtro por estado de la solicitud/oferta.
-enum _StatusFilter { all, active, closed }
+enum _StatusFilter { all, active, closed, unquoted, quoted, bought }
 
 class ChatInboxPage extends ConsumerStatefulWidget {
   const ChatInboxPage({super.key});
@@ -42,8 +43,8 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
     }).toList();
   }
 
-  /// Filtro por estado (activas / cerradas).
-  List<ChatThread> _applyStatus(List<ChatThread> threads) {
+  /// Filtro por estado.
+  List<ChatThread> _applyStatus(List<ChatThread> threads, bool isProvider) {
     switch (_statusFilter) {
       case _StatusFilter.all:
         return threads;
@@ -51,6 +52,12 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
         return threads.where((t) => t.isOpen).toList();
       case _StatusFilter.closed:
         return threads.where((t) => !t.isOpen).toList();
+      case _StatusFilter.unquoted:
+        return threads.where((t) => !t.hasOffer).toList();
+      case _StatusFilter.quoted:
+        return threads.where((t) => t.hasOffer && t.offerStatus != 'BOUGHT').toList();
+      case _StatusFilter.bought:
+        return threads.where((t) => t.offerStatus == 'BOUGHT').toList();
     }
   }
 
@@ -109,17 +116,26 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (err, _) => Center(child: Text('Error: $err')),
                 data: (conversations) {
-                  if (conversations.isEmpty) {
+                  final filtered = conversations.where((c) {
+                    if (_query.trim().isEmpty) return true;
+                    final q = _query.trim().toLowerCase();
+                    return c.participantName.toLowerCase().contains(q) ||
+                        (c.spareBrand?.toLowerCase().contains(q) ?? false);
+                  }).toList();
+
+                  if (filtered.isEmpty) {
                     return RefreshIndicator(
                       onRefresh: () => ref.refresh(myConversationsProvider.future),
                       color: AppColors.primary,
                       child: ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        children: const [
-                          SizedBox(height: 80),
+                        children: [
+                          const SizedBox(height: 80),
                           EmptyState(
-                            title: 'Sin chats activos',
-                            subtitle: 'Aún no tienes conversaciones iniciadas.',
+                            title: _query.isNotEmpty ? 'Sin resultados' : 'Sin chats activos',
+                            subtitle: _query.isNotEmpty
+                                ? 'No encontramos chats para "$_query".'
+                                : 'Aún no tienes conversaciones iniciadas.',
                             icon: Icons.chat_bubble_outline_rounded,
                           ),
                         ],
@@ -131,40 +147,21 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
                     color: AppColors.primary,
                     child: ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      itemCount: conversations.length,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      itemCount: filtered.length,
                       itemBuilder: (context, index) {
-                      final conv = conversations[index];
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor:
-                              AppColors.primary.withValues(alpha: 0.1),
-                          backgroundImage: conv.participantAvatarUrl != null
-                              ? NetworkImage(conv.participantAvatarUrl!)
-                              : null,
-                          child: conv.participantAvatarUrl == null
-                              ? const Icon(Icons.person,
-                                  color: AppColors.primary)
-                              : null,
-                        ),
-                        title: Text(conv.participantName,
-                            style: GoogleFonts.hankenGrotesk(
-                                fontWeight: FontWeight.bold)),
-                        subtitle: Text(
-                            conv.spareBrand ??
-                                (conv.hasQuote
-                                    ? 'Cotización enviada'
-                                    : 'Chat directo'),
-                            maxLines: 1),
-                        trailing: const Icon(Icons.chevron_right_rounded,
-                            color: AppColors.border),
-                        onTap: () {
-                          context.push('/chats/${conv.threadId}/${conv.id}');
-                        },
-                      );
-                        },
-                      ),
+                        final conv = filtered[index];
+                        return StaggeredEntrance(
+                          index: index,
+                          child: StoreChatCard(
+                            conversation: conv,
+                            onTap: () {
+                              context.push('/chats/${conv.threadId}/${conv.id}');
+                            },
+                          ),
+                        );
+                      },
+                    ),
                   );
                 },
               ),
@@ -226,7 +223,10 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
     final searchFiltered = _applySearch(threads);
     final activeCount = searchFiltered.where((t) => t.isOpen).length;
     final closedCount = searchFiltered.length - activeCount;
-    final visible = _applyStatus(searchFiltered);
+    final unquotedCount = searchFiltered.where((t) => !t.hasOffer).length;
+    final quotedCount = searchFiltered.where((t) => t.hasOffer && t.offerStatus != 'BOUGHT').length;
+    final boughtCount = searchFiltered.where((t) => t.offerStatus == 'BOUGHT').length;
+    final visible = _applyStatus(searchFiltered, isProvider);
 
     return Column(
       children: [
@@ -236,6 +236,9 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
           allCount: searchFiltered.length,
           activeCount: activeCount,
           closedCount: closedCount,
+          unquotedCount: unquotedCount,
+          quotedCount: quotedCount,
+          boughtCount: boughtCount,
         ),
         Expanded(
           child: _buildListBody(threads, searchFiltered, visible, isProvider),
@@ -250,34 +253,45 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
     List<ChatThread> visible,
     bool isProvider,
   ) {
+    Widget? emptyWidget;
+
     // Sin ninguna solicitud/oferta en absoluto.
     if (threads.isEmpty) {
-      return EmptyState(
+      emptyWidget = EmptyState(
         title: isProvider ? 'Sin solicitudes' : 'Aún no tienes ofertas',
         subtitle: isProvider
             ? 'No hay solicitudes activas para cotizar en este momento.'
             : 'Cuando solicites un repuesto o servicio, las ofertas de las tiendas aparecerán aquí.',
         icon: isProvider ? Icons.inbox_outlined : Icons.local_offer_outlined,
       );
-    }
-
-    // La búsqueda por texto no arrojó resultados.
-    if (searchFiltered.isEmpty) {
-      return EmptyState(
+    } else if (searchFiltered.isEmpty) {
+      // La búsqueda por texto no arrojó resultados.
+      emptyWidget = EmptyState(
         title: 'Sin resultados',
         subtitle: 'No encontramos nada para "$_query".',
         icon: Icons.search_off_rounded,
       );
+    } else if (visible.isEmpty) {
+      // El filtro de estado dejó la lista vacía.
+      emptyWidget = const EmptyState(
+        title: 'Sin solicitudes en esta categoría',
+        subtitle: 'No hay elementos para el filtro seleccionado por ahora.',
+        icon: Icons.filter_alt_off_outlined,
+      );
     }
 
-    // El filtro de estado dejó la lista vacía.
-    if (visible.isEmpty) {
-      final label =
-          _statusFilter == _StatusFilter.active ? 'activas' : 'cerradas';
-      return EmptyState(
-        title: 'Sin ofertas $label',
-        subtitle: 'No tienes solicitudes $label por ahora.',
-        icon: Icons.filter_alt_off_outlined,
+    if (emptyWidget != null) {
+      return RefreshIndicator(
+        onRefresh: () => ref.refresh(chatThreadsProvider.future),
+        color: AppColors.primary,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics()),
+          children: [
+            const SizedBox(height: 80),
+            emptyWidget,
+          ],
+        ),
       );
     }
 
@@ -312,6 +326,9 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
     required int allCount,
     required int activeCount,
     required int closedCount,
+    int unquotedCount = 0,
+    int quotedCount = 0,
+    int boughtCount = 0,
   }) {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 14, 24, 14),
@@ -351,15 +368,21 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
           // Barra de búsqueda
           _buildSearchBar(isLoading, isProvider),
 
-          // Filtro de estado (activas / cerradas) — solo consumer.
-          if (!isProvider && !isLoading) ...[
+          if (!isLoading) ...[
             const SizedBox(height: 12),
-            _StatusFilterChips(
-              selected: _statusFilter,
-              allCount: allCount,
-              activeCount: activeCount,
-              closedCount: closedCount,
-              onChanged: (f) => setState(() => _statusFilter = f),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: _StatusFilterChips(
+                isProvider: isProvider,
+                selected: _statusFilter,
+                allCount: allCount,
+                activeCount: activeCount,
+                closedCount: closedCount,
+                unquotedCount: unquotedCount,
+                quotedCount: quotedCount,
+                boughtCount: boughtCount,
+                onChanged: (f) => setState(() => _statusFilter = f),
+              ),
             ),
           ],
         ],
@@ -434,22 +457,64 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
 /// Fila de chips segmentados para filtrar por estado (Todas / Activas / Cerradas),
 /// con contador por segmento. Patrón estándar para listas activas-vs-pasadas.
 class _StatusFilterChips extends StatelessWidget {
+  final bool isProvider;
   final _StatusFilter selected;
   final int allCount;
   final int activeCount;
   final int closedCount;
+  final int unquotedCount;
+  final int quotedCount;
+  final int boughtCount;
   final ValueChanged<_StatusFilter> onChanged;
 
   const _StatusFilterChips({
+    this.isProvider = false,
     required this.selected,
     required this.allCount,
     required this.activeCount,
     required this.closedCount,
+    this.unquotedCount = 0,
+    this.quotedCount = 0,
+    this.boughtCount = 0,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (isProvider) {
+      return Row(
+        children: [
+          _StatusChip(
+            label: 'Todas',
+            count: allCount,
+            isSelected: selected == _StatusFilter.all,
+            onTap: () => onChanged(_StatusFilter.all),
+          ),
+          const SizedBox(width: 8),
+          _StatusChip(
+            label: 'Sin cotizar',
+            count: unquotedCount,
+            isSelected: selected == _StatusFilter.unquoted,
+            onTap: () => onChanged(_StatusFilter.unquoted),
+          ),
+          const SizedBox(width: 8),
+          _StatusChip(
+            label: 'Cotizadas',
+            count: quotedCount,
+            isSelected: selected == _StatusFilter.quoted,
+            onTap: () => onChanged(_StatusFilter.quoted),
+          ),
+          const SizedBox(width: 8),
+          _StatusChip(
+            label: 'Vendidas',
+            count: boughtCount,
+            isSelected: selected == _StatusFilter.bought,
+            onTap: () => onChanged(_StatusFilter.bought),
+          ),
+        ],
+      );
+    }
+
     return Row(
       children: [
         _StatusChip(

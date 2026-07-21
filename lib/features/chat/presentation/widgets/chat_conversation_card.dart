@@ -1,4 +1,3 @@
-import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -24,59 +23,250 @@ class ChatConversationCard extends StatefulWidget {
 }
 
 class _ChatConversationCardState extends State<ChatConversationCard> {
-  bool _isPressed = false;
-
   String _relativeTime(DateTime date) {
     final diff = DateTime.now().difference(date);
     if (diff.inMinutes < 1) return 'Ahora';
     if (diff.inMinutes < 60) return 'hace ${diff.inMinutes} min';
     if (diff.inHours < 24) return 'hace ${diff.inHours} h';
     if (diff.inDays < 7) return 'hace ${diff.inDays} d';
-    // Formato numérico (sin nombres de mes) para no depender de locale.
     return DateFormat('dd/MM/yy').format(date);
   }
 
   @override
   Widget build(BuildContext context) {
     final conv = widget.conversation;
+    final timeStr = _relativeTime(conv.lastMessageAt);
+    final distance = conv.formattedDistance;
 
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) => setState(() => _isPressed = false),
-      onTapCancel: () => setState(() => _isPressed = false),
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _isPressed ? 0.98 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.border),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.6)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: widget.onTap,
+          borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
+            padding: const EdgeInsets.all(16),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _ProductImage(
-                  photoUrl: conv.sparePhotoUrl,
-                  brand: conv.spareBrand,
+                // Top Row: Avatar, Store Name, and Price
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          _StoreAvatar(
+                            logoUrl: conv.storeLogoUrl,
+                            name: conv.participantName,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        conv.participantName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.hankenGrotesk(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                    if (conv.verified) ...[
+                                      const SizedBox(width: 4),
+                                      const Icon(
+                                        Icons.verified_rounded,
+                                        size: 16,
+                                        color: AppColors.tertiary,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  timeStr,
+                                  style: GoogleFonts.hankenGrotesk(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textDisabled,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Price Bubble
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        conv.formattedPrice,
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: _OfferInfo(
-                    conv: conv,
-                    timeStr: _relativeTime(conv.lastMessageAt),
-                  ),
+                
+                const SizedBox(height: 16),
+                
+                // Middle Row: Product Image + Last Message
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _ProductImage(
+                      photoUrl: conv.sparePhotoUrl,
+                      brand: conv.spareBrand,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (conv.lastMessage.trim().isNotEmpty) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: conv.unreadCount > 0
+                                    ? AppColors.primary.withValues(alpha: 0.08)
+                                    : AppColors.grey50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: conv.unreadCount > 0
+                                    ? Border.all(color: AppColors.primary.withValues(alpha: 0.2))
+                                    : Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+                              ),
+                              child: Row(
+                                children: [
+                                  if (conv.unreadCount > 0) ...[
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.primary,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ] else ...[
+                                    const Icon(Icons.done_all_rounded,
+                                        size: 14, color: AppColors.textDisabled),
+                                    const SizedBox(width: 6),
+                                  ],
+                                  Expanded(
+                                    child: Text(
+                                      conv.lastMessage,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.hankenGrotesk(
+                                        fontSize: 13,
+                                        fontWeight: conv.unreadCount > 0
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                        color: conv.unreadCount > 0
+                                            ? AppColors.textPrimary
+                                            : AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ] else if (conv.note != null && conv.note!.trim().isNotEmpty) ...[
+                            Text(
+                              conv.note!,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 16),
+                const Divider(height: 1, color: AppColors.border),
+                const SizedBox(height: 12),
+                
+                // Bottom Row: Chips & Action
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        if (distance != null)
+                          _InfoChip(
+                            icon: Icons.near_me_outlined,
+                            label: distance,
+                            color: AppColors.textSecondary,
+                            background: AppColors.grey50,
+                            border: true,
+                          ),
+                        if (conv.hasDelivery)
+                          _InfoChip(
+                            icon: Icons.local_shipping_rounded,
+                            label: 'Envío',
+                            color: AppColors.success,
+                            background: AppColors.success.withValues(alpha: 0.08),
+                          ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Ver oferta',
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -98,15 +288,15 @@ class _ProductImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 92,
-      height: 92,
+      width: 72,
+      height: 72,
       child: Stack(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             child: Container(
-              width: 92,
-              height: 92,
+              width: 72,
+              height: 72,
               color: AppColors.primaryMuted,
               child: photoUrl != null && photoUrl!.isNotEmpty
                   ? Image.network(
@@ -135,12 +325,12 @@ class _ProductImage extends StatelessWidget {
               left: 0,
               bottom: 0,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.72),
                   borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(10),
-                    bottomLeft: Radius.circular(14),
+                    topRight: Radius.circular(8),
+                    bottomLeft: Radius.circular(12),
                   ),
                 ),
                 child: Text(
@@ -148,7 +338,7 @@ class _ProductImage extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.hankenGrotesk(
-                    fontSize: 9.5,
+                    fontSize: 8.5,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                     letterSpacing: 0.3,
@@ -171,156 +361,8 @@ class _ImageFallback extends StatelessWidget {
       child: Icon(
         Icons.settings_suggest_outlined,
         color: AppColors.primary,
-        size: 30,
+        size: 24,
       ),
-    );
-  }
-}
-
-/// Columna derecha: precio, tienda + verificado, y chips de confianza.
-class _OfferInfo extends StatelessWidget {
-  final ChatConversation conv;
-  final String timeStr;
-
-  const _OfferInfo({required this.conv, required this.timeStr});
-
-  @override
-  Widget build(BuildContext context) {
-    final distance = conv.formattedDistance;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Precio prominente + tiempo
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Expanded(
-              child: Text(
-                conv.formattedPrice,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 21,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.textPrimary,
-                  height: 1.05,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              timeStr,
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textDisabled,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-
-        // Fila de tienda: logo + nombre + verificado
-        Row(
-          children: [
-            _StoreAvatar(
-                logoUrl: conv.storeLogoUrl, name: conv.participantName),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                conv.participantName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-            if (conv.verified) ...[
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.verified_rounded,
-                size: 15,
-                color: AppColors.tertiary,
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Chips de señales reales
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            if (distance != null)
-              _InfoChip(
-                icon: Icons.near_me_outlined,
-                label: distance,
-                color: AppColors.textSecondary,
-                background: AppColors.grey50,
-                border: true,
-              ),
-            if (conv.hasDelivery)
-              _InfoChip(
-                icon: Icons.local_shipping_rounded,
-                label: 'Envío',
-                color: AppColors.success,
-                background: AppColors.success.withValues(alpha: 0.08),
-              ),
-            if (conv.hasConversation)
-              _InfoChip(
-                icon: Icons.forum_rounded,
-                label: 'Chat activo',
-                color: AppColors.tertiary,
-                background: AppColors.tertiary.withValues(alpha: 0.08),
-              ),
-          ],
-        ),
-
-        // Nota de la tienda (si la envió)
-        if (conv.note != null && conv.note!.trim().isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(
-            conv.note!,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 12,
-              fontWeight: FontWeight.w400,
-              color: AppColors.textSecondary,
-              height: 1.3,
-            ),
-          ),
-        ],
-
-        const SizedBox(height: 10),
-
-        // Afordancia de acción
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Text(
-              'Ver oferta',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w800,
-                color: AppColors.primary,
-              ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              size: 18,
-              color: AppColors.primary,
-            ),
-          ],
-        ),
-      ],
     );
   }
 }

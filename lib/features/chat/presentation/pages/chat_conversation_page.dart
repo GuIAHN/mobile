@@ -32,6 +32,14 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
   void initState() {
     super.initState();
     _messageController.addListener(_handleTextChange);
+    // Mark as read in the background
+    Future.microtask(() async {
+      await ref.read(markAsReadUseCaseProvider).call(widget.conversationId);
+      if (mounted) {
+        ref.invalidate(chatThreadsProvider);
+        ref.invalidate(myConversationsProvider);
+      }
+    });
   }
 
   void _handleTextChange() {
@@ -237,6 +245,25 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                                       color: AppColors.textSecondary,
                                     ),
                                   ),
+                                if (details.hasDelivery) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.local_shipping_rounded,
+                                          size: 14, color: AppColors.success),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Envío disponible',
+                                        style: GoogleFonts.hankenGrotesk(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.success,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -252,7 +279,8 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                         // Consumidor: comprar
                         if (!isStore &&
                             (details.offerStatus == 'SENT' ||
-                                details.offerStatus == 'ACCEPTED'))
+                                details.offerStatus == 'ACCEPTED' ||
+                                details.offerStatus == null))
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(

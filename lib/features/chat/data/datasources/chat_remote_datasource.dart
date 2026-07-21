@@ -3,7 +3,6 @@ import '../../../../core/network/api_endpoints.dart';
 import '../models/chat_thread_model.dart';
 import '../models/chat_conversation_model.dart';
 import '../models/chat_message_model.dart';
-import '../../domain/entities/chat_message.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../../../core/domain/enums/user_role.dart';
 
@@ -33,7 +32,7 @@ class ChatRemoteDataSource {
           title: title.isEmpty ? (subcategoryName ?? 'Solicitud') : title,
           requestType: ServiceType.spareParts,
           unreadCount: 0,
-          conversationCount: 0,
+          conversationCount: json['hasOffer'] == true ? 1 : 0,
           lastActivityAt: DateTime.parse(json['createdAt']),
           isOpen: true,
           clientName: 'Cliente Anónimo',
@@ -43,6 +42,12 @@ class ChatRemoteDataSource {
           partType: json['partType'],
           vehicleYear: json['vehicle']?['year'],
           subcategory: subcategoryName,
+          hasOffer: json['hasOffer'] as bool? ?? false,
+          offerStatus: json['offerStatus'] as String?,
+          offerPrice: json['offerPrice'] != null
+              ? double.tryParse(json['offerPrice'].toString())
+              : null,
+          lastMessage: json['lastMessage'] as String?,
         );
       } else {
         final model = json['userCar']?['model'];
@@ -53,7 +58,7 @@ class ChatRemoteDataSource {
 
         return ChatThreadModel(
           id: json['id'],
-          title: title.isEmpty ? (subcategoryName ?? 'Solicitud') : title,
+          title: title.isEmpty ? 'Vehículo no especificado' : title,
           requestType: ServiceType.spareParts,
           unreadCount: json['_count']?['offers'] ?? 0,
           conversationCount: json['_count']?['offers'] ?? 0,
@@ -104,7 +109,7 @@ class ChatRemoteDataSource {
         participantName: store?['name'] ?? 'Tienda',
         participantAvatarUrl: store?['logoUrl'] as String?,
         lastMessage: json['message'] ?? '',
-        unreadCount: 0,
+        unreadCount: json['unreadCount'] as int? ?? 0,
         lastMessageAt: DateTime.parse(json['createdAt']),
         offerId: json['id'],
         offerStatus: json['status'],
@@ -158,7 +163,7 @@ class ChatRemoteDataSource {
         threadId: json['offerId'] ?? 'DIRECT', // Fallback for direct chats
         participantName: json['participantName'],
         participantAvatarUrl: json['participantAvatarUrl'],
-        lastMessage: '', // Messages are inside the conversation
+        lastMessage: json['lastMessage'] ?? '',
         unreadCount: json['unreadCount'] ?? 0,
         lastMessageAt: json['lastMessageAt'] != null
             ? DateTime.parse(json['lastMessageAt'])
@@ -172,6 +177,7 @@ class ChatRemoteDataSource {
             : null,
         spareBrand: json['spareBrand'],
         sparePhotoUrl: json['sparePhotoUrl'],
+        note: json['note'] as String?,
       );
     }).toList();
   }
@@ -185,7 +191,7 @@ class ChatRemoteDataSource {
       threadId: json['offerId'] ?? 'DIRECT',
       participantName: json['participantName'],
       participantAvatarUrl: json['participantAvatarUrl'],
-      lastMessage: '',
+      lastMessage: json['lastMessage'] ?? '',
       unreadCount: json['unreadCount'] ?? 0,
       lastMessageAt: json['lastMessageAt'] != null
           ? DateTime.parse(json['lastMessageAt'])
@@ -199,7 +205,12 @@ class ChatRemoteDataSource {
           : null,
       spareBrand: json['spareBrand'],
       sparePhotoUrl: json['sparePhotoUrl'],
+      hasDelivery: json['hasDelivery'] as bool? ?? false,
     );
+  }
+
+  Future<void> markAsRead(String conversationId) async {
+    await _dioClient.patch('conversations/$conversationId/read');
   }
 
   Future<ChatConversationModel> createQuote({
@@ -238,15 +249,21 @@ class ChatRemoteDataSource {
 
     final response = await _dioClient.post('offers', data: payload);
     final json = response.data;
+    final offerId = json['id'];
+
+    // Automatically create or fetch conversation for this offer
+    final convRes = await _dioClient
+        .post('conversations/from-offer', data: {'offerId': offerId});
+    final realConversationId = convRes.data['id'];
 
     return ChatConversationModel(
-      id: json['id'],
+      id: realConversationId,
       threadId: threadId,
       participantName: 'Mi Tienda',
       lastMessage: json['message'],
       unreadCount: 0,
       lastMessageAt: DateTime.parse(json['createdAt']),
-      offerId: json['id'],
+      offerId: offerId,
       offerStatus: json['status'],
       hasQuote: true,
       isFixedPrice: true,

@@ -51,11 +51,14 @@ class SocketService {
       socketUrl = socketUrl.substring(0, socketUrl.length - 1);
     }
 
-    _socket = io.io(socketUrl, <String, dynamic>{
-      'transports': ['websocket'],
-      'autoConnect': false,
-      'auth': {'token': token},
-    });
+    _socket = io.io(
+      socketUrl,
+      io.OptionBuilder()
+          .setTransports(['websocket', 'polling']) // Allow both websocket and polling
+          .disableAutoConnect()
+          .setAuth({'token': token})
+          .build(),
+    );
 
     debugPrint('Attempting to connect socket to: $socketUrl');
 

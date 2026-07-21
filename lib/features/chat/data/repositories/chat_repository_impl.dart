@@ -136,4 +136,14 @@ class ChatRepositoryImpl implements ChatRepository {
       return Left(ErrorMapper.map(e));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> markAsRead(String conversationId) async {
+    try {
+      await remoteDataSource.markAsRead(conversationId);
+      return const Right(null);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
 }

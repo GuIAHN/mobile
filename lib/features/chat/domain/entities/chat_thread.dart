@@ -19,6 +19,13 @@ class ChatThread extends Equatable {
   final int? vehicleYear;
   final String? subcategory;
 
+  // Store Offer Status
+  final bool hasOffer;
+  final String? offerStatus;
+  final double? offerPrice;
+
+  final String? lastMessage;
+
   const ChatThread({
     required this.id,
     required this.title,
@@ -34,6 +41,10 @@ class ChatThread extends Equatable {
     this.partType,
     this.vehicleYear,
     this.subcategory,
+    this.hasOffer = false,
+    this.offerStatus,
+    this.offerPrice,
+    this.lastMessage,
   });
 
   @override
@@ -52,5 +63,9 @@ class ChatThread extends Equatable {
         partType,
         vehicleYear,
         subcategory,
+        hasOffer,
+        offerStatus,
+        offerPrice,
+        lastMessage,
       ];
 }

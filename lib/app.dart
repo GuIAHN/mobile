@@ -23,21 +23,14 @@ class GuiAutomotrizApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(themeModeProvider);
 
-    ref.listen<AuthStatus>(authProvider.select((s) => s.status), (previous, current) {
-      final socket = ref.read(socketServiceProvider);
-      if (current == AuthStatus.authenticated) {
-        socket.connect();
-        socket.onSearchMatched.listen((_) => ref.invalidate(chatThreadsProvider));
-        socket.onOfferUpdated.listen((data) {
-          ref.invalidate(chatThreadsProvider);
-          if (data != null && data['searchRequestId'] != null) {
-            ref.invalidate(chatConversationsProvider(data['searchRequestId'].toString()));
-          }
-        });
-      } else {
-        socket.disconnect();
-      }
-    });
+    final authStatus = ref.watch(authProvider.select((s) => s.status));
+    final socket = ref.read(socketServiceProvider);
+    
+    if (authStatus == AuthStatus.authenticated) {
+      socket.connect();
+    } else {
+      socket.disconnect();
+    }
 
     return MaterialApp.router(
       title: 'guIAutomotriz',

@@ -12,6 +12,7 @@ import '../../domain/usecases/send_message_usecase.dart';
 import '../../domain/usecases/create_quote_usecase.dart';
 import '../../domain/usecases/buy_offer_usecase.dart';
 import '../../domain/usecases/deliver_offer_usecase.dart';
+import '../../domain/usecases/mark_as_read_usecase.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/services/socket_service.dart';
 
@@ -63,11 +64,32 @@ final deliverOfferUseCaseProvider = Provider<DeliverOfferUseCase>((ref) {
   return DeliverOfferUseCase(ref.watch(chatRepositoryProvider));
 });
 
+final markAsReadUseCaseProvider = Provider<MarkAsReadUseCase>((ref) {
+  return MarkAsReadUseCase(ref.watch(chatRepositoryProvider));
+});
+
 // ── State Providers ──────────────────────────────────────────────────────────
 
 /// Hilos o carpetas activas.
 final chatThreadsProvider = FutureProvider<List<ChatThread>>((ref) async {
   final useCase = ref.watch(getChatThreadsUseCaseProvider);
+  final socketService = ref.watch(socketServiceProvider);
+
+  final sub1 = socketService.onSearchMatched.listen((_) {
+    ref.invalidateSelf();
+  });
+  final sub2 = socketService.onMessage.listen((_) {
+    ref.invalidateSelf();
+  });
+  final sub3 = socketService.onOfferUpdated.listen((_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(() {
+    sub1.cancel();
+    sub2.cancel();
+    sub3.cancel();
+  });
+
   final result = await useCase();
   return result.fold(
     (failure) => throw Exception(failure.message),
@@ -103,6 +125,19 @@ final chatConversationDetailsProvider = FutureProvider.family<ChatConversation, 
 /// Conversaciones/ofertas dentro de una carpeta específica.
 final chatConversationsProvider = FutureProvider.family<List<ChatConversation>, String>((ref, threadId) async {
   final useCase = ref.watch(getConversationsUseCaseProvider);
+  final socketService = ref.watch(socketServiceProvider);
+
+  final sub1 = socketService.onOfferUpdated.listen((_) {
+    ref.invalidateSelf();
+  });
+  final sub2 = socketService.onMessage.listen((_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(() {
+    sub1.cancel();
+    sub2.cancel();
+  });
+
   final result = await useCase(threadId);
   return result.fold(
     (failure) => throw Exception(failure.message),
