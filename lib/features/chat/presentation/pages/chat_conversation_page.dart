@@ -118,8 +118,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        elevation: 1,
-        shadowColor: Colors.black.withValues(alpha: 0.1),
+        elevation: 0,
         leading: IconButton(
           tooltip: 'Volver',
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
@@ -131,12 +130,19 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
           error: (_, __) => const Text('Chat'),
           data: (details) => Row(
             children: [
-              CircleAvatar(
-                backgroundColor: AppColors.grey200,
-                backgroundImage: details.participantAvatarUrl != null
-                    ? NetworkImage(details.participantAvatarUrl!)
-                    : null,
-                radius: 18,
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.grey200,
+                  borderRadius: BorderRadius.circular(8),
+                  image: details.participantAvatarUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(details.participantAvatarUrl!),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
                 child: details.participantAvatarUrl == null
                     ? const Icon(Icons.person_rounded,
                         color: AppColors.textSecondary, size: 18)
@@ -157,13 +163,27 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    Text(
-                      'Conversación en progreso',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.success,
-                      ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: AppColors.success,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'En línea',
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.success,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -182,33 +202,25 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
               data: (details) {
                 if (!details.hasQuote) return const SizedBox.shrink();
                 return Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.border),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.03),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    border: Border(bottom: BorderSide(color: AppColors.border)),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Fila: foto + datos de la oferta
+                      // Fila: foto + datos de la oferta + Precio
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           if (details.sparePhotoUrl != null) ...[
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
                               child: Image.network(
                                 details.sparePhotoUrl!,
-                                width: 60,
-                                height: 60,
+                                width: 50,
+                                height: 50,
                                 fit: BoxFit.cover,
                               ),
                             ),
@@ -221,42 +233,35 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                                 Text(
                                   'Oferta Cotizada',
                                   style: GoogleFonts.hankenGrotesk(
-                                    fontSize: 12,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.bold,
                                     color: AppColors.primary,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  details.price != null
-                                      ? 'L. ${details.price!.toStringAsFixed(2)}'
-                                      : 'Precio a convenir',
-                                  style: GoogleFonts.hankenGrotesk(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
+                                const SizedBox(height: 2),
                                 if (details.spareBrand != null)
                                   Text(
-                                    'Marca: ${details.spareBrand}',
+                                    details.spareBrand!,
                                     style: GoogleFonts.hankenGrotesk(
-                                      fontSize: 13,
-                                      color: AppColors.textSecondary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.textPrimary,
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 if (details.hasDelivery) ...[
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 2),
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       const Icon(Icons.local_shipping_rounded,
-                                          size: 14, color: AppColors.success),
+                                          size: 12, color: AppColors.success),
                                       const SizedBox(width: 4),
                                       Text(
                                         'Envío disponible',
                                         style: GoogleFonts.hankenGrotesk(
-                                          fontSize: 12,
+                                          fontSize: 11,
                                           fontWeight: FontWeight.w700,
                                           color: AppColors.success,
                                         ),
@@ -267,14 +272,28 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                               ],
                             ),
                           ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                details.price != null
+                                    ? '\$${details.price!.toStringAsFixed(2)}'
+                                    : 'A convenir',
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
 
                       // ── Botones de acción según estado y rol ──────────
                       if (details.offerId != null) ...[
-                        const SizedBox(height: 16),
-                        Divider(color: AppColors.border),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
 
                         // Consumidor: comprar
                         if (!isStore &&
@@ -308,18 +327,19 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
+                                elevation: 0,
                                 padding: const EdgeInsets.symmetric(
                                     vertical: 12),
                                 shape: RoundedRectangleBorder(
                                     borderRadius:
-                                        BorderRadius.circular(10)),
+                                        BorderRadius.circular(8)),
                               ),
                               child: Text(
                                 'Comprar Ahora',
                                 style: GoogleFonts.hankenGrotesk(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w800,
-                                  fontSize: 16,
+                                  fontSize: 15,
                                 ),
                               ),
                             ),
@@ -328,24 +348,42 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                         // Consumidor: esperando entrega
                         else if (!isStore &&
                             details.offerStatus == 'BOUGHT')
-                          Center(
-                            child: Text(
-                              'Oferta comprada. En espera de entrega.',
-                              style: GoogleFonts.hankenGrotesk(
-                                  color: AppColors.success,
-                                  fontWeight: FontWeight.bold),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.successLight.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'En espera de entrega',
+                                style: GoogleFonts.hankenGrotesk(
+                                    color: AppColors.success,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold),
+                              ),
                             ),
                           )
 
                         // Consumidor: entregado
                         else if (!isStore &&
                             details.offerStatus == 'DELIVERED')
-                          Center(
-                            child: Text(
-                              '¡Oferta entregada!',
-                              style: GoogleFonts.hankenGrotesk(
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.bold),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.grey100,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '¡Oferta entregada!',
+                                style: GoogleFonts.hankenGrotesk(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold),
+                              ),
                             ),
                           )
 
@@ -378,18 +416,19 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.success,
+                                elevation: 0,
                                 padding: const EdgeInsets.symmetric(
                                     vertical: 12),
                                 shape: RoundedRectangleBorder(
                                     borderRadius:
-                                        BorderRadius.circular(10)),
+                                        BorderRadius.circular(8)),
                               ),
                               child: Text(
                                 'Marcar como Entregado',
                                 style: GoogleFonts.hankenGrotesk(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w800,
-                                  fontSize: 16,
+                                  fontSize: 15,
                                 ),
                               ),
                             ),
@@ -398,12 +437,21 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                         // Tienda: ya entregado
                         else if (isStore &&
                             details.offerStatus == 'DELIVERED')
-                          Center(
-                            child: Text(
-                              '¡Oferta entregada!',
-                              style: GoogleFonts.hankenGrotesk(
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.bold),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.grey100,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '¡Oferta entregada!',
+                                style: GoogleFonts.hankenGrotesk(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold),
+                              ),
                             ),
                           ),
                       ],
@@ -476,7 +524,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                       horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppColors.grey50,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: AppColors.border),
                   ),
                   child: Row(
@@ -508,21 +556,15 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                     horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, -3),
-                    ),
-                  ],
+                  border: Border(top: BorderSide(color: AppColors.border)),
                 ),
                 child: Row(
                   children: [
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: AppColors.grey50,
-                          borderRadius: BorderRadius.circular(24),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: AppColors.border),
                         ),
                         child: TextField(
@@ -538,7 +580,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                           decoration: InputDecoration(
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 18, vertical: 12),
+                                horizontal: 16, vertical: 12),
                             hintText: 'Escribe un mensaje...',
                             hintStyle: GoogleFonts.hankenGrotesk(
                               fontSize: 15,
@@ -560,12 +602,12 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                             : null,
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.all(14),
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: _canSend
                                 ? AppColors.primary
                                 : AppColors.grey300,
-                            shape: BoxShape.circle,
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: _isSending
                               ? const SizedBox(

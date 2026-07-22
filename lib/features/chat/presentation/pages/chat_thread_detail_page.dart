@@ -13,7 +13,9 @@ import '../../domain/entities/chat_thread.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/staggered_entrance.dart';
 
-class ChatThreadDetailPage extends ConsumerWidget {
+enum _SortOption { recent, priceAsc, distanceAsc }
+
+class ChatThreadDetailPage extends ConsumerStatefulWidget {
   final String threadId;
 
   const ChatThreadDetailPage({
@@ -22,9 +24,16 @@ class ChatThreadDetailPage extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ChatThreadDetailPage> createState() => _ChatThreadDetailPageState();
+}
+
+class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
+  _SortOption _currentSort = _SortOption.recent;
+
+  @override
+  Widget build(BuildContext context) {
     final threadsAsync = ref.watch(chatThreadsProvider);
-    final conversationsAsync = ref.watch(chatConversationsProvider(threadId));
+    final conversationsAsync = ref.watch(chatConversationsProvider(widget.threadId));
     final currentRole = ref.watch(currentRoleProvider);
     final isStore = currentRole == UserRole.store;
 
@@ -50,7 +59,7 @@ class ChatThreadDetailPage extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(chatThreadsProvider);
-          ref.invalidate(chatConversationsProvider(threadId));
+          ref.invalidate(chatConversationsProvider(widget.threadId));
         },
         color: AppColors.primary,
         child: CustomScrollView(
@@ -67,7 +76,7 @@ class ChatThreadDetailPage extends ConsumerWidget {
                 error: (_, __) => const SizedBox.shrink(),
                 data: (threads) {
                   final thread = threads.cast<ChatThread>().firstWhere(
-                        (t) => t.id == threadId,
+                        (t) => t.id == widget.threadId,
                         orElse: () => threads.first,
                       );
                   return Padding(
@@ -95,6 +104,12 @@ class ChatThreadDetailPage extends ConsumerWidget {
                     child: _OffersCountHeader(
                       count: conversations.length,
                       isStore: isStore,
+                      currentSort: _currentSort,
+                      onSortChanged: (val) {
+                        setState(() {
+                          _currentSort = val;
+                        });
+                      },
                     ),
                   );
                 },
@@ -128,7 +143,26 @@ class ChatThreadDetailPage extends ConsumerWidget {
                 ),
               ),
               data: (conversations) {
-                if (conversations.isEmpty) {
+                final sortedConversations = conversations.toList();
+                sortedConversations.sort((a, b) {
+                  switch (_currentSort) {
+                    case _SortOption.recent:
+                      return b.lastMessageAt.compareTo(a.lastMessageAt);
+                    case _SortOption.priceAsc:
+                      if (!a.hasQuote && !b.hasQuote) return 0;
+                      if (!a.hasQuote) return 1;
+                      if (!b.hasQuote) return -1;
+                      final priceA = a.isFixedPrice ? (a.price ?? double.infinity) : (a.minPrice ?? double.infinity);
+                      final priceB = b.isFixedPrice ? (b.price ?? double.infinity) : (b.minPrice ?? double.infinity);
+                      return priceA.compareTo(priceB);
+                    case _SortOption.distanceAsc:
+                      final distA = a.distanceKm ?? double.infinity;
+                      final distB = b.distanceKm ?? double.infinity;
+                      return distA.compareTo(distB);
+                  }
+                });
+
+                if (sortedConversations.isEmpty) {
                   if (isStore) return const SliverToBoxAdapter(child: SizedBox.shrink());
 
                   return SliverToBoxAdapter(
@@ -175,7 +209,7 @@ class ChatThreadDetailPage extends ConsumerWidget {
                 return SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                      final conv = conversations[index];
+                      final conv = sortedConversations[index];
                       return Padding(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 24, vertical: 6),
@@ -185,7 +219,7 @@ class ChatThreadDetailPage extends ConsumerWidget {
                             conversation: conv,
                             onTap: () async {
                               if (isStore) {
-                                context.push('/chats/$threadId/${conv.id}');
+                                context.push('/chats/${widget.threadId}/${conv.id}');
                               } else {
                                 showDialog(
                                   context: context,
@@ -214,7 +248,7 @@ class ChatThreadDetailPage extends ConsumerWidget {
                                   (realConversationId) {
                                     if (context.mounted) {
                                       context.push(
-                                          '/chats/$threadId/$realConversationId');
+                                          '/chats/${widget.threadId}/$realConversationId');
                                     }
                                   },
                                 );
@@ -262,116 +296,140 @@ class _RequestSummaryCard extends StatelessWidget {
       }
     }
 
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.05),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.inventory_2_outlined,
-                    color: AppColors.primary, size: 28),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'DATOS DE LA SOLICITUD',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.primary,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                        if (!thread.isOpen)
-                           Container(
-                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                             decoration: BoxDecoration(
-                               color: AppColors.grey200,
-                               borderRadius: BorderRadius.circular(99),
-                             ),
-                             child: Text(
-                               'CERRADA',
-                               style: GoogleFonts.hankenGrotesk(
-                                 fontSize: 9,
-                                 fontWeight: FontWeight.w900,
-                                 color: AppColors.textSecondary,
-                               ),
-                             ),
-                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      thread.subcategory ?? 'Solicitud de Repuesto',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        height: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.grey50,
-              borderRadius: BorderRadius.circular(16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 1. Hero Image Section
+        ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: Container(
+            height: 280,
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: AppColors.primaryMuted,
             ),
-            child: Row(
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                const Icon(Icons.directions_car_outlined,
-                    color: AppColors.textSecondary, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
+                // Background Image or Pattern
+                if (thread.fotoUrl != null && thread.fotoUrl!.isNotEmpty)
+                  Image.network(
+                    thread.fotoUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => _buildFallbackBackground(),
+                  )
+                else
+                  _buildFallbackBackground(),
+
+                // Gradient Overlay
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.1),
+                        Colors.black.withValues(alpha: 0.6),
+                        Colors.black.withValues(alpha: 0.85),
+                      ],
+                      stops: const [0.0, 0.5, 1.0],
+                    ),
+                  ),
+                ),
+
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Vehículo',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      // Top Row (Badge)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(99),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                            ),
+                            child: Text(
+                              'DATOS DE LA SOLICITUD',
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ),
+                          if (!thread.isOpen)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.error,
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              child: Text(
+                                'CERRADA',
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${thread.title} ${thread.vehicleYear != null ? "• ${thread.vehicleYear}" : ""}',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
+
+                      // Bottom Content
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            thread.subcategory ?? 'Repuesto',
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              height: 1.1,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withValues(alpha: 0.5),
+                                  offset: const Offset(0, 2),
+                                  blurRadius: 8,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(Icons.directions_car_rounded, color: Colors.white70, size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${thread.title} ${thread.vehicleYear != null ? "• ${thread.vehicleYear}" : ""}',
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              _buildGlassChip(
+                                icon: Icons.extension_rounded,
+                                label: partTypeLabel,
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -379,260 +437,197 @@ class _RequestSummaryCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: _buildDetailChip(
-                  icon: Icons.category_outlined,
-                  label: 'Categoría',
-                  value: thread.subcategory ?? 'Repuesto',
+        ),
+
+        // 2. Additional Details
+        if (thread.details != null && thread.details!.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildDetailChip(
-                  icon: Icons.extension_outlined,
-                  label: 'Tipo',
-                  value: partTypeLabel,
-                ),
-              ),
-            ],
-          ),
-          if (thread.details != null && thread.details!.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Text(
-              'Detalles adicionales:',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textSecondary,
-              ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.03),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.1)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Detalles adicionales',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textSecondary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  thread.details!,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 15,
+                    color: AppColors.textPrimary,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        // 3. Store Actions
+        if (isStore) ...[
+          const SizedBox(height: 24),
+          if (thread.hasOffer)
+            ElevatedButton.icon(
+              onPressed: () {
+                context.showSnackBar(
+                  'Ya enviaste una cotización para esta solicitud.',
+                );
+              },
+              icon: const Icon(Icons.check_circle_rounded, color: Colors.white),
+              label: Text(
+                thread.offerPrice != null
+                    ? 'COTIZACIÓN ENVIADA (\$${thread.offerPrice!.toStringAsFixed(2)})'
+                    : 'COTIZACIÓN ENVIADA',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.8,
+                  color: Colors.white,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(32),
+                ),
+              ),
+            )
+          else
+            ElevatedButton(
+              onPressed: () async {
+                final result = await QuoteInputDialog.show(context, thread.title);
+                if (result != null) {
+                  final isFixed = result['isFixedPrice'] as bool;
+                  final price = result['price'] as double?;
+                  final minPrice = result['minPrice'] as double?;
+                  final maxPrice = result['maxPrice'] as double?;
+                  final brand = result['brand'] as String?;
+                  final photoPath = result['photoPath'] as String?;
+
+                  final useCase = ref.read(createQuoteUseCaseProvider);
+                  final quoteRes = await useCase(
+                    threadId: thread.id,
+                    isFixedPrice: isFixed,
+                    price: price,
+                    minPrice: minPrice,
+                    maxPrice: maxPrice,
+                    brand: brand,
+                    photoPath: photoPath,
+                  );
+
+                  quoteRes.fold(
+                    (failure) {
+                      context.showSnackBar(
+                        'Error al enviar cotización: ${failure.message}',
+                        isError: true,
+                      );
+                    },
+                    (newConv) {
+                      context.showSnackBar('¡Oferta enviada con éxito!');
+                      ref.invalidate(chatConversationsProvider(thread.id));
+                      ref.invalidate(chatThreadsProvider);
+                      ref.invalidate(myConversationsProvider);
+                      context.pushReplacement('/chats/${thread.id}/${newConv.id}');
+                    },
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                elevation: 4,
+                shadowColor: AppColors.primary.withValues(alpha: 0.4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(32),
+                ),
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.format_quote_rounded,
-                      color: AppColors.primary, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      thread.details!,
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 14,
-                        color: AppColors.textPrimary,
-                        height: 1.5,
-                        fontStyle: FontStyle.italic,
-                      ),
+                  const Icon(Icons.send_rounded, size: 20),
+                  const SizedBox(width: 10),
+                  Text(
+                    'ENVIAR OFERTA AL CLIENTE',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-          const SizedBox(height: 24),
-          if (thread.fotoUrl != null && thread.fotoUrl!.isNotEmpty) ...[
-            Text(
-              'Imagen de referencia:',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                height: 200,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppColors.grey50,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Image.network(
-                  thread.fotoUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.broken_image_outlined,
-                              color: AppColors.textSecondary, size: 40),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Imagen no disponible',
-                            style: GoogleFonts.hankenGrotesk(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return const Center(
-                      child: CircularProgressIndicator(
-                          color: AppColors.primary),
-                    );
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 32),
-          ] else
-            const SizedBox(height: 10),
-          if (isStore) ...[
-            if (thread.hasOffer)
-              ElevatedButton.icon(
-                onPressed: () {
-                  context.showSnackBar(
-                    'Ya enviaste una cotización para esta solicitud.',
-                  );
-                },
-                icon: const Icon(Icons.check_circle_rounded,
-                    color: Colors.white),
-                label: Text(
-                  thread.offerPrice != null
-                      ? 'COTIZACIÓN ENVIADA (L. ${thread.offerPrice!.toStringAsFixed(2)})'
-                      : 'COTIZACIÓN ENVIADA',
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.8,
-                    color: Colors.white,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.success,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(32),
-                  ),
-                ),
-              )
-            else
-              ElevatedButton(
-                onPressed: () async {
-                  final result =
-                      await QuoteInputDialog.show(context, thread.title);
-                  if (result != null) {
-                    final isFixed = result['isFixedPrice'] as bool;
-                    final price = result['price'] as double?;
-                    final minPrice = result['minPrice'] as double?;
-                    final maxPrice = result['maxPrice'] as double?;
-                    final brand = result['brand'] as String?;
-                    final photoPath = result['photoPath'] as String?;
-
-                    final useCase = ref.read(createQuoteUseCaseProvider);
-                    final quoteRes = await useCase(
-                      threadId: thread.id,
-                      isFixedPrice: isFixed,
-                      price: price,
-                      minPrice: minPrice,
-                      maxPrice: maxPrice,
-                      brand: brand,
-                      photoPath: photoPath,
-                    );
-
-                    quoteRes.fold(
-                      (failure) {
-                        context.showSnackBar(
-                          'Error al enviar cotización: ${failure.message}',
-                          isError: true,
-                        );
-                      },
-                      (newConv) {
-                        context.showSnackBar('¡Oferta enviada con éxito!');
-                        ref.invalidate(chatConversationsProvider(thread.id));
-                        ref.invalidate(chatThreadsProvider);
-                        ref.invalidate(myConversationsProvider);
-                        context.pushReplacement(
-                            '/chats/${thread.id}/${newConv.id}');
-                      },
-                    );
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  elevation: 4,
-                  shadowColor: AppColors.primary.withValues(alpha: 0.4),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(32),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.send_rounded, size: 20),
-                    const SizedBox(width: 10),
-                    Text(
-                      'ENVIAR OFERTA AL CLIENTE',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
         ],
+      ],
+    );
+  }
+
+  Widget _buildFallbackBackground() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.primary,
+            AppColors.primary.withValues(alpha: 0.7),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Icon(Icons.inventory_2_rounded, size: 80, color: Colors.white.withValues(alpha: 0.2)),
       ),
     );
   }
 
-  Widget _buildDetailChip(
-      {required IconData icon, required String label, required String value}) {
+  Widget _buildGlassChip({required IconData icon, required String label}) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: AppColors.textSecondary),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
+          Icon(icon, size: 14, color: Colors.white),
+          const SizedBox(width: 6),
           Text(
-            value,
+            label,
             style: GoogleFonts.hankenGrotesk(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
             ),
           ),
         ],
@@ -644,45 +639,145 @@ class _RequestSummaryCard extends StatelessWidget {
 class _OffersCountHeader extends StatelessWidget {
   final int count;
   final bool isStore;
+  final _SortOption? currentSort;
+  final ValueChanged<_SortOption>? onSortChanged;
 
-  const _OffersCountHeader({required this.count, required this.isStore});
+  const _OffersCountHeader({
+    required this.count,
+    required this.isStore,
+    this.currentSort,
+    this.onSortChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
     final label = isStore
         ? (count == 1 ? '1 cotización' : '$count cotizaciones')
-        : (count == 1 ? '1 oferta recibida' : '$count ofertas recibidas');
+        : (count == 1 ? '1 Oferta recibida' : '$count Ofertas recibidas');
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14, top: 4),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          if (!isStore) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppColors.primaryMuted,
-                borderRadius: BorderRadius.circular(99),
-              ),
-              child: Text(
-                'Compara y elige',
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 18,
+                decoration: BoxDecoration(
                   color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(4),
                 ),
               ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              if (!isStore) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryMuted,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    'Compara y elige',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (!isStore && currentSort != null && onSortChanged != null)
+            _buildSortButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortButton() {
+    String sortLabel;
+    IconData sortIcon;
+    switch (currentSort!) {
+      case _SortOption.recent:
+        sortLabel = 'Recientes';
+        sortIcon = Icons.access_time_rounded;
+        break;
+      case _SortOption.priceAsc:
+        sortLabel = 'Precio';
+        sortIcon = Icons.attach_money_rounded;
+        break;
+      case _SortOption.distanceAsc:
+        sortLabel = 'Distancia';
+        sortIcon = Icons.place_outlined;
+        break;
+    }
+
+    return PopupMenuButton<_SortOption>(
+      onSelected: onSortChanged,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 4,
+      color: Colors.white,
+      position: PopupMenuPosition.under,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(sortIcon, size: 18, color: AppColors.textSecondary),
+            const SizedBox(width: 8),
+            Text(
+              sortLabel,
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
+              ),
             ),
+            const SizedBox(width: 6),
+            const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: AppColors.textSecondary),
           ],
+        ),
+      ),
+      itemBuilder: (context) => [
+        _buildPopupItem(_SortOption.recent, 'Más recientes', Icons.access_time_rounded),
+        _buildPopupItem(_SortOption.priceAsc, 'Menor precio', Icons.attach_money_rounded),
+        _buildPopupItem(_SortOption.distanceAsc, 'Más cercanos', Icons.place_outlined),
+      ],
+    );
+  }
+
+  PopupMenuItem<_SortOption> _buildPopupItem(_SortOption value, String text, IconData icon) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: currentSort == value ? AppColors.primary : AppColors.textSecondary),
+          const SizedBox(width: 10),
+          Text(
+            text,
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 14,
+              fontWeight: currentSort == value ? FontWeight.bold : FontWeight.w600,
+              color: currentSort == value ? AppColors.primary : AppColors.textPrimary,
+            ),
+          ),
         ],
       ),
     );
