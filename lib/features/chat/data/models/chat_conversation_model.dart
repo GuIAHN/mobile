@@ -19,22 +19,29 @@ class ChatConversationModel extends ChatConversation {
     super.spareBrand,
     super.sparePhotoUrl,
     super.storeLogoUrl,
+    super.storeUserId,
+    super.storeId,
     super.verified,
     super.hasDelivery,
     super.distanceKm,
     super.note,
     super.hasConversation,
+    super.hasReviewed,
+    super.reviewRating,
+    super.reviewComment,
   });
 
   factory ChatConversationModel.fromJson(Map<String, dynamic> json) {
     return ChatConversationModel(
       id: json['id'] as String,
-      threadId: json['threadId'] as String,
-      participantName: json['participantName'] as String,
+      threadId: json['threadId'] as String? ?? 'general',
+      participantName: json['participantName'] as String? ?? 'Usuario',
       participantAvatarUrl: json['participantAvatarUrl'] as String?,
       lastMessage: json['lastMessage'] as String? ?? '',
       unreadCount: json['unreadCount'] as int? ?? 0,
-      lastMessageAt: DateTime.parse(json['lastMessageAt'] as String),
+      lastMessageAt: json['lastMessageAt'] != null
+          ? DateTime.tryParse(json['lastMessageAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
       offerId: json['offerId'] as String?,
       offerStatus: json['offerStatus'] as String?,
       hasQuote: json['hasQuote'] as bool? ?? false,
@@ -44,6 +51,11 @@ class ChatConversationModel extends ChatConversation {
       maxPrice: (json['maxPrice'] as num?)?.toDouble(),
       spareBrand: json['spareBrand'] as String?,
       sparePhotoUrl: json['sparePhotoUrl'] as String?,
+      storeUserId: json['storeUserId'] as String?,
+      storeId: json['storeId'] as String?,
+      hasReviewed: json['hasReviewed'] as bool? ?? false,
+      reviewRating: (json['reviewRating'] as num?)?.toInt(),
+      reviewComment: json['reviewComment'] as String?,
     );
   }
 

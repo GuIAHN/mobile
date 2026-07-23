@@ -20,6 +20,7 @@ import '../../features/home/presentation/pages/store_detail_page.dart';
 import '../../features/chat/presentation/pages/chat_inbox_page.dart';
 import '../../features/chat/presentation/pages/chat_thread_detail_page.dart';
 import '../../features/chat/presentation/pages/chat_conversation_page.dart';
+import '../../features/reviews/presentation/pages/provider_reviews_page.dart';
 import 'route_names.dart';
 
 class RouterNotifier extends ChangeNotifier {
@@ -136,6 +137,18 @@ class AppRouter {
             builder: (context, state) {
               final id = state.pathParameters['id']!;
               return StoreDetailPage(storeId: id);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.providerReviews,
+            name: 'providerReviews',
+            builder: (context, state) {
+              final id = state.pathParameters['targetId']!;
+              final conversationId = state.uri.queryParameters['conversationId'];
+              return ProviderReviewsPage(
+                targetId: id,
+                conversationId: conversationId,
+              );
             },
           ),
 

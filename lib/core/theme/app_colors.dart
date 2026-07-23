@@ -50,8 +50,13 @@ abstract class AppColors {
   static const Color textPrimary   = Color(0xFF1A1C1E); // secondary del branding
   static const Color textSecondary = Color(0xFF6C757D);
   static const Color textDisabled  = Color(0xFFADB5BD);
+  static const Color textPlaceholder = Color(0xFFADB5BD);
+  static const Color disabledText    = Color(0xFFADB5BD);
   static const Color textOnPrimary = Color(0xFFFFFFFF);
   static const Color textOnDark    = Color(0xFFFFFFFF);
+
+  // ── Estados Deshabilitados ──────────────────────────────────────────────
+  static const Color disabledBackground = Color(0xFFE9ECEF);
 
   // ── Bordes ──────────────────────────────────────────────────────────────
   static const Color border        = Color(0xFFE9ECEF);

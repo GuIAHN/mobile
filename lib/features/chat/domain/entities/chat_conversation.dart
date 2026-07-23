@@ -23,11 +23,16 @@ class ChatConversation extends Equatable {
 
   // Store trust signals (offer card, estilo marketplace)
   final String? storeLogoUrl;
+  final String? storeUserId;
+  final String? storeId;
   final bool verified;
   final bool hasDelivery;
   final double? distanceKm;
   final String? note;
   final bool hasConversation;
+  final bool hasReviewed;
+  final int? reviewRating;
+  final String? reviewComment;
 
   const ChatConversation({
     required this.id,
@@ -47,11 +52,16 @@ class ChatConversation extends Equatable {
     this.spareBrand,
     this.sparePhotoUrl,
     this.storeLogoUrl,
+    this.storeUserId,
+    this.storeId,
     this.verified = false,
     this.hasDelivery = false,
     this.distanceKm,
     this.note,
     this.hasConversation = false,
+    this.hasReviewed = false,
+    this.reviewRating,
+    this.reviewComment,
   });
 
   String get formattedPrice {

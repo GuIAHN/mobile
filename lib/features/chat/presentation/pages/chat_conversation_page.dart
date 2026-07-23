@@ -8,6 +8,7 @@ import '../widgets/chat_message_bubble.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
+import '../../../reviews/presentation/widgets/write_review_bottom_sheet.dart';
 
 class ChatConversationPage extends ConsumerStatefulWidget {
   final String conversationId;
@@ -366,26 +367,171 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                             ),
                           )
 
-                        // Consumidor: entregado
-                        else if (!isStore &&
-                            details.offerStatus == 'DELIVERED')
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            decoration: BoxDecoration(
-                              color: AppColors.grey100,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Center(
-                              child: Text(
-                                '¡Oferta entregada!',
-                                style: GoogleFonts.hankenGrotesk(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          )
+                        // Entregado -> Mostrar Reseña o Botón de Calificar
+                        else if (details.offerStatus == 'DELIVERED')
+                          details.hasReviewed
+                              ? Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.star_rounded, color: Colors.amber, size: 20),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                isStore ? 'RESEÑA RECIBIDA' : 'TU RESEÑA ENVIADA',
+                                                style: GoogleFonts.hankenGrotesk(
+                                                  color: Colors.amber.shade900,
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 13,
+                                                  letterSpacing: 0.5,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Row(
+                                            children: List.generate(
+                                              5,
+                                              (index) => Icon(
+                                                index < (details.reviewRating ?? 5)
+                                                    ? Icons.star_rounded
+                                                    : Icons.star_outline_rounded,
+                                                color: Colors.amber,
+                                                size: 18,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      if (details.reviewComment != null && details.reviewComment!.trim().isNotEmpty) ...[
+                                        const SizedBox(height: 10),
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: AppColors.border),
+                                          ),
+                                          child: Text(
+                                            '"${details.reviewComment}"',
+                                            style: GoogleFonts.hankenGrotesk(
+                                              fontSize: 13.5,
+                                              fontStyle: FontStyle.italic,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                      if (isStore && details.storeUserId != null) ...[
+                                        const SizedBox(height: 10),
+                                        Align(
+                                          alignment: Alignment.centerRight,
+                                          child: InkWell(
+                                            onTap: () {
+                                              context.pushNamed(
+                                                'providerReviews',
+                                                pathParameters: {'targetId': details.storeUserId!},
+                                              );
+                                            },
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.rate_review_outlined, size: 15, color: AppColors.primary),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'Ver todas mis reseñas',
+                                                    style: GoogleFonts.hankenGrotesk(
+                                                      fontSize: 12.5,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: AppColors.primary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                )
+                              : !isStore
+                                  ? SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton.icon(
+                                        onPressed: () async {
+                                          final res = await showModalBottomSheet<bool>(
+                                            context: context,
+                                            isScrollControlled: true,
+                                            backgroundColor: Colors.transparent,
+                                            builder: (context) => WriteReviewBottomSheet(
+                                              targetId: details.storeUserId ?? '',
+                                              conversationId: widget.conversationId,
+                                            ),
+                                          );
+                                          if (res == true && mounted) {
+                                            ref.invalidate(chatConversationDetailsProvider(widget.conversationId));
+                                          }
+                                        },
+                                        icon: const Icon(Icons.star_rate_rounded, color: Colors.white, size: 20),
+                                        label: Text(
+                                          'CALIFICAR TIENDA',
+                                          style: GoogleFonts.hankenGrotesk(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 15,
+                                            letterSpacing: 0.8,
+                                          ),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.warning,
+                                          elevation: 0,
+                                          padding: const EdgeInsets.symmetric(vertical: 13),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.grey50,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: AppColors.border),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(Icons.hourglass_empty_rounded, color: AppColors.textSecondary, size: 18),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'ESPERANDO CALIFICACIÓN DEL CLIENTE',
+                                            style: GoogleFonts.hankenGrotesk(
+                                              color: AppColors.textSecondary,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+
 
                         // Tienda: marcar como entregado
                         else if (isStore &&

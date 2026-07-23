@@ -28,14 +28,17 @@ class ChatMessageBubble extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.local_offer_rounded, size: 16, color: AppColors.success),
+                const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.success),
                 const SizedBox(width: 8),
-                Text(
-                  'El taller envió una cotización',
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.success,
+                Expanded(
+                  child: Text(
+                    message.content,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.success,
+                    ),
                   ),
                 ),
               ],

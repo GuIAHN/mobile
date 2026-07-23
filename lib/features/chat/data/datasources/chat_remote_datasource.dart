@@ -185,7 +185,9 @@ class ChatRemoteDataSource {
   Future<ChatConversationModel> getConversationDetails(
       String conversationId) async {
     final response = await _dioClient.get('conversations/$conversationId');
-    final json = response.data;
+    final json = response.data is Map
+        ? Map<String, dynamic>.from(response.data as Map)
+        : response.data as Map<String, dynamic>;
     return ChatConversationModel(
       id: json['id'],
       threadId: json['offerId'] ?? 'DIRECT',
@@ -206,6 +208,11 @@ class ChatRemoteDataSource {
       spareBrand: json['spareBrand'],
       sparePhotoUrl: json['sparePhotoUrl'],
       hasDelivery: json['hasDelivery'] as bool? ?? false,
+      storeUserId: json['storeUserId'] as String?,
+      storeId: json['storeId'] as String?,
+      hasReviewed: json['hasReviewed'] as bool? ?? false,
+      reviewRating: (json['reviewRating'] as num?)?.toInt(),
+      reviewComment: json['reviewComment'] as String?,
     );
   }
 

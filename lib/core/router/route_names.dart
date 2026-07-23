@@ -33,4 +33,8 @@ abstract class RouteNames {
   static const String chatInbox = '/chats';
   static const String chatThread = '/chats/:threadId';
   static const String chatConversation = '/chats/:threadId/:conversationId';
+
+  // ── Reseñas ───────────────────────────────────────────────────────────────
+  static const String providerReviews = '/reviews/:targetId';
+  static String providerReviewsPath(String targetId) => '/reviews/$targetId';
 }

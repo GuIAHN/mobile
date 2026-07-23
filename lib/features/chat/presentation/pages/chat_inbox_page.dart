@@ -344,7 +344,7 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
           // Identidad de la sección (solo consumer; el proveedor ya tiene TabBar).
           if (!isProvider) ...[
             Text(
-              'Ofertas',
+              'Solicitudes de Búsqueda',
               style: GoogleFonts.hankenGrotesk(
                 fontSize: 26,
                 fontWeight: FontWeight.w900,

@@ -104,7 +104,10 @@ class SocketService {
         
         if (tipo == 'search.matched') {
           _searchMatchedController.add(Map<String, dynamic>.from(payloadData));
-        } else if (tipo == 'offer.updated' || tipo == 'offer.new') {
+        } else if (tipo == 'offer.updated' ||
+            tipo == 'offer.new' ||
+            tipo == 'offer.bought' ||
+            tipo == 'offer.delivered') {
           _offerUpdatedController.add(Map<String, dynamic>.from(payloadData));
         } else if (tipo == 'message.new') {
           // Si el mensaje llega vía notificación en vez del chat gateway

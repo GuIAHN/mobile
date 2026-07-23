@@ -115,6 +115,19 @@ final myConversationsProvider = FutureProvider<List<ChatConversation>>((ref) asy
 
 final chatConversationDetailsProvider = FutureProvider.family<ChatConversation, String>((ref, conversationId) async {
   final repository = ref.watch(chatRepositoryProvider);
+  final socketService = ref.watch(socketServiceProvider);
+
+  final sub1 = socketService.onOfferUpdated.listen((_) {
+    ref.invalidateSelf();
+  });
+  final sub2 = socketService.onMessage.listen((_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(() {
+    sub1.cancel();
+    sub2.cancel();
+  });
+
   final result = await repository.getConversationDetails(conversationId);
   return result.fold(
     (failure) => throw Exception(failure.message),
@@ -163,11 +176,15 @@ class ChatMessagesNotifier extends StateNotifier<AsyncValue<List<ChatMessage>>> 
     loadMessages();
     _socketService.joinConversation(_conversationId);
     
-    // Escuchar nuevos mensajes
+    // Escuchar nuevos mensajes y actualizaciones de oferta
     _socketService.onMessage.listen((data) {
-      if (data['conversationId'] == _conversationId) {
+      if (data['conversationId'] == _conversationId || data['conversationId'] == null) {
         loadMessages();
       }
+    });
+
+    _socketService.onOfferUpdated.listen((_) {
+      loadMessages();
     });
   }
 
