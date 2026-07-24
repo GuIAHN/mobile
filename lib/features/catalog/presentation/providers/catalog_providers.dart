@@ -3,11 +3,14 @@ import '../../../../core/network/dio_client.dart';
 import '../../data/datasources/catalog_remote_datasource.dart';
 import '../../data/repositories/catalog_repository_impl.dart';
 import '../../domain/entities/category.dart';
+import '../../domain/entities/category_node.dart';
 import '../../domain/entities/specialty.dart';
 import '../../domain/repositories/catalog_repository.dart';
+import '../../domain/usecases/get_category_tree_usecase.dart';
 import '../../domain/usecases/get_specialties_usecase.dart';
 import '../../domain/usecases/get_root_categories_usecase.dart';
 import '../../domain/usecases/get_subcategories_usecase.dart';
+import '../../domain/usecases/search_categories_usecase.dart';
 
 /// Provider for the remote catalog datasource.
 final catalogRemoteDataSourceProvider = Provider<CatalogRemoteDataSource>((ref) {
@@ -39,6 +42,17 @@ final getSubcategoriesUseCaseProvider = Provider<GetSubcategoriesUseCase>((ref) 
   return GetSubcategoriesUseCase(repository);
 });
 
+/// Provider for the GetCategoryTreeUseCase.
+final getCategoryTreeUseCaseProvider = Provider<GetCategoryTreeUseCase>((ref) {
+  final repository = ref.watch(catalogRepositoryProvider);
+  return GetCategoryTreeUseCase(repository);
+});
+
+/// Provider for the SearchCategoriesUseCase (pure — no repository needed).
+final searchCategoriesUseCaseProvider = Provider<SearchCategoriesUseCase>((ref) {
+  return const SearchCategoriesUseCase();
+});
+
 /// Provider exposing specialties fetched from the backend.
 final specialtiesProvider = FutureProvider.autoDispose<List<Specialty>>((ref) async {
   final useCase = ref.watch(getSpecialtiesUseCaseProvider);
@@ -68,3 +82,17 @@ final subcategoriesProvider = FutureProvider.family.autoDispose<List<Category>, 
     (subcategories) => subcategories,
   );
 });
+
+/// Provider for the full category tree (roots + all nested subcategories).
+///
+/// NOT autoDispose — the tree stays alive in memory during the session
+/// so every search is local with zero network overhead.
+final categoryTreeProvider = FutureProvider<List<CategoryNode>>((ref) async {
+  final useCase = ref.watch(getCategoryTreeUseCaseProvider);
+  final result = await useCase();
+  return result.fold(
+    (failure) => throw failure,
+    (tree) => tree,
+  );
+});
+

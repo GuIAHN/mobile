@@ -29,6 +29,11 @@ class ChatConversationModel extends ChatConversation {
     super.hasReviewed,
     super.reviewRating,
     super.reviewComment,
+    super.vehicleTitle,
+    super.subcategoryName,
+    super.partType,
+    super.requestDetails,
+    super.offerMessage,
   });
 
   factory ChatConversationModel.fromJson(Map<String, dynamic> json) {
@@ -56,6 +61,11 @@ class ChatConversationModel extends ChatConversation {
       hasReviewed: json['hasReviewed'] as bool? ?? false,
       reviewRating: (json['reviewRating'] as num?)?.toInt(),
       reviewComment: json['reviewComment'] as String?,
+      vehicleTitle: json['vehicleTitle'] as String?,
+      subcategoryName: json['subcategoryName'] as String?,
+      partType: json['partType'] as String?,
+      requestDetails: json['requestDetails'] as String?,
+      offerMessage: json['offerMessage'] as String?,
     );
   }
 

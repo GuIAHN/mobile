@@ -74,11 +74,11 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
                   child: OfferCardSkeleton(),
                 ),
                 error: (_, __) => const SizedBox.shrink(),
-                data: (threads) {
-                  final thread = threads.cast<ChatThread>().firstWhere(
-                        (t) => t.id == widget.threadId,
-                        orElse: () => threads.first,
-                      );
+                data: (result) {
+                  final threads = result.threads;
+                  if (threads.isEmpty) return const SizedBox.shrink();
+                  final matches = threads.where((t) => t.id == widget.threadId);
+                  final thread = matches.isNotEmpty ? matches.first : threads.first;
                   return Padding(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -134,14 +134,19 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
                       child: OfferCardSkeleton()),
                 ]),
               ),
-              error: (err, _) => SliverToBoxAdapter(
-                child: Center(
-                  child: Text(
-                    'Error al cargar ofertas: $err',
-                    style: GoogleFonts.hankenGrotesk(color: AppColors.error),
+              error: (err, _) {
+                if (isStore) {
+                  return const SliverToBoxAdapter(child: SizedBox.shrink());
+                }
+                return SliverToBoxAdapter(
+                  child: Center(
+                    child: Text(
+                      'Error al cargar ofertas: $err',
+                      style: GoogleFonts.hankenGrotesk(color: AppColors.error),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
               data: (conversations) {
                 final sortedConversations = conversations.toList();
                 sortedConversations.sort((a, b) {

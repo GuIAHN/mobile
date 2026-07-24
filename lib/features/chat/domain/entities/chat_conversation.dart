@@ -34,6 +34,13 @@ class ChatConversation extends Equatable {
   final int? reviewRating;
   final String? reviewComment;
 
+  // Contextual Request & Offer Details
+  final String? vehicleTitle;
+  final String? subcategoryName;
+  final String? partType;
+  final String? requestDetails;
+  final String? offerMessage;
+
   const ChatConversation({
     required this.id,
     required this.threadId,
@@ -62,6 +69,11 @@ class ChatConversation extends Equatable {
     this.hasReviewed = false,
     this.reviewRating,
     this.reviewComment,
+    this.vehicleTitle,
+    this.subcategoryName,
+    this.partType,
+    this.requestDetails,
+    this.offerMessage,
   });
 
   String get formattedPrice {

@@ -3,6 +3,7 @@ import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/error/error_mapper.dart';
 import '../../domain/entities/chat_thread.dart';
+import '../../domain/entities/chat_threads_result.dart';
 import '../../domain/entities/chat_conversation.dart';
 import '../../domain/entities/chat_message.dart';
 import '../../domain/repositories/chat_repository.dart';
@@ -18,11 +19,20 @@ class ChatRepositoryImpl implements ChatRepository {
   });
 
   @override
-  Future<Either<Failure, List<ChatThread>>> getChatThreads() async {
+  Future<Either<Failure, ChatThreadsResult>> getChatThreads({
+    String? statusFilter,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
     try {
       final role = getCurrentRole();
-      final threads = await remoteDataSource.getChatThreads(role);
-      return Right(threads);
+      final result = await remoteDataSource.getChatThreads(
+        role,
+        statusFilter: statusFilter,
+        page: page,
+        pageSize: pageSize,
+      );
+      return Right(result);
     } catch (e) {
       return Left(ErrorMapper.map(e));
     }

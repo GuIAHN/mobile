@@ -3,6 +3,7 @@ import '../../../../core/network/api_endpoints.dart';
 import '../models/chat_thread_model.dart';
 import '../models/chat_conversation_model.dart';
 import '../models/chat_message_model.dart';
+import '../../domain/entities/chat_threads_result.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../../../core/domain/enums/user_role.dart';
 
@@ -12,15 +13,41 @@ class ChatRemoteDataSource {
 
   ChatRemoteDataSource(this._dioClient, this.getCurrentUserId);
 
-  Future<List<ChatThreadModel>> getChatThreads(UserRole role) async {
+  Future<ChatThreadsResult> getChatThreads(
+    UserRole role, {
+    String? statusFilter,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
     final isStore = role == UserRole.store;
-    final endpoint =
-        isStore ? ApiEndpoints.storeSearchRequests : ApiEndpoints.searchMe;
+    var endpoint = isStore ? ApiEndpoints.storeSearchRequests : ApiEndpoints.searchMe;
+    if (statusFilter != null && statusFilter.isNotEmpty) {
+      endpoint = '$endpoint?status=$statusFilter&page=$page&pageSize=$pageSize';
+    } else {
+      endpoint = '$endpoint?page=$page&pageSize=$pageSize';
+    }
 
     final response = await _dioClient.get(endpoint);
-    final data = response.data as List;
+    final rawData = response.data;
+    final List dataList;
+    Map<String, int> counts = {};
+    int total = 0;
 
-    return data.map((json) {
+    if (rawData is Map && rawData.containsKey('items')) {
+      dataList = rawData['items'] as List;
+      total = rawData['total'] as int? ?? 0;
+      if (rawData['counts'] is Map) {
+        final rawCounts = rawData['counts'] as Map<String, dynamic>;
+        counts = rawCounts.map((k, v) => MapEntry(k, (v as num).toInt()));
+      }
+    } else if (rawData is List) {
+      dataList = rawData;
+    } else {
+      dataList = [];
+    }
+
+    final threads = dataList.map((jsonMap) {
+      final json = jsonMap as Map<String, dynamic>;
       if (isStore) {
         final brandName = json['vehicle']?['brand'] ?? '';
         final modelName = json['vehicle']?['model'] ?? '';
@@ -28,21 +55,27 @@ class ChatRemoteDataSource {
         final subcategoryName = json['subcategory']?['name'];
 
         return ChatThreadModel(
-          id: json['id'],
+          id: json['id'] as String,
           title: title.isEmpty ? (subcategoryName ?? 'Solicitud') : title,
           requestType: ServiceType.spareParts,
-          unreadCount: 0,
-          conversationCount: json['hasOffer'] == true ? 1 : 0,
-          lastActivityAt: DateTime.parse(json['createdAt']),
-          isOpen: true,
-          clientName: 'Cliente Anónimo',
+          unreadCount: json['unreadCount'] as int? ?? 0,
+          conversationCount: json['totalOffersCount'] as int? ?? (json['hasOffer'] == true ? 1 : 0),
+          lastActivityAt: DateTime.parse(json['createdAt'] as String),
+          isOpen: json['requestStatus'] != 'CLOSED',
+          clientName: json['consumerName'] as String? ?? 'Cliente',
           clientId: null,
-          fotoUrl: json['photoUrl'],
-          details: json['details'],
-          partType: json['partType'],
-          vehicleYear: json['vehicle']?['year'],
-          subcategory: subcategoryName,
+          fotoUrl: json['photoUrl'] as String?,
+          details: json['details'] as String?,
+          partType: json['partType'] as String?,
+          vehicleYear: json['vehicle']?['year'] as int?,
+          subcategory: subcategoryName as String?,
+          expiresAt: json['expiresAt'] != null ? DateTime.tryParse(json['expiresAt'].toString()) : null,
+          isExpired: json['isExpired'] as bool? ?? false,
+          totalOffersCount: json['totalOffersCount'] as int? ?? 0,
+          consumerAvatar: json['consumerAvatar'] as String?,
+          distance: json['distancia'] != null ? double.tryParse(json['distancia'].toString()) : null,
           hasOffer: json['hasOffer'] as bool? ?? false,
+          offerId: json['offerId'] as String?,
           offerStatus: json['offerStatus'] as String?,
           offerPrice: json['offerPrice'] != null
               ? double.tryParse(json['offerPrice'].toString())
@@ -57,23 +90,37 @@ class ChatRemoteDataSource {
         final subcategoryName = json['subcategory']?['name'];
 
         return ChatThreadModel(
-          id: json['id'],
-          title: title.isEmpty ? 'Vehículo no especificado' : title,
+          id: json['id'] as String,
+          title: title.isEmpty ? (subcategoryName ?? 'Vehículo no especificado') : title,
           requestType: ServiceType.spareParts,
-          unreadCount: json['_count']?['offers'] ?? 0,
-          conversationCount: json['_count']?['offers'] ?? 0,
-          lastActivityAt: DateTime.parse(json['createdAt']),
+          unreadCount: json['unreadCount'] as int? ?? json['_count']?['offers'] as int? ?? 0,
+          conversationCount: json['totalOffersCount'] as int? ?? json['_count']?['offers'] as int? ?? 0,
+          lastActivityAt: DateTime.parse(json['createdAt'] as String),
           isOpen: json['status'] == 'OPEN',
           clientName: null,
-          clientId: json['consumerId'],
-          fotoUrl: json['photoUrl'],
-          details: json['details'],
-          partType: json['partType'],
-          vehicleYear: model?['year'],
-          subcategory: subcategoryName,
+          clientId: json['consumerId'] as String?,
+          fotoUrl: json['photoUrl'] as String?,
+          details: json['details'] as String?,
+          partType: json['partType'] as String?,
+          vehicleYear: model?['year'] as int?,
+          subcategory: subcategoryName as String?,
+          expiresAt: json['expiresAt'] != null ? DateTime.tryParse(json['expiresAt'].toString()) : null,
+          isExpired: json['isExpired'] as bool? ?? false,
+          totalOffersCount: json['totalOffersCount'] as int? ?? json['_count']?['offers'] as int? ?? 0,
+          bestOfferPrice: json['bestOfferPrice'] != null
+              ? double.tryParse(json['bestOfferPrice'].toString())
+              : null,
+          bestOfferStoreName: json['bestOfferStoreName'] as String?,
+          bestOfferStatus: json['bestOfferStatus'] as String?,
         );
       }
     }).toList();
+
+    return ChatThreadsResult(
+      threads: threads,
+      counts: counts,
+      total: total,
+    );
   }
 
   Future<List<ChatConversationModel>> getConversations(
@@ -209,10 +256,14 @@ class ChatRemoteDataSource {
       sparePhotoUrl: json['sparePhotoUrl'],
       hasDelivery: json['hasDelivery'] as bool? ?? false,
       storeUserId: json['storeUserId'] as String?,
-      storeId: json['storeId'] as String?,
       hasReviewed: json['hasReviewed'] as bool? ?? false,
       reviewRating: (json['reviewRating'] as num?)?.toInt(),
       reviewComment: json['reviewComment'] as String?,
+      vehicleTitle: json['vehicleTitle'] as String?,
+      subcategoryName: json['subcategoryName'] as String?,
+      partType: json['partType'] as String?,
+      requestDetails: json['requestDetails'] as String?,
+      offerMessage: json['offerMessage'] as String?,
     );
   }
 

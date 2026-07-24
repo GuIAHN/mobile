@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/datasources/chat_remote_datasource.dart';
 import '../../data/repositories/chat_repository_impl.dart';
 import '../../domain/entities/chat_thread.dart';
+import '../../domain/entities/chat_threads_result.dart';
 import '../../domain/entities/chat_conversation.dart';
 import '../../domain/entities/chat_message.dart';
 import '../../domain/repositories/chat_repository.dart';
@@ -70,9 +71,16 @@ final markAsReadUseCaseProvider = Provider<MarkAsReadUseCase>((ref) {
 
 // ── State Providers ──────────────────────────────────────────────────────────
 
+/// Filtro activo para consultas de tiendas (UNQUOTED, QUOTED, BOUGHT, DELIVERED, ALL).
+final storeStatusFilterProvider = StateProvider<String>((ref) => 'UNQUOTED');
+
+/// Filtro activo para consultas de consumidores (ALL, OPEN, WITH_OFFER, BOUGHT, CLOSED).
+final consumerStatusFilterProvider = StateProvider<String>((ref) => 'ALL');
+
 /// Hilos o carpetas activas.
-final chatThreadsProvider = FutureProvider<List<ChatThread>>((ref) async {
+final chatThreadsProvider = FutureProvider<ChatThreadsResult>((ref) async {
   final useCase = ref.watch(getChatThreadsUseCaseProvider);
+  final role = ref.watch(currentRoleProvider);
   final socketService = ref.watch(socketServiceProvider);
 
   final sub1 = socketService.onSearchMatched.listen((_) {
@@ -90,10 +98,17 @@ final chatThreadsProvider = FutureProvider<List<ChatThread>>((ref) async {
     sub3.cancel();
   });
 
-  final result = await useCase();
+  String? filterParam;
+  if (role.isProvider) {
+    filterParam = ref.watch(storeStatusFilterProvider);
+  } else {
+    filterParam = ref.watch(consumerStatusFilterProvider);
+  }
+
+  final result = await useCase(statusFilter: filterParam);
   return result.fold(
     (failure) => throw Exception(failure.message),
-    (threads) => threads,
+    (chatThreadsResult) => chatThreadsResult,
   );
 });
 

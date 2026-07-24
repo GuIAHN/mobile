@@ -1,11 +1,16 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/chat_thread.dart';
+import '../entities/chat_threads_result.dart';
 import '../entities/chat_conversation.dart';
 import '../entities/chat_message.dart';
 
 abstract class ChatRepository {
-  Future<Either<Failure, List<ChatThread>>> getChatThreads();
+  Future<Either<Failure, ChatThreadsResult>> getChatThreads({
+    String? statusFilter,
+    int page = 1,
+    int pageSize = 20,
+  });
   
   Future<Either<Failure, List<ChatConversation>>> getConversations(String threadId);
   

@@ -127,37 +127,114 @@ class PromoSkeleton extends StatelessWidget {
   }
 }
 
-/// Skeleton de una fila de conversación/hilo de chat.
+/// Skeleton de una fila de conversación/hilo de chat (adaptado a vista Tienda o Consumidor).
 class ThreadCardSkeleton extends StatelessWidget {
-  const ThreadCardSkeleton({super.key});
+  final bool isStore;
+
+  const ThreadCardSkeleton({super.key, this.isStore = false});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SkeletonBox(width: 76, height: 76, borderRadius: 12),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SkeletonBox(width: 120, height: 14, borderRadius: 6),
-                const SizedBox(height: 10),
-                const SkeletonBox(width: 90, height: 11, borderRadius: 6),
-                const SizedBox(height: 10),
-                const SkeletonBox(width: 150, height: 12, borderRadius: 6),
+          // 1. Header: Badge de estado + Timer + Hora
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const SkeletonBox(width: 100, height: 22, borderRadius: 6),
+              Row(
+                children: const [
+                  SkeletonBox(width: 80, height: 20, borderRadius: 6),
+                  SizedBox(width: 8),
+                  SkeletonBox(width: 45, height: 12, borderRadius: 4),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // 2. Main Row: Foto del repuesto + Título de vehículo + Chips
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SkeletonBox(width: 60, height: 60, borderRadius: 12),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    SkeletonBox(width: 170, height: 16, borderRadius: 6),
+                    SizedBox(height: 8),
+                    Row(
+                      children: [
+                        SkeletonBox(width: 110, height: 20, borderRadius: 6),
+                        SizedBox(width: 6),
+                        SkeletonBox(width: 65, height: 20, borderRadius: 6),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // 3. Store view extra: Info del cliente y cercanía km
+          if (isStore) ...[
+            Row(
+              children: const [
+                SkeletonBox(width: 22, height: 22, borderRadius: 11),
+                SizedBox(width: 8),
+                SkeletonBox(width: 110, height: 13, borderRadius: 4),
+                Spacer(),
+                SkeletonBox(width: 60, height: 18, borderRadius: 6),
               ],
             ),
+            const SizedBox(height: 12),
+          ],
+
+          // 4. Detalle/Nota box skeleton
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.grey50,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const SkeletonBox(width: double.infinity, height: 14, borderRadius: 4),
           ),
+          const SizedBox(height: 12),
+
+          // 5. Footer: Botón de Acción ("COTIZAR AHORA") o Banner de Mejor Oferta
+          if (isStore) ...[
+            const SkeletonBox(width: double.infinity, height: 40, borderRadius: 10),
+          ] else ...[
+            const SkeletonBox(width: double.infinity, height: 36, borderRadius: 10),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: const [
+                SkeletonBox(width: 160, height: 12, borderRadius: 4),
+                SkeletonBox(width: 14, height: 14, borderRadius: 4),
+              ],
+            ),
+          ],
         ],
       ),
     );
