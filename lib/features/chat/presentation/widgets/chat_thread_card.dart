@@ -284,19 +284,23 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                         Row(
                           children: [
                             if (thread.subcategory != null) ...[
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primaryMuted,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  thread.subcategory!,
-                                  style: GoogleFonts.hankenGrotesk(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
+                              Flexible(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryMuted,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    thread.subcategory!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.hankenGrotesk(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.primary,
+                                    ),
                                   ),
                                 ),
                               ),

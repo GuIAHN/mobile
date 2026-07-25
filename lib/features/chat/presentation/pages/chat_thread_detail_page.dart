@@ -308,36 +308,38 @@ class _RequestSummaryCard extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(28),
           child: Container(
-            height: 280,
+            constraints: const BoxConstraints(minHeight: 280),
             width: double.infinity,
             decoration: const BoxDecoration(
               color: AppColors.primaryMuted,
             ),
             child: Stack(
-              fit: StackFit.expand,
               children: [
                 // Background Image or Pattern
-                if (thread.fotoUrl != null && thread.fotoUrl!.isNotEmpty)
-                  Image.network(
-                    thread.fotoUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => _buildFallbackBackground(),
-                  )
-                else
-                  _buildFallbackBackground(),
+                Positioned.fill(
+                  child: thread.fotoUrl != null && thread.fotoUrl!.isNotEmpty
+                      ? Image.network(
+                          thread.fotoUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => _buildFallbackBackground(),
+                        )
+                      : _buildFallbackBackground(),
+                ),
 
                 // Gradient Overlay
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.1),
-                        Colors.black.withValues(alpha: 0.6),
-                        Colors.black.withValues(alpha: 0.85),
-                      ],
-                      stops: const [0.0, 0.5, 1.0],
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.1),
+                          Colors.black.withValues(alpha: 0.6),
+                          Colors.black.withValues(alpha: 0.85),
+                        ],
+                        stops: const [0.0, 0.5, 1.0],
+                      ),
                     ),
                   ),
                 ),
