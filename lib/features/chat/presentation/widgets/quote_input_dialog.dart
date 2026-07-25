@@ -12,21 +12,48 @@ enum _QuoteMode { fixed, range }
 
 /// Formatea el texto con separadores de miles mientras se escribe
 /// (`12500` → `12,500`), limitando a 8 dígitos.
-class _ThousandsFormatter extends TextInputFormatter {
-  static final _fmt = NumberFormat.decimalPattern('es_419');
+/// Permite ingresar montos numéricos con decimales (máximo 8 enteros, 2 decimales),
+/// permitiendo el uso de punto o coma como separador decimal.
+class _DecimalFormatter extends TextInputFormatter {
+  final int maxIntegerDigits;
+  final int maxDecimalDigits;
+
+  _DecimalFormatter({this.maxIntegerDigits = 8, this.maxDecimalDigits = 2});
 
   @override
   TextEditingValue formatEditUpdate(
       TextEditingValue oldValue, TextEditingValue newValue) {
-    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.isEmpty) {
-      return const TextEditingValue(text: '');
+    if (newValue.text.isEmpty) {
+      return newValue;
     }
-    if (digits.length > 8) return oldValue;
-    final formatted = _fmt.format(int.parse(digits));
+
+    // Normaliza coma a punto
+    String text = newValue.text.replaceAll(',', '.');
+
+    // Valida que solo tenga dígitos y como máximo un punto decimal
+    final regExp = RegExp(r'^[0-9]*\.?[0-9]*$');
+    if (!regExp.hasMatch(text)) {
+      return oldValue;
+    }
+
+    // Separa la parte entera y decimal
+    final parts = text.split('.');
+    if (parts[0].length > maxIntegerDigits) {
+      return oldValue;
+    }
+
+    if (parts.length > 1 && parts[1].length > maxDecimalDigits) {
+      return oldValue;
+    }
+
+    int selectionIndex = newValue.selection.end;
+    if (selectionIndex > text.length) {
+      selectionIndex = text.length;
+    }
+
     return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
+      text: text,
+      selection: TextSelection.collapsed(offset: selectionIndex),
     );
   }
 }
@@ -94,9 +121,10 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
     super.dispose();
   }
 
-  int? _value(TextEditingController c) {
-    final digits = c.text.replaceAll(RegExp(r'[^0-9]'), '');
-    return digits.isEmpty ? null : int.parse(digits);
+  double? _value(TextEditingController c) {
+    final text = c.text.replaceAll(',', '.').trim();
+    if (text.isEmpty) return null;
+    return double.tryParse(text);
   }
 
   bool get _canSubmit {
@@ -122,7 +150,7 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
       HapticFeedback.mediumImpact();
       Navigator.pop(context, {
         'isFixedPrice': true,
-        'price': price.toDouble(),
+        'price': price,
         if (brand.isNotEmpty) 'brand': brand,
         if (_selectedImagePath != null) 'photoPath': _selectedImagePath,
       });
@@ -141,8 +169,8 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
       HapticFeedback.mediumImpact();
       Navigator.pop(context, {
         'isFixedPrice': false,
-        'minPrice': min.toDouble(),
-        'maxPrice': max.toDouble(),
+        'minPrice': min,
+        'maxPrice': max,
         if (brand.isNotEmpty) 'brand': brand,
         if (_selectedImagePath != null) 'photoPath': _selectedImagePath,
       });
@@ -390,10 +418,10 @@ class _AmountField extends StatelessWidget {
                 controller: controller,
                 focusNode: focusNode,
                 autofocus: autofocus,
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 textAlign: TextAlign.left,
                 cursorColor: AppColors.primary,
-                inputFormatters: [_ThousandsFormatter()],
+                inputFormatters: [_DecimalFormatter()],
                 style: GoogleFonts.hankenGrotesk(
                   fontSize: fontSize,
                   fontWeight: FontWeight.w800,

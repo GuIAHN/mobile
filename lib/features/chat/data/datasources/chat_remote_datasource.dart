@@ -132,7 +132,10 @@ class ChatRemoteDataSource {
     if (role == UserRole.store) {
       // Get the visible requests to find the searchMatchId
       final reqsRes = await _dioClient.get(ApiEndpoints.storeSearchRequests);
-      final reqs = reqsRes.data as List;
+      final rawReqs = reqsRes.data;
+      final List reqs = rawReqs is Map && rawReqs.containsKey('items')
+          ? (rawReqs['items'] as List)
+          : (rawReqs is List ? rawReqs : []);
       final match =
           reqs.firstWhere((r) => r['id'] == threadId, orElse: () => null);
       if (match != null && match['searchMatchId'] != null) {
@@ -283,7 +286,10 @@ class ChatRemoteDataSource {
     // Store sends an offer to a SearchMatch
     // 1. Get searchMatchId by listing requests
     final reqsRes = await _dioClient.get(ApiEndpoints.storeSearchRequests);
-    final reqs = reqsRes.data as List;
+    final rawReqs = reqsRes.data;
+    final List reqs = rawReqs is Map && rawReqs.containsKey('items')
+        ? (rawReqs['items'] as List)
+        : (rawReqs is List ? rawReqs : []);
     final match =
         reqs.firstWhere((r) => r['id'] == threadId, orElse: () => null);
 
