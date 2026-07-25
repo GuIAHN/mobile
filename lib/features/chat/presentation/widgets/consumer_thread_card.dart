@@ -275,23 +275,30 @@ class _ConsumerThreadCardState extends State<ConsumerThreadCard> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.storefront_outlined,
-                                size: 16, color: AppColors.primary),
-                            const SizedBox(width: 6),
-                            Text(
-                              thread.bestOfferStoreName != null
-                                  ? 'Mejor oferta por ${thread.bestOfferStoreName}'
-                                  : 'Mejor oferta disponible',
-                              style: GoogleFonts.hankenGrotesk(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.storefront_outlined,
+                                  size: 16, color: AppColors.primary),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  thread.bestOfferStoreName != null
+                                      ? 'Mejor oferta por ${thread.bestOfferStoreName}'
+                                      : 'Mejor oferta disponible',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.hankenGrotesk(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         Text(
                           Formatters.currency(thread.bestOfferPrice!),
                           style: GoogleFonts.hankenGrotesk(

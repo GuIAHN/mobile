@@ -667,47 +667,55 @@ class _OffersCountHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 4,
-                height: 18,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              if (!isStore) ...[
-                const SizedBox(width: 8),
+          Expanded(
+            child: Row(
+              children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  width: 4,
+                  height: 18,
                   decoration: BoxDecoration(
-                    color: AppColors.primaryMuted,
-                    borderRadius: BorderRadius.circular(99),
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(4),
                   ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
                   child: Text(
-                    'Compara y elige',
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.hankenGrotesk(
-                      fontSize: 10.5,
+                      fontSize: 15,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ),
+                if (!isStore) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryMuted,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Text(
+                      'Compara y elige',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
-          if (!isStore && currentSort != null && onSortChanged != null)
+          if (!isStore && currentSort != null && onSortChanged != null) ...[
+            const SizedBox(width: 10),
             _buildSortButton(),
+          ],
         ],
       ),
     );
@@ -738,7 +746,7 @@ class _OffersCountHeader extends StatelessWidget {
       color: Colors.white,
       position: PopupMenuPosition.under,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(99),
