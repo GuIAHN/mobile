@@ -81,6 +81,7 @@ class ChatRemoteDataSource {
               ? double.tryParse(json['offerPrice'].toString())
               : null,
           lastMessage: json['lastMessage'] as String?,
+          conversationId: json['conversationId'] as String?,
         );
       } else {
         final model = json['userCar']?['model'];
