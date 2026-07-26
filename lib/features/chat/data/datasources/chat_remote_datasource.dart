@@ -176,6 +176,8 @@ class ChatRemoteDataSource {
         verified: store?['verified'] as bool? ?? false,
         hasDelivery: store?['hasDelivery'] as bool? ?? false,
         distanceKm: (store?['distance'] as num?)?.toDouble(),
+        storeRating: (store?['rating'] as num?)?.toDouble(),
+        storeReviewCount: (store?['ratingCount'] as num?)?.toInt() ?? 0,
         note: json['message'] as String?,
         hasConversation: json['has_conversation'] as bool? ?? false,
       );

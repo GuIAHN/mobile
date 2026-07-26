@@ -28,6 +28,8 @@ class ChatConversation extends Equatable {
   final bool verified;
   final bool hasDelivery;
   final double? distanceKm;
+  final double? storeRating;
+  final int storeReviewCount;
   final String? note;
   final bool hasConversation;
   final bool hasReviewed;
@@ -64,6 +66,8 @@ class ChatConversation extends Equatable {
     this.verified = false,
     this.hasDelivery = false,
     this.distanceKm,
+    this.storeRating,
+    this.storeReviewCount = 0,
     this.note,
     this.hasConversation = false,
     this.hasReviewed = false,
@@ -114,6 +118,8 @@ class ChatConversation extends Equatable {
         verified,
         hasDelivery,
         distanceKm,
+        storeRating,
+        storeReviewCount,
         note,
         hasConversation,
       ];

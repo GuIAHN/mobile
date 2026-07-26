@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -608,10 +609,15 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                     child: Stack(
                       children: [
                         Positioned.fill(
-                          child: Image.file(
-                            File(_selectedImagePath!),
-                            fit: BoxFit.cover,
-                          ),
+                          child: kIsWeb
+                              ? Image.network(
+                                  _selectedImagePath!,
+                                  fit: BoxFit.cover,
+                                )
+                              : Image.file(
+                                  File(_selectedImagePath!),
+                                  fit: BoxFit.cover,
+                                ),
                         ),
                         Positioned(
                           top: 8,

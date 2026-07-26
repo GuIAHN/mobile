@@ -312,7 +312,6 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
             child: isProvider
                 ? ChatThreadCard(
                     thread: thread,
-                    showClientName: true,
                     onTap: () {
                       if (thread.conversationId != null &&
                           thread.conversationId!.isNotEmpty) {

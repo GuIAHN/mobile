@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/datasources/chat_remote_datasource.dart';
 import '../../data/repositories/chat_repository_impl.dart';
@@ -183,6 +184,8 @@ class ChatMessagesNotifier extends StateNotifier<AsyncValue<List<ChatMessage>>> 
   final GetMessagesUseCase _getMessagesUseCase;
   final SocketService _socketService;
   final String _conversationId;
+  StreamSubscription? _msgSub;
+  StreamSubscription? _offerSub;
 
   ChatMessagesNotifier({
     required GetMessagesUseCase getMessagesUseCase,
@@ -196,22 +199,31 @@ class ChatMessagesNotifier extends StateNotifier<AsyncValue<List<ChatMessage>>> 
     _socketService.joinConversation(_conversationId);
     
     // Escuchar nuevos mensajes y actualizaciones de oferta
-    _socketService.onMessage.listen((data) {
+    _msgSub = _socketService.onMessage.listen((data) {
       if (data['conversationId'] == _conversationId || data['conversationId'] == null) {
         loadMessages();
       }
     });
 
-    _socketService.onOfferUpdated.listen((_) {
+    _offerSub = _socketService.onOfferUpdated.listen((_) {
       loadMessages();
     });
   }
 
   Future<void> loadMessages() async {
     final result = await _getMessagesUseCase(_conversationId);
+    if (!mounted) return;
     result.fold(
-      (failure) => state = AsyncValue.error(failure.message, StackTrace.current),
-      (messages) => state = AsyncValue.data(messages),
+      (failure) {
+        if (mounted) {
+          state = AsyncValue.error(failure.message, StackTrace.current);
+        }
+      },
+      (messages) {
+        if (mounted) {
+          state = AsyncValue.data(messages);
+        }
+      },
     );
   }
 
@@ -225,6 +237,13 @@ class ChatMessagesNotifier extends StateNotifier<AsyncValue<List<ChatMessage>>> 
     } catch (e) {
       throw Exception(e.toString());
     }
+  }
+
+  @override
+  void dispose() {
+    _msgSub?.cancel();
+    _offerSub?.cancel();
+    super.dispose();
   }
 }
 

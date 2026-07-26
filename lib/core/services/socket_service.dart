@@ -17,6 +17,7 @@ final socketServiceProvider = Provider<SocketService>((ref) {
 
 class SocketService {
   io.Socket? _socket;
+  String? _connectedToken;
   final SecureStorage _secureStorage;
 
   SocketService(this._secureStorage);
@@ -36,111 +37,140 @@ class SocketService {
   Stream<String> get onTypingStart => _typingStartController.stream;
   Stream<String> get onTypingStop => _typingStopController.stream;
 
+  bool _isConnecting = false;
+
   Future<void> connect() async {
-    if (_socket != null && _socket!.connected) return;
+    if (_isConnecting) return;
+    _isConnecting = true;
 
-    final token = await _secureStorage.getToken();
-    if (token == null) {
-      debugPrint('No token found in secure storage. Cannot connect socket.');
-      return;
-    }
-
-    // Remove /api from base url if it exists for socket connection
-    String socketUrl = AppConfig.apiBaseUrl.replaceAll('/api', '');
-    if (socketUrl.endsWith('/')) {
-      socketUrl = socketUrl.substring(0, socketUrl.length - 1);
-    }
-
-    _socket = io.io(
-      socketUrl,
-      io.OptionBuilder()
-          .setTransports(['websocket', 'polling']) // Allow both websocket and polling
-          .disableAutoConnect()
-          .setAuth({'token': token})
-          .build(),
-    );
-
-    debugPrint('Attempting to connect socket to: $socketUrl');
-
-    _socket?.onConnect((_) {
-      debugPrint('Socket connected: ${_socket?.id}');
-    });
-
-    _socket?.onConnectError((error) {
-      debugPrint('Socket connect error: $error');
-    });
-
-    _socket?.onError((error) {
-      debugPrint('Socket error: $error');
-    });
-
-    _socket?.onDisconnect((_) {
-      debugPrint('Socket disconnected');
-    });
-
-    _socket?.on('search.matched', (data) {
-      debugPrint('Received search.matched: $data');
-      if (data != null && data['data'] != null) {
-        _searchMatchedController.add(Map<String, dynamic>.from(data['data']));
-      } else if (data is Map) {
-         _searchMatchedController.add(Map<String, dynamic>.from(data));
+    try {
+      final token = await _secureStorage.getToken();
+      if (token == null || token.isEmpty) {
+        debugPrint('[SocketService] No token found in secure storage. Disconnecting socket.');
+        disconnect();
+        return;
       }
-    });
 
-    _socket?.on('offer.updated', (data) {
-      debugPrint('Received offer.updated: $data');
-      if (data != null && data['data'] != null) {
-        _offerUpdatedController.add(Map<String, dynamic>.from(data['data']));
-      } else if (data is Map) {
-         _offerUpdatedController.add(Map<String, dynamic>.from(data));
+      if (_socket != null && _socket!.connected && _connectedToken == token) {
+        return;
       }
-    });
 
-    _socket?.on('notification.new', (data) {
-      debugPrint('Received notification.new: $data');
-      if (data != null && data is Map) {
-        final tipo = data['tipo'];
-        final payloadData = data['data'] ?? data;
-        
-        if (tipo == 'search.matched') {
-          _searchMatchedController.add(Map<String, dynamic>.from(payloadData));
-        } else if (tipo == 'offer.updated' ||
-            tipo == 'offer.new' ||
-            tipo == 'offer.bought' ||
-            tipo == 'offer.delivered') {
-          _offerUpdatedController.add(Map<String, dynamic>.from(payloadData));
-        } else if (tipo == 'message.new') {
-          // Si el mensaje llega vía notificación en vez del chat gateway
-          _messageController.add(Map<String, dynamic>.from(payloadData));
+      debugPrint('[SocketService] Connecting socket with token hash: ${token.hashCode}');
+      disconnect();
+      _connectedToken = token;
+
+      // Remove /api from base url if it exists for socket connection
+      String socketUrl = AppConfig.apiBaseUrl.replaceAll('/api', '');
+      if (socketUrl.endsWith('/')) {
+        socketUrl = socketUrl.substring(0, socketUrl.length - 1);
+      }
+
+      _socket = io.io(
+        socketUrl,
+        io.OptionBuilder()
+            .setTransports(['websocket', 'polling'])
+            .enableForceNew()
+            .disableAutoConnect()
+            .setAuth({'token': token})
+            .setQuery({'token': token})
+            .build(),
+      );
+
+      _socket?.onConnect((_) {
+        debugPrint('[SocketService] Socket connected: ${_socket?.id}');
+      });
+
+      _socket?.onConnectError((error) {
+        debugPrint('[SocketService] Socket connect error: $error');
+      });
+
+      _socket?.onError((error) {
+        debugPrint('[SocketService] Socket error: $error');
+      });
+
+      _socket?.onDisconnect((reason) {
+        debugPrint('[SocketService] Socket disconnected: $reason');
+      });
+
+      _socket?.on('search.matched', (data) {
+        debugPrint('Received search.matched: $data');
+        if (data != null && data['data'] != null) {
+          _searchMatchedController.add(Map<String, dynamic>.from(data['data']));
+        } else if (data is Map) {
+          _searchMatchedController.add(Map<String, dynamic>.from(data));
         }
-      }
-    });
+      });
 
-    _socket?.on('message.new', (data) {
-      if (data != null && data is Map) {
-        _messageController.add(Map<String, dynamic>.from(data));
-      }
-    });
+      _socket?.on('offer.updated', (data) {
+        debugPrint('Received offer.updated: $data');
+        if (data != null && data['data'] != null) {
+          _offerUpdatedController.add(Map<String, dynamic>.from(data['data']));
+        } else if (data is Map) {
+          _offerUpdatedController.add(Map<String, dynamic>.from(data));
+        }
+      });
 
-    _socket?.on('typing.start', (data) {
-      if (data != null && data['userId'] != null) {
-        _typingStartController.add(data['userId'].toString());
-      }
-    });
+      _socket?.on('notification.new', (data) {
+        debugPrint('Received notification.new: $data');
+        if (data != null && data is Map) {
+          final tipo = data['tipo'];
+          final payloadData = data['data'] ?? data;
 
-    _socket?.on('typing.stop', (data) {
-      if (data != null && data['userId'] != null) {
-        _typingStopController.add(data['userId'].toString());
-      }
-    });
+          if (tipo == 'search.matched') {
+            _searchMatchedController.add(Map<String, dynamic>.from(payloadData));
+          } else if (tipo == 'offer.updated' ||
+              tipo == 'offer.new' ||
+              tipo == 'offer.bought' ||
+              tipo == 'offer.delivered') {
+            _offerUpdatedController.add(Map<String, dynamic>.from(payloadData));
+          } else if (tipo == 'message.new') {
+            _messageController.add(Map<String, dynamic>.from(payloadData));
+          }
+        }
+      });
 
-    _socket?.connect();
+      _socket?.on('message.new', (data) {
+        if (data != null && data is Map) {
+          _messageController.add(Map<String, dynamic>.from(data));
+        }
+      });
+
+      _socket?.on('typing.start', (data) {
+        if (data != null && data['userId'] != null) {
+          _typingStartController.add(data['userId'].toString());
+        }
+      });
+
+      _socket?.on('typing.stop', (data) {
+        if (data != null && data['userId'] != null) {
+          _typingStopController.add(data['userId'].toString());
+        }
+      });
+
+      _socket?.connect();
+    } finally {
+      _isConnecting = false;
+    }
   }
 
   void disconnect() {
-    _socket?.disconnect();
-    _socket?.dispose();
-    _socket = null;
+    if (_socket != null) {
+      debugPrint('[SocketService] Disconnecting socket...');
+      _socket!.off('connect');
+      _socket!.off('connect_error');
+      _socket!.off('error');
+      _socket!.off('disconnect');
+      _socket!.off('search.matched');
+      _socket!.off('offer.updated');
+      _socket!.off('notification.new');
+      _socket!.off('message.new');
+      _socket!.off('typing.start');
+      _socket!.off('typing.stop');
+      _socket!.disconnect();
+      _socket!.dispose();
+      _socket = null;
+    }
+    _connectedToken = null;
   }
 
   void joinConversation(String conversationId) {

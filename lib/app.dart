@@ -23,14 +23,17 @@ class GuiAutomotrizApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(themeModeProvider);
 
-    final authStatus = ref.watch(authProvider.select((s) => s.status));
-    final socket = ref.read(socketServiceProvider);
-    
-    if (authStatus == AuthStatus.authenticated) {
-      socket.connect();
-    } else {
-      socket.disconnect();
-    }
+    ref.listen<AuthStatus>(
+      authProvider.select((s) => s.status),
+      (previous, next) {
+        final socket = ref.read(socketServiceProvider);
+        if (next == AuthStatus.authenticated) {
+          socket.connect();
+        } else if (next == AuthStatus.unauthenticated) {
+          socket.disconnect();
+        }
+      },
+    );
 
     return MaterialApp.router(
       title: 'guIAutomotriz',

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -633,7 +634,9 @@ class _OptionalDetails extends StatelessWidget {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(14),
-                        child: Image.file(File(imagePath!), fit: BoxFit.cover),
+                        child: kIsWeb
+                            ? Image.network(imagePath!, fit: BoxFit.cover)
+                            : Image.file(File(imagePath!), fit: BoxFit.cover),
                       ),
                       Container(
                         decoration: BoxDecoration(

@@ -19,6 +19,15 @@ abstract class AppColors {
   static const Color tertiaryLight = Color(0xFF6FA8FF); // azul claro
   static const Color tertiaryMuted = Color(0xFFDBEAFE); // azul muy suave (fondo)
 
+  // ── Celeste — Señales de confianza y metadata ────────────────────────────
+  // Rol semántico: verificado, envío, distancia, rating, contadores y el
+  // estado "cotizada/en progreso". El naranja queda reservado para
+  // precio + acción, así ambos dejan de competir por atención en las cards.
+  static const Color celeste       = Color(0xFF0891B2); // iconos ≥24px, bordes, indicadores (3.68:1 sobre blanco)
+  static const Color celesteInk    = Color(0xFF0E7490); // texto e iconos <24px (5.36:1 sobre blanco)
+  static const Color celesteMuted  = Color(0xFFE0F7FC); // fondo de chips y badges
+  static const Color celesteBorder = Color(0xFFA9E3F0); // bordes 1px decorativos
+
   // ── Neutral — Grises ─────────────────────────────────────────────────────
   static const Color neutral    = Color(0xFFF8F9FA); // #F8F9FA — Fondo neutro
   static const Color grey50     = Color(0xFFF8F9FA);
@@ -61,6 +70,16 @@ abstract class AppColors {
   // ── Bordes ──────────────────────────────────────────────────────────────
   static const Color border        = Color(0xFFE9ECEF);
   static const Color borderFocus   = Color(0xFFF25C05); // primary al enfocar
+
+  // ── Tonos "ink" — texto/ícono accesible sobre fondos *Light/*Muted ──────
+  // Los pares primary/primaryMuted, success/successLight, etc. no llegan a
+  // 4.5:1 (WCAG AA) para texto. Estos tonos sí, sin tocar los tokens base
+  // (que se siguen usando para fondos, iconos grandes y acentos).
+  static const Color primaryInk = Color(0xFFA83E05); // 5.28:1 sobre primaryMuted
+  static const Color successInk = Color(0xFF15803D); // 4.57:1 sobre successLight
+  static const Color warningInk = Color(0xFF92400E); // 6.37:1 sobre warningLight
+  static const Color errorInk   = Color(0xFFB91C1C); // 5.30:1 sobre errorLight
+  static const Color textMeta   = Color(0xFF6C757D); // 4.69:1 sobre blanco — timestamps/metadata (reemplaza textDisabled, que da 2.07:1)
 
   // ── Login / Auth — Paleta de marca (light) ─────────────────────────────
   // Reemplaza el antiguo tema oscuro; ahora usa el fondo neutro del branding.

@@ -24,6 +24,8 @@ class ChatConversationModel extends ChatConversation {
     super.verified,
     super.hasDelivery,
     super.distanceKm,
+    super.storeRating,
+    super.storeReviewCount,
     super.note,
     super.hasConversation,
     super.hasReviewed,

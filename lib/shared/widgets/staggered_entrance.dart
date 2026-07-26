@@ -19,7 +19,15 @@ class StaggeredEntrance extends StatefulWidget {
 }
 
 class _StaggeredEntranceState extends State<StaggeredEntrance>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+  // Sin esto, ListView.builder destruye y recrea el State de los ítems que
+  // salen del viewport (o de su cacheExtent) y vuelven a entrar al hacer
+  // scroll — cada recreación dispara `initState` de nuevo y el ítem se
+  // reanima como si fuera la primera vez. AutomaticKeepAlive mantiene el
+  // State vivo, así la animación de entrada corre una sola vez.
+  @override
+  bool get wantKeepAlive => true;
+
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 280),
@@ -48,6 +56,7 @@ class _StaggeredEntranceState extends State<StaggeredEntrance>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // requerido por AutomaticKeepAliveClientMixin
     return FadeTransition(
       opacity: _fade,
       child: SlideTransition(position: _slide, child: widget.child),
