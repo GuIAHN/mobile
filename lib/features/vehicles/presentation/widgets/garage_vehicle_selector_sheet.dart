@@ -106,52 +106,74 @@ class GarageVehicleSelectorSheet extends ConsumerWidget {
                         currentVehicle?.year == car.year;
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
-                      decoration: BoxDecoration(
+                      child: Material(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: esSeleccionado ? AppColors.primary : AppColors.border,
-                          width: esSeleccionado ? 1.5 : 1.0,
-                        ),
-                      ),
-                      child: ListTile(
-                        leading: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: esSeleccionado ? AppColors.primaryMuted : AppColors.grey100,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.directions_car_rounded,
-                            color: esSeleccionado ? AppColors.primary : AppColors.textSecondary,
-                            size: 20,
+                        clipBehavior: Clip.antiAlias,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: BorderSide(
+                            color: esSeleccionado ? AppColors.primary : AppColors.border,
+                            width: esSeleccionado ? 1.5 : 1.0,
                           ),
                         ),
-                        title: Text(
-                          '${car.brand} ${car.model}',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14.5,
-                            color: AppColors.textPrimary,
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.pop(
+                              context,
+                              VehicleSelectorResult(car: car),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: esSeleccionado ? AppColors.primaryMuted : AppColors.grey100,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.directions_car_rounded,
+                                    color: esSeleccionado ? AppColors.primary : AppColors.textSecondary,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${car.brand} ${car.model}',
+                                        style: GoogleFonts.hankenGrotesk(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14.5,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Año ${car.year}',
+                                        style: GoogleFonts.hankenGrotesk(
+                                          fontSize: 12,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (esSeleccionado)
+                                  const Icon(
+                                    Icons.check_circle_rounded,
+                                    color: AppColors.primary,
+                                    size: 20,
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
-                        subtitle: Text(
-                          'Año ${car.year}',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        trailing: esSeleccionado
-                            ? const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20)
-                            : null,
-                        onTap: () {
-                          Navigator.pop(
-                            context,
-                            VehicleSelectorResult(car: car),
-                          );
-                        },
                       ),
                     );
                   },

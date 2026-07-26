@@ -19,7 +19,7 @@ class UnapprovedOverlay extends ConsumerWidget {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
             child: Container(
-              color: AppColors.background.withOpacity(0.6),
+              color: AppColors.background.withValues(alpha: 0.6),
             ),
           ),
         ),
@@ -33,7 +33,7 @@ class UnapprovedOverlay extends ConsumerWidget {
               borderRadius: BorderRadius.circular(28),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
+                  color: Colors.black.withValues(alpha: 0.15),
                   blurRadius: 40,
                   offset: const Offset(0, 10),
                 ),
@@ -45,7 +45,7 @@ class UnapprovedOverlay extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: AppColors.warning.withOpacity(0.15),
+                    color: AppColors.warning.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -92,7 +92,9 @@ class UnapprovedOverlay extends ConsumerWidget {
                   child: OutlinedButton.icon(
                     onPressed: () {
                       ref.read(authProvider.notifier).logout().then((_) {
-                        context.go(RouteNames.login);
+                        if (context.mounted) {
+                          context.go(RouteNames.login);
+                        }
                       });
                     },
                     icon: const Icon(Icons.logout_rounded, size: 20),

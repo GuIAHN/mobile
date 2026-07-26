@@ -129,52 +129,63 @@ class ProfileGarage extends ConsumerWidget {
   Widget _buildGarageCarCard(BuildContext context, WidgetRef ref, UserCar car) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
+      child: Material(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        leading: Container(
-          width: 42,
-          height: 42,
-          decoration: const BoxDecoration(
-            color: AppColors.primaryMuted,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.directions_car_rounded,
-            color: AppColors.primary,
-            size: 20,
-          ),
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: AppColors.border),
         ),
-        title: Text(
-          '${car.brand} ${car.model}',
-          style: GoogleFonts.hankenGrotesk(
-            fontWeight: FontWeight.w700,
-            fontSize: 14.5,
-            color: AppColors.textPrimary,
+        elevation: 1,
+        shadowColor: Colors.black.withValues(alpha: 0.03),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: const BoxDecoration(
+                  color: AppColors.primaryMuted,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.directions_car_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${car.brand} ${car.model}',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14.5,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Año ${car.year}',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                onPressed: () => _confirmarEliminarVehiculo(context, ref, car),
+              ),
+            ],
           ),
-        ),
-        subtitle: Text(
-          'Año ${car.year}',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 12,
-            color: AppColors.textSecondary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
-          onPressed: () => _confirmarEliminarVehiculo(context, ref, car),
         ),
       ),
     );

@@ -5,7 +5,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../../../core/providers/current_user_provider.dart';
-import '../../../../core/domain/enums/user_role.dart';
 import '../providers/home_providers.dart';
 
 class CategorySelector extends ConsumerWidget {

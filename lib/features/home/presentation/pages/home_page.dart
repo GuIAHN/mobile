@@ -108,7 +108,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     final activeTab = ref.watch(homeTabProvider);
     final authState = ref.watch(authProvider);
     final user = authState.user;
-    final selectedType = ref.watch(selectedServiceTypeProvider);
 
     // Show a friendly welcome greeting if authenticated and not shown yet in this session
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -203,7 +202,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     final filters = ref.watch(homeFiltersProvider);
     final isSpareParts = selectedType == ServiceType.spareParts;
     final searchVehicle = ref.watch(searchVehicleProvider);
-    final searchQuery = ref.watch(searchQueryProvider);
 
     // Pre-trigger user cars loading
     ref.watch(userCarsProvider);

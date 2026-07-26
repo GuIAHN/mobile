@@ -173,7 +173,9 @@ class ProfileTab extends ConsumerWidget {
                         onPressed: () {
                           Navigator.pop(context); // Cierra modal
                           ref.read(authProvider.notifier).logout().then((_) {
-                            context.go(RouteNames.login);
+                            if (context.mounted) {
+                              context.go(RouteNames.login);
+                            }
                           });
                         },
                         style: ElevatedButton.styleFrom(

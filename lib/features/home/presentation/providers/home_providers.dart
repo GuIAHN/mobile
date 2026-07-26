@@ -4,7 +4,6 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/domain/enums/part_type.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../core/providers/current_user_provider.dart';
-import '../../../../core/domain/enums/user_role.dart';
 import '../../data/datasources/search_remote_datasource.dart';
 import '../../data/repositories/home_repository_impl.dart';
 import '../../data/repositories/search_repository_impl.dart';
@@ -22,6 +21,7 @@ import '../../domain/usecases/get_provider_detail_usecase.dart';
 import '../../domain/usecases/search_providers_usecase.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../vehicles/domain/entities/user_car.dart';
+import '../../../chat/presentation/providers/chat_providers.dart';
 
 // ── Search Providers ────────────────────────────────────────────────────────
 final searchRepositoryProvider = Provider<SearchRepository>((ref) {
@@ -62,8 +62,9 @@ class SearchRequestState {
 
 class SearchRequestNotifier extends StateNotifier<SearchRequestState> {
   final CreateSearchRequestUseCase _useCase;
+  final Ref? _ref;
 
-  SearchRequestNotifier(this._useCase) : super(const SearchRequestState());
+  SearchRequestNotifier(this._useCase, [this._ref]) : super(const SearchRequestState());
 
   Future<void> submitSearch({
     required String userCarId,
@@ -96,6 +97,7 @@ class SearchRequestNotifier extends StateNotifier<SearchRequestState> {
         );
       },
       (data) {
+        _ref?.invalidate(chatThreadsProvider);
         state = SearchRequestState(
           status: SearchRequestStatus.success,
           data: data,
@@ -112,7 +114,7 @@ class SearchRequestNotifier extends StateNotifier<SearchRequestState> {
 final searchRequestNotifierProvider =
     StateNotifierProvider<SearchRequestNotifier, SearchRequestState>((ref) {
   final useCase = ref.watch(createSearchRequestUseCaseProvider);
-  return SearchRequestNotifier(useCase);
+  return SearchRequestNotifier(useCase, ref);
 });
 
 // ── Datasource & Repositorio ──────────────────────────────────────────────────

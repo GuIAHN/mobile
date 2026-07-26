@@ -227,10 +227,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Logs out by clearing tokens from secure storage and resetting to initial state.
+  /// Logs out by calling repository logout (invalidating server session & clearing secure tokens)
+  /// and updating authentication state to unauthenticated.
   Future<void> logout() async {
-    await _secureStorage.clearTokens();
-    state = const AuthState.initial();
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    await _authRepository.logout();
+    state = const AuthState(
+      status: AuthStatus.unauthenticated,
+      user: null,
+      errorMessage: null,
+    );
   }
 
   /// Uploads the photo at [filePath] and updates the user's avatar.

@@ -35,9 +35,13 @@ class AuthRemoteDataSource {
     }
   }
 
-  /// Calls POST /auth/logout (No-op for the current backend).
+  /// Calls POST /auth/logout to invalidate backend session.
   Future<void> logout() async {
-    // The current backend does not have a logout endpoint; token expiration is client-side.
+    try {
+      await _client.post<Map<String, dynamic>>(ApiEndpoints.logout);
+    } catch (e) {
+      rethrow;
+    }
   }
 
   /// Calls POST /auth/social/login and returns the parsed response, or throws SocialNotRegisteredException.

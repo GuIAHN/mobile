@@ -161,9 +161,13 @@ final chatConversationsProvider = FutureProvider.family<List<ChatConversation>, 
   final sub2 = socketService.onMessage.listen((_) {
     ref.invalidateSelf();
   });
+  final sub3 = socketService.onSearchMatched.listen((_) {
+    ref.invalidateSelf();
+  });
   ref.onDispose(() {
     sub1.cancel();
     sub2.cancel();
+    sub3.cancel();
   });
 
   final result = await useCase(threadId);

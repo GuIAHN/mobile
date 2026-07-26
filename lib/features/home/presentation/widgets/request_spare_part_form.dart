@@ -11,15 +11,14 @@ import '../../../catalog/domain/entities/category.dart';
 import '../../../catalog/domain/entities/category_node.dart';
 import '../../../catalog/domain/entities/category_search_result.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
-import '../../../vehicles/domain/entities/user_car.dart';
 import '../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../../../../core/utils/async_error_listener.dart';
-import '../../../vehicles/presentation/widgets/vehicle_selection_modal.dart';
 import '../providers/home_providers.dart';
 import '../../../../core/domain/enums/part_type.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../vehicles/presentation/widgets/garage_vehicle_selector_sheet.dart';
 import '../../../../core/services/location_service.dart';
+import '../../../chat/presentation/providers/chat_providers.dart';
 
 class RequestSparePartForm extends ConsumerStatefulWidget {
   final VoidCallback? onSubmitted;
@@ -51,8 +50,9 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
     final category = _selectedCategory;
     final subcategory = _selectedSubcategory;
     if (category == null || subcategory == null) return null;
-    if (category.id == 'other_category_id')
+    if (category.id == 'other_category_id') {
       return 'Otro (categoría no listada)';
+    }
     if (subcategory.id == 'other_subcategory_id') {
       return '${category.name}  ▸  Otro';
     }
@@ -139,7 +139,9 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
     final selectedPartType = _selectedPartType;
     if (globalVehicle == null ||
         selectedSubcategory == null ||
-        selectedPartType == null) return;
+        selectedPartType == null) {
+      return;
+    }
 
     String userCarId = globalVehicle.id;
 
@@ -294,6 +296,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                   ref.read(searchVehicleProvider.notifier).state = null;
                   ref.read(searchVehicleModelIdProvider.notifier).state = null;
                   ref.read(searchRequestNotifierProvider.notifier).reset();
+                  ref.invalidate(chatThreadsProvider);
                   widget.onSubmitted?.call();
                 },
                 style: ElevatedButton.styleFrom(
@@ -907,18 +910,14 @@ class _StepProgressBadge extends StatelessWidget {
 }
 
 class _SelectorField extends StatelessWidget {
-  final IconData? icon;
   final String? value;
   final String placeholder;
   final VoidCallback onTap;
-  final bool enabled;
 
   const _SelectorField({
-    this.icon,
     required this.value,
     required this.placeholder,
     required this.onTap,
-    this.enabled = true,
   });
 
   @override
@@ -929,10 +928,10 @@ class _SelectorField extends StatelessWidget {
       button: true,
       label: value ?? placeholder,
       child: Material(
-        color: enabled ? Colors.white : const Color(0xFFF3F4F6),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          onTap: enabled ? onTap : null,
+          onTap: onTap,
           borderRadius: BorderRadius.circular(14),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
@@ -946,15 +945,6 @@ class _SelectorField extends StatelessWidget {
             ),
             child: Row(
               children: [
-                if (icon != null) ...[
-                  Icon(
-                    icon!,
-                    size: 20,
-                    color:
-                        hasValue ? AppColors.primary : AppColors.textSecondary,
-                  ),
-                  const SizedBox(width: 12),
-                ],
                 Expanded(
                   child: Text(
                     value ?? placeholder,
@@ -1634,57 +1624,71 @@ class _CategoryResultTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+    return InkWell(
       onTap: onTap,
-      title: _HighlightedText(
-        text: name,
-        query: query,
-        baseStyle: GoogleFonts.hankenGrotesk(
-          fontSize: 15,
-          fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-          color: isActive ? AppColors.primary : AppColors.textPrimary,
-        ),
-        highlightStyle: GoogleFonts.hankenGrotesk(
-          fontSize: 15,
-          fontWeight: FontWeight.w800,
-          color: AppColors.primary,
-        ),
-      ),
-      subtitle: breadcrumbLabel.isNotEmpty
-          ? Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Row(
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.subdirectory_arrow_right_rounded,
-                      size: 12, color: AppColors.textSecondary),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      breadcrumbLabel,
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 11.5,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  _HighlightedText(
+                    text: name,
+                    query: query,
+                    baseStyle: GoogleFonts.hankenGrotesk(
+                      fontSize: 15,
+                      fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                      color: isActive ? AppColors.primary : AppColors.textPrimary,
+                    ),
+                    highlightStyle: GoogleFonts.hankenGrotesk(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
                     ),
                   ),
+                  if (breadcrumbLabel.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(Icons.subdirectory_arrow_right_rounded,
+                            size: 12, color: AppColors.textSecondary),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            breadcrumbLabel,
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 11.5,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
-            )
-          : null,
-      trailing: isActive
-          ? const Icon(Icons.check_circle_rounded,
-              color: AppColors.primary, size: 20)
-          : Icon(
-              hasChildren
-                  ? Icons.chevron_right_rounded
-                  : Icons.arrow_forward_ios_rounded,
-              color: AppColors.textSecondary,
-              size: hasChildren ? 20 : 14,
             ),
+            const SizedBox(width: 8),
+            if (isActive)
+              const Icon(Icons.check_circle_rounded,
+                  color: AppColors.primary, size: 20)
+            else
+              Icon(
+                hasChildren
+                    ? Icons.chevron_right_rounded
+                    : Icons.arrow_forward_ios_rounded,
+                color: AppColors.textSecondary,
+                size: hasChildren ? 20 : 14,
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

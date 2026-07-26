@@ -31,6 +31,15 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
   _SortOption _currentSort = _SortOption.recent;
 
   @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref.invalidate(chatConversationsProvider(widget.threadId));
+      ref.invalidate(chatThreadsProvider);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final threadsAsync = ref.watch(chatThreadsProvider);
     final conversationsAsync = ref.watch(chatConversationsProvider(widget.threadId));
