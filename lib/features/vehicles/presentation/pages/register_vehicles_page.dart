@@ -101,7 +101,7 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
                           // Lista de autos
                           Row(
                             children: [
-                              _FieldLabel('TUS VEHÍCULOS'),
+                              const _FieldLabel('TUS VEHÍCULOS'),
                               const SizedBox(width: 8),
                               if (vehiculos.isNotEmpty) _BadgeCount(vehiculos.length),
                             ],
@@ -293,7 +293,7 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
             boxShadow: enabled
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.4),
+                      color: AppColors.primary.withValues(alpha: 0.4),
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),
@@ -388,7 +388,7 @@ class _UserCarItemCard extends StatelessWidget {
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -400,7 +400,7 @@ class _UserCarItemCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.12),
+              color: AppColors.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(
@@ -492,7 +492,7 @@ class _BadgeCount extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.12),
+        color: AppColors.primary.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(

@@ -19,6 +19,7 @@ import '../../../../core/utils/extensions.dart';
 import '../../../vehicles/presentation/widgets/garage_vehicle_selector_sheet.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../chat/presentation/providers/chat_providers.dart';
+import 'form_parts/form_part_type_selector.dart';
 
 class RequestSparePartForm extends ConsumerStatefulWidget {
   final VoidCallback? onSubmitted;
@@ -543,83 +544,13 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
           // Campo 3.5: Tipo de repuesto (Requerido)
           _buildLabel('TIPO DE REPUESTO *'),
           const SizedBox(height: 8),
-          Row(
-            children: PartType.values.map((type) {
-              final esSeleccionado = _selectedPartType == type;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedPartType = type;
-                    });
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-                    height: 102,
-                    decoration: BoxDecoration(
-                      color: esSeleccionado
-                          ? AppColors.primaryMuted
-                          : Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: esSeleccionado
-                            ? AppColors.primary
-                            : AppColors.border,
-                        width: esSeleccionado ? 1.5 : 1.0,
-                      ),
-                      boxShadow: esSeleccionado
-                          ? [
-                              BoxShadow(
-                                color:
-                                    AppColors.primary.withValues(alpha: 0.08),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          type.icon,
-                          color: esSeleccionado
-                              ? AppColors.primary
-                              : AppColors.textSecondary,
-                          size: 22,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          type.label,
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: esSeleccionado
-                                ? AppColors.primary
-                                : AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          type.description,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 8.5,
-                            fontWeight: FontWeight.w500,
-                            color: esSeleccionado
-                                ? AppColors.primary.withValues(alpha: 0.8)
-                                : AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
+          FormPartTypeSelector(
+            selectedPartType: _selectedPartType,
+            onPartTypeSelected: (type) {
+              setState(() {
+                _selectedPartType = type;
+              });
+            },
           ),
           const SizedBox(height: 12),
 

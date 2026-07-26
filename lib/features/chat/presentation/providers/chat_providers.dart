@@ -128,7 +128,7 @@ final myConversationsProvider = FutureProvider<List<ChatConversation>>((ref) asy
   );
 });
 
-final chatConversationDetailsProvider = FutureProvider.family<ChatConversation, String>((ref, conversationId) async {
+final chatConversationDetailsProvider = FutureProvider.autoDispose.family<ChatConversation, String>((ref, conversationId) async {
   final repository = ref.watch(chatRepositoryProvider);
   final socketService = ref.watch(socketServiceProvider);
 
@@ -151,7 +151,7 @@ final chatConversationDetailsProvider = FutureProvider.family<ChatConversation, 
 });
 
 /// Conversaciones/ofertas dentro de una carpeta específica.
-final chatConversationsProvider = FutureProvider.family<List<ChatConversation>, String>((ref, threadId) async {
+final chatConversationsProvider = FutureProvider.autoDispose.family<List<ChatConversation>, String>((ref, threadId) async {
   final useCase = ref.watch(getConversationsUseCaseProvider);
   final socketService = ref.watch(socketServiceProvider);
 

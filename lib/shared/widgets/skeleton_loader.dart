@@ -86,31 +86,31 @@ class ItemCardSkeleton extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Row(
+      child: const Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SkeletonBox(width: 48, height: 48, borderRadius: 14),
-          const SizedBox(width: 16),
+          SkeletonBox(width: 48, height: 48, borderRadius: 14),
+          SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SkeletonBox(width: 140, height: 14, borderRadius: 6),
-                const SizedBox(height: 8),
-                const SkeletonBox(width: 200, height: 11, borderRadius: 6),
-                const SizedBox(height: 10),
+                SkeletonBox(width: 140, height: 14, borderRadius: 6),
+                SizedBox(height: 8),
+                SkeletonBox(width: 200, height: 11, borderRadius: 6),
+                SizedBox(height: 10),
                 Row(
                   children: [
                     SkeletonBox(width: 56, height: 18, borderRadius: 8),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     SkeletonBox(width: 64, height: 18, borderRadius: 8),
                   ],
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          const SkeletonBox(width: 38, height: 38, borderRadius: 19),
+          SizedBox(width: 8),
+          SkeletonBox(width: 38, height: 38, borderRadius: 19),
         ],
       ),
     );
@@ -154,12 +154,12 @@ class ThreadCardSkeleton extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 1. Header: Badge de estado + Timer + Hora
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const SkeletonBox(width: 100, height: 22, borderRadius: 6),
+              SkeletonBox(width: 100, height: 22, borderRadius: 6),
               Row(
-                children: const [
+                children: [
                   SkeletonBox(width: 80, height: 20, borderRadius: 6),
                   SizedBox(width: 8),
                   SkeletonBox(width: 45, height: 12, borderRadius: 4),
@@ -170,15 +170,15 @@ class ThreadCardSkeleton extends StatelessWidget {
           const SizedBox(height: 12),
 
           // 2. Main Row: Foto del repuesto + Título de vehículo + Chips
-          Row(
+          const Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SkeletonBox(width: 60, height: 60, borderRadius: 12),
-              const SizedBox(width: 12),
+              SkeletonBox(width: 60, height: 60, borderRadius: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     SkeletonBox(width: 170, height: 16, borderRadius: 6),
                     SizedBox(height: 8),
                     Row(
@@ -197,8 +197,8 @@ class ThreadCardSkeleton extends StatelessWidget {
 
           // 3. Store view extra: Info del cliente y cercanía km
           if (isStore) ...[
-            Row(
-              children: const [
+            const Row(
+              children: [
                 SkeletonBox(width: 22, height: 22, borderRadius: 11),
                 SizedBox(width: 8),
                 SkeletonBox(width: 110, height: 13, borderRadius: 4),
@@ -227,9 +227,9 @@ class ThreadCardSkeleton extends StatelessWidget {
           ] else ...[
             const SkeletonBox(width: double.infinity, height: 36, borderRadius: 10),
             const SizedBox(height: 8),
-            Row(
+            const Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
+              children: [
                 SkeletonBox(width: 160, height: 12, borderRadius: 4),
                 SkeletonBox(width: 14, height: 14, borderRadius: 4),
               ],
@@ -256,21 +256,21 @@ class OfferCardSkeleton extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
       ),
-      child: Row(
+      child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SkeletonBox(width: 92, height: 92, borderRadius: 14),
-          const SizedBox(width: 14),
+          SkeletonBox(width: 92, height: 92, borderRadius: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SkeletonBox(width: 110, height: 20, borderRadius: 6),
-                const SizedBox(height: 10),
-                const SkeletonBox(width: 140, height: 13, borderRadius: 6),
-                const SizedBox(height: 12),
+                SkeletonBox(width: 110, height: 20, borderRadius: 6),
+                SizedBox(height: 10),
+                SkeletonBox(width: 140, height: 13, borderRadius: 6),
+                SizedBox(height: 12),
                 Row(
-                  children: const [
+                  children: [
                     SkeletonBox(width: 56, height: 20, borderRadius: 8),
                     SizedBox(width: 6),
                     SkeletonBox(width: 56, height: 20, borderRadius: 8),
