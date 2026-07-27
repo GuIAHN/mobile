@@ -52,18 +52,34 @@ class MetaLine extends StatelessWidget {
         children.add(Text('·', style: baseStyle.copyWith(color: AppColors.grey400)));
       }
 
-      children.add(
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (item.icon != null) ...[
-              Icon(item.icon, size: 14, color: itemColor),
-              const SizedBox(width: 4),
-            ],
-            Text(item.text, style: baseStyle.copyWith(color: itemColor)),
-          ],
-        ),
-      );
+      if (item.icon == null) {
+        children.add(
+          Text(
+            item.text,
+            style: baseStyle.copyWith(color: itemColor),
+          ),
+        );
+      } else {
+        children.add(
+          Text.rich(
+            TextSpan(
+              children: [
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Icon(item.icon, size: 14, color: itemColor),
+                  ),
+                ),
+                TextSpan(
+                  text: item.text,
+                  style: baseStyle.copyWith(color: itemColor),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
     }
 
     return Wrap(
