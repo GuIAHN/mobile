@@ -111,7 +111,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     // Show a friendly welcome greeting if authenticated and not shown yet in this session
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && user != null && !ref.read(welcomeShownProvider)) {
+      if (mounted && authState.isAuthenticated && user != null && !ref.read(welcomeShownProvider)) {
         ref.read(welcomeShownProvider.notifier).state = true;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
