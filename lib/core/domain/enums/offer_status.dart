@@ -72,7 +72,7 @@ extension OfferStatusX on OfferStatus {
       case OfferStatus.accepted:
         return 'COTIZADA';
       case OfferStatus.discarded:
-        return 'DESCARTADA';
+        return 'OTRA OFERTA ELEGIDA';
       case OfferStatus.bought:
         return '¡VENDIDA!';
       case OfferStatus.delivered:
@@ -85,6 +85,8 @@ extension OfferStatusX on OfferStatus {
     switch (this) {
       case OfferStatus.bought:
         return 'COMPRADA';
+      case OfferStatus.discarded:
+        return 'CERRADA';
       default:
         return label;
     }
@@ -104,11 +106,11 @@ extension OfferStatusX on OfferStatus {
       case OfferStatus.accepted:
         return Icons.send_rounded;
       case OfferStatus.discarded:
-        return Icons.cancel_rounded;
+        return Icons.cancel_outlined;
       case OfferStatus.bought:
         return Icons.shopping_bag_rounded;
       case OfferStatus.delivered:
-        return Icons.check_circle_rounded;
+        return Icons.task_alt_rounded;
     }
   }
 
@@ -126,8 +128,8 @@ extension OfferStatusX on OfferStatus {
       case OfferStatus.accepted:
         return AppColors.celesteMuted;
       case OfferStatus.bought:
-        return AppColors.successLight;
       case OfferStatus.delivered:
+        return AppColors.successLight;
       case OfferStatus.discarded:
         return AppColors.grey100;
     }
@@ -147,12 +149,32 @@ extension OfferStatusX on OfferStatus {
       case OfferStatus.accepted:
         return AppColors.celesteInk;
       case OfferStatus.bought:
-        return AppColors.successInk;
       case OfferStatus.delivered:
+        return AppColors.successInk;
       case OfferStatus.discarded:
-        // grey700 sobre grey100 = 7.35:1 — AppColors.textDisabled (2.07:1)
-        // fallaría WCAG AA aquí.
         return AppColors.grey700;
     }
   }
+
+  /// Color del borde/acento de jerarquía visual lateral de la card.
+  Color get accentColor {
+    switch (this) {
+      case OfferStatus.bought:
+      case OfferStatus.delivered:
+        return AppColors.success;
+      case OfferStatus.sent:
+      case OfferStatus.accepted:
+        return AppColors.celeste;
+      case OfferStatus.unquoted:
+        return AppColors.primary;
+      case OfferStatus.noOffers:
+        return AppColors.warning;
+      case OfferStatus.offersReceived:
+        return AppColors.celeste;
+      case OfferStatus.noQuoteYet:
+      case OfferStatus.discarded:
+        return Colors.transparent;
+    }
+  }
 }
+

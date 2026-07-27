@@ -66,6 +66,7 @@ class ConsumerThreadCard extends StatelessWidget {
 
     return CardShell(
       onTap: onTap,
+      accentColor: status.accentColor,
       semanticLabel: semanticLabel.toString(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

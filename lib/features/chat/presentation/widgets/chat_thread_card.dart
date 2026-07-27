@@ -134,21 +134,47 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
   Widget build(BuildContext context) {
     final thread = widget.thread;
     final expStr = expirationLabel(thread.expiresAt, isExpired: thread.isExpired);
-    final isUnquoted = !thread.hasOffer;
-    final isBought = thread.offerStatus == 'BOUGHT';
-    final status = OfferStatusX.fromApi(thread.offerStatus, hasOffer: thread.hasOffer);
+    
+    // Validaciones estrictas de estado y pertenencia
+    final bool hasStoreOffer = thread.hasOffer;
+    final bool isBought = hasStoreOffer && thread.offerStatus == 'BOUGHT';
+    final bool isDelivered = hasStoreOffer && thread.offerStatus == 'DELIVERED';
+    final bool isDiscarded = hasStoreOffer && thread.offerStatus == 'DISCARDED';
+    final bool isQuoted = hasStoreOffer && !isBought && !isDelivered && !isDiscarded;
+    final bool canQuoteNow = !hasStoreOffer && thread.isOpen && !thread.isExpired;
+    final bool isClosedWithoutQuote = !hasStoreOffer && (!thread.isOpen || thread.isExpired);
+
+    final OfferStatus status;
+    String? labelOverride;
+
+    if (isDelivered) {
+      status = OfferStatus.delivered;
+    } else if (isBought) {
+      status = OfferStatus.bought;
+    } else if (isDiscarded) {
+      status = OfferStatus.discarded;
+      labelOverride = 'OTRA OFERTA ELEGIDA';
+    } else if (isQuoted) {
+      status = OfferStatus.sent;
+    } else if (canQuoteNow) {
+      status = OfferStatus.unquoted;
+    } else {
+      status = OfferStatus.discarded;
+      labelOverride = 'SOLICITUD CERRADA';
+    }
 
     final semanticLabel = StringBuffer(
       'Solicitud de ${thread.clientName ?? "cliente"}, ${thread.title}',
     );
     if (thread.subcategory != null) semanticLabel.write(', ${thread.subcategory}');
-    semanticLabel.write(', ${status.label.toLowerCase()}');
+    semanticLabel.write(', ${(labelOverride ?? status.label).toLowerCase()}');
     if (thread.distance != null) {
       semanticLabel.write(', a ${thread.distance!.toStringAsFixed(1)} kilómetros');
     }
 
     return CardShell(
       onTap: widget.onTap,
+      accentColor: status.accentColor,
       semanticLabel: semanticLabel.toString(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,7 +182,9 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
           // ── Zona 1: estado + expiración ──────────────────────────────────
           Row(
             children: [
-              Flexible(child: StatusBadge(status: status)),
+              Flexible(
+                child: StatusBadge(status: status, labelOverride: labelOverride),
+              ),
               const Spacer(),
               if (expStr.isNotEmpty) ...[
                 Icon(
@@ -227,7 +255,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                   icon: Icons.near_me_outlined,
                   color: AppColors.celesteInk,
                 ),
-              if (isUnquoted)
+              if (!hasStoreOffer)
                 MetaItem(
                   thread.totalOffersCount > 0
                       ? '${thread.totalOffersCount} cotización${thread.totalOffersCount > 1 ? 'es' : ''}'
@@ -238,7 +266,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
             ],
           ),
 
-          // ── Footer: acción ───────────────────────────────────────────────
+          // ── Footer: acciones según pertenencia de oferta ─────────────────
           const CardDivider(),
           if (_isSubmitting)
             const Center(
@@ -251,7 +279,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                 ),
               ),
             )
-          else if (isUnquoted)
+          else if (canQuoteNow)
             SizedBox(
               width: double.infinity,
               height: 48,
@@ -260,8 +288,6 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                 icon: const Icon(Icons.local_offer_rounded, size: 18),
                 label: Text('Cotizar ahora', style: CardTokens.button),
                 style: ElevatedButton.styleFrom(
-                  // primaryDark: blanco sobre primary da 3.33:1 (falla AA),
-                  // sobre primaryDark da 5.1:1.
                   backgroundColor: AppColors.primaryDark,
                   foregroundColor: Colors.white,
                   elevation: 0,
@@ -270,20 +296,130 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
               ),
             )
           else if (isBought)
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                onPressed: _markDelivered,
-                icon: const Icon(Icons.local_shipping_rounded, size: 18),
-                label: Text('Marcar como entregado', style: CardTokens.button),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.success,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.successLight,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.verified_rounded, size: 16, color: AppColors.successInk),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '¡El cliente aceptó y compró tu oferta!',
+                          style: CardTokens.metaStrong.copyWith(color: AppColors.successInk),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton.icon(
+                    onPressed: _markDelivered,
+                    icon: const Icon(Icons.local_shipping_rounded, size: 18),
+                    label: Text('Marcar como entregado', style: CardTokens.button),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.success,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else if (isDelivered)
+            Row(
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: AppColors.successInk, size: 18),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Entregado con éxito',
+                          style: CardTokens.metaStrong.copyWith(color: AppColors.successInk),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  height: 40,
+                  child: OutlinedButton(
+                    onPressed: widget.onTap,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: Size.zero,
+                      foregroundColor: AppColors.textPrimary,
+                      side: const BorderSide(color: AppColors.border),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text('Ver chat', style: CardTokens.button),
+                  ),
+                ),
+              ],
+            )
+          else if (isDiscarded)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'El cliente eligió otra propuesta',
+                    style: CardTokens.meta.copyWith(color: AppColors.textMeta),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  height: 40,
+                  child: OutlinedButton(
+                    onPressed: widget.onTap,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: Size.zero,
+                      foregroundColor: AppColors.textSecondary,
+                      side: const BorderSide(color: AppColors.border),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text('Ver chat', style: CardTokens.button),
+                  ),
+                ),
+              ],
+            )
+          else if (isClosedWithoutQuote)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Solicitud cerrada sin cotizar',
+                    style: CardTokens.meta.copyWith(color: AppColors.textMeta),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  height: 40,
+                  child: OutlinedButton(
+                    onPressed: widget.onTap,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: Size.zero,
+                      foregroundColor: AppColors.textSecondary,
+                      side: const BorderSide(color: AppColors.border),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text('Ver chat', style: CardTokens.button),
+                  ),
+                ),
+              ],
             )
           else
             Row(
@@ -309,7 +445,6 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                   child: OutlinedButton(
                     onPressed: widget.onTap,
                     style: OutlinedButton.styleFrom(
-                      // El OutlinedButtonTheme global fuerza ancho infinito.
                       minimumSize: Size.zero,
                       foregroundColor: AppColors.primary,
                       side: const BorderSide(color: AppColors.border),

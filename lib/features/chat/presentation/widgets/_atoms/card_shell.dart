@@ -16,6 +16,7 @@ class CardShell extends StatefulWidget {
   final VoidCallback onTap;
   final EdgeInsetsGeometry padding;
   final EdgeInsetsGeometry margin;
+  final Color? accentColor;
 
   /// Resumen legible para lectores de pantalla. Si se provee, la card se
   /// anuncia como un solo botón con este texto en vez de leer cada Text hijo
@@ -28,6 +29,7 @@ class CardShell extends StatefulWidget {
     required this.onTap,
     this.padding = const EdgeInsets.all(CardTokens.pad),
     this.margin = const EdgeInsets.only(bottom: 12),
+    this.accentColor,
     this.semanticLabel,
   });
 
@@ -40,6 +42,8 @@ class _CardShellState extends State<CardShell> {
 
   @override
   Widget build(BuildContext context) {
+    final hasAccent = widget.accentColor != null && widget.accentColor != Colors.transparent;
+
     final content = GestureDetector(
       onTapDown: (_) => setState(() => _isPressed = true),
       onTapUp: (_) => setState(() => _isPressed = false),
@@ -54,17 +58,36 @@ class _CardShellState extends State<CardShell> {
         curve: Curves.easeOut,
         child: Container(
           margin: widget.margin,
-          padding: widget.padding,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(CardTokens.radius),
             border: Border.all(color: AppColors.grey100),
             boxShadow: CardTokens.shadow,
           ),
-          child: widget.child,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(CardTokens.radius),
+            child: Stack(
+              children: [
+                if (hasAccent)
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: 4,
+                    child: Container(color: widget.accentColor),
+                  ),
+                Padding(
+                  padding: widget.padding,
+                  child: widget.child,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
+
+
 
     if (widget.semanticLabel == null) return content;
 
