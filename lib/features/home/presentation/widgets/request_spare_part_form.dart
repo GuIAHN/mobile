@@ -196,21 +196,18 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
       }
     }
 
-    final String? mockFotoUrl = _selectedImagePath != null
-        ? 'https://guiautomotriz.com/uploads/temp_${DateTime.now().millisecondsSinceEpoch}.jpg'
-        : null;
-
     _showLoadingOverlay();
     await ref.read(searchRequestNotifierProvider.notifier).submitSearch(
           userCarId: userCarId,
           subcategoryId: selectedSubcategory.id,
           details: _detailsController.text,
           partType: selectedPartType,
-          fotoUrl: mockFotoUrl,
+          fotoUrl: _selectedImagePath,
           lat: lat,
           lon: lon,
         );
     _hideLoadingOverlay();
+
 
     if (!mounted) return;
     final searchState = ref.read(searchRequestNotifierProvider);

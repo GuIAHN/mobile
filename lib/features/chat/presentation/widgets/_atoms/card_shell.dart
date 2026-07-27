@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../shared/widgets/image_viewer_dialog.dart';
 import 'card_tokens.dart';
+
 
 /// Contenedor único de las cards de solicitud/oferta.
 ///
@@ -119,27 +121,32 @@ class CardDivider extends StatelessWidget {
 ///
 /// Sin borde (antes tenía uno de 1px que sumaba ruido al ya presente borde de
 /// la card) y con un fondo neutro que hace de placeholder mientras carga.
+/// Permite ampliar la imagen al tocarla en pantalla completa.
 class CardThumb extends StatelessWidget {
   final String? url;
   final double size;
   final IconData fallbackIcon;
+  final String? title;
 
   const CardThumb({
     super.key,
     required this.url,
     this.size = CardTokens.thumbSize,
     this.fallbackIcon = Icons.directions_car_rounded,
+    this.title,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
+    final hasValidUrl = url != null && url!.isNotEmpty;
+
+    final childWidget = ClipRRect(
       borderRadius: BorderRadius.circular(CardTokens.thumbRadius),
       child: Container(
         width: size,
         height: size,
         color: AppColors.grey100,
-        child: url != null && url!.isNotEmpty
+        child: hasValidUrl
             ? Image.network(
                 url!,
                 fit: BoxFit.cover,
@@ -150,9 +157,17 @@ class CardThumb extends StatelessWidget {
             : _fallback(),
       ),
     );
+
+    if (!hasValidUrl) return childWidget;
+
+    return GestureDetector(
+      onTap: () => ImageViewerDialog.show(context, url!, title: title),
+      child: childWidget,
+    );
   }
 
   Widget _fallback() => Center(
         child: Icon(fallbackIcon, size: size * 0.36, color: AppColors.grey400),
       );
 }
+

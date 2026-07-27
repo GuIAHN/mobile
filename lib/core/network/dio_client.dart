@@ -1,9 +1,12 @@
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import 'interceptors/auth_interceptor.dart';
 import 'interceptors/logging_interceptor.dart';
 import 'interceptors/response_unwrap_interceptor.dart';
+
 
 /// Global provider for the configured Dio client.
 final dioClientProvider = Provider<DioClient>((ref) {
@@ -86,4 +89,84 @@ class DioClient {
     Options? options,
   }) =>
       _dio.delete<T>(_cleanPath(path), data: data, queryParameters: queryParameters, options: options);
+
+  DioMediaType _getMediaType(String filename) {
+    final ext = filename.split('.').last.toLowerCase();
+    switch (ext) {
+      case 'png':
+        return DioMediaType('image', 'png');
+      case 'webp':
+        return DioMediaType('image', 'webp');
+      case 'jpg':
+      case 'jpeg':
+      default:
+        return DioMediaType('image', 'jpeg');
+    }
+  }
+
+  /// Subida multipart de una imagen al backend (`POST /upload/image`).
+  /// Retorna la URL pública de la imagen almacenada.
+  /// Compatible tanto con Web (Chrome/Safari) como con Móvil (Android/iOS).
+  Future<String> uploadImage(
+    String filePath, {
+    Uint8List? bytes,
+    String folder = 'general',
+  }) async {
+    final rawFileName = filePath.split('/').last.split('\\').last;
+    final String fileName = rawFileName.isEmpty || rawFileName.startsWith('blob:')
+        ? 'image_${DateTime.now().millisecondsSinceEpoch}.jpg'
+        : rawFileName;
+
+    final mediaType = _getMediaType(fileName);
+    final MultipartFile multipartFile;
+
+    if (kIsWeb) {
+      Uint8List fileBytes;
+      if (bytes != null) {
+        fileBytes = bytes;
+      } else if (filePath.startsWith('blob:') || filePath.startsWith('http')) {
+        final standaloneDio = Dio();
+        final res = await standaloneDio.get<List<int>>(
+          filePath,
+          options: Options(responseType: ResponseType.bytes),
+        );
+        fileBytes = Uint8List.fromList(res.data!);
+      } else {
+        throw Exception('No se pudieron obtener los bytes de la imagen en Web');
+      }
+      multipartFile = MultipartFile.fromBytes(
+        fileBytes,
+        filename: fileName,
+        contentType: mediaType,
+      );
+    } else {
+      multipartFile = await MultipartFile.fromFile(
+        filePath,
+        filename: fileName,
+        contentType: mediaType,
+      );
+    }
+
+
+    final formData = FormData.fromMap({
+      'file': multipartFile,
+    });
+
+    final response = await _dio.post(
+      'upload/image',
+      queryParameters: {'folder': folder},
+      data: formData,
+      options: Options(
+        contentType: 'multipart/form-data',
+      ),
+    );
+
+    final data = response.data;
+    if (data is Map && data.containsKey('url')) {
+      return data['url'] as String;
+    }
+    throw Exception('Error al subir imagen: la respuesta no contiene la URL');
+  }
 }
+
+

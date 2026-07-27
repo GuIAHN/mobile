@@ -302,17 +302,22 @@ class ChatRemoteDataSource {
 
     final searchMatchId = match['searchMatchId'];
 
-    final String? mockFotoUrl = photoPath != null
-        ? 'https://guiautomotriz.com/uploads/temp_${DateTime.now().millisecondsSinceEpoch}.jpg'
-        : null;
+    String? sparePhotoUrl = photoPath;
+    if (photoPath != null &&
+        photoPath.isNotEmpty &&
+        !photoPath.startsWith('http://') &&
+        !photoPath.startsWith('https://')) {
+      sparePhotoUrl = await _dioClient.uploadImage(photoPath, folder: 'offers');
+    }
 
     final payload = {
       'searchMatchId': searchMatchId,
       'price': isFixedPrice ? price : minPrice,
       'message': 'Nueva oferta enviada',
       if (brand != null && brand.isNotEmpty) 'spareBrand': brand,
-      if (mockFotoUrl != null) 'sparePhotoUrl': mockFotoUrl,
+      if (sparePhotoUrl != null && sparePhotoUrl.isNotEmpty) 'sparePhotoUrl': sparePhotoUrl,
     };
+
 
     final response = await _dioClient.post('offers', data: payload);
     final json = response.data;

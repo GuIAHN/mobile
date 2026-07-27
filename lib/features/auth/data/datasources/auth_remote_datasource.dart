@@ -266,17 +266,10 @@ class AuthRemoteDataSource {
   /// Uploads or replaces the current user's profile photo (avatar).
   Future<UserModel> uploadAvatar(String filePath) async {
     try {
-      final fileName = filePath.split('/').last;
-      final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(
-          filePath,
-          filename: fileName,
-        ),
-      });
-
-      final response = await _client.post<Map<String, dynamic>>(
-        'users/me/avatar',
-        data: formData,
+      final photoUrl = await _client.uploadImage(filePath, folder: 'avatars');
+      final response = await _client.patch<Map<String, dynamic>>(
+        'users/me',
+        data: {'photo': photoUrl},
       );
 
       if (response.data == null) {
@@ -288,6 +281,7 @@ class AuthRemoteDataSource {
       rethrow;
     }
   }
+
 
   /// Updates the current user's profile details.
   Future<UserModel> updateProfile({

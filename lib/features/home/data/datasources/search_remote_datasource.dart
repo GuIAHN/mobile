@@ -78,11 +78,19 @@ class SearchRemoteDatasourceImpl implements SearchRemoteDatasource {
     double? lon,
   }) async {
     try {
+      String? uploadedPhotoUrl = fotoUrl;
+      if (fotoUrl != null &&
+          fotoUrl.isNotEmpty &&
+          !fotoUrl.startsWith('http://') &&
+          !fotoUrl.startsWith('https://')) {
+        uploadedPhotoUrl = await _client.uploadImage(fotoUrl, folder: 'requests');
+      }
+
       final payload = {
         'userCarId': userCarId,
         'subcategoryId': subcategoryId,
         if (details != null && details.isNotEmpty) 'details': details,
-        if (fotoUrl != null && fotoUrl.isNotEmpty) 'photoUrl': fotoUrl,
+        if (uploadedPhotoUrl != null && uploadedPhotoUrl.isNotEmpty) 'photoUrl': uploadedPhotoUrl,
         if (partType != null) 'partType': partType.apiValue,
         if (radioKm != null) 'radiusKm': radioKm,
         if (lat != null) 'lat': lat,
@@ -103,4 +111,5 @@ class SearchRemoteDatasourceImpl implements SearchRemoteDatasource {
       rethrow;
     }
   }
+
 }
