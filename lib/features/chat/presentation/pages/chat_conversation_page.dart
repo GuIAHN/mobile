@@ -7,6 +7,7 @@ import '../providers/chat_providers.dart';
 import '../widgets/chat_message_bubble.dart';
 import '../widgets/active_offer_header_card.dart';
 import '../widgets/confirm_purchase_dialog.dart';
+import '../widgets/moderation_blocked_dialog.dart';
 import '../widgets/store_contact_sheet.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/domain/enums/user_role.dart';
@@ -86,12 +87,23 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSending = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception:', '').trim()),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        final message = e.toString().replaceAll('Exception:', '').trim();
+        // Moderation rejections get a dedicated dialog (deliberate policy
+        // violation) instead of the generic SnackBar used for transient
+        // errors (disconnects, not-a-participant, etc.).
+        // Must match a substring of ModerationService.VIOLATION_MESSAGE
+        // (backend: moderation.service.ts) so only that specific rejection
+        // gets the dialog treatment.
+        if (message.contains('enlaces externos')) {
+          ModerationBlockedDialog.show(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
       }
     }
   }
