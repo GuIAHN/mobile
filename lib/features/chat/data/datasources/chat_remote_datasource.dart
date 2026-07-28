@@ -241,36 +241,7 @@ class ChatRemoteDataSource {
     final json = response.data is Map
         ? Map<String, dynamic>.from(response.data as Map)
         : response.data as Map<String, dynamic>;
-    return ChatConversationModel(
-      id: json['id'],
-      threadId: json['offerId'] ?? 'DIRECT',
-      participantName: json['participantName'],
-      participantAvatarUrl: json['participantAvatarUrl'],
-      lastMessage: json['lastMessage'] ?? '',
-      unreadCount: json['unreadCount'] ?? 0,
-      lastMessageAt: json['lastMessageAt'] != null
-          ? DateTime.parse(json['lastMessageAt'])
-          : DateTime.now(),
-      offerId: json['offerId'],
-      offerStatus: json['offerStatus'],
-      hasQuote: json['hasQuote'] ?? false,
-      isFixedPrice: json['isFixedPrice'] ?? false,
-      price: json['price'] != null
-          ? double.tryParse(json['price'].toString())
-          : null,
-      spareBrand: json['spareBrand'],
-      sparePhotoUrl: json['sparePhotoUrl'],
-      hasDelivery: json['hasDelivery'] as bool? ?? false,
-      storeUserId: json['storeUserId'] as String?,
-      hasReviewed: json['hasReviewed'] as bool? ?? false,
-      reviewRating: (json['reviewRating'] as num?)?.toInt(),
-      reviewComment: json['reviewComment'] as String?,
-      vehicleTitle: json['vehicleTitle'] as String?,
-      subcategoryName: json['subcategoryName'] as String?,
-      partType: json['partType'] as String?,
-      requestDetails: json['requestDetails'] as String?,
-      offerMessage: json['offerMessage'] as String?,
-    );
+    return ChatConversationModel.fromJson(json);
   }
 
   Future<void> markAsRead(String conversationId) async {

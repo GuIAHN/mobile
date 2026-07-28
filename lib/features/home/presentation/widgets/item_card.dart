@@ -97,15 +97,28 @@ class _ItemCardState extends State<ItemCard> {
                     child: Container(
                       width: 48,
                       height: 48,
+                      clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
                         color: softBgColor,
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: Icon(
-                        getIconData(item.iconName),
-                        color: accentColor,
-                        size: 22,
-                      ),
+                      child: item.photo != null && item.photo!.isNotEmpty
+                          ? Image.network(
+                              item.photo!,
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Icon(
+                                getIconData(item.iconName),
+                                color: accentColor,
+                                size: 22,
+                              ),
+                            )
+                          : Icon(
+                              getIconData(item.iconName),
+                              color: accentColor,
+                              size: 22,
+                            ),
                     ),
                   ),
                   Positioned(

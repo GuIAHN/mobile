@@ -7,10 +7,7 @@ import 'shared/widgets/app_notification_host.dart';
 import 'shared/widgets/maintenance_page.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/presentation/providers/auth_state.dart';
-import 'core/storage/secure_storage.dart';
-
 import 'core/services/socket_service.dart';
-import 'features/chat/presentation/providers/chat_providers.dart';
 
 class GuiAutomotrizApp extends ConsumerWidget {
   const GuiAutomotrizApp({super.key});

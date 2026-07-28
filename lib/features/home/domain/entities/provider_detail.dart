@@ -27,15 +27,20 @@ class ProviderDetail extends Equatable {
   final bool esTaller;
   final String? descripcion;
   final double? rating;
+  final int ratingCount;
   final double? tarifa;
   final double? distanciaKm;
   final List<String> especialidades;
   final bool verified;
+  final String? identificacion;
   final String? telefono;
   final String? email;
   final String? direccion;
+  final double? lat;
+  final double? lng;
   final bool hasDelivery;
   final List<ProviderCategory> categorias;
+  final String? photo;
 
   const ProviderDetail({
     required this.id,
@@ -44,15 +49,20 @@ class ProviderDetail extends Equatable {
     required this.esTaller,
     this.descripcion,
     this.rating,
+    this.ratingCount = 0,
     this.tarifa,
     this.distanciaKm,
     this.especialidades = const [],
     this.verified = false,
+    this.identificacion,
     this.telefono,
     this.email,
     this.direccion,
+    this.lat,
+    this.lng,
     this.hasDelivery = false,
     this.categorias = const [],
+    this.photo,
   });
 
   String get displayType => esTaller ? 'Taller Mecánico' : 'Mecánico';
@@ -65,14 +75,19 @@ class ProviderDetail extends Equatable {
         esTaller,
         descripcion,
         rating,
+        ratingCount,
         tarifa,
         distanciaKm,
         especialidades,
         verified,
+        identificacion,
         telefono,
         email,
         direccion,
+        lat,
+        lng,
         hasDelivery,
         categorias,
+        photo,
       ];
 }

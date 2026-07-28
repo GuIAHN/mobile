@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -29,31 +28,10 @@ class StoreDetailPage extends ConsumerWidget {
           onRetry: () => ref.invalidate(providerDetailProvider(args)),
         ),
         data: (detail) {
-          final hasContact = detail.telefono != null || detail.email != null;
-
-          final stats = <DetailStat>[
-            if (detail.rating != null)
-              DetailStat(
-                icon: Icons.star_rounded,
-                color: const Color(0xFFF59E0B),
-                value: detail.rating!.toStringAsFixed(1),
-                label: 'Rating',
-              ),
-            if (detail.distanciaKm != null)
-              DetailStat(
-                icon: Icons.near_me_rounded,
-                color: AppColors.primary,
-                value: '${detail.distanciaKm!.toStringAsFixed(1)} km',
-                label: 'Distancia',
-              ),
-            if (detail.tarifa != null)
-              DetailStat(
-                icon: Icons.payments_rounded,
-                color: AppColors.success,
-                value: '${Formatters.currencyCompact(detail.tarifa!)}/h',
-                label: 'Tarifa',
-              ),
-          ];
+          final hasContact = detail.telefono != null;
+          final hasLocation = detail.direccion != null ||
+              detail.lat != null ||
+              detail.lng != null;
 
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
@@ -72,6 +50,7 @@ class StoreDetailPage extends ConsumerWidget {
                     tipoLabel: 'Taller Mecánico',
                     icono: Icons.warehouse_rounded,
                     verified: detail.verified,
+                    photoUrl: detail.photo,
                   ),
                 ),
               ),
@@ -80,10 +59,13 @@ class StoreDetailPage extends ConsumerWidget {
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    if (stats.isNotEmpty) ...[
-                      DetailStatsCard(stats: stats),
-                      const SizedBox(height: 20),
-                    ],
+                    DetailHeroStatsCard(
+                      rating: detail.rating,
+                      ratingCount: detail.ratingCount,
+                      distanciaKm: detail.distanciaKm,
+                      tarifa: detail.tarifa,
+                    ),
+                    const SizedBox(height: 24),
 
                     if (detail.hasDelivery) ...[
                       const _DeliveryBadge(),
@@ -111,80 +93,50 @@ class StoreDetailPage extends ConsumerWidget {
                       const SizedBox(height: 16),
                     ],
 
-                    if (detail.descripcion != null &&
-                        detail.descripcion!.isNotEmpty) ...[
-                      const DetailSectionTitle(title: 'Sobre el taller'),
+                    const DetailSectionTitle(title: 'Sobre el taller'),
+                    const SizedBox(height: 14),
+                    DetailDescriptionCard(
+                      text: detail.descripcion ?? '',
+                      title: 'PRESENTACIÓN DEL TALLER',
+                    ),
+                    const SizedBox(height: 28),
+
+                    if (hasLocation) ...[
+                      const DetailSectionTitle(title: 'Ubicación del taller'),
                       const SizedBox(height: 14),
-                      DetailDescriptionCard(text: detail.descripcion!),
+                      DetailLocationCard(
+                        direccion: detail.direccion,
+                        lat: detail.lat,
+                        lng: detail.lng,
+                      ),
                       const SizedBox(height: 28),
                     ],
 
-                    if (hasContact || detail.direccion != null) ...[
-                      const DetailSectionTitle(title: 'Contacto y ubicación'),
+                    if (hasContact) ...[
+                      const DetailSectionTitle(title: 'Contacto'),
                       const SizedBox(height: 14),
-                      if (detail.telefono != null)
+                      if (detail.telefono != null) ...[
                         DetailContactTile(
                           icon: Icons.phone_rounded,
-                          label: 'Teléfono',
+                          label: 'Llamar por teléfono',
                           value: detail.telefono!,
                           color: AppColors.success,
                           semanticsHint: 'Toca para llamar',
                           onTap: () =>
                               ContactActions.call(context, detail.telefono!),
                         ),
-                      if (detail.email != null)
                         DetailContactTile(
-                          icon: Icons.email_rounded,
-                          label: 'Correo',
-                          value: detail.email!,
-                          color: AppColors.tertiary,
-                          semanticsHint: 'Toca para enviar un correo',
-                          onTap: () =>
-                              ContactActions.email(context, detail.email!),
+                          icon: Icons.chat_bubble_rounded,
+                          label: 'WhatsApp',
+                          value: detail.telefono!,
+                          color: const Color(0xFF25D366),
+                          semanticsHint: 'Toca para escribir por WhatsApp',
+                          onTap: () => ContactActions.whatsapp(
+                              context, detail.telefono!),
                         ),
-                      if (detail.direccion != null)
-                        DetailContactTile(
-                          icon: Icons.location_on_rounded,
-                          label: 'Dirección',
-                          value: detail.direccion!,
-                          color: AppColors.primary,
-                          semanticsHint: 'Toca para copiar la dirección',
-                          onTap: () async {
-                            await Clipboard.setData(
-                                ClipboardData(text: detail.direccion!));
-                            HapticFeedback.mediumImpact();
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Dirección copiada al portapapeles',
-                                  style: GoogleFonts.hankenGrotesk(
-                                      fontWeight: FontWeight.w600),
-                                ),
-                                backgroundColor: AppColors.secondary,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          },
-                        ),
+                      ],
                       const SizedBox(height: 24),
                     ],
-
-                    if (hasContact)
-                      DetailCtaButton(
-                        label: 'Contactar',
-                        icon: Icons.forum_rounded,
-                        onPressed: () => ContactSheet.show(
-                          context,
-                          nombre: detail.nombre,
-                          telefono: detail.telefono,
-                          email: detail.email,
-                        ),
-                      ),
                     const SizedBox(height: 32),
                   ]),
                 ),

@@ -35,7 +35,6 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
     super.initState();
     Future.microtask(() {
       ref.invalidate(chatConversationsProvider(widget.threadId));
-      ref.invalidate(chatThreadsProvider);
     });
   }
 

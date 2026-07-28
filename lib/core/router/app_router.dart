@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/storage/secure_storage.dart';
-import '../../core/domain/enums/user_role.dart';
-import '../../core/providers/current_user_provider.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/auth/presentation/providers/auth_state.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
@@ -188,7 +186,6 @@ class AppRouter {
                     path: ':conversationId',
                     name: 'chatConversation',
                     builder: (context, state) {
-                      final threadId = state.pathParameters['threadId']!;
                       final conversationId = state.pathParameters['conversationId']!;
                       return ChatConversationPage(
                         conversationId: conversationId,

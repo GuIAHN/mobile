@@ -21,10 +21,14 @@ class ChatConversation extends Equatable {
   final String? spareBrand;
   final String? sparePhotoUrl;
 
-  // Store trust signals (offer card, estilo marketplace)
+  // Store trust & contact signals (offer card, estilo marketplace)
   final String? storeLogoUrl;
   final String? storeUserId;
   final String? storeId;
+  final String? storePhone;
+  final String? storeAddress;
+  final double? storeLat;
+  final double? storeLng;
   final bool verified;
   final bool hasDelivery;
   final double? distanceKm;
@@ -63,6 +67,10 @@ class ChatConversation extends Equatable {
     this.storeLogoUrl,
     this.storeUserId,
     this.storeId,
+    this.storePhone,
+    this.storeAddress,
+    this.storeLat,
+    this.storeLng,
     this.verified = false,
     this.hasDelivery = false,
     this.distanceKm,

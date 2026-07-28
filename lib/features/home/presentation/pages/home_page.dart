@@ -215,13 +215,26 @@ class _HomePageState extends ConsumerState<HomePage> {
         // 1. Header (Logo + Ubicación)
         _buildHeader(),
 
-        // 2. Selector de categoría
+        // 2. Carrusel de Promociones / Banners
+        promosAsync.when(
+          data: (promos) => Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 8, left: 20, right: 20),
+            child: PromoCarousel(promos: promos),
+          ),
+          loading: () => const Padding(
+            padding: EdgeInsets.only(top: 8, bottom: 8, left: 20, right: 20),
+            child: PromoSkeleton(),
+          ),
+          error: (_, __) => const SizedBox.shrink(),
+        ),
+
+        // 3. Selector de categoría
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: CategorySelector(),
         ),
 
-        // 3. Barra de vehículo y búsqueda (solo mecánicos/talleres)
+        // 4. Barra de vehículo y búsqueda (solo mecánicos/talleres)
         if (!isSpareParts) ...[
           if (searchVehicle != null)
             _buildSelectedVehicleBar(searchVehicle)
@@ -229,19 +242,6 @@ class _HomePageState extends ConsumerState<HomePage> {
             _buildSelectVehiclePromptBar(),
           _buildSearchBar(filters.activeCount),
         ],
-
-        // 4. Carrusel de Promociones
-        promosAsync.when(
-          data: (promos) => Padding(
-            padding: const EdgeInsets.only(top: 12, left: 20, right: 20),
-            child: PromoCarousel(promos: promos),
-          ),
-          loading: () => const Padding(
-            padding: EdgeInsets.only(top: 12, left: 20, right: 20),
-            child: PromoSkeleton(),
-          ),
-          error: (_, __) => const SizedBox.shrink(),
-        ),
 
         // Si es repuestos, mostramos el formulario de solicitud
         if (isSpareParts)

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../domain/entities/chat_conversation.dart';
+import 'store_contact_sheet.dart';
 
 class ActiveOfferHeaderCard extends StatefulWidget {
   final ChatConversation details;
@@ -341,33 +342,72 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                       ),
                     )
 
-                  // 2. Consumidor: Esperando entrega
+                  // 2. Consumidor: Esperando entrega + Acciones Directas de Contacto
                   else if (!isStore && isBought)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.successLight.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: AppColors.success.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.hourglass_top_rounded,
-                              size: 16, color: AppColors.success),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Compra en proceso • En espera de entrega',
-                            style: GoogleFonts.hankenGrotesk(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.success,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 12),
+                          decoration: BoxDecoration(
+                            color:
+                                AppColors.successLight.withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: AppColors.success
+                                    .withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.check_circle_outline_rounded,
+                                  size: 16, color: AppColors.success),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Compra en proceso • Contacta a la tienda',
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.success,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        InkWell(
+                          onTap: () => StoreContactSheet.show(
+                            context,
+                            details: details,
+                            isPostPurchase: false,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 9),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.info_outline_rounded,
+                                    size: 15, color: Colors.white),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Ver Datos de la Tienda',
+                                  style: GoogleFonts.hankenGrotesk(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     )
 
                   // 3. Tienda: Marcar como Entregado

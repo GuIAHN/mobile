@@ -23,6 +23,9 @@ class HomeItem extends Equatable {
   /// Indicates if the store has delivery
   final bool hasDelivery;
 
+  /// Foto de perfil del usuario/proveedor
+  final String? photo;
+
   const HomeItem({
     this.id,
     required this.name,
@@ -37,6 +40,7 @@ class HomeItem extends Equatable {
     this.especialidades = const [],
     this.tarifa,
     this.hasDelivery = false,
+    this.photo,
   });
 
   @override
@@ -54,5 +58,6 @@ class HomeItem extends Equatable {
         especialidades,
         tarifa,
         hasDelivery,
+        photo,
       ];
 }

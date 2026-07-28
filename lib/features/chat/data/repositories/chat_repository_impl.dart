@@ -2,7 +2,6 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/error/error_mapper.dart';
-import '../../domain/entities/chat_thread.dart';
 import '../../domain/entities/chat_threads_result.dart';
 import '../../domain/entities/chat_conversation.dart';
 import '../../domain/entities/chat_message.dart';

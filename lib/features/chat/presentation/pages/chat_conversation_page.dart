@@ -6,6 +6,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../providers/chat_providers.dart';
 import '../widgets/chat_message_bubble.dart';
 import '../widgets/active_offer_header_card.dart';
+import '../widgets/confirm_purchase_dialog.dart';
+import '../widgets/store_contact_sheet.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
@@ -38,7 +40,6 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
     Future.microtask(() async {
       await ref.read(markAsReadUseCaseProvider).call(widget.conversationId);
       if (mounted) {
-        ref.invalidate(chatThreadsProvider);
         ref.invalidate(myConversationsProvider);
       }
     });
@@ -198,72 +199,91 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
         child: Column(
           children: [
             // ── Active Offer Header ─────────────────────────────────────────
-            detailsAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (details) {
-                if (!details.hasQuote) return const SizedBox.shrink();
-                return ActiveOfferHeaderCard(
-                  details: details,
-                  isStore: isStore,
-                  onBuyPressed: () async {
-                    final scaffold = ScaffoldMessenger.of(context);
-                    final usecase = ref.read(buyOfferUseCaseProvider);
-                    final result = await usecase(details.offerId!);
-                    result.fold(
-                      (f) => scaffold.showSnackBar(
-                          SnackBar(content: Text('Error: ${f.message}'))),
-                      (_) {
-                        scaffold.showSnackBar(
-                            const SnackBar(content: Text('¡Compra exitosa!')));
-                        ref.invalidate(chatConversationDetailsProvider(
-                            widget.conversationId));
-                        ref.invalidate(myConversationsProvider);
-                      },
-                    );
-                  },
-                  onDeliverPressed: () async {
-                    final scaffold = ScaffoldMessenger.of(context);
-                    final usecase = ref.read(deliverOfferUseCaseProvider);
-                    final result = await usecase(details.offerId!);
-                    result.fold(
-                      (f) => scaffold.showSnackBar(
-                          SnackBar(content: Text('Error: ${f.message}'))),
-                      (_) {
-                        scaffold.showSnackBar(const SnackBar(
-                            content: Text('¡Oferta marcada como entregada!')));
-                        ref.invalidate(chatConversationDetailsProvider(
-                            widget.conversationId));
-                        ref.invalidate(myConversationsProvider);
-                      },
-                    );
-                  },
-                  onReviewPressed: () async {
-                    final res = await showModalBottomSheet<bool>(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => WriteReviewBottomSheet(
-                        targetId: details.storeUserId ?? '',
-                        conversationId: widget.conversationId,
-                      ),
-                    );
-                    if (res == true && mounted) {
+            if (detailsAsync.valueOrNull != null &&
+                detailsAsync.valueOrNull!.hasQuote)
+              ActiveOfferHeaderCard(
+                details: detailsAsync.valueOrNull!,
+                isStore: isStore,
+                onBuyPressed: () async {
+                  final details = detailsAsync.valueOrNull!;
+                  final confirmed = await ConfirmPurchaseDialog.show(
+                    context,
+                    details: details,
+                  );
+                  if (confirmed != true) return;
+
+                  if (!context.mounted) return;
+                  final scaffold = ScaffoldMessenger.of(context);
+                  final usecase = ref.read(buyOfferUseCaseProvider);
+                  final result = await usecase(details.offerId!);
+
+                  result.fold(
+                    (f) => scaffold.showSnackBar(
+                        SnackBar(content: Text('Error: ${f.message}'))),
+                    (_) async {
                       ref.invalidate(chatConversationDetailsProvider(
                           widget.conversationId));
-                    }
-                  },
-                  onViewStoreReviewsPressed: () {
-                    if (details.storeUserId != null) {
-                      context.pushNamed(
-                        'providerReviews',
-                        pathParameters: {'targetId': details.storeUserId!},
+                      ref.invalidate(myConversationsProvider);
+
+                      // Direct fetch for fresh details without awaiting Riverpod future rebuild loop
+                      final repo = ref.read(chatRepositoryProvider);
+                      final updatedRes = await repo
+                          .getConversationDetails(widget.conversationId);
+                      final freshDetails =
+                          updatedRes.fold((_) => details, (d) => d);
+
+                      if (!context.mounted) return;
+                      await StoreContactSheet.show(
+                        context,
+                        details: freshDetails,
+                        isPostPurchase: true,
                       );
-                    }
-                  },
-                );
-              },
-            ),
+                    },
+                  );
+                },
+                onDeliverPressed: () async {
+                  final details = detailsAsync.valueOrNull!;
+                  final scaffold = ScaffoldMessenger.of(context);
+                  final usecase = ref.read(deliverOfferUseCaseProvider);
+                  final result = await usecase(details.offerId!);
+                  result.fold(
+                    (f) => scaffold.showSnackBar(
+                        SnackBar(content: Text('Error: ${f.message}'))),
+                    (_) {
+                      scaffold.showSnackBar(const SnackBar(
+                          content: Text('¡Oferta marcada como entregada!')));
+                      ref.invalidate(chatConversationDetailsProvider(
+                          widget.conversationId));
+                      ref.invalidate(myConversationsProvider);
+                    },
+                  );
+                },
+                onReviewPressed: () async {
+                  final details = detailsAsync.valueOrNull!;
+                  final res = await showModalBottomSheet<bool>(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => WriteReviewBottomSheet(
+                      targetId: details.storeUserId ?? '',
+                      conversationId: widget.conversationId,
+                    ),
+                  );
+                  if (res == true && mounted) {
+                    ref.invalidate(chatConversationDetailsProvider(
+                        widget.conversationId));
+                  }
+                },
+                onViewStoreReviewsPressed: () {
+                  final details = detailsAsync.valueOrNull!;
+                  if (details.storeUserId != null) {
+                    context.pushNamed(
+                      'providerReviews',
+                      pathParameters: {'targetId': details.storeUserId!},
+                    );
+                  }
+                },
+              ),
 
             // ── Messages feed ─────────────────────────────────────────────
             Expanded(

@@ -21,6 +21,10 @@ class ChatConversationModel extends ChatConversation {
     super.storeLogoUrl,
     super.storeUserId,
     super.storeId,
+    super.storePhone,
+    super.storeAddress,
+    super.storeLat,
+    super.storeLng,
     super.verified,
     super.hasDelivery,
     super.distanceKm,
@@ -39,13 +43,19 @@ class ChatConversationModel extends ChatConversation {
   });
 
   factory ChatConversationModel.fromJson(Map<String, dynamic> json) {
+    // Helper para parsear campos numéricos que Prisma puede enviar como String o num
+    double? parseDouble(dynamic v) =>
+        v == null ? null : (v is num ? v.toDouble() : double.tryParse(v.toString()));
+    int? parseInt(dynamic v) =>
+        v == null ? null : (v is int ? v : (v is num ? v.toInt() : int.tryParse(v.toString())));
+
     return ChatConversationModel(
       id: json['id'] as String,
-      threadId: json['threadId'] as String? ?? 'general',
+      threadId: json['threadId'] as String? ?? json['offerId'] as String? ?? 'DIRECT',
       participantName: json['participantName'] as String? ?? 'Usuario',
       participantAvatarUrl: json['participantAvatarUrl'] as String?,
       lastMessage: json['lastMessage'] as String? ?? '',
-      unreadCount: json['unreadCount'] as int? ?? 0,
+      unreadCount: parseInt(json['unreadCount']) ?? 0,
       lastMessageAt: json['lastMessageAt'] != null
           ? DateTime.tryParse(json['lastMessageAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
@@ -53,15 +63,20 @@ class ChatConversationModel extends ChatConversation {
       offerStatus: json['offerStatus'] as String?,
       hasQuote: json['hasQuote'] as bool? ?? false,
       isFixedPrice: json['isFixedPrice'] as bool? ?? true,
-      price: (json['price'] as num?)?.toDouble(),
-      minPrice: (json['minPrice'] as num?)?.toDouble(),
-      maxPrice: (json['maxPrice'] as num?)?.toDouble(),
+      price: parseDouble(json['price']),
+      minPrice: parseDouble(json['minPrice']),
+      maxPrice: parseDouble(json['maxPrice']),
       spareBrand: json['spareBrand'] as String?,
       sparePhotoUrl: json['sparePhotoUrl'] as String?,
       storeUserId: json['storeUserId'] as String?,
       storeId: json['storeId'] as String?,
+      storePhone: json['storePhone'] as String?,
+      storeAddress: json['storeAddress'] as String?,
+      hasDelivery: json['hasDelivery'] as bool? ?? false,
+      storeLat: parseDouble(json['storeLat']),
+      storeLng: parseDouble(json['storeLng']),
       hasReviewed: json['hasReviewed'] as bool? ?? false,
-      reviewRating: (json['reviewRating'] as num?)?.toInt(),
+      reviewRating: parseInt(json['reviewRating']),
       reviewComment: json['reviewComment'] as String?,
       vehicleTitle: json['vehicleTitle'] as String?,
       subcategoryName: json['subcategoryName'] as String?,

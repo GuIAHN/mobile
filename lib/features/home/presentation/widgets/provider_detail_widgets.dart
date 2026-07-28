@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 
 /// Widgets compartidos por las pantallas de detalle de proveedor
@@ -20,6 +23,7 @@ class DetailHeaderBackground extends StatelessWidget {
   final String tipoLabel;
   final IconData icono;
   final bool verified;
+  final String? photoUrl;
 
   const DetailHeaderBackground({
     super.key,
@@ -28,6 +32,7 @@ class DetailHeaderBackground extends StatelessWidget {
     required this.tipoLabel,
     required this.icono,
     this.verified = false,
+    this.photoUrl,
   });
 
   @override
@@ -68,6 +73,7 @@ class DetailHeaderBackground extends StatelessWidget {
                 child: Container(
                   width: 84,
                   height: 84,
+                  clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.18),
                     shape: BoxShape.circle,
@@ -83,7 +89,16 @@ class DetailHeaderBackground extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Icon(icono, size: 38, color: Colors.white),
+                  child: photoUrl != null && photoUrl!.isNotEmpty
+                      ? Image.network(
+                          photoUrl!,
+                          width: 84,
+                          height: 84,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              Icon(icono, size: 38, color: Colors.white),
+                        )
+                      : Icon(icono, size: 38, color: Colors.white),
                 ),
               ),
               const SizedBox(height: 14),
@@ -189,95 +204,150 @@ class DetailBackButton extends StatelessWidget {
   }
 }
 
-// ── Stats ─────────────────────────────────────────────────────────────────
+// ── Hero Stats Card (Métricas Clave Unificadas) ───────────────────────────
 
-class DetailStat {
-  final IconData icon;
-  final Color color;
-  final String value;
-  final String label;
+/// Card única y unificada de métricas clave (Rating, Distancia, Tarifa).
+/// Elimina cualquier duplicación y mantiene una jerarquía limpia y seria.
+class DetailHeroStatsCard extends StatelessWidget {
+  final double? rating;
+  final int ratingCount;
+  final double? distanciaKm;
+  final double? tarifa;
 
-  const DetailStat({
-    required this.icon,
-    required this.color,
-    required this.value,
-    required this.label,
+  const DetailHeroStatsCard({
+    super.key,
+    this.rating,
+    this.ratingCount = 0,
+    this.distanciaKm,
+    this.tarifa,
   });
-}
-
-/// Card flotante de métricas. Solo renderiza stats con valor real
-/// (nada de "N/D" que ensucia la jerarquía visual).
-class DetailStatsCard extends StatelessWidget {
-  final List<DetailStat> stats;
-
-  const DetailStatsCard({super.key, required this.stats});
 
   @override
   Widget build(BuildContext context) {
-    if (stats.isEmpty) return const SizedBox.shrink();
+    final hasRating = rating != null && rating! > 0 && ratingCount > 0;
+    final ratingValue = hasRating ? rating!.toStringAsFixed(1) : 'Nuevo';
+    final ratingSub = hasRating
+        ? '$ratingCount ${ratingCount == 1 ? "reseña" : "reseñas"}'
+        : 'Sin opiniones';
 
-    final children = <Widget>[];
-    for (var i = 0; i < stats.length; i++) {
-      if (i > 0) {
-        children.add(Container(
-          width: 1,
-          height: 40,
-          color: AppColors.grey200,
-          margin: const EdgeInsets.symmetric(horizontal: 8),
-        ));
-      }
-      children.add(Expanded(child: _StatItem(stat: stats[i])));
-    }
+    final distanceValue = distanciaKm != null
+        ? '${distanciaKm!.toStringAsFixed(1)} km'
+        : 'Cercano';
+
+    final rateValue = tarifa != null && tarifa! > 0
+        ? Formatters.currencyCompact(tarifa!)
+        : 'Consultar';
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Row(children: children),
+      child: Row(
+        children: [
+          // Stat 1: Rating (ÚNICO LUGAR DONDE SE MUESTRA EL RATING)
+          Expanded(
+            child: _HeroStatItem(
+              icon: Icons.star_rounded,
+              iconColor: hasRating ? const Color(0xFFF59E0B) : AppColors.grey400,
+              value: ratingValue,
+              label: ratingSub,
+            ),
+          ),
+
+          // Divisor vertical
+          Container(
+            width: 1,
+            height: 38,
+            color: AppColors.border,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+          ),
+
+          // Stat 2: Distancia
+          Expanded(
+            child: _HeroStatItem(
+              icon: Icons.near_me_rounded,
+              iconColor: AppColors.primary,
+              value: distanceValue,
+              label: 'Distancia',
+            ),
+          ),
+
+          // Divisor vertical
+          Container(
+            width: 1,
+            height: 38,
+            color: AppColors.border,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+          ),
+
+          // Stat 3: Tarifa por hora / Rango
+          Expanded(
+            child: _HeroStatItem(
+              icon: Icons.payments_rounded,
+              iconColor: AppColors.success,
+              value: rateValue,
+              label: tarifa != null && tarifa! > 0 ? 'Tarifa / h' : 'Precios',
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _StatItem extends StatelessWidget {
-  final DetailStat stat;
+class _HeroStatItem extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String value;
+  final String label;
 
-  const _StatItem({required this.stat});
+  const _HeroStatItem({
+    required this.icon,
+    required this.iconColor,
+    required this.value,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(7),
-          decoration: BoxDecoration(
-            color: stat.color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(stat.icon, color: stat.color, size: 18),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: iconColor, size: 18),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 7),
+        const SizedBox(height: 3),
         Text(
-          stat.value,
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: GoogleFonts.hankenGrotesk(
-            fontSize: 14.5,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 1),
-        Text(
-          stat.label,
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 10.5,
+            fontSize: 11,
             fontWeight: FontWeight.w600,
             color: AppColors.textSecondary,
           ),
@@ -349,17 +419,26 @@ class DetailChip extends StatelessWidget {
   }
 }
 
-/// Card blanca de texto largo (descripción).
+/// Card elegante para "Sobre el Mecánico / Taller" con icono de comillas y jerarquía visual.
 class DetailDescriptionCard extends StatelessWidget {
   final String text;
+  final String? title;
 
-  const DetailDescriptionCard({super.key, required this.text});
+  const DetailDescriptionCard({
+    super.key,
+    required this.text,
+    this.title,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final displayText = text.trim().isNotEmpty
+        ? text.trim()
+        : 'Profesional dedicado a brindar servicios automotrices de alta calidad, garantizando un trabajo seguro y confiable.';
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -371,13 +450,48 @@ class DetailDescriptionCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Text(
-        text,
-        style: GoogleFonts.hankenGrotesk(
-          fontSize: 14,
-          height: 1.6,
-          color: AppColors.textSecondary,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryMuted,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.format_quote_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title ?? 'PRESENTACIÓN Y EXPERIENCIA',
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            displayText,
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 14.5,
+              height: 1.6,
+              fontWeight: FontWeight.w400,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -385,8 +499,7 @@ class DetailDescriptionCard extends StatelessWidget {
 
 // ── Contacto accionable ───────────────────────────────────────────────────
 
-/// Tile de contacto que SÍ hace algo: llama, abre correo o copia.
-/// Feedback de presión + Semantics de botón.
+/// Tile de contacto que SÍ hace algo: llama, abre WhatsApp o copia.
 class DetailContactTile extends StatefulWidget {
   final IconData icon;
   final String label;
@@ -505,7 +618,7 @@ class _DetailContactTileState extends State<DetailContactTile> {
   }
 }
 
-/// Acciones de contacto: teléfono y correo con url_launcher,
+/// Acciones de contacto: llamada, WhatsApp y apertura de mapas con url_launcher,
 /// con copia al portapapeles como fallback si no hay app disponible.
 abstract class ContactActions {
   ContactActions._();
@@ -518,11 +631,58 @@ abstract class ContactActions {
     }
   }
 
-  static Future<void> email(BuildContext context, String address) async {
-    final uri = Uri(scheme: 'mailto', path: address);
-    if (!await launchUrl(uri)) {
+  static Future<void> whatsapp(BuildContext context, String phone) async {
+    String cleanDigits = phone.replaceAll(RegExp(r'\D'), '');
+    if (cleanDigits.length == 8) {
+      cleanDigits = '504$cleanDigits';
+    }
+    final message = Uri.encodeComponent('Hola, te contacto desde GuIA-HN');
+    final whatsappUrl = Uri.parse('https://wa.me/$cleanDigits?text=$message');
+
+    if (!await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication)) {
       if (!context.mounted) return;
-      await _copyFallback(context, address, 'Correo copiado al portapapeles');
+      await _copyFallback(
+          context, phone, 'Número de WhatsApp copiado al portapapeles');
+    }
+  }
+
+  static Future<void> openGoogleMaps(
+    BuildContext context, {
+    double? lat,
+    double? lng,
+    String? address,
+  }) async {
+    Uri mapsUri;
+    if (lat != null && lng != null) {
+      mapsUri = Uri.parse(
+          'https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+    } else if (address != null && address.isNotEmpty) {
+      mapsUri = Uri.parse(
+          'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Ubicación no disponible',
+            style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: AppColors.secondary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (!await launchUrl(mapsUri, mode: LaunchMode.externalApplication)) {
+      if (!context.mounted) return;
+      await _copyFallback(
+        context,
+        address ?? '$lat, $lng',
+        'Ubicación copiada al portapapeles',
+      );
     }
   }
 
@@ -550,252 +710,217 @@ abstract class ContactActions {
   }
 }
 
-// ── CTA ───────────────────────────────────────────────────────────────────
+// ── Card de Ubicación y Mapa ──────────────────────────────────────────────
 
-/// Bottom sheet de contacto rápido (estilo GuIA: radius 28 + handle).
-class ContactSheet extends StatelessWidget {
-  final String nombre;
-  final String? telefono;
-  final String? email;
+/// Card de ubicación con mapa interactivo OpenStreetMap y botón para abrir en Google Maps.
+class DetailLocationCard extends StatelessWidget {
+  final String? direccion;
+  final double? lat;
+  final double? lng;
 
-  const ContactSheet({
+  const DetailLocationCard({
     super.key,
-    required this.nombre,
-    this.telefono,
-    this.email,
-  });
-
-  static Future<void> show(
-    BuildContext context, {
-    required String nombre,
-    String? telefono,
-    String? email,
-  }) {
-    return showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.45),
-      builder: (_) => ContactSheet(
-        nombre: nombre,
-        telefono: telefono,
-        email: email,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.grey300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              'Contactar a $nombre',
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 20),
-            if (telefono != null)
-              _SheetAction(
-                icon: Icons.phone_rounded,
-                color: AppColors.success,
-                label: 'Llamar',
-                sublabel: telefono!,
-                onTap: () {
-                  Navigator.pop(context);
-                  ContactActions.call(context, telefono!);
-                },
-              ),
-            if (email != null)
-              _SheetAction(
-                icon: Icons.email_rounded,
-                color: AppColors.tertiary,
-                label: 'Enviar correo',
-                sublabel: email!,
-                onTap: () {
-                  Navigator.pop(context);
-                  ContactActions.email(context, email!);
-                },
-              ),
-            if (telefono != null)
-              _SheetAction(
-                icon: Icons.copy_rounded,
-                color: AppColors.primary,
-                label: 'Copiar teléfono',
-                sublabel: telefono!,
-                onTap: () async {
-                  Navigator.pop(context);
-                  await Clipboard.setData(ClipboardData(text: telefono!));
-                  HapticFeedback.mediumImpact();
-                },
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SheetAction extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String label;
-  final String sublabel;
-  final VoidCallback onTap;
-
-  const _SheetAction({
-    required this.icon,
-    required this.color,
-    required this.label,
-    required this.sublabel,
-    required this.onTap,
+    this.direccion,
+    this.lat,
+    this.lng,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-          child: Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, size: 21, color: color),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      sublabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 12.5,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: AppColors.grey400),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+    if (direccion == null && lat == null && lng == null) {
+      return const SizedBox.shrink();
+    }
 
-/// CTA principal pill con sombra de marca (según DESIGN_SYSTEM.md).
-class DetailCtaButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback? onPressed;
+    final hasCoordinates = lat != null && lng != null;
+    final point = hasCoordinates
+        ? LatLng(lat!, lng!)
+        : const LatLng(14.0723, -87.1921);
 
-  const DetailCtaButton({
-    super.key,
-    required this.label,
-    required this.icon,
-    this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = onPressed != null;
     return Container(
       width: double.infinity,
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: enabled
-            ? [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.4),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-              ]
-            : null,
-      ),
-      child: ElevatedButton(
-        onPressed: onPressed == null
-            ? null
-            : () {
-                HapticFeedback.mediumImpact();
-                onPressed!();
-              },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: const Color(0xFFD9DCE1),
-          disabledForegroundColor: const Color(0xFF9AA0A8),
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(32),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              label.toUpperCase(),
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 2.0,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (direccion != null && direccion!.isNotEmpty) ...[
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.location_on_rounded,
+                      color: AppColors.primary, size: 18),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    direccion!,
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+          ],
+
+          // Mapa real con OpenStreetMap via flutter_map
+          Container(
+            height: 175,
+            width: double.infinity,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Stack(
+              children: [
+                FlutterMap(
+                  options: MapOptions(
+                    initialCenter: point,
+                    initialZoom: hasCoordinates ? 15.0 : 12.0,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.drag | InteractiveFlag.pinchZoom,
+                    ),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+                      userAgentPackageName: 'com.guiautomotriz.mobile',
+                    ),
+                    if (hasCoordinates)
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: point,
+                            width: 44,
+                            height: 44,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color:
+                                        AppColors.primary.withValues(alpha: 0.4),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.near_me_rounded,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+
+                // Badge informativo sobre el mapa
+                Positioned(
+                  bottom: 10,
+                  left: 10,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      borderRadius: BorderRadius.circular(99),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.my_location_rounded,
+                            size: 14, color: AppColors.primary),
+                        const SizedBox(width: 6),
+                        Text(
+                          hasCoordinates
+                              ? '${lat!.toStringAsFixed(4)}, ${lng!.toStringAsFixed(4)}'
+                              : 'Ubicación aproximada',
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => ContactActions.openGoogleMaps(
+                context,
+                lat: lat,
+                lng: lng,
+                address: direccion,
+              ),
+              icon: const Icon(Icons.open_in_new_rounded, size: 18),
+              label: Text(
+                'ABRIR EN GOOGLE MAPS',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(32),
+                ),
               ),
             ),
-            const SizedBox(width: 8),
-            Icon(icon, size: 18),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
+
+
+
+// ── CTA ───────────────────────────────────────────────────────────────────
+
+
 
 // ── Estados de carga y error ──────────────────────────────────────────────
 

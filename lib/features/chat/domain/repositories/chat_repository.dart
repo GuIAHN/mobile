@@ -1,6 +1,5 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
-import '../entities/chat_thread.dart';
 import '../entities/chat_threads_result.dart';
 import '../entities/chat_conversation.dart';
 import '../entities/chat_message.dart';

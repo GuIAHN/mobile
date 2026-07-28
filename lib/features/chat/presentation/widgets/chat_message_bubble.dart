@@ -15,41 +15,67 @@ class ChatMessageBubble extends StatelessWidget {
     final timeStr = DateFormat('h:mm a').format(message.createdAt);
 
     if (message.type == MessageType.system) {
+      final isPurchaseMsg = message.content.toLowerCase().contains('compra') ||
+          message.content.toLowerCase().contains('comprado');
+
       return Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
         decoration: BoxDecoration(
-          color: AppColors.successLight.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+          color: isPurchaseMsg ? AppColors.successLight : AppColors.grey100,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isPurchaseMsg
+                ? AppColors.success.withValues(alpha: 0.35)
+                : AppColors.border,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Column(
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.success),
+                Icon(
+                  isPurchaseMsg
+                      ? Icons.check_circle_rounded
+                      : Icons.info_outline_rounded,
+                  size: 18,
+                  color: isPurchaseMsg
+                      ? AppColors.success
+                      : AppColors.textSecondary,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     message.content,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.hankenGrotesk(
-                      fontSize: 13,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.success,
+                      color: isPurchaseMsg
+                          ? AppColors.success
+                          : AppColors.textPrimary,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               timeStr,
               style: GoogleFonts.hankenGrotesk(
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w600,
-                color: AppColors.success.withValues(alpha: 0.8),
+                color: isPurchaseMsg
+                    ? AppColors.success.withValues(alpha: 0.75)
+                    : AppColors.textDisabled,
               ),
             ),
           ],
