@@ -279,10 +279,7 @@ final filteredHomeItemsProvider =
       }).toList();
     }
 
-    // 2. Solo abiertos (filtro local — backend retorna solo activos)
-    if (filters.onlyOpen) {
-      list = list.where((item) => item.isOpen).toList();
-    }
+
 
     // 3. Ordenamiento local (como complemento al orderBy del backend)
     switch (filters.sortBy) {

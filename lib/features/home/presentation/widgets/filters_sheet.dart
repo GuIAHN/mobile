@@ -344,13 +344,6 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                         ),
                         const SizedBox(height: 24),
 
-                        // ── Tarifa máxima (solo mecánicos) ───────────────
-                        if (_isMechanic) ...[
-                          _buildLabel('TARIFA MÁXIMA / HORA'),
-                          const SizedBox(height: 10),
-                          _buildTarifaChips(),
-                          const SizedBox(height: 24),
-                        ],
 
                         // ── Especialidades ───────────────────────────────
                         if (_isProviderSearch) ...[
@@ -360,9 +353,6 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                           const SizedBox(height: 24),
                         ],
 
-                        // ── Solo abiertos ────────────────────────────────
-                        _buildAvailabilityToggle(),
-                        const SizedBox(height: 16),
                       ],
                     ),
                   ),
@@ -440,62 +430,6 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
     ));
   }
 
-  // ── Tarifa Chips (solo mecánicos) ─────────────────────────────────────────
-
-  Widget _buildTarifaChips() {
-    final options = <double?>[null, 200, 300, 500, 800];
-    final labels = ['Sin límite', 'L.200', 'L.300', 'L.500', 'L.800'];
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: List.generate(options.length, (i) {
-        final value = options[i];
-        final isSelected = _tempFilters.maxTarifa == value;
-        return GestureDetector(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            setState(() {
-              if (value == null) {
-                _tempFilters = _tempFilters.copyWith(clearMaxTarifa: true);
-              } else {
-                _tempFilters = _tempFilters.copyWith(maxTarifa: value);
-              }
-            });
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary : Colors.white,
-              borderRadius: BorderRadius.circular(99),
-              border: Border.all(
-                color: isSelected ? AppColors.primary : AppColors.border,
-                width: 1.2,
-              ),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.15),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Text(
-              labels[i],
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: isSelected ? Colors.white : AppColors.textPrimary,
-              ),
-            ),
-          ),
-        );
-      }),
-    );
-  }
 
   // ── Specialty Chips ───────────────────────────────────────────────────────
 
@@ -579,90 +513,7 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
     );
   }
 
-  // ── Availability Toggle ───────────────────────────────────────────────────
 
-  Widget _buildAvailabilityToggle() {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() => _tempFilters =
-            _tempFilters.copyWith(onlyOpen: !_tempFilters.onlyOpen));
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: _tempFilters.onlyOpen ? AppColors.primaryMuted : AppColors.grey50,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: _tempFilters.onlyOpen
-                ? AppColors.primary.withValues(alpha: 0.4)
-                : AppColors.border,
-            width: _tempFilters.onlyOpen ? 1.5 : 0.5,
-          ),
-        ),
-        child: Row(
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: _tempFilters.onlyOpen
-                    ? AppColors.primary
-                    : Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                _tempFilters.onlyOpen
-                    ? Icons.check_rounded
-                    : Icons.schedule_rounded,
-                size: 16,
-                color: _tempFilters.onlyOpen
-                    ? Colors.white
-                    : AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Mostrar solo disponibles ahora',
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 48,
-              height: 26,
-              padding: const EdgeInsets.all(2),
-              alignment: _tempFilters.onlyOpen
-                  ? Alignment.centerRight
-                  : Alignment.centerLeft,
-              decoration: BoxDecoration(
-                color: _tempFilters.onlyOpen
-                    ? AppColors.primary
-                    : AppColors.grey300,
-                borderRadius: BorderRadius.circular(99),
-              ),
-              child: Container(
-                width: 22,
-                height: 22,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildLabel(String text) {
     return Row(

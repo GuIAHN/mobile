@@ -1100,52 +1100,9 @@ class _HomePageState extends ConsumerState<HomePage> {
       );
     }
 
-    if (filters.onlyOpen) {
-      addChip(
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-                width: 6,
-                height: 6,
-                decoration: const BoxDecoration(
-                    color: AppColors.success, shape: BoxShape.circle)),
-            const SizedBox(width: 4),
-            Text(
-              'Abiertos',
-              style: GoogleFonts.hankenGrotesk(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.success),
-            ),
-          ],
-        ),
-        () => ref.read(homeFiltersProvider.notifier).state =
-            filters.copyWith(onlyOpen: false),
-      );
-    }
 
-    if (filters.maxTarifa != null) {
-      addChip(
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.payments_outlined,
-                size: 12, color: AppColors.primary),
-            const SizedBox(width: 4),
-            Text(
-              '≤ L.${filters.maxTarifa!.toInt()}/h',
-              style: GoogleFonts.hankenGrotesk(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary),
-            ),
-          ],
-        ),
-        () => ref.read(homeFiltersProvider.notifier).state =
-            filters.copyWith(clearMaxTarifa: true),
-      );
-    }
+
+
 
     if (filters.specialtyIds.isNotEmpty) {
       specialtiesAsync.whenData((specialties) {
