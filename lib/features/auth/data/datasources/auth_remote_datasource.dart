@@ -315,5 +315,35 @@ class AuthRemoteDataSource {
       rethrow;
     }
   }
+
+  /// Calls POST /users/me/device-tokens to register a device token
+  Future<void> registerDeviceToken(String token, {String? deviceOs}) async {
+    try {
+      await _client.post<Map<String, dynamic>>(
+        'users/me/device-tokens',
+        data: {
+          'token': token,
+          if (deviceOs != null) 'deviceOs': deviceOs,
+        },
+      );
+    } catch (e) {
+      // It's ok to swallow or just rethrow, mostly it shouldn't crash the app
+      rethrow;
+    }
+  }
+
+  /// Calls POST /users/me/device-tokens/remove to remove a device token
+  Future<void> removeDeviceToken(String token) async {
+    try {
+      await _client.post<Map<String, dynamic>>(
+        'users/me/device-tokens/remove',
+        data: {
+          'token': token,
+        },
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
 
