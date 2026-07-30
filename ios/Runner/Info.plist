@@ -79,5 +79,18 @@
 		<string>tel</string>
 		<string>mailto</string>
 	</array>
+	<key>GIDClientID</key>
+	<string>1062705330448-6nego3r9aaijmelviu38b7f5g09lb4te.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.1062705330448-6nego3r9aaijmelviu38b7f5g09lb4te</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
