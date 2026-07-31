@@ -1,7 +1,9 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:io' show Platform;
 import '../../../../core/error/failures.dart';
 import '../../../../core/storage/secure_storage.dart';
+import '../../../../features/notifications/services/push_notifications_service.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/entities/store_category_config.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -53,8 +55,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
           status: AuthStatus.authenticated,
           user: user,
         );
+        _syncDeviceToken();
       },
     );
+  }
+
+  /// Syncs the device token to the backend for push notifications
+  Future<void> _syncDeviceToken() async {
+    try {
+      final token = await PushNotificationsService.getToken();
+      if (token != null) {
+        await _authRepository.registerDeviceToken(
+          token,
+          deviceOs: Platform.operatingSystem,
+        );
+      }
+    } catch (e) {
+      // Ignore errors for token sync
+    }
   }
 
   /// Checks the current authentication status and loads the user if token exists.
@@ -87,6 +105,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           status: AuthStatus.authenticated,
           user: user,
         );
+        _syncDeviceToken();
       },
     );
   }
@@ -121,6 +140,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           status: AuthStatus.authenticated,
           user: user,
         );
+        _syncDeviceToken();
       },
     );
     return result;
@@ -231,6 +251,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// and updating authentication state to unauthenticated.
   Future<void> logout() async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      final token = await PushNotificationsService.getToken();
+      if (token != null) {
+        await _authRepository.removeDeviceToken(token);
+      }
+    } catch (e) {
+      // Ignore errors
+    }
     await _authRepository.logout();
     state = const AuthState(
       status: AuthStatus.unauthenticated,

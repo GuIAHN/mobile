@@ -79,5 +79,11 @@ abstract class AuthRepository {
     double? latitude,
     double? longitude,
   });
+
+  /// Registers a device token for push notifications
+  Future<Either<Failure, void>> registerDeviceToken(String token, {String? deviceOs});
+
+  /// Removes a device token for push notifications
+  Future<Either<Failure, void>> removeDeviceToken(String token);
 }
 

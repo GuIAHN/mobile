@@ -1,8 +1,12 @@
+import 'dart:io' show Platform;
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../../../core/error/failures.dart';
 import '../../../../core/router/route_names.dart';
@@ -62,6 +66,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   /// el usuario todavía está escribiendo su correo es ruido, no ayuda.
   bool _submitted = false;
 
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId: Platform.isIOS ? '1062705330448-6nego3r9aaijmelviu38b7f5g09lb4te.apps.googleusercontent.com' : null,
+    serverClientId: '1062705330448-1n5l9ahrjltarem41a5uiim4dc81hj63.apps.googleusercontent.com',
+    scopes: ['email'],
+  );
+
   @override
   void initState() {
     super.initState();
@@ -102,18 +112,68 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _handleSocialLogin(String provider) async {
-    final email = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _SocialSimulatorDialog(provider: provider),
-    );
+    String? email;
+    String? name;
+    String? idToken;
 
-    if (email == null || email.isEmpty) return;
+    if (provider == 'GOOGLE') {
+      try {
+        final googleUser = await _googleSignIn.signIn();
+        if (googleUser == null) return; // Usuario canceló el selector
 
-    final mockToken = 'mock-token:$email:Usuario Social';
+        final googleAuth = await googleUser.authentication;
+        idToken = googleAuth.idToken;
+        email = googleUser.email;
+        name = googleUser.displayName;
+
+        if (idToken == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No se pudo obtener el token de Google.')),
+            );
+          }
+          return;
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al iniciar sesión con Google: $e')),
+          );
+        }
+        return;
+      }
+    } else if (provider == 'APPLE') {
+      try {
+        final appleCredential = await SignInWithApple.getAppleIDCredential(
+          scopes: [
+            AppleIDAuthorizationScopes.email,
+            AppleIDAuthorizationScopes.fullName,
+          ],
+        );
+
+        if (appleCredential.identityToken == null) {
+          return;
+        }
+
+        idToken = appleCredential.identityToken;
+        email = appleCredential.email;
+        name = appleCredential.givenName != null
+            ? '${appleCredential.givenName} ${appleCredential.familyName ?? ''}'.trim()
+            : null;
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al iniciar sesión con Apple: $e')),
+          );
+        }
+        return;
+      }
+    }
+
+    if (idToken == null) return;
 
     final result = await ref.read(authProvider.notifier).socialLogin(
-          idToken: mockToken,
+          idToken: idToken,
           provider: provider,
         );
 
@@ -121,10 +181,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       (failure) {
         if (failure is SocialNotRegisteredFailure) {
           ref.read(socialRegistrationProvider.notifier).setData(
-                idToken: mockToken,
+                idToken: idToken!,
                 provider: provider,
-                email: email,
-                name: 'Usuario Social',
+                email: email!,
+                name: name ?? 'Usuario Social',
               );
           context.go(RouteNames.register);
         }

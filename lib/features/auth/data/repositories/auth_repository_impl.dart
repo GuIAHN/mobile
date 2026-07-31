@@ -297,5 +297,25 @@ class AuthRepositoryImpl implements AuthRepository {
       return Left(ErrorMapper.map(e));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> registerDeviceToken(String token, {String? deviceOs}) async {
+    try {
+      await remoteDataSource.registerDeviceToken(token, deviceOs: deviceOs);
+      return const Right(null);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> removeDeviceToken(String token) async {
+    try {
+      await remoteDataSource.removeDeviceToken(token);
+      return const Right(null);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
 }
 

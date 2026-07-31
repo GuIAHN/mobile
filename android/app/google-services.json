@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "396997122901",
+    "project_id": "guia-hn-5a494",
+    "storage_bucket": "guia-hn-5a494.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:396997122901:android:b39390817614589ed26ddc",
+        "android_client_info": {
+          "package_name": "com.example.guiautomotriz_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZdrAuvoxY2wcU8VgTYZvEoYXitmNu7tQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
