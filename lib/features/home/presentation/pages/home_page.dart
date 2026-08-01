@@ -871,8 +871,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ref.read(searchQueryProvider.notifier).state = val;
                 },
                 style: GoogleFonts.hankenGrotesk(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
                 ),
                 decoration: InputDecoration(
@@ -886,9 +886,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                   isCollapsed: true,
                   hintText: selectedType.hint,
                   hintStyle: GoogleFonts.hankenGrotesk(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.textDisabled,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
                   ),
                   contentPadding: EdgeInsets.zero,
                 ),

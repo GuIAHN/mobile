@@ -25,12 +25,12 @@ class FormPartTypeSelector extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               margin: const EdgeInsets.symmetric(horizontal: 4),
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-              height: 102,
+              height: 92,
               decoration: BoxDecoration(
                 color: esSeleccionado ? AppColors.primaryMuted : Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: esSeleccionado ? AppColors.primary : AppColors.border,
+                  color: esSeleccionado ? AppColors.primary : AppColors.grey300,
                   width: esSeleccionado ? 1.5 : 1.0,
                 ),
                 boxShadow: esSeleccionado
@@ -57,7 +57,7 @@ class FormPartTypeSelector extends StatelessWidget {
                   Text(
                     type.label,
                     style: GoogleFonts.hankenGrotesk(
-                      fontSize: 12,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w800,
                       color: esSeleccionado
                           ? AppColors.primary

@@ -388,13 +388,13 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
       margin: const EdgeInsets.only(top: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.grey200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -408,14 +408,15 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
               Container(
                 width: 44,
                 height: 44,
-                decoration: const BoxDecoration(
-                  color: AppColors.primaryMuted,
-                  shape: BoxShape.circle,
+                decoration: BoxDecoration(
+                  color: AppColors.grey50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border),
                 ),
                 child: const Icon(
-                  Icons.settings_suggest_outlined,
-                  color: AppColors.primary,
-                  size: 24,
+                  Icons.inventory_2_rounded,
+                  color: AppColors.textPrimary,
+                  size: 22,
                 ),
               ),
               const SizedBox(width: 14),
@@ -683,7 +684,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                 disabledBackgroundColor: AppColors.grey200,
                 disabledForegroundColor: AppColors.textDisabled,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(32),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 elevation: isValid ? 6 : 0,
                 shadowColor: AppColors.primary.withValues(alpha: 0.4),
@@ -714,9 +715,9 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
     return Text(
       text,
       style: GoogleFonts.hankenGrotesk(
-        fontSize: 11,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 1.5,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.5,
         color: AppColors.textSecondary,
       ),
     );
@@ -726,9 +727,9 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
     return Container(
       height: 52,
       decoration: BoxDecoration(
-        color: AppColors.grey50,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.grey300),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -762,11 +763,11 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: highlighted
               ? AppColors.primary.withValues(alpha: 0.5)
-              : AppColors.border,
+              : AppColors.grey300,
           width: highlighted ? 1.5 : 1.0,
         ),
       ),
@@ -863,17 +864,17 @@ class _SelectorField extends StatelessWidget {
       label: value ?? placeholder,
       child: Material(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
             constraints: const BoxConstraints(minHeight: 44),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: hasValue ? AppColors.primary : AppColors.border,
+                color: hasValue ? AppColors.primary : AppColors.grey300,
                 width: hasValue ? 1.5 : 1.0,
               ),
             ),
@@ -883,8 +884,8 @@ class _SelectorField extends StatelessWidget {
                   child: Text(
                     value ?? placeholder,
                     style: GoogleFonts.hankenGrotesk(
-                      fontSize: isLongText ? 13 : 14.5,
-                      fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
+                      fontSize: isLongText ? 14 : 16,
+                      fontWeight: hasValue ? FontWeight.w700 : FontWeight.w500,
                       color: hasValue
                           ? AppColors.textPrimary
                           : AppColors.textDisabled,
