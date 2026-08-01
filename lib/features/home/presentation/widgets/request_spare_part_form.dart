@@ -37,6 +37,7 @@ class RequestSparePartForm extends ConsumerStatefulWidget {
 
 class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
   final _detailsController = TextEditingController();
+  int _currentStep = 0;
 
   Category? _selectedCategory;
   Category? _selectedSubcategory;
@@ -65,6 +66,19 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
   void initState() {
     super.initState();
     _detailsController.addListener(_handleDetailsChange);
+  }
+
+
+  void _nextStep() {
+    setState(() {
+      if (_currentStep < 2) _currentStep++;
+    });
+  }
+
+  void _prevStep() {
+    setState(() {
+      if (_currentStep > 0) _currentStep--;
+    });
   }
 
   void _handleDetailsChange() {
@@ -325,7 +339,6 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
 
   @override
   Widget build(BuildContext context) {
-    // Escuchar el estado de autenticación y los vehículos de garaje
     final authState = ref.watch(authProvider);
     final user = authState.user;
     final isConsumer = user == null || user.role == UserRole.consumer;
@@ -367,55 +380,43 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
       );
     }
 
-    // Cargar vehículos del garaje
     ref.listenAsyncError(userCarsProvider, context);
     final userCarsAsync = ref.watch(userCarsProvider);
-
     final globalVehicle = ref.watch(searchVehicleProvider);
-    final hasCategory =
-        _selectedCategory != null && _selectedSubcategory != null;
-    final hasVehicle = globalVehicle != null;
-    final hasPartType = _selectedPartType != null;
-    final needsDetails = _isOtroCategory;
-    final hasRequiredDetails =
-        !needsDetails || _detailsController.text.trim().isNotEmpty;
-    final isValid =
-        hasCategory && hasVehicle && hasPartType && hasRequiredDetails;
-    final completedSteps =
-        (hasVehicle ? 1 : 0) + (hasCategory ? 1 : 0) + (hasPartType ? 1 : 0);
 
     return Container(
       margin: const EdgeInsets.only(top: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.grey200),
+        borderRadius: BorderRadius.circular(24), // Ultra-modern roundness
+        border: Border.all(color: AppColors.grey200.withValues(alpha: 0.5)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 4),
+            color: AppColors.primary.withValues(alpha: 0.04), // Tinted soft shadow
+            blurRadius: 24,
+            spreadRadius: 2,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24), // More breathing room
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Encabezado de la solicitud
+          // Header
           Row(
             children: [
               Container(
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.grey50,
+                  color: AppColors.tertiaryMuted,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: AppColors.tertiaryLight.withValues(alpha: 0.3)),
                 ),
                 child: const Icon(
                   Icons.inventory_2_rounded,
-                  color: AppColors.textPrimary,
+                  color: AppColors.tertiary,
                   size: 22,
                 ),
               ),
@@ -434,7 +435,11 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'Cotiza al instante con las tiendas cercanas',
+                      _currentStep == 0 
+                          ? 'Paso 1: Selecciona el vehículo'
+                          : _currentStep == 1
+                              ? 'Paso 2: ¿Qué necesitas?'
+                              : 'Paso 3: Detalles finales',
                       style: GoogleFonts.hankenGrotesk(
                         fontSize: 12.5,
                         color: AppColors.textSecondary,
@@ -444,14 +449,14 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                   ],
                 ),
               ),
-              _StepProgressBadge(completed: completedSteps, total: 3),
+              _StepProgressBadge(completed: _currentStep + 1, total: 3),
             ],
           ),
           const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(99),
             child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: completedSteps / 3),
+              tween: Tween(begin: 0, end: (_currentStep + 1) / 3),
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOut,
               builder: (context, value, _) => LinearProgressIndicator(
@@ -467,247 +472,366 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
             child: Divider(),
           ),
 
-          // Campo 1: Selector de vehículo (Requerido para todos, con comportamiento diferente según rol)
-          _buildLabel('VEHÍCULO PARA LA SOLICITUD *'),
-          const SizedBox(height: 6),
-          if (isConsumer) ...[
-            userCarsAsync.when(
-              data: (garageCars) {
-                final String valorMostrado;
-                if (globalVehicle != null) {
-                  if (globalVehicle.id.startsWith('temp-')) {
-                    valorMostrado =
-                        'Otro: ${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})';
-                  } else {
-                    valorMostrado =
-                        '${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})';
-                  }
-                } else {
-                  valorMostrado = 'Selecciona de tu garaje u otro';
-                }
-
-                return _SelectorField(
-                  value: globalVehicle != null ? valorMostrado : null,
-                  placeholder: 'Selecciona un vehículo de tu garaje',
-                  onTap: _abrirSelectorVehiculo,
-                );
-              },
-              loading: () => _buildLoadingField('Cargando tus vehículos...'),
-              error: (_, __) => _SelectorField(
-                value: globalVehicle != null
-                    ? 'Otro: ${globalVehicle.brand} ${globalVehicle.model}'
-                    : null,
-                placeholder: 'Ingresa vehículo manual',
-                onTap: _abrirSelectorVehiculo,
-              ),
-            ),
-          ] else ...[
-            _SelectorField(
-              value: globalVehicle != null
-                  ? '${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})'
-                  : null,
-              placeholder: 'Selecciona marca, modelo y año',
-              onTap: _abrirSelectorVehiculo,
-            ),
-          ],
-          const SizedBox(height: 12),
-
-          // Campo 2: Categoría y Subcategoría de Repuesto
-          _buildLabel('CATEGORÍA DE REPUESTO *'),
-          const SizedBox(height: 6),
-          _SelectorField(
-            value: _categorySelectorValue(),
-            placeholder: 'Selecciona categoría y subcategoría',
-            onTap: () async {
-              final result =
-                  await showModalBottomSheet<_CategorySubcategoryResult>(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                barrierColor: Colors.black.withValues(alpha: 0.4),
-                builder: (_) => _CategorySubcategorySelectorSheet(
-                  initialCategory: _selectedCategory,
-                  initialSubcategory: _selectedSubcategory,
-                ),
-              );
-              if (result != null) {
-                setState(() {
-                  _selectedCategory = result.category;
-                  _selectedSubcategory = result.subcategory;
-                });
-              }
-            },
-          ),
-          const SizedBox(height: 12),
-
-          // Campo 3.5: Tipo de repuesto (Requerido)
-          _buildLabel('TIPO DE REPUESTO *'),
-          const SizedBox(height: 8),
-          FormPartTypeSelector(
-            selectedPartType: _selectedPartType,
-            onPartTypeSelected: (type) {
-              setState(() {
-                _selectedPartType = type;
-              });
-            },
-          ),
-          const SizedBox(height: 12),
-
-          // Campo 4: Detalles adicionales (obligatorio si la categoría es "Otro")
-          _buildLabel(
-            needsDetails
-                ? 'DETALLES ADICIONALES *'
-                : 'DETALLES ADICIONALES (OPCIONAL)',
-          ),
-          if (needsDetails) ...[
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.info_outline_rounded,
-                    size: 13, color: AppColors.primary),
-                const SizedBox(width: 5),
-                Expanded(
-                  child: Text(
-                    'Cuéntanos qué repuesto necesitas, ya que no coincide con ninguna categoría del catálogo.',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                      height: 1.3,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 6),
-          _buildTextField(
-            controller: _detailsController,
-            hint: needsDetails
-                ? 'Ej. Kit de embrague completo para motor 2.0L turbo...'
-                : 'Ej. Alternador para motor 1.8L, lado derecho, marca Denso...',
-            maxLines: 2,
-            highlighted: needsDetails,
-          ),
-          const SizedBox(height: 12),
-
-          // Campo 5: Fotografía
-          _buildLabel('FOTOGRAFÍA DE REFERENCIA (OPCIONAL)'),
-          const SizedBox(height: 6),
-          _selectedImagePath != null
-              ? Container(
-                  height: 120,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(13),
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: kIsWeb
-                              ? Image.network(
-                                  _selectedImagePath!,
-                                  fit: BoxFit.cover,
-                                )
-                              : Image.file(
-                                  File(_selectedImagePath!),
-                                  fit: BoxFit.cover,
-                                ),
-                        ),
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedImagePath = null;
-                              });
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: const BoxDecoration(
-                                color: Colors.black54,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.close_rounded,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : GestureDetector(
-                  onTap: _mostrarSelectorDeImagen,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    width: double.infinity,
-                    height: 90,
-                    decoration: BoxDecoration(
-                      color: AppColors.grey50,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: AppColors.border,
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'Presiona para adjuntar foto',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-          const SizedBox(height: 20),
-
-          // Botón de Enviar Solicitud
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: isValid ? _onSubmit : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: AppColors.grey200,
-                disabledForegroundColor: AppColors.textDisabled,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                elevation: isValid ? 6 : 0,
-                shadowColor: AppColors.primary.withValues(alpha: 0.4),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'ENVIAR SOLICITUD',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.send_rounded, size: 16),
-                ],
-              ),
-            ),
+          // Wizard content
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: _currentStep == 0
+                ? _buildStep1(isConsumer, globalVehicle, userCarsAsync)
+                : _currentStep == 1
+                    ? _buildStep2()
+                    : _buildStep3(),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStep1(bool isConsumer, dynamic globalVehicle, AsyncValue<List<dynamic>> userCarsAsync) {
+    final hasVehicle = globalVehicle != null;
+    return Column(
+      key: const ValueKey('step1'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel('VEHÍCULO PARA LA SOLICITUD *'),
+        const SizedBox(height: 6),
+        if (isConsumer) ...[
+          userCarsAsync.when(
+            data: (garageCars) {
+              final String valorMostrado;
+              if (globalVehicle != null) {
+                if (globalVehicle.id.startsWith('temp-')) {
+                  valorMostrado = 'Otro: ${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})';
+                } else {
+                  valorMostrado = '${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})';
+                }
+              } else {
+                valorMostrado = 'Selecciona de tu garaje u otro';
+              }
+
+              return _SelectorField(
+                value: globalVehicle != null ? valorMostrado : null,
+                placeholder: 'Selecciona un vehículo de tu garaje',
+                onTap: _abrirSelectorVehiculo,
+              );
+            },
+            loading: () => _buildLoadingField('Cargando tus vehículos...'),
+            error: (_, __) => _SelectorField(
+              value: globalVehicle != null
+                  ? 'Otro: ${globalVehicle.brand} ${globalVehicle.model}'
+                  : null,
+              placeholder: 'Ingresa vehículo manual',
+              onTap: _abrirSelectorVehiculo,
+            ),
+          ),
+        ] else ...[
+          _SelectorField(
+            value: globalVehicle != null
+                ? '${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})'
+                : null,
+            placeholder: 'Selecciona marca, modelo y año',
+            onTap: _abrirSelectorVehiculo,
+          ),
+        ],
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton(
+            onPressed: hasVehicle ? _nextStep : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: AppColors.grey200,
+              disabledForegroundColor: AppColors.textDisabled,
+              shape: const StadiumBorder(),
+              elevation: hasVehicle ? 4 : 0,
+              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'SIGUIENTE',
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.arrow_forward_rounded, size: 18),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStep2() {
+    final hasCategory = _selectedCategory != null && _selectedSubcategory != null;
+    final hasPartType = _selectedPartType != null;
+    final canProceed = hasCategory && hasPartType;
+
+    return Column(
+      key: const ValueKey('step2'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel('CATEGORÍA DE REPUESTO *'),
+        const SizedBox(height: 6),
+        _SelectorField(
+          value: _categorySelectorValue(),
+          placeholder: 'Selecciona categoría y subcategoría',
+          onTap: () async {
+            final result = await showModalBottomSheet<_CategorySubcategoryResult>(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              barrierColor: Colors.black.withValues(alpha: 0.4),
+              builder: (_) => _CategorySubcategorySelectorSheet(
+                initialCategory: _selectedCategory,
+                initialSubcategory: _selectedSubcategory,
+              ),
+            );
+            if (result != null) {
+              setState(() {
+                _selectedCategory = result.category;
+                _selectedSubcategory = result.subcategory;
+              });
+            }
+          },
+        ),
+        const SizedBox(height: 16),
+        _buildLabel('TIPO DE REPUESTO *'),
+        const SizedBox(height: 8),
+        FormPartTypeSelector(
+          selectedPartType: _selectedPartType,
+          onPartTypeSelected: (type) {
+            setState(() {
+              _selectedPartType = type;
+            });
+          },
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TextButton.icon(
+              onPressed: _prevStep,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              icon: const Icon(Icons.arrow_back_rounded, size: 18),
+              label: const Text('ATRÁS'),
+            ),
+            SizedBox(
+              height: 48,
+              child: ElevatedButton(
+                onPressed: canProceed ? _nextStep : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: AppColors.grey200,
+                  disabledForegroundColor: AppColors.textDisabled,
+                  shape: const StadiumBorder(),
+                  elevation: canProceed ? 4 : 0,
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'SIGUIENTE',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.arrow_forward_rounded, size: 18),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStep3() {
+    final needsDetails = _isOtroCategory;
+    final hasRequiredDetails = !needsDetails || _detailsController.text.trim().isNotEmpty;
+
+    return Column(
+      key: const ValueKey('step3'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel(
+          needsDetails
+              ? 'DETALLES ADICIONALES *'
+              : 'DETALLES ADICIONALES (OPCIONAL)',
+        ),
+        if (needsDetails) ...[
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.info_outline_rounded,
+                  size: 13, color: AppColors.tertiary),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  'Cuéntanos qué repuesto necesitas, ya que no coincide con ninguna categoría del catálogo.',
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.tertiary,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 6),
+        _buildTextField(
+          controller: _detailsController,
+          hint: needsDetails
+              ? 'Ej. Kit de embrague completo para motor 2.0L turbo...'
+              : 'Ej. Alternador para motor 1.8L, lado derecho, marca Denso...',
+          maxLines: 2,
+          highlighted: needsDetails,
+        ),
+        const SizedBox(height: 16),
+        _buildLabel('FOTOGRAFÍA DE REFERENCIA (OPCIONAL)'),
+        const SizedBox(height: 6),
+        _selectedImagePath != null
+            ? Container(
+                height: 120,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(9),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: kIsWeb
+                            ? Image.network(
+                                _selectedImagePath!,
+                                fit: BoxFit.cover,
+                              )
+                            : Image.file(
+                                File(_selectedImagePath!),
+                                fit: BoxFit.cover,
+                              ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedImagePath = null;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : GestureDetector(
+                onTap: _mostrarSelectorDeImagen,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  width: double.infinity,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.grey300,
+                      width: 1.0,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Presiona para adjuntar foto',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TextButton.icon(
+              onPressed: _prevStep,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              icon: const Icon(Icons.arrow_back_rounded, size: 18),
+              label: const Text('ATRÁS'),
+            ),
+            SizedBox(
+              height: 48,
+              child: ElevatedButton(
+                onPressed: hasRequiredDetails ? _onSubmit : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: AppColors.grey200,
+                  disabledForegroundColor: AppColors.textDisabled,
+                  shape: const StadiumBorder(),
+                  elevation: hasRequiredDetails ? 4 : 0,
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'ENVIAR',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.send_rounded, size: 16),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
