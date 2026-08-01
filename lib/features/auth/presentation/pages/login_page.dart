@@ -281,7 +281,23 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               onChanged: _clearApiError,
                             ),
                             const SizedBox(height: AppSpacing.xl),
-                            const _FieldLabel('Contraseña'),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const _FieldLabel('Contraseña'),
+                                GestureDetector(
+                                  onTap: () => context.push(RouteNames.forgotPassword),
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                                    child: Text(
+                                      '¿Olvidaste tu contraseña?',
+                                      style: _font(12, FontWeight.w700, _brand),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                             const SizedBox(height: AppSpacing.sm),
                             _LoginField(
                               controller: _passwordController,
@@ -302,19 +318,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: _TextLink(
-                                label: '¿Olvidaste tu contraseña?',
-                                padding: const EdgeInsets.only(
-                                  left: AppSpacing.sm,
-                                ),
-                                onTap: () =>
-                                    context.push(RouteNames.forgotPassword),
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
+                            const SizedBox(height: AppSpacing.xl2),
                             _PrimaryCta(
                               isLoading: state.isLoading,
                               onPressed: _submit,
@@ -474,27 +478,16 @@ class _BrandHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        const SizedBox(height: 32),
         Image.asset(
           'assets/images/logo.png',
-          height: 88,
+          width: 320,
           fit: BoxFit.contain,
           semanticLabel: 'guIAutomotriz HN',
           errorBuilder: (_, __, ___) => Text(
             'guIAutomotriz HN',
             style: _font(24, FontWeight.w800, _ink, letterSpacing: -0.3),
           ),
-        ),
-        const SizedBox(height: AppSpacing.xl2),
-        Text(
-          'Bienvenido de vuelta',
-          textAlign: TextAlign.center,
-          style: _font(28, FontWeight.w800, _ink, letterSpacing: -0.4),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          'Inicia sesión para continuar',
-          textAlign: TextAlign.center,
-          style: _font(15, FontWeight.w400, _muted, height: 1.45),
         ),
       ],
     );
@@ -902,22 +895,25 @@ class _RegisterFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Wrap y no Row: con pantallas de 320px o texto ampliado, pregunta y link
-    // no caben en una línea y deben pasar a dos sin desbordarse.
-    return Wrap(
-      alignment: WrapAlignment.center,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        Text(
-          '¿No tienes una cuenta?',
-          style: _font(14, FontWeight.w400, _muted),
+    return GestureDetector(
+      onTap: () => context.go(RouteNames.register),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: RichText(
+          textAlign: TextAlign.center,
+          text: TextSpan(
+            style: _font(14, FontWeight.w400, _muted),
+            children: [
+              const TextSpan(text: '¿No tienes una cuenta? '),
+              TextSpan(
+                text: 'Regístrate gratis',
+                style: _font(14, FontWeight.w700, _brand),
+              ),
+            ],
+          ),
         ),
-        _TextLink(
-          label: 'Regístrate gratis',
-          fontSize: 14,
-          onTap: () => context.go(RouteNames.register),
-        ),
-      ],
+      ),
     );
   }
 }

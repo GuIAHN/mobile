@@ -245,7 +245,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             else
               _buildSelectVehiclePromptBar(),
           ],
-          _buildSearchBar(filters.activeCount, isConsumer: isConsumer),
+          _buildSearchBar(filters.activeCount),
         ],
 
         // Si es repuestos, mostramos el formulario de solicitud
@@ -838,7 +838,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildSearchBar(int activeFilters, {bool isConsumer = true}) {
+  Widget _buildSearchBar(int activeFilters) {
     final selectedType = ref.watch(selectedServiceTypeProvider);
     final searchQuery = ref.watch(searchQueryProvider);
 
@@ -909,55 +909,54 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
             ],
             // Botón de filtros integrado en la misma barra
-            if (isConsumer)
-              Semantics(
-                button: true,
-                label: activeFilters > 0
-                    ? 'Filtros de búsqueda, $activeFilters activos'
-                    : 'Filtros de búsqueda',
-                child: GestureDetector(
-                  onTap: _openFilters,
-                  behavior: HitTestBehavior.opaque,
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Icon(
-                          Icons.tune_rounded,
-                          color: activeFilters > 0
-                              ? AppColors.primary
-                              : AppColors.textSecondary,
-                          size: 20,
-                        ),
-                        if (activeFilters > 0)
-                          Positioned(
-                            top: -6,
-                            right: -6,
-                            child: Container(
-                              width: 14,
-                              height: 14,
-                              alignment: Alignment.center,
-                              decoration: const BoxDecoration(
-                                color: AppColors.error,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Text(
-                                '$activeFilters',
-                                style: GoogleFonts.hankenGrotesk(
-                                  color: Colors.white,
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w800,
-                                ),
+            Semantics(
+              button: true,
+              label: activeFilters > 0
+                  ? 'Filtros de búsqueda, $activeFilters activos'
+                  : 'Filtros de búsqueda',
+              child: GestureDetector(
+                onTap: _openFilters,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(
+                        Icons.tune_rounded,
+                        color: activeFilters > 0
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
+                        size: 20,
+                      ),
+                      if (activeFilters > 0)
+                        Positioned(
+                          top: -6,
+                          right: -6,
+                          child: Container(
+                            width: 14,
+                            height: 14,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                              color: AppColors.error,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '$activeFilters',
+                              style: GoogleFonts.hankenGrotesk(
+                                color: Colors.white,
+                                fontSize: 8,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
                           ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
                 ),
               ),
+            ),
           ],
         ),
       ),
