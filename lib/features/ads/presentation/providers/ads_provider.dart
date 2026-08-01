@@ -121,9 +121,16 @@ class AdTrackerNotifier extends Notifier<Set<String>> {
     }
   }
 
+  // Conjunto local privado para deduplicar clics en la misma sesión
+  // (No lo exponemos en el state porque la UI no necesita redibujarse cuando se hace clic)
+  final Set<String> _trackedClicks = {};
+
   void trackClick(String? adId) {
-    if (adId == null) return;
+    if (adId == null || _trackedClicks.contains(adId)) return;
     
+    // Add to local set to prevent duplicate clicks per session
+    _trackedClicks.add(adId);
+
     // Fire and forget
     _executeClick(adId);
   }
