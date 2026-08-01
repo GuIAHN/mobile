@@ -43,7 +43,9 @@ class PushNotificationsService {
       iOS: DarwinInitializationSettings(),
     );
 
-    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    await flutterLocalNotificationsPlugin.initialize(
+      settings: initializationSettings,
+    );
 
     // Foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -55,10 +57,10 @@ class PushNotificationsService {
 
       if (notification != null && android != null) {
         flutterLocalNotificationsPlugin.show(
-          notification.hashCode,
-          notification.title,
-          notification.body,
-          NotificationDetails(
+          id: notification.hashCode,
+          title: notification.title,
+          body: notification.body,
+          notificationDetails: NotificationDetails(
             android: AndroidNotificationDetails(
               channel.id,
               channel.name,
