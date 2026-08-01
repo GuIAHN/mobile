@@ -43,4 +43,8 @@ abstract class ApiEndpoints {
   static const String conversationsDirect = 'conversations/direct';
   static String conversationMessages(String id) => 'conversations/$id/messages';
   static String conversationRead(String id) => 'conversations/$id/read';
+  // ── Ads ───────────────────────────────────────────────────────────────────
+  static const String adsFeed = 'ads/feed';
+  static String trackAdImpression(String id) => 'ads/$id/impression';
+  static String trackAdClick(String id) => 'ads/$id/click';
 }
