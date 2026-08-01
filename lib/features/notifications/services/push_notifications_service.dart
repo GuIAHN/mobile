@@ -5,7 +5,16 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: kIsWeb
+        ? const FirebaseOptions(
+            apiKey: "AIzaSyAZdrAuvoxY2wcU8VgTYZvEoYXitmNu7tQ",
+            appId: "1:396997122901:web:b39390817614589ed26ddc",
+            messagingSenderId: "396997122901",
+            projectId: "guia-hn-5a494",
+          )
+        : null,
+  );
   debugPrint("Handling a background message: ${message.messageId}");
 }
 

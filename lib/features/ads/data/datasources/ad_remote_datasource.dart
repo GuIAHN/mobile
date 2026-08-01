@@ -7,14 +7,16 @@ class AdRemoteDataSource {
 
   AdRemoteDataSource(this.dio);
 
-  Future<List<AdModel>> getFeed(double lat, double lng, {int limit = 5}) async {
+  Future<List<AdModel>> getFeed(double? lat, double? lng, {int limit = 5}) async {
+    final queryParameters = <String, dynamic>{
+      'limit': limit,
+    };
+    if (lat != null) queryParameters['lat'] = lat;
+    if (lng != null) queryParameters['lng'] = lng;
+
     final response = await dio.get(
       ApiEndpoints.adsFeed,
-      queryParameters: {
-        'lat': lat,
-        'lng': lng,
-        'limit': limit,
-      },
+      queryParameters: queryParameters,
     );
 
     // The backend wraps the response in { code, message, data }

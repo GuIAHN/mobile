@@ -1,4 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/domain/enums/service_type.dart';
+import '../../../home/domain/entities/promo.dart';
+import '../../../home/presentation/providers/home_providers.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/location_service.dart';
 import '../../domain/entities/ad.dart';
@@ -40,21 +43,104 @@ final trackAdClickUseCaseProvider = Provider<TrackAdClickUseCase>((ref) {
 
 // --- Presentation Layer ---
 
-final adsFeedProvider = FutureProvider.autoDispose<List<Ad>>((ref) async {
+final adsFeedProvider = FutureProvider<List<Ad>>((ref) async {
   final positionAsync = ref.watch(userLocationProvider);
   final position = positionAsync.value;
 
-  if (position == null) {
-    // If we have no location yet, return an empty list or throw an error.
-    // For now, we return empty list so the UI doesn't crash if location is not granted.
-    return [];
-  }
-
   final usecase = ref.watch(getAdsUseCaseProvider);
-  final result = await usecase.call(position.latitude, position.longitude);
+  final result = await usecase.call(position?.latitude, position?.longitude);
 
   return result.fold(
-    (failure) => throw Exception(failure.message),
+    (failure) => [], // Silencioso: si hay error (red, 500, etc) retornamos lista vacía
     (ads) => ads,
   );
 });
+
+/// Adaptador que toma los Ads del backend y los convierte en Promos para la UI.
+/// Si el backend no devuelve ads (o falla silenciosamente), usa el fallback local.
+final adsAsPromosProvider =
+    FutureProvider.family<List<Promo>, ServiceType>(
+        (ref, type) async {
+  
+  try {
+    // 1. Intentar obtener los ads reales del backend
+    final ads = await ref.watch(adsFeedProvider.future);
+    
+    if (ads.isNotEmpty) {
+      // Mapear Ad -> Promo
+      return ads.map((ad) {
+        return Promo(
+          id: ad.id,
+          title: ad.title,
+          subtitle: ad.description ?? ad.brandName,
+          iconName: 'local_offer_outlined', // Icono genérico por defecto
+          gradientColors: const [0xFFF25C05, 0xFFBF4704], // Naranja por defecto
+          imageUrl: ad.mediaUrl,
+          ctaUrl: ad.ctaUrl,
+        );
+      }).toList();
+    }
+  } catch (e) {
+    // Si falla la petición de ads, ignoramos el error y continuamos al fallback
+    print('Error obteniendo ads reales: $e');
+  }
+  
+  // 2. Si está vacío o falló, caer al fallback de mocks locales
+  // Al usar .future, Riverpod espera a que cargue automáticamente
+  final fallbackPromos = await ref.watch(promosProvider(type).future);
+  return fallbackPromos;
+});
+
+// --- Tracking State ---
+
+class AdTrackerNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() {
+    return {};
+  }
+
+  void trackImpression(String? adId) {
+    if (adId == null || state.contains(adId)) return;
+
+    // Add to tracked set immediately to prevent duplicates
+    state = {...state, adId};
+
+    // Fire and forget
+    _executeImpression(adId);
+  }
+
+  Future<void> _executeImpression(String adId) async {
+    try {
+      final positionAsync = ref.read(userLocationProvider);
+      final position = positionAsync.value;
+      
+      final usecase = ref.read(trackAdImpressionUseCaseProvider);
+      await usecase.call(adId, position?.latitude ?? 0.0, position?.longitude ?? 0.0);
+    } catch (e) {
+      // Ignorar errores silenciosamente para no afectar la UI
+    }
+  }
+
+  void trackClick(String? adId) {
+    if (adId == null) return;
+    
+    // Fire and forget
+    _executeClick(adId);
+  }
+
+  Future<void> _executeClick(String adId) async {
+    try {
+      final positionAsync = ref.read(userLocationProvider);
+      final position = positionAsync.value;
+      
+      final usecase = ref.read(trackAdClickUseCaseProvider);
+      await usecase.call(adId, position?.latitude ?? 0.0, position?.longitude ?? 0.0);
+    } catch (e) {
+      // Ignorar errores silenciosamente
+    }
+  }
+}
+
+final adTrackerProvider = NotifierProvider<AdTrackerNotifier, Set<String>>(
+  AdTrackerNotifier.new,
+);

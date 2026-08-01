@@ -11,7 +11,7 @@ class AdRepositoryImpl implements AdRepository {
   AdRepositoryImpl(this.remoteDataSource);
 
   @override
-  Future<Either<Failure, List<Ad>>> getFeed(double lat, double lng, {int limit = 5}) async {
+  Future<Either<Failure, List<Ad>>> getFeed(double? lat, double? lng, {int limit = 5}) async {
     try {
       final ads = await remoteDataSource.getFeed(lat, lng, limit: limit);
       return Right(ads);
