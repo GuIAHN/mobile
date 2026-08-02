@@ -7,6 +7,7 @@ import '../../domain/entities/home_filters.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../domain/entities/sort_option.dart';
 import '../providers/home_providers.dart';
+import '../../../ads/presentation/providers/ads_provider.dart';
 import '../../../../core/services/location_service.dart';
 import 'package:geolocator/geolocator.dart';
 import '../widgets/bottom_burbuja.dart';
@@ -197,7 +198,11 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Widget _buildHomeTab() {
     final selectedType = ref.watch(selectedServiceTypeProvider);
-    final promosAsync = ref.watch(promosProvider(selectedType));
+    return _buildBody(selectedType);
+  }
+
+  Widget _buildBody(ServiceType selectedType) {
+    final promosAsync = ref.watch(adsAsPromosProvider(selectedType));
     final filteredItemsAsync = ref.watch(filteredHomeItemsProvider);
     final filters = ref.watch(homeFiltersProvider);
     final isSpareParts = selectedType == ServiceType.spareParts;
@@ -228,7 +233,11 @@ class _HomePageState extends ConsumerState<HomePage> {
             padding: EdgeInsets.only(top: 8, bottom: 8, left: 20, right: 20),
             child: PromoSkeleton(),
           ),
-          error: (_, __) => const SizedBox.shrink(),
+          error: (error, stack) {
+            print('🔥 ERROR EN CARROUSEL: $error');
+            print(stack);
+            return Center(child: Text('Error: $error'));
+          },
         ),
 
         // 3. Selector de categoría

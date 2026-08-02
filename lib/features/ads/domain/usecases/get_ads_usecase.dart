@@ -8,7 +8,7 @@ class GetAdsUseCase {
 
   GetAdsUseCase(this.repository);
 
-  Future<Either<Failure, List<Ad>>> call(double lat, double lng, {int limit = 5}) {
+  Future<Either<Failure, List<Ad>>> call(double? lat, double? lng, {int limit = 5}) {
     return repository.getFeed(lat, lng, limit: limit);
   }
 }

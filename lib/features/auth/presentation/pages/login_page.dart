@@ -1,5 +1,5 @@
-import 'dart:io' show Platform;
 import 'dart:ui' show ImageFilter;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -67,7 +67,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _submitted = false;
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: Platform.isIOS ? '1062705330448-6nego3r9aaijmelviu38b7f5g09lb4te.apps.googleusercontent.com' : null,
+    clientId: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS ? '1062705330448-6nego3r9aaijmelviu38b7f5g09lb4te.apps.googleusercontent.com' : null,
     serverClientId: '1062705330448-1n5l9ahrjltarem41a5uiim4dc81hj63.apps.googleusercontent.com',
     scopes: ['email'],
   );

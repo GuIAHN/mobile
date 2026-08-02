@@ -1,6 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:io' show Platform;
 import '../../../../core/error/failures.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../../../features/notifications/services/push_notifications_service.dart';
@@ -67,7 +67,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (token != null) {
         await _authRepository.registerDeviceToken(
           token,
-          deviceOs: Platform.operatingSystem,
+          deviceOs: kIsWeb ? 'web' : defaultTargetPlatform.name,
         );
       }
     } catch (e) {
