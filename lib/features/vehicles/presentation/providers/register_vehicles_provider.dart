@@ -1,16 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/user_car.dart';
 
-/// Vehicle draft containing modelId from backend catalog for persistence.
+/// Vehicle draft containing variantId from backend catalog for persistence.
 class UserCarDraft extends UserCar {
-  final String modelId;
+  final String variantId;
 
   const UserCarDraft({
     required super.id,
     required super.brand,
     required super.model,
     required super.year,
-    required this.modelId,
+    required this.variantId,
   });
 }
 
@@ -23,14 +23,14 @@ class RegisterVehiclesNotifier extends StateNotifier<List<UserCarDraft>> {
     required String brand,
     required String model,
     required int year,
-    required String modelId,
+    required String variantId,
   }) {
     final newUserCar = UserCarDraft(
       id: DateTime.now().millisecondsSinceEpoch.toString(), // Simple generation of a local unique ID
       brand: brand,
       model: model,
       year: year,
-      modelId: modelId,
+      variantId: variantId,
     );
     state = [...state, newUserCar];
   }

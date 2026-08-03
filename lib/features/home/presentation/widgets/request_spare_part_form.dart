@@ -151,7 +151,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
       selectedCar: ref.read(searchVehicleProvider),
     );
     if (result != null) {
-      ref.read(searchVehicleModelIdProvider.notifier).state = result.modelId;
+      ref.read(searchVehicleVariantIdProvider.notifier).state = result.variantId;
       ref.read(searchVehicleProvider.notifier).state = result.car;
     }
   }
@@ -170,10 +170,10 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
 
     // If it's a temporary vehicle (manual entry), register it in the garage first
     if (globalVehicle.id.startsWith('temp-')) {
-      final modelId = ref.read(searchVehicleModelIdProvider);
-      if (modelId == null) {
+      final variantId = ref.read(searchVehicleVariantIdProvider);
+      if (variantId == null) {
         context.showSnackBar(
-          'Error: No se pudo identificar el modelo del vehículo',
+          'Error: No se pudo identificar la variante del vehículo',
           isError: true,
         );
         return;
@@ -181,7 +181,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
 
       _showLoadingOverlay();
       final addCarResult = await ref.read(addCarToGarageUseCaseProvider)(
-        modelId: modelId,
+        variantId: variantId,
       );
       _hideLoadingOverlay();
 
@@ -196,7 +196,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
         },
         (car) {
           ref.read(searchVehicleProvider.notifier).state = car;
-          ref.read(searchVehicleModelIdProvider.notifier).state = null;
+          ref.read(searchVehicleVariantIdProvider.notifier).state = null;
           // Invalidate userCars so the list gets updated
           ref.invalidate(userCarsProvider);
           return car;
@@ -325,7 +325,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                     _selectedImagePath = null;
                   });
                   ref.read(searchVehicleProvider.notifier).state = null;
-                  ref.read(searchVehicleModelIdProvider.notifier).state = null;
+                  ref.read(searchVehicleVariantIdProvider.notifier).state = null;
                   ref.read(searchRequestNotifierProvider.notifier).reset();
                   ref.invalidate(chatThreadsProvider);
                   widget.onSubmitted?.call();

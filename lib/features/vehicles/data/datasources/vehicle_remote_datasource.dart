@@ -3,6 +3,7 @@ import '../../../../core/network/dio_client.dart';
 import '../models/brand_model.dart';
 import '../models/car_model_model.dart';
 import '../models/user_car_model.dart';
+import '../models/vehicle_variant_model.dart';
 
 /// Remote data source to manage vehicle catalog and user's garage.
 class VehicleRemoteDataSource {
@@ -40,9 +41,24 @@ class VehicleRemoteDataSource {
     }
   }
 
-  /// Adds a vehicle to the user's garage.
+  /// Fetches the list of variants for a specific model.
+  Future<List<VehicleVariantModel>> getModelVariants(String modelId) async {
+    try {
+      final response = await _client.get<List<dynamic>>('/models/$modelId/variants');
+      if (response.data == null) {
+        throw const ParseException();
+      }
+      return response.data!
+          .map((json) => VehicleVariantModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Adds a vehicle to the user's garage using a variantId.
   Future<UserCarModel> addCarToGarage({
-    required String modelId,
+    required String variantId,
     String? placa,
     String? color,
   }) async {
@@ -50,7 +66,7 @@ class VehicleRemoteDataSource {
       final response = await _client.post<Map<String, dynamic>>(
         '/me/cars',
         data: {
-          'modelId': modelId,
+          'variantId': variantId,
           if (placa != null && placa.isNotEmpty) 'placa': placa,
           if (color != null && color.isNotEmpty) 'color': color,
         },

@@ -6,8 +6,7 @@ class CarModelModel extends CarModel {
     required super.id,
     required super.brandId,
     required super.name,
-    required super.motor,
-    required super.year,
+    required super.vehicleType,
   });
 
   factory CarModelModel.fromJson(Map<String, dynamic> json) {
@@ -15,8 +14,7 @@ class CarModelModel extends CarModel {
       id: json['id'] as String,
       brandId: json['brandId'] as String? ?? json['brand_id'] as String? ?? '',
       name: json['name'] as String,
-      motor: json['motor'] as String? ?? '',
-      year: json['year'] as int,
+      vehicleType: json['vehicleType'] as String? ?? json['vehicle_type'] as String? ?? 'CAR',
     );
   }
 
@@ -24,7 +22,6 @@ class CarModelModel extends CarModel {
         'id': id,
         'brandId': brandId,
         'name': name,
-        'motor': motor,
-        'year': year,
+        'vehicleType': vehicleType,
       };
 }

@@ -4,19 +4,25 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/brand.dart';
+import '../../domain/entities/car_model.dart';
 import '../providers/vehicle_providers.dart';
 
 class VehicleSelectionResult {
   final Brand brand;
   final String modelName;
   final int year;
-  final String modelId;
+  final String variantId;
+  final String motor;
+
+  @Deprecated('Use variantId instead')
+  String get modelId => variantId;
 
   VehicleSelectionResult({
     required this.brand,
     required this.modelName,
     required this.year,
-    required this.modelId,
+    required this.variantId,
+    required this.motor,
   });
 }
 
@@ -38,11 +44,11 @@ class VehicleSelectionModal extends ConsumerStatefulWidget {
 }
 
 class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
-  int _step = 1; // 1: Marca, 2: Modelo, 3: Año
+  int _step = 1; // 1: Marca, 2: Modelo, 3: Año / Variante
   String _searchQuery = '';
 
   Brand? _selectedBrand;
-  String? _selectedModelName;
+  CarModel? _selectedModel;
 
   @override
   Widget build(BuildContext context) {
@@ -156,7 +162,7 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
       case 2:
         return 'Modelo de ${_selectedBrand?.name}';
       case 3:
-        return 'Año del $_selectedModelName';
+        return 'Año / Versión de ${_selectedModel?.name}';
       default:
         return '';
     }
@@ -169,7 +175,7 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
       case 2:
         return 'Buscar modelo...';
       case 3:
-        return 'Buscar año...';
+        return 'Buscar año o motor...';
       default:
         return '';
     }
@@ -179,6 +185,7 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
     setState(() {
       if (_step == 3) {
         _step = 2;
+        _selectedModel = null;
         _searchQuery = '';
       } else if (_step == 2) {
         _step = 1;
@@ -195,7 +202,7 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
       case 2:
         return _buildModelos();
       case 3:
-        return _buildAnios();
+        return _buildVariantes();
       default:
         return const SizedBox();
     }
@@ -248,9 +255,8 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
 
     return modelsAsync.when(
       data: (models) {
-        final distinctNames = models.map((m) => m.name).toSet().toList();
-        final filtradas = distinctNames
-            .where((m) => m.toLowerCase().contains(_searchQuery.toLowerCase()))
+        final filtradas = models
+            .where((m) => m.name.toLowerCase().contains(_searchQuery.toLowerCase()))
             .toList();
 
         if (filtradas.isEmpty) return _emptyState('No se encontraron modelos');
@@ -261,12 +267,12 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
           itemCount: filtradas.length,
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
-            final modelName = filtradas[index];
+            final model = filtradas[index];
             return _ListItem(
-              label: modelName,
+              label: model.name,
               onTap: () {
                 setState(() {
-                  _selectedModelName = modelName;
+                  _selectedModel = model;
                   _step = 3;
                   _searchQuery = '';
                 });
@@ -280,45 +286,43 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
     );
   }
 
-  Widget _buildAnios() {
-    if (_selectedBrand == null || _selectedModelName == null) return const SizedBox();
-    final modelsAsync = ref.watch(brandModelsProvider(_selectedBrand!.id));
+  Widget _buildVariantes() {
+    if (_selectedBrand == null || _selectedModel == null) return const SizedBox();
+    final variantsAsync = ref.watch(modelVariantsProvider(_selectedModel!.id));
 
-    return modelsAsync.when(
-      data: (models) {
-        final availableModels = models.where((m) => m.name == _selectedModelName).toList();
-        final availableYears = availableModels.map((m) => m.year).toSet().toList();
-        availableYears.sort((a, b) => b.compareTo(a));
-
-        final filtradas = availableYears
-            .where((y) => y.toString().contains(_searchQuery))
+    return variantsAsync.when(
+      data: (variants) {
+        final filtradas = variants
+            .where((v) =>
+                v.year.toString().contains(_searchQuery) ||
+                v.motor.toLowerCase().contains(_searchQuery.toLowerCase()))
             .toList();
+        filtradas.sort((a, b) => b.year.compareTo(a.year));
 
-        if (filtradas.isEmpty) return _emptyState('No se encontraron años');
+        if (filtradas.isEmpty) return _emptyState('No se encontraron años/versiones');
 
-        return GridView.builder(
-          key: const ValueKey('anios'),
+        return ListView.separated(
+          key: const ValueKey('variantes'),
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 2.0,
-          ),
           itemCount: filtradas.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
-            final year = filtradas[index];
-            return _CardItem(
-              label: year.toString(),
+            final variant = filtradas[index];
+            final title = 'Año ${variant.year}';
+            final subtitle = variant.motor.isNotEmpty ? variant.motor : null;
+
+            return _ListItem(
+              label: title,
+              subtitle: subtitle,
               onTap: () {
-                final modelDef = availableModels.firstWhere((m) => m.year == year);
                 Navigator.pop(
                   context,
                   VehicleSelectionResult(
                     brand: _selectedBrand!,
-                    modelName: _selectedModelName!,
-                    year: year,
-                    modelId: modelDef.id,
+                    modelName: _selectedModel!.name,
+                    year: variant.year,
+                    variantId: variant.id,
+                    motor: variant.motor,
                   ),
                 );
               },
@@ -387,9 +391,14 @@ class _CardItem extends StatelessWidget {
 
 class _ListItem extends StatelessWidget {
   final String label;
+  final String? subtitle;
   final VoidCallback onTap;
 
-  const _ListItem({required this.label, required this.onTap});
+  const _ListItem({
+    required this.label,
+    this.subtitle,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -412,13 +421,29 @@ class _ListItem extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              label,
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (subtitle != null && subtitle!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle!,
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
             ),
             const Icon(
               Icons.chevron_right_rounded,

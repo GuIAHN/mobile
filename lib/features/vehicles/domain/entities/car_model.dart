@@ -5,17 +5,15 @@ class CarModel extends Equatable {
   final String id;
   final String brandId;
   final String name;
-  final String motor;
-  final int year;
+  final String vehicleType;
 
   const CarModel({
     required this.id,
     required this.brandId,
     required this.name,
-    required this.motor,
-    required this.year,
+    required this.vehicleType,
   });
 
   @override
-  List<Object?> get props => [id, brandId, name, motor, year];
+  List<Object?> get props => [id, brandId, name, vehicleType];
 }

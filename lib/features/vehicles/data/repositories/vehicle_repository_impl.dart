@@ -4,6 +4,7 @@ import '../../../../core/error/failures.dart';
 import '../../domain/entities/brand.dart';
 import '../../domain/entities/car_model.dart';
 import '../../domain/entities/user_car.dart';
+import '../../domain/entities/vehicle_variant.dart';
 import '../../domain/repositories/vehicle_repository.dart';
 import '../datasources/vehicle_remote_datasource.dart';
 
@@ -34,14 +35,24 @@ class VehicleRepositoryImpl implements VehicleRepository {
   }
 
   @override
+  Future<Either<Failure, List<VehicleVariant>>> getModelVariants(String modelId) async {
+    try {
+      final variants = await remoteDataSource.getModelVariants(modelId);
+      return Right(variants);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
   Future<Either<Failure, UserCar>> addCarToGarage({
-    required String modelId,
+    required String variantId,
     String? placa,
     String? color,
   }) async {
     try {
       final car = await remoteDataSource.addCarToGarage(
-        modelId: modelId,
+        variantId: variantId,
         placa: placa,
         color: color,
       );
