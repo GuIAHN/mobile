@@ -223,10 +223,16 @@ class _HomePageState extends ConsumerState<HomePage> {
         // 1. Header (Logo + Ubicación)
         _buildHeader(),
 
-        // 2. Carrusel de Promociones / Banners
+        // 2. Selector de categoría en burbujitas (arriba del todo, estilo Hulu)
+        const Padding(
+          padding: EdgeInsets.fromLTRB(20, 8, 20, 16),
+          child: CategorySelector(),
+        ),
+
+        // 3. Carrusel de Promociones / Banners
         promosAsync.when(
           data: (promos) => Padding(
-            padding: const EdgeInsets.only(top: 8, bottom: 8, left: 20, right: 20),
+            padding: const EdgeInsets.only(top: 8, bottom: 12, left: 20, right: 20),
             child: PromoCarousel(promos: promos),
           ),
           loading: () => const Padding(
@@ -238,12 +244,6 @@ class _HomePageState extends ConsumerState<HomePage> {
             print(stack);
             return Center(child: Text('Error: $error'));
           },
-        ),
-
-        // 3. Selector de categoría
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: CategorySelector(),
         ),
 
         // 4. Barra de vehículo y búsqueda (solo mecánicos/talleres)
