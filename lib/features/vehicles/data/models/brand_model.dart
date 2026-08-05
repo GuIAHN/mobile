@@ -6,6 +6,7 @@ class BrandModel extends Brand {
     required super.id,
     required super.name,
     required super.brandType,
+    super.photoUrl,
   });
 
   factory BrandModel.fromJson(Map<String, dynamic> json) {
@@ -13,6 +14,7 @@ class BrandModel extends Brand {
       id: json['id'] as String,
       name: json['name'] as String,
       brandType: json['brandType'] as String? ?? json['brand_type'] as String? ?? 'OTRO',
+      photoUrl: json['photoUrl'] as String? ?? json['photo_url'] as String?,
     );
   }
 
@@ -20,5 +22,6 @@ class BrandModel extends Brand {
         'id': id,
         'name': name,
         'brandType': brandType,
+        'photoUrl': photoUrl,
       };
 }

@@ -27,15 +27,17 @@ class VehicleSelectionResult {
 }
 
 class VehicleSelectionModal extends ConsumerStatefulWidget {
-  const VehicleSelectionModal({super.key});
+  final Brand? initialBrand;
+
+  const VehicleSelectionModal({super.key, this.initialBrand});
 
   /// Abre el modal y devuelve el resultado de la selección.
-  static Future<VehicleSelectionResult?> show(BuildContext context) {
+  static Future<VehicleSelectionResult?> show(BuildContext context, {Brand? initialBrand}) {
     return showModalBottomSheet<VehicleSelectionResult>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const VehicleSelectionModal(),
+      builder: (_) => VehicleSelectionModal(initialBrand: initialBrand),
     );
   }
 
@@ -49,6 +51,15 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
 
   Brand? _selectedBrand;
   CarModel? _selectedModel;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialBrand != null) {
+      _selectedBrand = widget.initialBrand;
+      _step = 2; // Pass directly to model selection
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -223,16 +234,16 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
           key: const ValueKey('marcas'),
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
+            crossAxisCount: 3,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
-            childAspectRatio: 2.2,
+            childAspectRatio: 0.85,
           ),
           itemCount: filtradas.length,
           itemBuilder: (context, index) {
             final brand = filtradas[index];
-            return _CardItem(
-              label: brand.name,
+            return _BrandCard(
+              brand: brand,
               onTap: () {
                 setState(() {
                   _selectedBrand = brand;
@@ -383,6 +394,61 @@ class _CardItem extends StatelessWidget {
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BrandCard extends StatelessWidget {
+  final Brand brand;
+  final VoidCallback onTap;
+
+  const _BrandCard({required this.brand, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Image.asset(
+                  'assets/brands/${brand.name.toLowerCase()}.png',
+                  errorBuilder: (context, error, stackTrace) =>
+                      const Icon(Icons.directions_car, color: AppColors.textDisabled, size: 32),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                brand.name,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
