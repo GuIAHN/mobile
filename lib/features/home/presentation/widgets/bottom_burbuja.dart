@@ -6,9 +6,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../providers/home_providers.dart';
 
-/// Barra de navegación flotante tipo "burbuja" con glassmorphism.
-/// El tab activo se expande en pill con label (icono + texto = mejor
-/// descubribilidad que icono solo), con haptics y semántica de tab.
+/// Barra de navegación flotante tipo "burbuja de agua / líquida" con glassmorphism.
+/// El fondo líquido de la sección activa se transfiere con una animación fluida
+/// y elástica (efecto gota de agua) entre tabs.
 class BottomBurbuja extends ConsumerWidget {
   const BottomBurbuja({super.key});
 
@@ -39,109 +39,220 @@ class BottomBurbuja extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: Center(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.85),
-                  borderRadius: BorderRadius.circular(99),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.12),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List.generate(_tabs.length, (index) {
-                    final tab = _tabs[index];
-                    final isSelected = index == activeTab;
+          child: _LiquidBubbleNav(
+            tabs: _tabs,
+            activeTab: activeTab,
+            onTabSelected: (index) {
+              HapticFeedback.selectionClick();
+              ref.read(homeTabProvider.notifier).state = index;
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-                    return Semantics(
+class _LiquidBubbleNav extends StatefulWidget {
+  final List<({IconData outline, IconData filled, String label})> tabs;
+  final int activeTab;
+  final ValueChanged<int> onTabSelected;
+
+  const _LiquidBubbleNav({
+    required this.tabs,
+    required this.activeTab,
+    required this.onTabSelected,
+  });
+
+  @override
+  State<_LiquidBubbleNav> createState() => _LiquidBubbleNavState();
+}
+
+class _LiquidBubbleNavState extends State<_LiquidBubbleNav>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _stretchController;
+  late Animation<double> _stretchXAnimation;
+  late Animation<double> _stretchYAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _stretchController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+
+    _stretchXAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 1.25)
+            .chain(CurveTween(curve: Curves.easeOutQuad)),
+        weight: 40,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.25, end: 1.0)
+            .chain(CurveTween(curve: Curves.elasticOut)),
+        weight: 60,
+      ),
+    ]).animate(_stretchController);
+
+    _stretchYAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 0.8)
+            .chain(CurveTween(curve: Curves.easeOutQuad)),
+        weight: 40,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.8, end: 1.0)
+            .chain(CurveTween(curve: Curves.elasticOut)),
+        weight: 60,
+      ),
+    ]).animate(_stretchController);
+  }
+
+  @override
+  void didUpdateWidget(covariant _LiquidBubbleNav oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.activeTab != widget.activeTab) {
+      _stretchController.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _stretchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Calcula la posición horizontal (-1.0 a 1.0) de la burbuja activa
+    final double alignX =
+        -1.0 + (widget.activeTab * (2.0 / (widget.tabs.length - 1)));
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(99),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          width: 250,
+          height: 58,
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.82),
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.7),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              // 1. Fondo de agua / burbuja que se transfiere fluido elásticamente
+              AnimatedAlign(
+                duration: const Duration(milliseconds: 380),
+                curve: Curves.fastOutSlowIn,
+                alignment: Alignment(alignX, 0.0),
+                child: FractionallySizedBox(
+                  widthFactor: 1 / widget.tabs.length,
+                  heightFactor: 1.0,
+                  child: AnimatedBuilder(
+                    animation: _stretchController,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scaleX: _stretchXAnimation.value,
+                        scaleY: _stretchYAnimation.value,
+                        child: child,
+                      );
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppColors.primary, AppColors.primaryLight],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(99),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.45),
+                            blurRadius: 14,
+                            spreadRadius: 1,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // 2. Capa interactiva con Íconos y Nombres de Sección (Nombre abajo del icono)
+              Row(
+                children: List.generate(widget.tabs.length, (index) {
+                  final tab = widget.tabs[index];
+                  final isSelected = index == widget.activeTab;
+
+                  return Expanded(
+                    child: Semantics(
                       selected: isSelected,
                       button: true,
                       label: tab.label,
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: () {
-                          if (index != activeTab) {
-                            HapticFeedback.selectionClick();
-                            ref.read(homeTabProvider.notifier).state = index;
+                          if (index != widget.activeTab) {
+                            widget.onTabSelected(index);
                           }
                         },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 280),
-                          curve: Curves.easeOutCubic,
-                          height: 46,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isSelected ? 16 : 11,
-                          ),
-                          margin: const EdgeInsets.symmetric(horizontal: 3),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppColors.primary
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(99),
-                            boxShadow: isSelected
-                                ? [
-                                    BoxShadow(
-                                      color: AppColors.primary
-                                          .withValues(alpha: 0.35),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
-                                    )
-                                  ]
-                                : [],
-                          ),
-                          child: Row(
+                        child: Center(
+                          child: Column(
                             mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                isSelected ? tab.filled : tab.outline,
-                                size: 22,
-                                color: isSelected
-                                    ? Colors.white
-                                    : AppColors.textSecondary,
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 220),
+                                transitionBuilder: (child, anim) =>
+                                    ScaleTransition(scale: anim, child: child),
+                                child: Icon(
+                                  isSelected ? tab.filled : tab.outline,
+                                  key: ValueKey('${tab.label}_$isSelected'),
+                                  size: 20,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : AppColors.textSecondary,
+                                ),
                               ),
-                              // El label solo ocupa espacio en el tab activo
-                              AnimatedSize(
-                                duration: const Duration(milliseconds: 280),
-                                curve: Curves.easeOutCubic,
-                                child: isSelected
-                                    ? Padding(
-                                        padding:
-                                            const EdgeInsets.only(left: 7),
-                                        child: Text(
-                                          tab.label,
-                                          style: GoogleFonts.hankenGrotesk(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w800,
-                                            color: Colors.white,
-                                            letterSpacing: 0.2,
-                                          ),
-                                        ),
-                                      )
-                                    : const SizedBox.shrink(),
+                              const SizedBox(height: 2),
+                              AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 220),
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 11,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w800
+                                      : FontWeight.w600,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : AppColors.textSecondary,
+                                  letterSpacing: 0.2,
+                                ),
+                                child: Text(tab.label),
                               ),
                             ],
                           ),
                         ),
                       ),
-                    );
-                  }),
-                ),
+                    ),
+                  );
+                }),
               ),
-            ),
+            ],
           ),
         ),
       ),

@@ -176,10 +176,13 @@ final searchVehicleProvider = StateProvider<UserCar?>((ref) {
   return null;
 });
 
-/// ID de modelo de vehículo temporario/manual seleccionado
-final searchVehicleModelIdProvider = StateProvider<String?>((ref) {
+/// ID de variante de vehículo temporario/manual seleccionado
+final searchVehicleVariantIdProvider = StateProvider<String?>((ref) {
   return null;
 });
+
+@Deprecated('Use searchVehicleVariantIdProvider instead')
+final searchVehicleModelIdProvider = searchVehicleVariantIdProvider;
 
 /// Índice de la pestaña activa en la barra de navegación (0: Home, 1: Chats, 2: Perfil)
 final homeTabProvider = StateProvider<int>((ref) {

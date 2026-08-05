@@ -198,7 +198,7 @@ class ProfileGarage extends ConsumerWidget {
 
       final addCarUseCase = ref.read(addCarToGarageUseCaseProvider);
       final saveResult = await addCarUseCase(
-        modelId: result.modelId,
+        variantId: result.variantId,
       );
 
       if (!context.mounted) return;

@@ -37,6 +37,8 @@ class RequestSparePartForm extends ConsumerStatefulWidget {
 
 class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
   final _detailsController = TextEditingController();
+  int _currentStep = 0;
+  int _previousStep = 0;
 
   Category? _selectedCategory;
   Category? _selectedSubcategory;
@@ -65,6 +67,25 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
   void initState() {
     super.initState();
     _detailsController.addListener(_handleDetailsChange);
+  }
+
+
+  void _nextStep() {
+    setState(() {
+      if (_currentStep < 2) {
+        _previousStep = _currentStep;
+        _currentStep++;
+      }
+    });
+  }
+
+  void _prevStep() {
+    setState(() {
+      if (_currentStep > 0) {
+        _previousStep = _currentStep;
+        _currentStep--;
+      }
+    });
   }
 
   void _handleDetailsChange() {
@@ -130,7 +151,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
       selectedCar: ref.read(searchVehicleProvider),
     );
     if (result != null) {
-      ref.read(searchVehicleModelIdProvider.notifier).state = result.modelId;
+      ref.read(searchVehicleVariantIdProvider.notifier).state = result.variantId;
       ref.read(searchVehicleProvider.notifier).state = result.car;
     }
   }
@@ -149,10 +170,10 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
 
     // If it's a temporary vehicle (manual entry), register it in the garage first
     if (globalVehicle.id.startsWith('temp-')) {
-      final modelId = ref.read(searchVehicleModelIdProvider);
-      if (modelId == null) {
+      final variantId = ref.read(searchVehicleVariantIdProvider);
+      if (variantId == null) {
         context.showSnackBar(
-          'Error: No se pudo identificar el modelo del vehículo',
+          'Error: No se pudo identificar la variante del vehículo',
           isError: true,
         );
         return;
@@ -160,7 +181,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
 
       _showLoadingOverlay();
       final addCarResult = await ref.read(addCarToGarageUseCaseProvider)(
-        modelId: modelId,
+        variantId: variantId,
       );
       _hideLoadingOverlay();
 
@@ -175,7 +196,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
         },
         (car) {
           ref.read(searchVehicleProvider.notifier).state = car;
-          ref.read(searchVehicleModelIdProvider.notifier).state = null;
+          ref.read(searchVehicleVariantIdProvider.notifier).state = null;
           // Invalidate userCars so the list gets updated
           ref.invalidate(userCarsProvider);
           return car;
@@ -245,17 +266,28 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
-            Container(
-              width: 72,
-              height: 72,
-              decoration: const BoxDecoration(
-                color: AppColors.primaryMuted,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_circle_rounded,
-                color: AppColors.primary,
-                size: 44,
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 700),
+              curve: Curves.elasticOut,
+              tween: Tween(begin: 0.0, end: 1.0),
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: child,
+                );
+              },
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: const BoxDecoration(
+                  color: AppColors.primaryMuted,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_circle_rounded,
+                  color: AppColors.primary,
+                  size: 44,
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -293,7 +325,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                     _selectedImagePath = null;
                   });
                   ref.read(searchVehicleProvider.notifier).state = null;
-                  ref.read(searchVehicleModelIdProvider.notifier).state = null;
+                  ref.read(searchVehicleVariantIdProvider.notifier).state = null;
                   ref.read(searchRequestNotifierProvider.notifier).reset();
                   ref.invalidate(chatThreadsProvider);
                   widget.onSubmitted?.call();
@@ -325,7 +357,6 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
 
   @override
   Widget build(BuildContext context) {
-    // Escuchar el estado de autenticación y los vehículos de garaje
     final authState = ref.watch(authProvider);
     final user = authState.user;
     final isConsumer = user == null || user.role == UserRole.consumer;
@@ -367,347 +398,556 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
       );
     }
 
-    // Cargar vehículos del garaje
     ref.listenAsyncError(userCarsProvider, context);
     final userCarsAsync = ref.watch(userCarsProvider);
-
     final globalVehicle = ref.watch(searchVehicleProvider);
-    final hasCategory =
-        _selectedCategory != null && _selectedSubcategory != null;
-    final hasVehicle = globalVehicle != null;
-    final hasPartType = _selectedPartType != null;
-    final needsDetails = _isOtroCategory;
-    final hasRequiredDetails =
-        !needsDetails || _detailsController.text.trim().isNotEmpty;
-    final isValid =
-        hasCategory && hasVehicle && hasPartType && hasRequiredDetails;
-    final completedSteps =
-        (hasVehicle ? 1 : 0) + (hasCategory ? 1 : 0) + (hasPartType ? 1 : 0);
 
     return Container(
       margin: const EdgeInsets.only(top: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.grey200),
+        borderRadius: BorderRadius.circular(24), // Ultra-modern roundness
+        border: Border.all(color: AppColors.grey200.withValues(alpha: 0.5)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 4),
+            color: AppColors.primary.withValues(alpha: 0.04), // Tinted soft shadow
+            blurRadius: 24,
+            spreadRadius: 2,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24), // More breathing room
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Encabezado de la solicitud
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.grey50,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.border),
+          // Header
+          Builder(
+            builder: (context) {
+              final (icon, iconColor, bgColor, borderColor, title, subtitle) = switch (_currentStep) {
+                0 => (
+                    Icons.settings_rounded, // Tuerca (Nut)
+                    AppColors.primary,
+                    AppColors.primary.withValues(alpha: 0.1),
+                    AppColors.primary.withValues(alpha: 0.25),
+                    'Cotiza tu Repuesto',
+                    '¿Para qué vehículo es?',
+                  ),
+                1 => (
+                    Icons.build_circle_rounded, // Ensamblando (Building)
+                    AppColors.secondary,
+                    AppColors.secondary.withValues(alpha: 0.1),
+                    AppColors.secondary.withValues(alpha: 0.25),
+                    'Encuentra la Pieza',
+                    'Selecciona la categoría',
+                  ),
+                _ => (
+                    Icons.directions_car_rounded, // Carro Armado (Car)
+                    AppColors.tertiary,
+                    AppColors.tertiary.withValues(alpha: 0.1),
+                    AppColors.tertiary.withValues(alpha: 0.25),
+                    'Detalles de la Solicitud',
+                    'Envía a las tiendas',
+                  ),
+              };
+
+              return Row(
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeInOutCubic,
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: borderColor, width: 1.5),
+                    ),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 400),
+                      transitionBuilder: (child, anim) => ScaleTransition(
+                        scale: anim,
+                        child: FadeTransition(opacity: anim, child: child),
+                      ),
+                      child: Icon(
+                        icon,
+                        key: ValueKey(icon.codePoint),
+                        color: iconColor,
+                        size: 24, // un poquito mas grande
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 400),
+                      layoutBuilder: (currentChild, previousChildren) => Stack(
+                        alignment: Alignment.centerLeft,
+                        children: <Widget>[
+                          ...previousChildren,
+                          if (currentChild != null) currentChild,
+                        ],
+                      ),
+                      child: Column(
+                        key: ValueKey(_currentStep),
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: iconColor, // <- USAMOS EL COLOR DEL ICONO, CERO NEGRO
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle,
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
+          ),
+          const SizedBox(height: 20),
+          _AnimatedStepIndicator(currentStep: _currentStep),
+          const SizedBox(height: 24),
+
+          // Wizard content
+          AnimatedSize(
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeInOutCubic,
+            alignment: Alignment.topCenter,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 350),
+              layoutBuilder: (currentChild, previousChildren) {
+                return Stack(
+                  alignment: Alignment.topCenter,
+                  children: <Widget>[
+                    ...previousChildren,
+                    if (currentChild != null) currentChild,
+                  ],
+                );
+              },
+              transitionBuilder: (child, animation) {
+                final key = child.key as ValueKey<String>?;
+                final step = int.tryParse(key?.value.replaceAll('step', '') ?? '0') ?? 0;
+                final isForward = _currentStep >= _previousStep;
+                
+                double dx = 0;
+                if (step == _currentStep) {
+                  dx = isForward ? 1.0 : -1.0;
+                } else {
+                  dx = step < _currentStep ? -1.0 : 1.0;
+                }
+                
+                return SlideTransition(
+                  position: Tween<Offset>(begin: Offset(dx, 0.0), end: Offset.zero)
+                      .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+                  child: FadeTransition(opacity: animation, child: child),
+                );
+              },
+              child: _currentStep == 0
+                  ? _buildStep1(isConsumer, globalVehicle, userCarsAsync)
+                  : _currentStep == 1
+                      ? _buildStep2()
+                      : _buildStep3(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep1(bool isConsumer, dynamic globalVehicle, AsyncValue<List<dynamic>> userCarsAsync) {
+    final hasVehicle = globalVehicle != null;
+    return Column(
+      key: const ValueKey('step1'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel('VEHÍCULO PARA LA SOLICITUD *'),
+        const SizedBox(height: 6),
+        if (isConsumer) ...[
+          userCarsAsync.when(
+            data: (garageCars) {
+              final String valorMostrado;
+              if (globalVehicle != null) {
+                if (globalVehicle.id.startsWith('temp-')) {
+                  valorMostrado = 'Otro: ${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})';
+                } else {
+                  valorMostrado = '${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})';
+                }
+              } else {
+                valorMostrado = 'Selecciona de tu garaje u otro';
+              }
+
+              return _SelectorField(
+                value: globalVehicle != null ? valorMostrado : null,
+                placeholder: 'Selecciona un vehículo de tu garaje',
+                onTap: _abrirSelectorVehiculo,
+              );
+            },
+            loading: () => _buildLoadingField('Cargando tus vehículos...'),
+            error: (_, __) => _SelectorField(
+              value: globalVehicle != null
+                  ? 'Otro: ${globalVehicle.brand} ${globalVehicle.model}'
+                  : null,
+              placeholder: 'Ingresa vehículo manual',
+              onTap: _abrirSelectorVehiculo,
+            ),
+          ),
+        ] else ...[
+          _SelectorField(
+            value: globalVehicle != null
+                ? '${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})'
+                : null,
+            placeholder: 'Selecciona marca, modelo y año',
+            onTap: _abrirSelectorVehiculo,
+          ),
+        ],
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton(
+            onPressed: hasVehicle ? _nextStep : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: AppColors.grey200,
+              disabledForegroundColor: AppColors.textDisabled,
+              shape: const StadiumBorder(),
+              elevation: hasVehicle ? 4 : 0,
+              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'SIGUIENTE',
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.5,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.inventory_2_rounded,
-                  color: AppColors.textPrimary,
-                  size: 22,
+                const SizedBox(width: 8),
+                const Icon(Icons.arrow_forward_rounded, size: 18),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStep2() {
+    final hasCategory = _selectedCategory != null && _selectedSubcategory != null;
+    final hasPartType = _selectedPartType != null;
+    final canProceed = hasCategory && hasPartType;
+
+    return Column(
+      key: const ValueKey('step2'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel('CATEGORÍA DE REPUESTO *'),
+        const SizedBox(height: 6),
+        _SelectorField(
+          value: _categorySelectorValue(),
+          placeholder: 'Selecciona categoría y subcategoría',
+          onTap: () async {
+            final result = await showModalBottomSheet<_CategorySubcategoryResult>(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              barrierColor: Colors.black.withValues(alpha: 0.4),
+              builder: (_) => _CategorySubcategorySelectorSheet(
+                initialCategory: _selectedCategory,
+                initialSubcategory: _selectedSubcategory,
+              ),
+            );
+            if (result != null) {
+              setState(() {
+                _selectedCategory = result.category;
+                _selectedSubcategory = result.subcategory;
+              });
+            }
+          },
+        ),
+        const SizedBox(height: 16),
+        _buildLabel('TIPO DE REPUESTO *'),
+        const SizedBox(height: 8),
+        FormPartTypeSelector(
+          selectedPartType: _selectedPartType,
+          onPartTypeSelected: (type) {
+            setState(() {
+              _selectedPartType = type;
+            });
+          },
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TextButton.icon(
+              onPressed: _prevStep,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(32),
+                  side: const BorderSide(color: AppColors.primary, width: 1.5),
                 ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
+              label: Text(
+                'ATRÁS',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 48,
+              child: ElevatedButton(
+                onPressed: canProceed ? _nextStep : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: AppColors.grey200,
+                  disabledForegroundColor: AppColors.textDisabled,
+                  shape: const StadiumBorder(),
+                  elevation: canProceed ? 4 : 0,
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Solicita tu Repuesto',
+                      'SIGUIENTE',
                       style: GoogleFonts.hankenGrotesk(
-                        fontSize: 16.5,
+                        fontSize: 13,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
+                        letterSpacing: 1.5,
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Cotiza al instante con las tiendas cercanas',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 12.5,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.arrow_forward_rounded, size: 18),
                   ],
                 ),
               ),
-              _StepProgressBadge(completed: completedSteps, total: 3),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStep3() {
+    final needsDetails = _isOtroCategory;
+    final hasRequiredDetails = !needsDetails || _detailsController.text.trim().isNotEmpty;
+
+    return Column(
+      key: const ValueKey('step3'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel(
+          needsDetails
+              ? 'DETALLES ADICIONALES *'
+              : 'DETALLES ADICIONALES (OPCIONAL)',
+        ),
+        if (needsDetails) ...[
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.info_outline_rounded,
+                  size: 13, color: AppColors.tertiary),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  'Cuéntanos qué repuesto necesitas, ya que no coincide con ninguna categoría del catálogo.',
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.tertiary,
+                    height: 1.3,
+                  ),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: completedSteps / 3),
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOut,
-              builder: (context, value, _) => LinearProgressIndicator(
-                value: value,
-                minHeight: 4,
-                backgroundColor: AppColors.grey100,
-                valueColor: const AlwaysStoppedAnimation(AppColors.primary),
-              ),
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Divider(),
-          ),
-
-          // Campo 1: Selector de vehículo (Requerido para todos, con comportamiento diferente según rol)
-          _buildLabel('VEHÍCULO PARA LA SOLICITUD *'),
-          const SizedBox(height: 6),
-          if (isConsumer) ...[
-            userCarsAsync.when(
-              data: (garageCars) {
-                final String valorMostrado;
-                if (globalVehicle != null) {
-                  if (globalVehicle.id.startsWith('temp-')) {
-                    valorMostrado =
-                        'Otro: ${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})';
-                  } else {
-                    valorMostrado =
-                        '${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})';
-                  }
-                } else {
-                  valorMostrado = 'Selecciona de tu garaje u otro';
-                }
-
-                return _SelectorField(
-                  value: globalVehicle != null ? valorMostrado : null,
-                  placeholder: 'Selecciona un vehículo de tu garaje',
-                  onTap: _abrirSelectorVehiculo,
-                );
-              },
-              loading: () => _buildLoadingField('Cargando tus vehículos...'),
-              error: (_, __) => _SelectorField(
-                value: globalVehicle != null
-                    ? 'Otro: ${globalVehicle.brand} ${globalVehicle.model}'
-                    : null,
-                placeholder: 'Ingresa vehículo manual',
-                onTap: _abrirSelectorVehiculo,
-              ),
-            ),
-          ] else ...[
-            _SelectorField(
-              value: globalVehicle != null
-                  ? '${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})'
-                  : null,
-              placeholder: 'Selecciona marca, modelo y año',
-              onTap: _abrirSelectorVehiculo,
-            ),
-          ],
-          const SizedBox(height: 12),
-
-          // Campo 2: Categoría y Subcategoría de Repuesto
-          _buildLabel('CATEGORÍA DE REPUESTO *'),
-          const SizedBox(height: 6),
-          _SelectorField(
-            value: _categorySelectorValue(),
-            placeholder: 'Selecciona categoría y subcategoría',
-            onTap: () async {
-              final result =
-                  await showModalBottomSheet<_CategorySubcategoryResult>(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                barrierColor: Colors.black.withValues(alpha: 0.4),
-                builder: (_) => _CategorySubcategorySelectorSheet(
-                  initialCategory: _selectedCategory,
-                  initialSubcategory: _selectedSubcategory,
+        ],
+        const SizedBox(height: 6),
+        _buildTextField(
+          controller: _detailsController,
+          hint: needsDetails
+              ? 'Ej. Kit de embrague completo para motor 2.0L turbo...'
+              : 'Ej. Alternador para motor 1.8L, lado derecho, marca Denso...',
+          maxLines: 2,
+          highlighted: needsDetails,
+        ),
+        const SizedBox(height: 16),
+        _buildLabel('FOTOGRAFÍA DE REFERENCIA (OPCIONAL)'),
+        const SizedBox(height: 6),
+        _selectedImagePath != null
+            ? Container(
+                height: 120,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
                 ),
-              );
-              if (result != null) {
-                setState(() {
-                  _selectedCategory = result.category;
-                  _selectedSubcategory = result.subcategory;
-                });
-              }
-            },
-          ),
-          const SizedBox(height: 12),
-
-          // Campo 3.5: Tipo de repuesto (Requerido)
-          _buildLabel('TIPO DE REPUESTO *'),
-          const SizedBox(height: 8),
-          FormPartTypeSelector(
-            selectedPartType: _selectedPartType,
-            onPartTypeSelected: (type) {
-              setState(() {
-                _selectedPartType = type;
-              });
-            },
-          ),
-          const SizedBox(height: 12),
-
-          // Campo 4: Detalles adicionales (obligatorio si la categoría es "Otro")
-          _buildLabel(
-            needsDetails
-                ? 'DETALLES ADICIONALES *'
-                : 'DETALLES ADICIONALES (OPCIONAL)',
-          ),
-          if (needsDetails) ...[
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.info_outline_rounded,
-                    size: 13, color: AppColors.primary),
-                const SizedBox(width: 5),
-                Expanded(
-                  child: Text(
-                    'Cuéntanos qué repuesto necesitas, ya que no coincide con ninguna categoría del catálogo.',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                      height: 1.3,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(13),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: kIsWeb
+                            ? Image.network(
+                                _selectedImagePath!,
+                                fit: BoxFit.cover,
+                              )
+                            : Image.file(
+                                File(_selectedImagePath!),
+                                fit: BoxFit.cover,
+                              ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedImagePath = null;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : GestureDetector(
+                onTap: _mostrarSelectorDeImagen,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  width: double.infinity,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: AppColors.grey50,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: AppColors.grey300,
+                      width: 1.5,
+                      style: BorderStyle.solid,
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 6),
-          _buildTextField(
-            controller: _detailsController,
-            hint: needsDetails
-                ? 'Ej. Kit de embrague completo para motor 2.0L turbo...'
-                : 'Ej. Alternador para motor 1.8L, lado derecho, marca Denso...',
-            maxLines: 2,
-            highlighted: needsDetails,
-          ),
-          const SizedBox(height: 12),
-
-          // Campo 5: Fotografía
-          _buildLabel('FOTOGRAFÍA DE REFERENCIA (OPCIONAL)'),
-          const SizedBox(height: 6),
-          _selectedImagePath != null
-              ? Container(
-                  height: 120,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(13),
-                    child: Stack(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Positioned.fill(
-                          child: kIsWeb
-                              ? Image.network(
-                                  _selectedImagePath!,
-                                  fit: BoxFit.cover,
-                                )
-                              : Image.file(
-                                  File(_selectedImagePath!),
-                                  fit: BoxFit.cover,
-                                ),
+                        const Icon(
+                          Icons.add_photo_alternate_outlined,
+                          color: AppColors.primary,
+                          size: 32,
                         ),
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedImagePath = null;
-                              });
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: const BoxDecoration(
-                                color: Colors.black54,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.close_rounded,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                            ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Toca para adjuntar foto',
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
                           ),
                         ),
                       ],
                     ),
                   ),
-                )
-              : GestureDetector(
-                  onTap: _mostrarSelectorDeImagen,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    width: double.infinity,
-                    height: 90,
-                    decoration: BoxDecoration(
-                      color: AppColors.grey50,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: AppColors.border,
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'Presiona para adjuntar foto',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ),
                 ),
-          const SizedBox(height: 20),
-
-          // Botón de Enviar Solicitud
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: isValid ? _onSubmit : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: AppColors.grey200,
-                disabledForegroundColor: AppColors.textDisabled,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                elevation: isValid ? 6 : 0,
-                shadowColor: AppColors.primary.withValues(alpha: 0.4),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'ENVIAR SOLICITUD',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.send_rounded, size: 16),
-                ],
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TextButton.icon(
+              onPressed: _prevStep,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(32),
+                  side: const BorderSide(color: AppColors.primary, width: 1.5),
+                ),
+              ),
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
+              label: Text(
+                'ATRÁS',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.5,
+                ),
               ),
             ),
-          ),
-        ],
-      ),
+            SizedBox(
+              height: 48,
+              child: ElevatedButton(
+                onPressed: hasRequiredDetails ? _onSubmit : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: AppColors.grey200,
+                  disabledForegroundColor: AppColors.textDisabled,
+                  shape: const StadiumBorder(),
+                  elevation: hasRequiredDetails ? 4 : 0,
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'ENVIAR',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.send_rounded, size: 16),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -717,7 +957,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
       style: GoogleFonts.hankenGrotesk(
         fontSize: 12,
         fontWeight: FontWeight.w700,
-        letterSpacing: 0.5,
+        letterSpacing: 1.5,
         color: AppColors.textSecondary,
       ),
     );
@@ -763,15 +1003,15 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: highlighted
               ? AppColors.primary.withValues(alpha: 0.5)
-              : AppColors.grey300,
+              : AppColors.border,
           width: highlighted ? 1.5 : 1.0,
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         crossAxisAlignment:
             maxLines > 1 ? CrossAxisAlignment.start : CrossAxisAlignment.center,
@@ -817,32 +1057,6 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
   }
 }
 
-class _StepProgressBadge extends StatelessWidget {
-  final int completed;
-  final int total;
-
-  const _StepProgressBadge({required this.completed, required this.total});
-
-  @override
-  Widget build(BuildContext context) {
-    final isComplete = completed >= total;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: isComplete ? AppColors.successLight : AppColors.grey100,
-        borderRadius: BorderRadius.circular(99),
-      ),
-      child: Text(
-        '$completed/$total',
-        style: GoogleFonts.hankenGrotesk(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w800,
-          color: isComplete ? AppColors.success : AppColors.textSecondary,
-        ),
-      ),
-    );
-  }
-}
 
 class _SelectorField extends StatelessWidget {
   final String? value;
@@ -864,22 +1078,30 @@ class _SelectorField extends StatelessWidget {
       label: value ?? placeholder,
       child: Material(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(14),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
             constraints: const BoxConstraints(minHeight: 44),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: hasValue ? AppColors.primary : AppColors.grey300,
+                color: hasValue ? AppColors.primary : AppColors.border,
                 width: hasValue ? 1.5 : 1.0,
               ),
             ),
             child: Row(
               children: [
+                Icon(
+                  value != null && value!.contains('▸') 
+                      ? Icons.category_outlined 
+                      : Icons.directions_car_rounded,
+                  size: 20,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     value ?? placeholder,
@@ -1378,31 +1600,7 @@ class _CategorySubcategorySelectorSheetState
 
   // ── Skeleton loader ──────────────────────────────────────────────────────
   Widget _buildSkeleton() {
-    return Column(
-      children: List.generate(5, (i) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          height: 52,
-          decoration: BoxDecoration(
-            color: AppColors.grey100,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              const SizedBox(width: 16),
-              Container(
-                width: i.isEven ? 140 : 100,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: AppColors.grey200,
-                  borderRadius: BorderRadius.circular(7),
-                ),
-              ),
-            ],
-          ),
-        );
-      }),
-    );
+    return const _ShimmerSkeleton();
   }
 
   // ── Error state ──────────────────────────────────────────────────────────
@@ -1691,5 +1889,226 @@ class _CategorySubcategoryResult {
     required this.category,
     required this.subcategory,
   });
+}
+
+// ── Animaciones ────────────────────────────────────────────────────────────
+
+class _AnimatedStepIndicator extends StatelessWidget {
+  final int currentStep;
+
+  const _AnimatedStepIndicator({required this.currentStep});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildStepBubble(0, 'Vehículo'),
+        _buildConnector(0),
+        _buildStepBubble(1, 'Repuesto'),
+        _buildConnector(1),
+        _buildStepBubble(2, 'Detalles'),
+      ],
+    );
+  }
+
+  Widget _buildStepBubble(int stepIndex, String label) {
+    final isCompleted = currentStep > stepIndex;
+    final isActive = currentStep == stepIndex;
+
+    Color bgColor = AppColors.grey100;
+    Color iconColor = AppColors.textDisabled;
+    Color borderColor = AppColors.grey200;
+
+    if (isActive) {
+      bgColor = AppColors.primary;
+      iconColor = Colors.white;
+      borderColor = AppColors.primaryLight;
+    } else if (isCompleted) {
+      bgColor = AppColors.primaryMuted;
+      iconColor = AppColors.primary;
+      borderColor = AppColors.primaryMuted;
+    }
+
+    return Column(
+      children: [
+        TweenAnimationBuilder<double>(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutBack,
+          tween: Tween(begin: 0.8, end: isActive ? 1.15 : 1.0),
+          builder: (context, scale, child) {
+            return Transform.scale(
+              scale: scale,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isActive ? borderColor.withValues(alpha: 0.5) : borderColor,
+                    width: isActive ? 4 : 1,
+                  ),
+                  boxShadow: isActive
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            spreadRadius: 2,
+                          )
+                        ]
+                      : null,
+                ),
+                child: Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    transitionBuilder: (child, animation) => ScaleTransition(
+                      scale: animation,
+                      child: child,
+                    ),
+                    child: isCompleted
+                        ? Icon(
+                            Icons.check_rounded,
+                            key: ValueKey('check_$stepIndex'),
+                            color: iconColor,
+                            size: 18,
+                          )
+                        : Text(
+                            '${stepIndex + 1}',
+                            key: ValueKey('num_$stepIndex'),
+                            style: GoogleFonts.hankenGrotesk(
+                              color: iconColor,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 11.5,
+            fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+            color: isActive ? AppColors.primary : AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConnector(int fromStep) {
+    final isCompleted = currentStep > fromStep;
+
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4).copyWith(bottom: 24),
+        height: 3,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: Stack(
+            children: [
+              Container(color: AppColors.grey200),
+              TweenAnimationBuilder<double>(
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeInOutCubic,
+                tween: Tween(begin: 0.0, end: isCompleted ? 1.0 : 0.0),
+                builder: (context, value, child) {
+                  return FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: value,
+                    child: Container(color: AppColors.primaryLight),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShimmerSkeleton extends StatefulWidget {
+  const _ShimmerSkeleton();
+
+  @override
+  State<_ShimmerSkeleton> createState() => _ShimmerSkeletonState();
+}
+
+class _ShimmerSkeletonState extends State<_ShimmerSkeleton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              colors: const [
+                AppColors.grey100,
+                Colors.white,
+                AppColors.grey100,
+              ],
+              stops: const [0.1, 0.5, 0.9],
+              begin: Alignment(-1.0 + (_controller.value * 2.0), -0.3),
+              end: Alignment(1.0 + (_controller.value * 2.0), 0.3),
+              tileMode: TileMode.clamp,
+            ).createShader(bounds);
+          },
+          child: child,
+        );
+      },
+      child: Column(
+        children: List.generate(5, (i) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            height: 52,
+            decoration: BoxDecoration(
+              color: AppColors.grey100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 16),
+                Container(
+                  width: i.isEven ? 140 : 100,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: AppColors.grey200,
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
 }
 
