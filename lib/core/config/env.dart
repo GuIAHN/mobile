@@ -29,7 +29,7 @@ class Env {
     if (url.isEmpty) {
       switch (current) {
         case AppEnvironment.development:
-          url = 'http://localhost:3000/api';
+          url = 'http://192.168.0.239:3000/api';
           break;
         case AppEnvironment.staging:
           url = 'https://staging-api.guiautomotriz.com/api';

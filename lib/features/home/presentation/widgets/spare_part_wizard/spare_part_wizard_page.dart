@@ -128,7 +128,7 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
         return;
       }
       _showLoadingOverlay();
-      final addResult = await ref.read(addCarToGarageUseCaseProvider)(modelId: _temporaryModelId!);
+      final addResult = await ref.read(addCarToGarageUseCaseProvider)(variantId: _temporaryModelId!);
       _hideLoadingOverlay();
       
       if (!mounted) return;
