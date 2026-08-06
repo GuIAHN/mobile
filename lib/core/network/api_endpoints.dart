@@ -47,4 +47,7 @@ abstract class ApiEndpoints {
   static const String adsFeed = 'ads/feed';
   static String trackAdImpression(String id) => 'ads/$id/impression';
   static String trackAdClick(String id) => 'ads/$id/click';
+
+  // ── Reports / Dashboard ───────────────────────────────────────────────────
+  static const String storeDashboard = 'reports/store/dashboard';
 }

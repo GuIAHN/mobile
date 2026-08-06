@@ -41,7 +41,7 @@ enum UserRole {
   /// Consumidores pueden ver y buscar todo.
   List<ServiceType> get allowedServiceTypes {
     if (isStore) {
-      return const [ServiceType.mechanic, ServiceType.workshops];
+      return const [ServiceType.storeDashboard, ServiceType.mechanic, ServiceType.workshops];
     }
     if (isMechanic) {
       return const [ServiceType.spareParts, ServiceType.workshops];
@@ -49,7 +49,7 @@ enum UserRole {
     if (isWorkshop) {
       return const [ServiceType.spareParts, ServiceType.mechanic];
     }
-    return ServiceType.values;
+    return const [ServiceType.spareParts, ServiceType.workshops, ServiceType.mechanic];
   }
 
   /// Si el rol está autorizado para enviar solicitudes de cotización de repuestos.

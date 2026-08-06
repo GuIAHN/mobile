@@ -33,6 +33,9 @@ class CategorySelector extends ConsumerWidget {
             final IconData iconData;
 
             switch (type) {
+              case ServiceType.storeDashboard:
+                iconData = Icons.bar_chart_rounded;
+                break;
               case ServiceType.spareParts:
                 iconData = Icons.settings_rounded;
                 break;

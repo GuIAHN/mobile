@@ -1,0 +1,14 @@
+import '../../domain/entities/store_dashboard.dart';
+import '../../domain/repositories/reports_repository.dart';
+import '../datasources/reports_remote_datasource.dart';
+
+class ReportsRepositoryImpl implements ReportsRepository {
+  final ReportsRemoteDataSource _remoteDataSource;
+
+  ReportsRepositoryImpl(this._remoteDataSource);
+
+  @override
+  Future<DashboardResponse> getStoreDashboard({String? from, String? to, required bool isProvider}) async {
+    return _remoteDataSource.getStoreDashboard(from: from, to: to, isProvider: isProvider);
+  }
+}

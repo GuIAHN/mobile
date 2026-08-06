@@ -33,6 +33,8 @@ class _ItemCardState extends State<ItemCard> {
       case ServiceType.workshops:
         context.push(RouteNames.storeDetailPath(item.id!));
         break;
+      case ServiceType.storeDashboard:
+        break;
       case ServiceType.spareParts:
         // TODO: navegación al detalle de tienda de repuestos
         break;
@@ -52,6 +54,10 @@ class _ItemCardState extends State<ItemCard> {
         softBgColor = AppColors.primaryMuted;
         break;
       case ServiceType.spareParts:
+        accentColor = AppColors.primary;
+        softBgColor = AppColors.primaryMuted;
+        break;
+      case ServiceType.storeDashboard:
         accentColor = AppColors.primary;
         softBgColor = AppColors.primaryMuted;
         break;

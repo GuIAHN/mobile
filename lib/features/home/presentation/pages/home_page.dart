@@ -28,6 +28,7 @@ import '../widgets/home_search_bar.dart';
 import '../widgets/vehicle_compatibility_bar.dart';
 import '../widgets/spare_parts_cta.dart';
 import '../widgets/home_list_header.dart';
+import '../widgets/store_dashboard/store_dashboard_view.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -195,6 +196,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     final user = ref.watch(authProvider).user;
     final isConsumer = user == null || user.role.isConsumer;
+    final isDashboardSelected = selectedType == ServiceType.storeDashboard;
 
     ref.watch(userCarsProvider);
 
@@ -210,80 +212,84 @@ class _HomePageState extends ConsumerState<HomePage> {
           child: CategorySelector(),
         ),
 
-        if (!isSpareParts)
-          HomeSearchBar(
-            searchController: _searchController,
-            activeFilters: filters.activeCount,
-            onFilterTap: _openFilters,
-          ),
+        if (isDashboardSelected) ...[
+          const StoreDashboardView(),
+        ] else ...[
+          if (!isSpareParts)
+            HomeSearchBar(
+              searchController: _searchController,
+              activeFilters: filters.activeCount,
+              onFilterTap: _openFilters,
+            ),
 
-        promosAsync.when(
-          data: (promos) => Padding(
-            padding: const EdgeInsets.only(top: 8, bottom: 12, left: 20, right: 20),
-            child: PromoCarousel(promos: promos),
-          ),
-          loading: () => const Padding(
-            padding: EdgeInsets.only(top: 8, bottom: 8, left: 20, right: 20),
-            child: PromoSkeleton(),
-          ),
-          error: (error, stack) {
-            return Center(child: Text('Error: $error'));
-          },
-        ),
-
-        if (isSpareParts)
-          SparePartsCta(
-            onSubmitted: () {
-              _scrollController.animateTo(
-                0.0,
-                duration: const Duration(milliseconds: 600),
-                curve: Curves.easeInOutCubic,
-              );
+          promosAsync.when(
+            data: (promos) => Padding(
+              padding: const EdgeInsets.only(top: 8, bottom: 12, left: 20, right: 20),
+              child: PromoCarousel(promos: promos),
+            ),
+            loading: () => const Padding(
+              padding: EdgeInsets.only(top: 8, bottom: 8, left: 20, right: 20),
+              child: PromoSkeleton(),
+            ),
+            error: (error, stack) {
+              return Center(child: Text('Error: $error'));
             },
           ),
 
-        if (!isSpareParts && isConsumer) const VehicleCompatibilityBar(),
-
-        if (!isSpareParts) ...[
-          HomeListHeader(
-            itemCount: filteredItemsAsync.value?.length ?? 0,
-            hasActiveFilters: filters.activeCount > 0,
-          ),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: filteredItemsAsync.when(
-              data: (items) {
-                if (items.isEmpty) {
-                  return _buildEmptyState();
-                }
-                return Column(
-                  children: [
-                    for (var i = 0; i < items.length; i++)
-                      StaggeredEntrance(
-                        index: i,
-                        child: ItemCard(item: items[i]),
-                      ),
-                  ],
+          if (isSpareParts)
+            SparePartsCta(
+              onSubmitted: () {
+                _scrollController.animateTo(
+                  0.0,
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.easeInOutCubic,
                 );
               },
-              loading: () => const Column(
-                children: [
-                  ItemCardSkeleton(),
-                  ItemCardSkeleton(),
-                  ItemCardSkeleton(),
-                ],
-              ),
-              error: (err, _) => Padding(
-                padding: const EdgeInsets.only(top: 48),
-                child: Text(
-                  'Error al cargar: $err',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.hankenGrotesk(color: AppColors.error),
+            ),
+
+          if (!isSpareParts && isConsumer) const VehicleCompatibilityBar(),
+
+          if (!isSpareParts) ...[
+            HomeListHeader(
+              itemCount: filteredItemsAsync.value?.length ?? 0,
+              hasActiveFilters: filters.activeCount > 0,
+            ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: filteredItemsAsync.when(
+                data: (items) {
+                  if (items.isEmpty) {
+                    return _buildEmptyState();
+                  }
+                  return Column(
+                    children: [
+                      for (var i = 0; i < items.length; i++)
+                        StaggeredEntrance(
+                          index: i,
+                          child: ItemCard(item: items[i]),
+                        ),
+                    ],
+                  );
+                },
+                loading: () => const Column(
+                  children: [
+                    ItemCardSkeleton(),
+                    ItemCardSkeleton(),
+                    ItemCardSkeleton(),
+                  ],
+                ),
+                error: (err, _) => Padding(
+                  padding: const EdgeInsets.only(top: 48),
+                  child: Text(
+                    'Error al cargar: $err',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.hankenGrotesk(color: AppColors.error),
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         ],
       ],
     );
