@@ -1,5 +1,6 @@
 import '../../domain/entities/user.dart';
 import '../../../../core/domain/enums/user_role.dart';
+import '../../../vehicles/data/models/user_car_model.dart';
 
 /// User model with JSON serialization.
 /// Extends the [User] entity without polluting it.
@@ -12,6 +13,9 @@ class UserModel extends User {
     super.phone,
     super.role,
     super.approved,
+    super.latitude,
+    super.longitude,
+    super.cars,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -26,6 +30,20 @@ class UserModel extends User {
 
     final roleStr = json['role'] as String? ?? json['userType'] as String?;
 
+    double? lat;
+    double? lon;
+    if (json['location'] != null && json['location'] is Map) {
+      lat = (json['location']['lat'] as num?)?.toDouble();
+      lon = (json['location']['lon'] as num?)?.toDouble();
+    }
+
+    List<UserCarModel>? parsedCars;
+    if (json['cars'] != null && json['cars'] is List) {
+      parsedCars = (json['cars'] as List)
+          .map((e) => UserCarModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+
     return UserModel(
       id: json['id'] as String,
       email: json['email'] as String,
@@ -34,6 +52,9 @@ class UserModel extends User {
       phone: parsedPhone,
       role: UserRole.fromString(roleStr),
       approved: json['approved'] as bool? ?? true,
+      latitude: lat,
+      longitude: lon,
+      cars: parsedCars,
     );
   }
 
@@ -45,6 +66,13 @@ class UserModel extends User {
         if (phone != null) 'phone': phone,
         'role': role.value,
         'approved': approved,
+        if (latitude != null || longitude != null)
+          'location': {
+            if (latitude != null) 'lat': latitude,
+            if (longitude != null) 'lon': longitude,
+          },
+        if (cars != null)
+          'cars': cars?.map((c) => (c as UserCarModel).toJson()).toList(),
       };
 }
 

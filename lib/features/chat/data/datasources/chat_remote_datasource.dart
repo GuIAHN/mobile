@@ -84,7 +84,8 @@ class ChatRemoteDataSource {
           conversationId: json['conversationId'] as String?,
         );
       } else {
-        final model = json['userCar']?['model'];
+        final variant = json['userCar']?['variant'];
+        final model = variant?['model'];
         final brandName = model?['brand']?['name'] ?? '';
         final modelName = model?['name'] ?? '';
         final title = '$brandName $modelName'.trim();
@@ -103,7 +104,7 @@ class ChatRemoteDataSource {
           fotoUrl: json['photoUrl'] as String?,
           details: json['details'] as String?,
           partType: json['partType'] as String?,
-          vehicleYear: model?['year'] as int?,
+          vehicleYear: variant?['year'] as int?,
           subcategory: subcategoryName as String?,
           expiresAt: json['expiresAt'] != null ? DateTime.tryParse(json['expiresAt'].toString()) : null,
           isExpired: json['isExpired'] as bool? ?? false,

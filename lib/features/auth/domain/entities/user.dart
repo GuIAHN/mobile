@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../../../core/domain/enums/user_role.dart';
+import '../../../vehicles/domain/entities/user_car.dart';
 
 /// Entidad de usuario autenticado (dominio puro, sin JSON ni Flutter).
 class User extends Equatable {
@@ -10,6 +11,11 @@ class User extends Equatable {
   final String? phone;
   final UserRole role;
   final bool approved;
+  
+  // Ubicación y garage cacheados al login
+  final double? latitude;
+  final double? longitude;
+  final List<UserCar>? cars;
 
   const User({
     required this.id,
@@ -19,8 +25,48 @@ class User extends Equatable {
     this.phone,
     this.role = UserRole.unknown,
     this.approved = true,
+    this.latitude,
+    this.longitude,
+    this.cars,
   });
 
   @override
-  List<Object?> get props => [id, email, name, avatarUrl, phone, role, approved];
+  List<Object?> get props => [
+        id,
+        email,
+        name,
+        avatarUrl,
+        phone,
+        role,
+        approved,
+        latitude,
+        longitude,
+        cars,
+      ];
+
+  User copyWith({
+    String? id,
+    String? email,
+    String? name,
+    String? avatarUrl,
+    String? phone,
+    UserRole? role,
+    bool? approved,
+    double? latitude,
+    double? longitude,
+    List<UserCar>? cars,
+  }) {
+    return User(
+      id: id ?? this.id,
+      email: email ?? this.email,
+      name: name ?? this.name,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      phone: phone ?? this.phone,
+      role: role ?? this.role,
+      approved: approved ?? this.approved,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      cars: cars ?? this.cars,
+    );
+  }
 }

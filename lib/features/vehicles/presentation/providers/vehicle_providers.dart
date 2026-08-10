@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/presentation/providers/auth_state.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../data/datasources/vehicle_remote_datasource.dart';
 import '../../data/repositories/vehicle_repository_impl.dart';
@@ -84,8 +86,25 @@ final modelVariantsProvider = FutureProvider.family.autoDispose<List<VehicleVari
   );
 });
 
+
+
 /// Provider for the list of cars in the user's garage.
 final userCarsProvider = FutureProvider.autoDispose<List<UserCar>>((ref) async {
+  final authState = ref.watch(authProvider);
+
+  // Si aún está verificando sesión o no está autenticado, no hacer peticiones prematuras
+  if (authState.status == AuthStatus.initial || 
+      authState.status == AuthStatus.loading || 
+      authState.status == AuthStatus.unauthenticated) {
+    return [];
+  }
+
+  // Intentamos obtener los carros cacheados del perfil primero
+  if (authState.user?.cars != null) {
+    return authState.user!.cars!;
+  }
+
+  // Fallback: Si no hay carros en caché (ej. se forzó un refresco sin actualizar el authState), hacemos la petición a /me/cars
   final useCase = ref.watch(getUserCarsUseCaseProvider);
   final result = await useCase();
   return result.fold(

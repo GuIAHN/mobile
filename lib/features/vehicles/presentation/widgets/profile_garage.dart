@@ -8,6 +8,7 @@ import '../../../../core/utils/extensions.dart';
 import '../../domain/entities/user_car.dart';
 import '../providers/vehicle_providers.dart';
 import 'vehicle_selection_modal.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 class ProfileGarage extends ConsumerWidget {
   const ProfileGarage({super.key});
@@ -210,7 +211,7 @@ class ProfileGarage extends ConsumerWidget {
           );
         },
         (car) {
-          ref.invalidate(userCarsProvider);
+          ref.read(authProvider.notifier).addUserCar(car);
           context.showSnackBar(
             '¡${car.brand} ${car.model} registrado exitosamente!',
             isSuccess: true,
@@ -285,10 +286,10 @@ class ProfileGarage extends ConsumerWidget {
                             isError: true,
                           );
                         },
-                        (_) {
-                          ref.invalidate(userCarsProvider);
+                        (success) {
+                          ref.read(authProvider.notifier).removeUserCar(car.id);
                           context.showSnackBar(
-                            '${car.brand} ${car.model} eliminado del garage.',
+                            '¡Vehículo eliminado del garage!',
                             isSuccess: true,
                           );
                         },

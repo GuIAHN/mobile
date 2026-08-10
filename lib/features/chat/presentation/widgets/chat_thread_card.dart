@@ -176,6 +176,35 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
       onTap: widget.onTap,
       accentColor: status.accentColor,
       semanticLabel: semanticLabel.toString(),
+      topRightWidget: (expStr.isNotEmpty)
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: thread.isExpired ? AppColors.errorLight : AppColors.grey50,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(14),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.schedule_rounded,
+                    size: 14,
+                    color: thread.isExpired ? AppColors.errorInk : AppColors.textMeta,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    expStr,
+                    style: CardTokens.meta.copyWith(
+                      color: thread.isExpired ? AppColors.errorInk : AppColors.textMeta,
+                      fontWeight: thread.isExpired ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -185,22 +214,6 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
               Flexible(
                 child: StatusBadge(status: status, labelOverride: labelOverride),
               ),
-              const Spacer(),
-              if (expStr.isNotEmpty) ...[
-                Icon(
-                  Icons.schedule_rounded,
-                  size: 14,
-                  color: thread.isExpired ? AppColors.errorInk : AppColors.textMeta,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  expStr,
-                  style: CardTokens.meta.copyWith(
-                    color: thread.isExpired ? AppColors.errorInk : AppColors.textMeta,
-                    fontWeight: thread.isExpired ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                ),
-              ],
             ],
           ),
           const SizedBox(height: CardTokens.blockGap),

@@ -68,6 +68,25 @@ class ConsumerThreadCard extends StatelessWidget {
       onTap: onTap,
       accentColor: status.accentColor,
       semanticLabel: semanticLabel.toString(),
+      topRightWidget: (!isClosed && expStr.isNotEmpty)
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: const BoxDecoration(
+                color: AppColors.grey50,
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(14),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.schedule_rounded, size: 14, color: AppColors.textMeta),
+                  const SizedBox(width: 4),
+                  Text(expStr, style: CardTokens.meta),
+                ],
+              ),
+            )
+          : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -77,12 +96,6 @@ class ConsumerThreadCard extends StatelessWidget {
               Flexible(
                 child: StatusBadge(status: status, labelOverride: resolved.labelOverride),
               ),
-              const Spacer(),
-              if (!isClosed && expStr.isNotEmpty) ...[
-                const Icon(Icons.schedule_rounded, size: 14, color: AppColors.textMeta),
-                const SizedBox(width: 4),
-                Text(expStr, style: CardTokens.meta),
-              ],
             ],
           ),
           const SizedBox(height: CardTokens.blockGap),

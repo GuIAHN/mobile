@@ -19,6 +19,7 @@ class CardShell extends StatefulWidget {
   final EdgeInsetsGeometry padding;
   final EdgeInsetsGeometry margin;
   final Color? accentColor;
+  final Widget? topRightWidget;
 
   /// Resumen legible para lectores de pantalla. Si se provee, la card se
   /// anuncia como un solo botón con este texto en vez de leer cada Text hijo
@@ -32,6 +33,7 @@ class CardShell extends StatefulWidget {
     this.padding = const EdgeInsets.all(CardTokens.pad),
     this.margin = const EdgeInsets.only(bottom: 12),
     this.accentColor,
+    this.topRightWidget,
     this.semanticLabel,
   });
 
@@ -82,6 +84,12 @@ class _CardShellState extends State<CardShell> {
                   padding: widget.padding,
                   child: widget.child,
                 ),
+                if (widget.topRightWidget != null)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: widget.topRightWidget!,
+                  ),
               ],
             ),
           ),

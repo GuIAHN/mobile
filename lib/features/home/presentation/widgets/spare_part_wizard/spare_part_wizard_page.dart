@@ -142,7 +142,7 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
           return null;
         },
         (r) {
-          ref.invalidate(userCarsProvider);
+          ref.read(authProvider.notifier).addUserCar(r);
           return r;
         }
       );

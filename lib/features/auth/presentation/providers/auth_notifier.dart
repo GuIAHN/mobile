@@ -11,6 +11,7 @@ import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
 import '../../domain/usecases/update_profile_usecase.dart';
 import '../../domain/usecases/upload_avatar_usecase.dart';
+import '../../../vehicles/domain/entities/user_car.dart';
 import 'auth_state.dart';
 
 /// Notifier that manages the app's authentication state (login and registration).
@@ -319,5 +320,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
       },
     );
+  }
+
+  /// Adds a new car to the cached user profile to maintain sync without refetching.
+  void addUserCar(UserCar car) {
+    if (state.user != null) {
+      final updatedCars = List<UserCar>.from(state.user!.cars ?? [])..add(car);
+      state = state.copyWith(user: state.user!.copyWith(cars: updatedCars));
+    }
+  }
+
+  /// Removes a car from the cached user profile.
+  void removeUserCar(String carId) {
+    if (state.user != null && state.user!.cars != null) {
+      final updatedCars = state.user!.cars!.where((c) => c.id != carId).toList();
+      state = state.copyWith(user: state.user!.copyWith(cars: updatedCars));
+    }
   }
 }

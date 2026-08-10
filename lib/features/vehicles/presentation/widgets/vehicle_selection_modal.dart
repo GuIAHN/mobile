@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -408,6 +409,28 @@ class _BrandCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Widget logoWidget;
+    if (brand.photoUrl != null && brand.photoUrl!.isNotEmpty) {
+      if (brand.photoUrl!.toLowerCase().endsWith('.svg')) {
+        logoWidget = SvgPicture.network(
+          brand.photoUrl!,
+          fit: BoxFit.contain,
+          placeholderBuilder: (context) => const Center(
+            child: Icon(Icons.directions_car, color: AppColors.textDisabled, size: 32),
+          ),
+        );
+      } else {
+        logoWidget = Image.network(
+          brand.photoUrl!,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) =>
+              const Icon(Icons.directions_car, color: AppColors.textDisabled, size: 32),
+        );
+      }
+    } else {
+      logoWidget = const Icon(Icons.directions_car, color: AppColors.textDisabled, size: 32);
+    }
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -429,18 +452,16 @@ class _BrandCard extends StatelessWidget {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: Image.asset(
-                  'assets/brands/${brand.name.toLowerCase()}.png',
-                  errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.directions_car, color: AppColors.textDisabled, size: 32),
-                ),
+                child: logoWidget,
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: 12, left: 8, right: 8),
               child: Text(
                 brand.name,
                 textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.hankenGrotesk(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,

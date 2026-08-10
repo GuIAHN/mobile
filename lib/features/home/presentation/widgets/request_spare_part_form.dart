@@ -197,8 +197,8 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
         (car) {
           ref.read(searchVehicleProvider.notifier).state = car;
           ref.read(searchVehicleVariantIdProvider.notifier).state = null;
-          // Invalidate userCars so the list gets updated
-          ref.invalidate(userCarsProvider);
+          // Maintain the garage cache in sync
+          ref.read(authProvider.notifier).addUserCar(car);
           return car;
         },
       );
