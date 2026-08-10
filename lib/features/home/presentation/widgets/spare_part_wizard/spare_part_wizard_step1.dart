@@ -64,12 +64,17 @@ class _SparePartWizardStep1 extends ConsumerWidget {
           const SizedBox(height: 16),
           userCarsAsync.when(
             data: (cars) {
+              final allDisplayCars = <UserCar>[...cars];
+              if (selectedCar != null && !allDisplayCars.any((c) => c.id == selectedCar!.id)) {
+                allDisplayCars.insert(0, selectedCar!);
+              }
+
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (cars.isEmpty)
+                  if (allDisplayCars.isEmpty)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.only(bottom: 24),
                       child: Text(
                         'No tienes vehículos registrados en tu garaje.',
                         style: GoogleFonts.hankenGrotesk(
@@ -78,15 +83,31 @@ class _SparePartWizardStep1 extends ConsumerWidget {
                         ),
                       ),
                     )
-                  else
-                    ...cars.map((car) {
-                      final isSelected = selectedCar?.id == car.id;
-                      return _VehicleCard(
-                        car: car,
-                        isSelected: isSelected,
-                        onTap: () => onVehicleSelected(car),
-                      );
-                    }),
+                  else ...[
+                    SizedBox(
+                      height: 220,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        clipBehavior: Clip.none,
+                        itemCount: allDisplayCars.length,
+                        separatorBuilder: (context, index) => const SizedBox(width: 14),
+                        itemBuilder: (context, index) {
+                          final car = allDisplayCars[index];
+                          final isSelected = selectedCar?.id == car.id ||
+                              (selectedCar?.brand == car.brand && selectedCar?.model == car.model && selectedCar?.year == car.year);
+                          return SizedBox(
+                            width: 230,
+                            child: _VehicleCard(
+                              car: car,
+                              isSelected: isSelected,
+                              onTap: () => onVehicleSelected(car),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                   Container(
                     width: double.infinity,
                     margin: const EdgeInsets.only(bottom: 32),
@@ -104,10 +125,10 @@ class _SparePartWizardStep1 extends ConsumerWidget {
                       ),
                       icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
                       label: Text(
-                        cars.isEmpty ? 'Agregar vehículo' : 'Agregar otro vehículo',
+                        cars.isEmpty ? 'Agregar otro vehículo' : 'Buscar otro modelo no registrado...',
                         style: GoogleFonts.hankenGrotesk(
                           fontWeight: FontWeight.w800,
-                          fontSize: 15,
+                          fontSize: 14.5,
                         ),
                       ),
                     ),
@@ -139,56 +160,153 @@ class _VehicleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withValues(alpha: 0.05) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
+      child: Material(
+        color: isSelected ? AppColors.primaryMuted.withValues(alpha: 0.25) : Colors.white,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
             color: isSelected ? AppColors.primary : AppColors.border,
-            width: isSelected ? 1.5 : 1.0,
+            width: isSelected ? 2.0 : 1.0,
           ),
         ),
-        child: Row(
+        elevation: isSelected ? 3 : 1,
+        shadowColor: isSelected ? AppColors.primary.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.04),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Ilustración Hero + Marca/Check Badges
             Container(
-              width: 48,
-              height: 48,
+              height: 130,
+              width: double.infinity,
               decoration: BoxDecoration(
-                color: AppColors.grey100,
-                borderRadius: BorderRadius.circular(12),
+                color: AppColors.grey50,
+                border: Border(
+                  bottom: BorderSide(color: AppColors.border.withValues(alpha: 0.6)),
+                ),
               ),
-              child: const Icon(Icons.directions_car_rounded, color: AppColors.textSecondary),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                      child: VehicleTypeIllustration(
+                        vehicleType: car.vehicleType,
+                        height: 105,
+                        width: double.infinity,
+                        fit: BoxFit.contain,
+                        showBackground: false,
+                      ),
+                    ),
+                  ),
+                  // Logo de la marca (Top Left)
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.border),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Image.network(
+                        car.computedBrandLogoUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.directions_car_rounded,
+                          size: 16,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Estado de selección (Top Right)
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: isSelected
+                        ? Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.check_rounded, color: Colors.white, size: 14),
+                          )
+                        : Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Text(
+                              '${car.year}',
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(width: 16),
-            Expanded(
+
+            // Título + Modelo
+            Padding(
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '${car.brand} ${car.model}',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
+                  Row(
+                    children: [
+                      Image.network(
+                        car.computedBrandLogoUrl,
+                        width: 20,
+                        height: 20,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '${car.brand} ${car.model}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.hankenGrotesk(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
-                    '${car.year}',
+                    'Año ${car.year}',
                     style: GoogleFonts.hankenGrotesk(
-                      fontSize: 13,
+                      fontSize: 12,
                       color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
             ),
-            if (isSelected)
-              const Icon(Icons.check_circle_rounded, color: AppColors.primary)
-            else
-              const Icon(Icons.circle_outlined, color: AppColors.border),
           ],
         ),
       ),

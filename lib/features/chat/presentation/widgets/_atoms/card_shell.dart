@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../shared/widgets/image_viewer_dialog.dart';
 import 'card_tokens.dart';
+import '../../../../vehicles/presentation/widgets/_atoms/vehicle_type_illustration.dart';
 
 
 /// Contenedor único de las cards de solicitud/oferta.
@@ -135,6 +136,7 @@ class CardThumb extends StatelessWidget {
   final double size;
   final IconData fallbackIcon;
   final String? title;
+  final String? vehicleType;
 
   const CardThumb({
     super.key,
@@ -142,6 +144,7 @@ class CardThumb extends StatelessWidget {
     this.size = CardTokens.thumbSize,
     this.fallbackIcon = Icons.directions_car_rounded,
     this.title,
+    this.vehicleType,
   });
 
   @override
@@ -153,7 +156,7 @@ class CardThumb extends StatelessWidget {
       child: Container(
         width: size,
         height: size,
-        color: AppColors.grey100,
+        color: AppColors.grey50,
         child: hasValidUrl
             ? Image.network(
                 url!,
@@ -174,8 +177,24 @@ class CardThumb extends StatelessWidget {
     );
   }
 
-  Widget _fallback() => Center(
-        child: Icon(fallbackIcon, size: size * 0.36, color: AppColors.grey400),
+  Widget _fallback() {
+    if (vehicleType != null && vehicleType!.isNotEmpty) {
+      final assetPath = VehicleTypeIllustration.getAssetPath(vehicleType!);
+      return Container(
+        color: Colors.white,
+        padding: const EdgeInsets.all(4),
+        child: Image.asset(
+          assetPath,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => Center(
+            child: Icon(fallbackIcon, size: size * 0.36, color: AppColors.grey400),
+          ),
+        ),
       );
+    }
+    return Center(
+      child: Icon(fallbackIcon, size: size * 0.36, color: AppColors.grey400),
+    );
+  }
 }
 

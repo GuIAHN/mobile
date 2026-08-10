@@ -11,6 +11,8 @@ class UserCarModel extends UserCar {
     required super.brand,
     required super.model,
     required super.year,
+    super.vehicleType = 'CAR',
+    super.brandLogoUrl,
     this.placa,
     this.color,
   });
@@ -27,6 +29,8 @@ class UserCarModel extends UserCar {
         brand: brandMap['name'] as String? ?? '',
         model: modelMap['name'] as String? ?? '',
         year: variantMap['year'] as int? ?? 0,
+        vehicleType: modelMap['vehicleType'] as String? ?? 'CAR',
+        brandLogoUrl: brandMap['photoUrl'] as String?,
         placa: json['placa'] as String?,
         color: json['color'] as String?,
       );
@@ -41,6 +45,8 @@ class UserCarModel extends UserCar {
       brand: brandMap['name'] as String? ?? '',
       model: modelMap['name'] as String? ?? '',
       year: modelMap['year'] as int? ?? 0,
+      vehicleType: modelMap['vehicleType'] as String? ?? 'CAR',
+      brandLogoUrl: brandMap['photoUrl'] as String?,
       placa: json['placa'] as String?,
       color: json['color'] as String?,
     );
@@ -51,6 +57,7 @@ class UserCarModel extends UserCar {
         'brand': brand,
         'model': model,
         'year': year,
+        'vehicleType': vehicleType,
         if (placa != null) 'placa': placa,
         if (color != null) 'color': color,
       };

@@ -16,6 +16,7 @@ class ChatThreadModel extends ChatThread {
     super.details,
     super.partType,
     super.vehicleYear,
+    super.vehicleType,
     super.subcategory,
     super.expiresAt,
     super.isExpired,
@@ -34,6 +35,11 @@ class ChatThreadModel extends ChatThread {
   });
 
   factory ChatThreadModel.fromJson(Map<String, dynamic> json) {
+    final userCar = json['userCar'] as Map<String, dynamic>?;
+    final variant = userCar?['variant'] as Map<String, dynamic>? ?? json['vehicle']?['variant'] as Map<String, dynamic>?;
+    final model = variant?['model'] as Map<String, dynamic>? ?? json['userCar']?['model'] as Map<String, dynamic>?;
+    final parsedVehicleType = model?['vehicleType'] as String? ?? json['vehicleType'] as String?;
+
     return ChatThreadModel(
       id: json['id'] as String,
       title: json['title'] as String,
@@ -51,6 +57,7 @@ class ChatThreadModel extends ChatThread {
       details: json['details'] as String?,
       partType: json['partType'] as String?,
       vehicleYear: json['vehicleYear'] as int?,
+      vehicleType: parsedVehicleType,
       subcategory: json['subcategory'] as String?,
       expiresAt: json['expiresAt'] != null ? DateTime.tryParse(json['expiresAt'].toString()) : null,
       isExpired: json['isExpired'] as bool? ?? false,

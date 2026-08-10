@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/user_car.dart';
 import '../providers/vehicle_providers.dart';
 import 'vehicle_selection_modal.dart';
+import '_atoms/vehicle_type_illustration.dart';
 
 class VehicleSelectorResult {
   final UserCar car;
@@ -131,16 +132,18 @@ class GarageVehicleSelectorSheet extends ConsumerWidget {
                             child: Row(
                               children: [
                                 Container(
-                                  width: 38,
-                                  height: 38,
                                   decoration: BoxDecoration(
-                                    color: esSeleccionado ? AppColors.primaryMuted : AppColors.grey100,
-                                    shape: BoxShape.circle,
+                                    color: esSeleccionado ? AppColors.primaryMuted : AppColors.grey50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: esSeleccionado ? AppColors.primary.withValues(alpha: 0.3) : AppColors.border,
+                                    ),
                                   ),
-                                  child: Icon(
-                                    Icons.directions_car_rounded,
-                                    color: esSeleccionado ? AppColors.primary : AppColors.textSecondary,
-                                    size: 20,
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                  child: VehicleTypeIllustration(
+                                    vehicleType: car.vehicleType,
+                                    height: 48,
+                                    width: 72,
                                   ),
                                 ),
                                 const SizedBox(width: 14),
@@ -148,14 +151,30 @@ class GarageVehicleSelectorSheet extends ConsumerWidget {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        '${car.brand} ${car.model}',
-                                        style: GoogleFonts.hankenGrotesk(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 14.5,
-                                          color: AppColors.textPrimary,
-                                        ),
-                                      ),
+                                       Row(
+                                         children: [
+                                           Image.network(
+                                             car.computedBrandLogoUrl,
+                                             width: 24,
+                                             height: 24,
+                                             fit: BoxFit.contain,
+                                             errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                           ),
+                                           const SizedBox(width: 8),
+                                           Expanded(
+                                             child: Text(
+                                               '${car.brand} ${car.model}',
+                                               maxLines: 1,
+                                               overflow: TextOverflow.ellipsis,
+                                               style: GoogleFonts.hankenGrotesk(
+                                                 fontWeight: FontWeight.w700,
+                                                 fontSize: 14.5,
+                                                 color: AppColors.textPrimary,
+                                               ),
+                                             ),
+                                           ),
+                                         ],
+                                       ),
                                       const SizedBox(height: 2),
                                       Text(
                                         'Año ${car.year}',

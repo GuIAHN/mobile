@@ -104,7 +104,10 @@ class ConsumerThreadCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CardThumb(url: thread.fotoUrl),
+              CardThumb(
+                url: thread.fotoUrl,
+                vehicleType: thread.vehicleType,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

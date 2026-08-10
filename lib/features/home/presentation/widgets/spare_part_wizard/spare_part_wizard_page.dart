@@ -17,6 +17,7 @@ import '../../../../vehicles/domain/entities/user_car.dart';
 import '../../../../vehicles/domain/entities/brand.dart';
 import '../../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../../../../vehicles/presentation/widgets/vehicle_selection_modal.dart';
+import '../../../../vehicles/presentation/widgets/_atoms/vehicle_type_illustration.dart';
 import '../../../../catalog/domain/entities/category.dart';
 import '../../../../catalog/domain/entities/category_node.dart';
 import '../../../../catalog/presentation/providers/catalog_providers.dart';

@@ -17,6 +17,7 @@ class ChatThread extends Equatable {
   final String? details;
   final String? partType;
   final int? vehicleYear;
+  final String? vehicleType;
   final String? subcategory;
   final DateTime? expiresAt;
   final bool isExpired;
@@ -52,6 +53,7 @@ class ChatThread extends Equatable {
     this.details,
     this.partType,
     this.vehicleYear,
+    this.vehicleType,
     this.subcategory,
     this.expiresAt,
     this.isExpired = false,
