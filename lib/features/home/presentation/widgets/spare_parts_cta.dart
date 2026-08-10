@@ -20,74 +20,103 @@ class SparePartsCta extends StatelessWidget {
         onTap: () {
           SparePartWizardPage.show(context, onSubmitted: onSubmitted);
         },
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppColors.border),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.05),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
-              )
-            ],
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  color: AppColors.primaryMuted,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.build_circle_outlined,
-                  size: 40,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '¿Buscas un repuesto?',
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Haz una solicitud y las tiendas cercanas te cotizarán',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'COMENZAR SOLICITUD',
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: 1.5,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Container(
+            width: double.infinity,
+            height: 180,
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+            ),
+            child: Stack(
+              children: [
+                // Círculo decorativo 1 (Grande, abajo derecha)
+                Positioned(
+                  right: -30,
+                  bottom: -60,
+                  child: Container(
+                    width: 180,
+                    height: 180,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
                   ),
                 ),
-              ),
-            ],
+                // Círculo decorativo 2 (Mediano, arriba derecha)
+                Positioned(
+                  right: -60,
+                  top: -20,
+                  child: Container(
+                    width: 220,
+                    height: 220,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.06),
+                    ),
+                  ),
+                ),
+                // Contenido
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '¿Buscas un repuesto?',
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        width: MediaQuery.of(context).size.width * 0.55,
+                        child: Text(
+                          'Publica tu solicitud y recibe cotizaciones de tiendas cercanas',
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 13.5,
+                            color: Colors.white.withValues(alpha: 0.85),
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Botón Blanco pill
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.search_rounded,
+                              size: 18,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Comenzar solicitud',
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

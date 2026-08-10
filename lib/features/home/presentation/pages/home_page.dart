@@ -29,6 +29,7 @@ import '../widgets/vehicle_compatibility_bar.dart';
 import '../widgets/spare_parts_cta.dart';
 import '../widgets/home_list_header.dart';
 import '../widgets/store_dashboard/store_dashboard_view.dart';
+import '../widgets/my_activity_section.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -236,7 +237,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             },
           ),
 
-          if (isSpareParts)
+          if (isSpareParts && isConsumer) ...[
             SparePartsCta(
               onSubmitted: () {
                 _scrollController.animateTo(
@@ -246,6 +247,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                 );
               },
             ),
+            const MyActivitySection(),
+          ],
 
           if (!isSpareParts && isConsumer) const VehicleCompatibilityBar(),
 

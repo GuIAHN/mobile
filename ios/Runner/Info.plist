@@ -51,6 +51,12 @@
 	</dict>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Necesitamos acceso a la red local para conectarnos al servidor de desarrollo.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_dartobservatory._tcp</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Necesitamos acceso a la cámara para que puedas tomar una foto para tu perfil.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
