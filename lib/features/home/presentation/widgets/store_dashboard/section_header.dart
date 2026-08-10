@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app_tokens.dart';
 
 class SectionHeader extends StatelessWidget {
@@ -14,7 +15,7 @@ class SectionHeader extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: GoogleFonts.hankenGrotesk(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppTokens.textPrimary,
@@ -50,7 +51,7 @@ class PeriodSelector extends StatelessWidget {
           children: [
             Text(
               label,
-              style: const TextStyle(
+              style: GoogleFonts.hankenGrotesk(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 color: AppTokens.textSecondary,
@@ -65,3 +66,4 @@ class PeriodSelector extends StatelessWidget {
     );
   }
 }
+

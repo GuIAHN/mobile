@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../../../core/theme/app_colors.dart';
 import '../../../../../../shared/widgets/empty_state.dart';
 import '../../../../../../shared/widgets/skeleton_loader.dart';
@@ -56,10 +59,10 @@ class StoreDashboardView extends ConsumerWidget {
         final label = stage['label'] as String? ?? '';
         final key = stage['key'] as String? ?? '';
 
-        Color stepColor = AppTokens.funnelStep1;
-        if (key == 'BOUGHT') stepColor = AppTokens.funnelStep2;
-        if (key == 'DELIVERED') stepColor = AppTokens.funnelStep3;
-        if (key == 'DISCARDED') stepColor = AppTokens.textTertiary;
+        Color stepColor = const Color(0xFF3A86FF); // Enviadas (Azul)
+        if (key == 'BOUGHT') stepColor = const Color(0xFFF25C05); // Compradas (Naranja)
+        if (key == 'DELIVERED') stepColor = const Color(0xFF10B981); // Entregadas (Verde)
+        if (key == 'DISCARDED') stepColor = const Color(0xFF9CA3AF); // Descartadas (Gris)
 
         funnelSteps.add(FunnelStep(name: label, count: value.toInt(), color: stepColor));
       }
@@ -88,39 +91,75 @@ class StoreDashboardView extends ConsumerWidget {
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: 10,
             crossAxisSpacing: 10,
-            childAspectRatio: 1.55,
+            childAspectRatio: 1.4,
             children: [
               if (salesMetric != null)
                 MetricCard(
                   label: 'Ventas',
-                  value: 'L ${salesMetric.payload['value'] ?? '0.00'}',
-                  icon: Icons.attach_money,
-                  context_: _formatContext(salesMetric.payload['deltaPct']),
-                  isPositive: _isPositiveDelta(salesMetric.payload['deltaPct']),
+                  value: '\$ ${salesMetric.payload['value'] ?? '0.00'}',
+                  icon: SvgPicture.string(
+                    _svgDollarSign,
+                    width: 18,
+                    height: 18,
+                    colorFilter: const ColorFilter.mode(Color(0xFF059669), BlendMode.srcIn),
+                  ),
+                  themeColor: const Color(0xFF059669),
+                  iconColor: const Color(0xFF059669),
+                  iconBgColor: const Color(0xFFECFDF5),
+                  deltaPct: salesMetric.payload['deltaPct'] != null
+                      ? (salesMetric.payload['deltaPct'] as num).toDouble()
+                      : null,
                 ),
               if (opportunitiesMetric != null)
                 MetricCard(
                   label: 'Oportunidades',
                   value: '${opportunitiesMetric.payload['value'] ?? 0}',
-                  icon: Icons.track_changes,
-                  context_: _formatContext(opportunitiesMetric.payload['deltaPct']),
-                  isPositive: _isPositiveDelta(opportunitiesMetric.payload['deltaPct']),
+                  icon: SvgPicture.string(
+                    _svgTarget,
+                    width: 18,
+                    height: 18,
+                    colorFilter: const ColorFilter.mode(Color(0xFF7C3AED), BlendMode.srcIn),
+                  ),
+                  themeColor: const Color(0xFF7C3AED),
+                  iconColor: const Color(0xFF7C3AED),
+                  iconBgColor: const Color(0xFFF5F3FF),
+                  deltaPct: opportunitiesMetric.payload['deltaPct'] != null
+                      ? (opportunitiesMetric.payload['deltaPct'] as num).toDouble()
+                      : null,
                 ),
               if (quotesMetric != null)
                 MetricCard(
                   label: 'Cotizaciones',
                   value: '${quotesMetric.payload['value'] ?? 0}',
-                  icon: Icons.send_outlined,
-                  context_: _formatContext(quotesMetric.payload['deltaPct']),
-                  isPositive: _isPositiveDelta(quotesMetric.payload['deltaPct']),
+                  icon: SvgPicture.string(
+                    _svgSend,
+                    width: 18,
+                    height: 18,
+                    colorFilter: const ColorFilter.mode(Color(0xFFEA580C), BlendMode.srcIn),
+                  ),
+                  themeColor: const Color(0xFFEA580C),
+                  iconColor: const Color(0xFFEA580C),
+                  iconBgColor: const Color(0xFFFFF7ED),
+                  deltaPct: quotesMetric.payload['deltaPct'] != null
+                      ? (quotesMetric.payload['deltaPct'] as num).toDouble()
+                      : null,
                 ),
               if (conversionMetric != null)
                 MetricCard(
                   label: 'Conversión',
                   value: '${conversionMetric.payload['value'] ?? 0}%',
-                  icon: Icons.trending_up,
-                  context_: _formatContext(conversionMetric.payload['deltaPct']),
-                  isPositive: _isPositiveDelta(conversionMetric.payload['deltaPct']),
+                  icon: SvgPicture.string(
+                    _svgTrendingUp,
+                    width: 18,
+                    height: 18,
+                    colorFilter: const ColorFilter.mode(Color(0xFF0D9488), BlendMode.srcIn),
+                  ),
+                  themeColor: const Color(0xFF0D9488),
+                  iconColor: const Color(0xFF0D9488),
+                  iconBgColor: const Color(0xFFF0FDFA),
+                  deltaPct: conversionMetric.payload['deltaPct'] != null
+                      ? (conversionMetric.payload['deltaPct'] as num).toDouble()
+                      : null,
                 ),
             ],
           ),
@@ -157,9 +196,9 @@ class StoreDashboardView extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Seleccionar Período',
-                style: TextStyle(
+                style: GoogleFonts.hankenGrotesk(
                   color: AppTokens.textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -186,7 +225,7 @@ class StoreDashboardView extends ConsumerWidget {
       },
       title: Text(
         'Últimos $days días',
-        style: TextStyle(
+        style: GoogleFonts.hankenGrotesk(
           color: isSelected ? AppTokens.accent : AppTokens.textPrimary,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
@@ -195,19 +234,7 @@ class StoreDashboardView extends ConsumerWidget {
     );
   }
 
-  String _formatContext(dynamic delta) {
-    if (delta == null) return 'Sin datos este período';
-    final value = (delta as num).toDouble();
-    if (value > 0) return '↑ +${value.toStringAsFixed(1)}%';
-    if (value < 0) return '↓ ${value.toStringAsFixed(1)}%';
-    return 'Sin cambios';
-  }
 
-  bool _isPositiveDelta(dynamic delta) {
-    if (delta == null) return false;
-    final value = (delta as num).toDouble();
-    return value > 0;
-  }
 
   Widget _buildLoadingState() {
     return Column(
@@ -252,3 +279,25 @@ class StoreDashboardView extends ConsumerWidget {
     );
   }
 }
+
+// Lucide SVG Icons constants
+const _svgDollarSign = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <line x1="12" y1="1" x2="12" y2="23"></line>
+  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+</svg>''';
+
+const _svgTarget = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="10"></circle>
+  <circle cx="12" cy="12" r="6"></circle>
+  <circle cx="12" cy="12" r="2"></circle>
+</svg>''';
+
+const _svgSend = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <line x1="22" y1="2" x2="11" y2="13"></line>
+  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+</svg>''';
+
+const _svgTrendingUp = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+  <polyline points="17 6 23 6 23 12"></polyline>
+</svg>''';

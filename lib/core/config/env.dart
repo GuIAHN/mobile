@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 /// Defines the execution environment of the application.
 enum AppEnvironment { development, staging, production }
 
@@ -29,7 +32,16 @@ class Env {
     if (url.isEmpty) {
       switch (current) {
         case AppEnvironment.development:
-          url = 'http://192.168.0.239:3000/api';
+          if (kIsWeb) {
+            url = 'http://localhost:3000/api';
+          } else if (Platform.isAndroid) {
+            // Android emulator loops back to host via 10.0.2.2
+            url = 'http://10.0.2.2:3000/api';
+          } else {
+            // iOS Simulator / macOS / Windows / Linux
+            url = 'http://localhost:3000/api';
+            // Note: If testing on a physical device, use your machine's local IP (e.g., 'http://192.168.0.104:3000/api')
+          }
           break;
         case AppEnvironment.staging:
           url = 'https://staging-api.guiautomotriz.com/api';

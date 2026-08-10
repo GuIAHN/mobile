@@ -138,6 +138,31 @@ class _SparePartWizardStep3 extends StatelessWidget {
     );
   }
 
+  Future<void> _pickImage(BuildContext context) async {
+    final source = await ImageSourceSelectorSheet.show(context);
+    if (source == null) return;
+
+    try {
+      final picker = ImagePicker();
+      final XFile? pickedFile = await picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (pickedFile != null) {
+        onImagePicked(pickedFile.path);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        context.showSnackBar(
+          'Error al seleccionar imagen: $e',
+          isError: true,
+        );
+      }
+    }
+  }
+
   Widget _buildPhotoSelector(BuildContext context) {
     if (selectedImagePath != null) {
       return Stack(
@@ -147,10 +172,19 @@ class _SparePartWizardStep3 extends StatelessWidget {
             width: double.infinity,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              image: DecorationImage(
-                image: FileImage(File(selectedImagePath!)),
-                fit: BoxFit.cover,
-              ),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: kIsWeb
+                  ? Image.network(
+                      selectedImagePath!,
+                      fit: BoxFit.cover,
+                    )
+                  : Image.file(
+                      File(selectedImagePath!),
+                      fit: BoxFit.cover,
+                    ),
             ),
           ),
           Positioned(
@@ -175,16 +209,7 @@ class _SparePartWizardStep3 extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () async {
-          final result = await showModalBottomSheet<String>(
-            context: context,
-            backgroundColor: Colors.transparent,
-            builder: (_) => const ImageSourceSelectorSheet(),
-          );
-          if (result != null) {
-            onImagePicked(result);
-          }
-        },
+        onTap: () => _pickImage(context),
         borderRadius: BorderRadius.circular(16),
         child: Ink(
           height: 80,

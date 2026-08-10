@@ -425,12 +425,14 @@ class _RequestSummaryCard extends StatelessWidget {
                             children: [
                               const Icon(Icons.directions_car_rounded, color: Colors.white70, size: 18),
                               const SizedBox(width: 8),
-                              Text(
-                                '${thread.title} ${thread.vehicleYear != null ? "• ${thread.vehicleYear}" : ""}',
-                                style: GoogleFonts.hankenGrotesk(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white.withValues(alpha: 0.9),
+                              Expanded(
+                                child: Text(
+                                  '${thread.title} ${thread.vehicleYear != null ? "• ${thread.vehicleYear}" : ""}',
+                                  style: GoogleFonts.hankenGrotesk(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                  ),
                                 ),
                               ),
                             ],
