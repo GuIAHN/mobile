@@ -25,7 +25,7 @@ import '../../../domain/entities/home_filters.dart';
 import '../../providers/home_providers.dart';
 import '../form_parts/form_part_type_selector.dart';
 import 'category_subcategory_selector_sheet.dart';
-import '../../../../shared/widgets/guia_map.dart';
+import '../../../../../shared/widgets/guia_map.dart';
 
 // Parts
 part 'spare_part_wizard_step1.dart';
