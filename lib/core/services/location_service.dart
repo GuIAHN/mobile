@@ -59,21 +59,34 @@ class UserLocationNotifier extends StateNotifier<AsyncValue<Position?>> {
   /// Retorna un boolean que indica si se logró obtener una posición (actual o fallback).
   Future<bool> updateLocation() async {
     state = const AsyncValue.loading();
-    // TEST ONLY: Hardcoded coordinates
-    final mockPosition = Position(
-      longitude: -66.857611,
-      latitude: 10.543833,
-      timestamp: DateTime.now(),
-      accuracy: 100.0,
-      altitude: 0.0,
-      heading: 0.0,
-      speed: 0.0,
-      speedAccuracy: 0.0,
-      altitudeAccuracy: 0.0,
-      headingAccuracy: 0.0,
-    );
-    state = AsyncValue.data(mockPosition);
-    return true;
+    try {
+      final serviceEnabled = await _locationService.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        state = const AsyncValue.error('Servicio de ubicación desactivado', StackTrace.empty);
+        return false;
+      }
+
+      var permission = await _locationService.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await _locationService.requestPermission();
+        if (permission == LocationPermission.denied) {
+          state = const AsyncValue.error('Permiso de ubicación denegado', StackTrace.empty);
+          return false;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        state = const AsyncValue.error('Permisos de ubicación denegados permanentemente', StackTrace.empty);
+        return false;
+      }
+
+      final position = await _locationService.getCurrentPosition();
+      state = AsyncValue.data(position);
+      return true;
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+      return false;
+    }
   }
 
   /// Limpia la ubicación guardada.

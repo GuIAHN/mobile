@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
+import '../../../../shared/widgets/guia_map.dart';
 
 /// Widgets compartidos por las pantallas de detalle de proveedor
 /// (mecánico, taller y tienda). Mantienen el sistema de diseño GuIA:
@@ -782,102 +783,10 @@ class DetailLocationCard extends StatelessWidget {
             const SizedBox(height: 14),
           ],
 
-          // Mapa real con OpenStreetMap via flutter_map
-          Container(
-            height: 175,
-            width: double.infinity,
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Stack(
-              children: [
-                FlutterMap(
-                  options: MapOptions(
-                    initialCenter: point,
-                    initialZoom: hasCoordinates ? 15.0 : 12.0,
-                    interactionOptions: const InteractionOptions(
-                      flags: InteractiveFlag.drag | InteractiveFlag.pinchZoom,
-                    ),
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-                      userAgentPackageName: 'com.guiautomotriz.mobile',
-                    ),
-                    if (hasCoordinates)
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            point: point,
-                            width: 44,
-                            height: 44,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color:
-                                        AppColors.primary.withValues(alpha: 0.4),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.near_me_rounded,
-                                color: Colors.white,
-                                size: 22,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-
-                // Badge informativo sobre el mapa
-                Positioned(
-                  bottom: 10,
-                  left: 10,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.92),
-                      borderRadius: BorderRadius.circular(99),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.my_location_rounded,
-                            size: 14, color: AppColors.primary),
-                        const SizedBox(width: 6),
-                        Text(
-                          hasCoordinates
-                              ? '${lat!.toStringAsFixed(4)}, ${lng!.toStringAsFixed(4)}'
-                              : 'Ubicación aproximada',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          // Mapa real con OpenStreetMap via flutter_map usando el widget compartido
+          GuiaMap(
+            point: point,
+            isApproximate: !hasCoordinates,
           ),
           const SizedBox(height: 14),
 

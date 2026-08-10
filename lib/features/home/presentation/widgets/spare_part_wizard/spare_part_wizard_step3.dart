@@ -1,6 +1,6 @@
 part of 'spare_part_wizard_page.dart';
 
-class _SparePartWizardStep3 extends StatelessWidget {
+class _SparePartWizardStep3 extends ConsumerWidget {
   final TextEditingController detailsController;
   final String? selectedImagePath;
   final bool isOtroCategory;
@@ -17,10 +17,15 @@ class _SparePartWizardStep3 extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isLocationShared = ref.watch(isLocationSharedProvider);
+    final userLocationAsync = ref.watch(userLocationProvider);
+    final userLocation = userLocationAsync.valueOrNull;
+
     final needsDetails = isOtroCategory;
     final hasDetailsIfRequired = !needsDetails || detailsController.text.trim().isNotEmpty;
-    final canSubmit = hasDetailsIfRequired;
+    // canSubmit requires location shared, location obtained, and details if required
+    final canSubmit = hasDetailsIfRequired && isLocationShared && userLocation != null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
@@ -58,6 +63,11 @@ class _SparePartWizardStep3 extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
+          _buildLabel('TU UBICACIÓN (REQUERIDA) *'),
+          const SizedBox(height: 8),
+          _buildLocationMap(context, ref, isLocationShared, userLocation, userLocationAsync.isLoading),
+          const SizedBox(height: 24),
+
           _buildLabel('AGREGAR UNA FOTO (OPCIONAL)'),
           const SizedBox(height: 8),
           _buildPhotoSelector(context),
@@ -88,6 +98,53 @@ class _SparePartWizardStep3 extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildLocationMap(BuildContext context, WidgetRef ref, bool isLocationShared, Position? userLocation, bool isLoading) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GuiaMap(
+          mapKey: ValueKey(userLocation),
+          point: userLocation != null
+              ? LatLng(userLocation.latitude, userLocation.longitude)
+              : const LatLng(14.0723, -87.1921),
+          isApproximate: !isLocationShared || userLocation == null,
+        ),
+        if (!isLocationShared || userLocation == null) ...[
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.center,
+            child: isLoading
+                ? const CircularProgressIndicator(color: AppColors.primary)
+                : ElevatedButton.icon(
+                    onPressed: () async {
+                      final success = await ref.read(userLocationProvider.notifier).updateLocation();
+                      if (success) {
+                        ref.read(isLocationSharedProvider.notifier).state = true;
+                      } else {
+                        if (context.mounted) {
+                          context.showSnackBar('No se pudo obtener la ubicación', isError: true);
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.share_location, size: 18),
+                    label: Text(
+                      'Compartir ubicación',
+                      style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.w700),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
+                      elevation: 0,
+                    ),
+                  ),
+          ),
+        ],
+      ],
     );
   }
 

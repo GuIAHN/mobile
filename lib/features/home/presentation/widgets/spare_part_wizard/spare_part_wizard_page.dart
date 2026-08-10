@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/domain/enums/part_type.dart';
 import '../../../../../shared/widgets/image_source_selector_sheet.dart';
@@ -23,6 +25,7 @@ import '../../../domain/entities/home_filters.dart';
 import '../../providers/home_providers.dart';
 import '../form_parts/form_part_type_selector.dart';
 import 'category_subcategory_selector_sheet.dart';
+import '../../../../shared/widgets/guia_map.dart';
 
 // Parts
 part 'spare_part_wizard_step1.dart';

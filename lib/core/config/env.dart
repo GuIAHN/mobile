@@ -39,8 +39,8 @@ class Env {
             url = 'http://10.0.2.2:3000/api';
           } else {
             // iOS Simulator / macOS / Windows / Linux
-            url = 'http://localhost:3000/api';
-            // Note: If testing on a physical device, use your machine's local IP (e.g., 'http://192.168.0.104:3000/api')
+            // Using Mac's local IP for physical iPhone testing
+            url = 'http://10.184.9.51:3000/api';
           }
           break;
         case AppEnvironment.staging:
