@@ -23,6 +23,18 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../vehicles/domain/entities/user_car.dart';
 import '../../../chat/presentation/providers/chat_providers.dart';
 
+int providerRankComparison(HomeItem a, HomeItem b) {
+  final byRating = b.rating.compareTo(a.rating);
+  if (byRating != 0) return byRating;
+  final byReviews = b.reviews.compareTo(a.reviews);
+  if (byReviews != 0) return byReviews;
+  final byDistance = a.distanceKm.compareTo(b.distanceKm);
+  if (byDistance != 0) return byDistance;
+  final byName = a.name.compareTo(b.name);
+  if (byName != 0) return byName;
+  return (a.id ?? '').compareTo(b.id ?? '');
+}
+
 // ── Search Providers ────────────────────────────────────────────────────────
 final searchRepositoryProvider = Provider<SearchRepository>((ref) {
   final dataSource = ref.watch(searchRemoteDatasourceProvider);
@@ -258,13 +270,8 @@ final topProvidersProvider =
   final itemsAsync = ref.watch(homeItemsProvider(type));
 
   return itemsAsync.whenData((items) {
-    final list = List<HomeItem>.from(items)
-      ..sort((a, b) {
-        final byRating = b.rating.compareTo(a.rating);
-        if (byRating != 0) return byRating;
-        return a.distanceKm.compareTo(b.distanceKm);
-      });
-    return list.take(6).toList();
+    final list = List<HomeItem>.from(items)..sort(providerRankComparison);
+    return list.take(3).toList(growable: false);
   });
 });
 

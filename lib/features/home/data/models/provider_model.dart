@@ -48,13 +48,18 @@ class ProviderModel extends HomeItem {
 
     final String iconName =
         type == ServiceType.workshops ? 'warehouse_outlined' : 'build_outlined';
+    final rawReviews =
+        json['ratingCount'] ?? json['rating_count'] ?? json['reviews'];
+    final reviews = rawReviews is num
+        ? rawReviews.toInt()
+        : int.tryParse(rawReviews?.toString() ?? '') ?? 0;
 
     return ProviderModel(
       id: json['id'] as String,
       name: json['nombre'] as String? ?? 'Sin nombre',
       detail: detail,
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
-      reviews: 0, // El endpoint de búsqueda no retorna reviews aún
+      reviews: reviews,
       distanceKm: (json['distancia_km'] as num?)?.toDouble() ?? 0.0,
       isOpen: true, // El backend filtra activos; asumir disponible
       iconName: iconName,
