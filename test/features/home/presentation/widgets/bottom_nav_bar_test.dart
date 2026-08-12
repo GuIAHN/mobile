@@ -33,6 +33,8 @@ void main() {
     double textScale = 1,
     double bottomSafeArea = 0,
     bool disableAnimations = false,
+    bool extendBody = false,
+    WidgetBuilder? bodyBuilder,
   }) {
     return UncontrolledProviderScope(
       container: container,
@@ -43,8 +45,14 @@ void main() {
           textScaler: TextScaler.linear(textScale),
           disableAnimations: disableAnimations,
         ),
-        child: const MaterialApp(
-          home: Scaffold(bottomNavigationBar: BottomNavBar()),
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              extendBody: extendBody,
+              body: bodyBuilder?.call(context),
+              bottomNavigationBar: const BottomNavBar(),
+            ),
+          ),
         ),
       ),
     );
@@ -397,4 +405,64 @@ void main() {
       expect(baselineBottoms[label]! - insetBottom, closeTo(safeArea, 0.01));
     }
   });
+
+  for (final configuration in const [
+    (textScale: 1.0, bottomSafeArea: 0.0),
+    (textScale: 2.0, bottomSafeArea: 34.0),
+  ]) {
+    testWidgets(
+        'reserved inset clears the rendered navigation surface at '
+        '${configuration.textScale}x text', (tester) async {
+      const height = 812.0;
+      const markerKey = Key('last-home-content');
+      final container = containerFor(role: UserRole.consumer);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        subject(
+          container,
+          height: height,
+          textScale: configuration.textScale,
+          bottomSafeArea: configuration.bottomSafeArea,
+          extendBody: true,
+          bodyBuilder: (context) => Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: bottomNavContentInset(context),
+              ),
+              child: const SizedBox(
+                key: markerKey,
+                width: 48,
+                height: 48,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final surface = find.byWidgetPredicate(
+        (widget) => widget is Material && widget.color == AppColors.surface,
+        description: 'opaque bottom navigation surface',
+      );
+      final surfaceRect = tester.getRect(surface);
+      final markerRect = tester.getRect(find.byKey(markerKey));
+
+      expect(
+        markerRect.bottom,
+        lessThanOrEqualTo(surfaceRect.top),
+        reason: 'The public Home inset must clear the real opaque bar; '
+            'surface=$surfaceRect marker=$markerRect',
+      );
+
+      for (final label in const ['Inicio', 'Chats', 'Compras', 'Perfil']) {
+        final actionRect = tester.getRect(find.bySemanticsLabel(label));
+        expect(actionRect.top, greaterThanOrEqualTo(surfaceRect.top));
+        expect(
+          actionRect.bottom,
+          lessThanOrEqualTo(height - configuration.bottomSafeArea),
+        );
+      }
+    });
+  }
 }

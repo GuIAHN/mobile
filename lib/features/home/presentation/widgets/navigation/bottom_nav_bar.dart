@@ -18,12 +18,22 @@ const double kBottomNavOverhang = 30;
 
 /// Alto de la franja blanca de la barra (iconos + etiquetas + padding),
 /// sin contar el área segura inferior ni el overhang del logo.
-const double kBottomNavBarHeight = 58;
+const double kBottomNavBarHeight = 64;
+
+const double _kNavLabelFontSize = 11;
 
 /// Padding inferior que deben reservar las vistas para no quedar tapadas
 /// por la barra cuando el Scaffold usa `extendBody: true`.
-double bottomNavContentInset(BuildContext context) =>
-    kBottomNavBarHeight + MediaQuery.of(context).padding.bottom;
+double bottomNavContentInset(BuildContext context) {
+  final mediaQuery = MediaQuery.of(context);
+  final scaledLabelHeight = mediaQuery.textScaler.scale(_kNavLabelFontSize);
+  final labelGrowth = (scaledLabelHeight - _kNavLabelFontSize).clamp(
+    0.0,
+    double.infinity,
+  );
+
+  return kBottomNavBarHeight + labelGrowth + mediaQuery.padding.bottom;
+}
 
 class BottomNavBar extends ConsumerWidget {
   const BottomNavBar({super.key});
@@ -232,7 +242,7 @@ class _NavItem extends StatelessWidget {
                     softWrap: false,
                     overflow: TextOverflow.visible,
                     style: GoogleFonts.hankenGrotesk(
-                      fontSize: 11,
+                      fontSize: _kNavLabelFontSize,
                       fontWeight:
                           isSelected ? FontWeight.w800 : FontWeight.w600,
                       color: isSelected
