@@ -34,12 +34,10 @@ class ProviderModel extends HomeItem {
     super.photo,
   });
 
-  factory ProviderModel.fromJson(
-      Map<String, dynamic> json, ServiceType type) {
-    final especialidades =
-        (json['especialidades'] as List<dynamic>? ?? [])
-            .map((e) => e.toString())
-            .toList();
+  factory ProviderModel.fromJson(Map<String, dynamic> json, ServiceType type) {
+    final especialidades = (json['especialidades'] as List<dynamic>? ?? [])
+        .map((e) => e.toString())
+        .toList();
 
     // El detalle muestra las especialidades o una descripción genérica
     final String detail = especialidades.isNotEmpty
@@ -66,7 +64,9 @@ class ProviderModel extends HomeItem {
       type: type,
       especialidades: especialidades,
       tarifa: (json['tarifa'] as num?)?.toDouble(),
-      hasDelivery: json['hasDelivery'] as bool? ?? json['has_delivery'] as bool? ?? false,
+      hasDelivery: json['hasDelivery'] as bool? ??
+          json['has_delivery'] as bool? ??
+          false,
       photo: json['photo'] as String? ?? json['foto'] as String?,
     );
   }

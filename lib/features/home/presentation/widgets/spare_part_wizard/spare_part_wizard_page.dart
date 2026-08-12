@@ -64,7 +64,8 @@ class SparePartWizardPage extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<SparePartWizardPage> createState() => _SparePartWizardPageState();
+  ConsumerState<SparePartWizardPage> createState() =>
+      _SparePartWizardPageState();
 }
 
 class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
@@ -117,11 +118,11 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
 
   void _onVehicleSelected(UserCar car, [String? modelId]) {
     setState(() {
-      final isSameTemporaryVehicle = car.id.startsWith('temp-') &&
-          _selectedVehicle?.id == car.id;
+      final isSameTemporaryVehicle =
+          car.id.startsWith('temp-') && _selectedVehicle?.id == car.id;
       _selectedVehicle = car;
-      _temporaryModelId = modelId ??
-          (isSameTemporaryVehicle ? _temporaryModelId : null);
+      _temporaryModelId =
+          modelId ?? (isSameTemporaryVehicle ? _temporaryModelId : null);
       _currentStep = 2; // Pass to category selection
     });
   }
@@ -157,20 +158,19 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
         return;
       }
       _showLoadingOverlay();
-      final addResult = await ref.read(addCarToGarageUseCaseProvider)(variantId: _temporaryModelId!);
+      final addResult = await ref.read(addCarToGarageUseCaseProvider)(
+          variantId: _temporaryModelId!);
       _hideLoadingOverlay();
-      
+
       if (!mounted) return;
-      final registeredCar = addResult.fold(
-        (l) {
-          context.showSnackBar('Error al registrar vehículo: ${l.message}', isError: true);
-          return null;
-        },
-        (r) {
-          ref.read(authProvider.notifier).addUserCar(r);
-          return r;
-        }
-      );
+      final registeredCar = addResult.fold((l) {
+        context.showSnackBar('Error al registrar vehículo: ${l.message}',
+            isError: true);
+        return null;
+      }, (r) {
+        ref.read(authProvider.notifier).addUserCar(r);
+        return r;
+      });
       if (registeredCar == null) return;
       userCarId = registeredCar.id;
     }
@@ -187,14 +187,14 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
 
     _showLoadingOverlay();
     await ref.read(searchRequestNotifierProvider.notifier).submitSearch(
-      userCarId: userCarId,
-      subcategoryId: subcat.id,
-      details: _detailsController.text,
-      partType: partType,
-      fotoUrl: _selectedImagePath,
-      lat: lat,
-      lon: lon,
-    );
+          userCarId: userCarId,
+          subcategoryId: subcat.id,
+          details: _detailsController.text,
+          partType: partType,
+          fotoUrl: _selectedImagePath,
+          lat: lat,
+          lon: lon,
+        );
     _hideLoadingOverlay();
 
     if (!mounted) return;
@@ -225,23 +225,31 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
               duration: const Duration(milliseconds: 700),
               curve: Curves.elasticOut,
               tween: Tween(begin: 0.0, end: 1.0),
-              builder: (context, value, child) => Transform.scale(scale: value, child: child),
+              builder: (context, value, child) =>
+                  Transform.scale(scale: value, child: child),
               child: Container(
-                width: 72, height: 72,
-                decoration: const BoxDecoration(color: AppColors.primaryMuted, shape: BoxShape.circle),
-                child: const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 44),
+                width: 72,
+                height: 72,
+                decoration: const BoxDecoration(
+                    color: AppColors.primaryMuted, shape: BoxShape.circle),
+                child: const Icon(Icons.check_circle_rounded,
+                    color: AppColors.primary, size: 44),
               ),
             ),
             const SizedBox(height: 24),
             Text(
               '¡Solicitud Enviada!',
-              style: GoogleFonts.hankenGrotesk(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
+              style: GoogleFonts.hankenGrotesk(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textPrimary),
             ),
             const SizedBox(height: 12),
             Text(
               'Hemos enviado tu requerimiento de repuesto a las tiendas afiliadas más cercanas. Te notificaremos en la sección de Chats apenas recibas cotizaciones.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.hankenGrotesk(fontSize: 14, color: AppColors.textSecondary, height: 1.5),
+              style: GoogleFonts.hankenGrotesk(
+                  fontSize: 14, color: AppColors.textSecondary, height: 1.5),
             ),
             const SizedBox(height: 32),
             SizedBox(
@@ -258,11 +266,16 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(32)),
                   elevation: 4,
                   shadowColor: AppColors.primary.withValues(alpha: 0.3),
                 ),
-                child: Text('ENTENDIDO', style: GoogleFonts.hankenGrotesk(fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: 2)),
+                child: Text('ENTENDIDO',
+                    style: GoogleFonts.hankenGrotesk(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 2)),
               ),
             ),
           ],
@@ -286,7 +299,8 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
                 children: [
                   IconButton(
                     onPressed: _prevStep,
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                    icon:
+                        const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                     color: AppColors.textPrimary,
@@ -295,7 +309,10 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
                     child: Text(
                       'Paso $_currentStep de 3',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.hankenGrotesk(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
+                      style: GoogleFonts.hankenGrotesk(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textSecondary),
                     ),
                   ),
                   const SizedBox(width: 20), // Balance the icon button

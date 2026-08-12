@@ -41,7 +41,8 @@ final searchRepositoryProvider = Provider<SearchRepository>((ref) {
   return SearchRepositoryImpl(dataSource);
 });
 
-final createSearchRequestUseCaseProvider = Provider<CreateSearchRequestUseCase>((ref) {
+final createSearchRequestUseCaseProvider =
+    Provider<CreateSearchRequestUseCase>((ref) {
   final repository = ref.watch(searchRepositoryProvider);
   return CreateSearchRequestUseCase(repository);
 });
@@ -76,7 +77,8 @@ class SearchRequestNotifier extends StateNotifier<SearchRequestState> {
   final CreateSearchRequestUseCase _useCase;
   final Ref? _ref;
 
-  SearchRequestNotifier(this._useCase, [this._ref]) : super(const SearchRequestState());
+  SearchRequestNotifier(this._useCase, [this._ref])
+      : super(const SearchRequestState());
 
   Future<void> submitSearch({
     required String userCarId,
@@ -204,9 +206,8 @@ final homeTabProvider = StateProvider<int>((ref) {
 // ── Async Data Providers ──────────────────────────────────────────────────────
 
 /// Promos/banners por tipo de servicio
-final promosProvider =
-    FutureProvider.family.autoDispose<List<Promo>, ServiceType>(
-        (ref, type) async {
+final promosProvider = FutureProvider.family
+    .autoDispose<List<Promo>, ServiceType>((ref, type) async {
   final useCase = ref.watch(getPromosUseCaseProvider);
   final result = await useCase(type);
   return result.fold(
@@ -217,9 +218,8 @@ final promosProvider =
 
 /// Proveedores (mecánicos / talleres) filtrados desde el backend.
 /// spareParts usa mock local.
-final homeItemsProvider =
-    FutureProvider.family.autoDispose<List<HomeItem>, ServiceType>(
-        (ref, type) async {
+final homeItemsProvider = FutureProvider.family
+    .autoDispose<List<HomeItem>, ServiceType>((ref, type) async {
   if (type == ServiceType.spareParts) {
     final useCase = ref.watch(getHomeItemsUseCaseProvider);
     final result = await useCase(type);
@@ -239,7 +239,10 @@ final homeItemsProvider =
 
     if (location == null && locationAsync.isLoading) {
       // Esperar a que la ubicación termine de cargar para mantener el estado loading del provider
-      await ref.watch(userLocationProvider.notifier).stream.firstWhere((state) => !state.isLoading);
+      await ref
+          .watch(userLocationProvider.notifier)
+          .stream
+          .firstWhere((state) => !state.isLoading);
       location = ref.read(userLocationProvider).valueOrNull;
     }
 
@@ -264,9 +267,8 @@ final homeItemsProvider =
 /// Top proveedores (mejor calificados y más cercanos) por tipo de servicio.
 /// Se usa en las secciones destacadas del home, independiente de los filtros
 /// de las pantallas de listado.
-final topProvidersProvider =
-    Provider.autoDispose.family<AsyncValue<List<HomeItem>>, ServiceType>(
-        (ref, type) {
+final topProvidersProvider = Provider.autoDispose
+    .family<AsyncValue<List<HomeItem>>, ServiceType>((ref, type) {
   final itemsAsync = ref.watch(homeItemsProvider(type));
 
   return itemsAsync.whenData((items) {
@@ -277,8 +279,7 @@ final topProvidersProvider =
 
 /// Perfil completo de un proveedor (mecánico o taller) — para pantalla de detalle.
 final providerDetailProvider = FutureProvider.autoDispose
-    .family<ProviderDetail, ({String id, ServiceType type})>(
-        (ref, args) async {
+    .family<ProviderDetail, ({String id, ServiceType type})>((ref, args) async {
   final useCase = ref.watch(getProviderDetailUseCaseProvider);
   final result = await useCase(id: args.id, type: args.type);
   return result.fold(
@@ -303,12 +304,9 @@ final filteredHomeItemsProvider =
       list = list.where((item) {
         return item.name.toLowerCase().contains(query) ||
             item.detail.toLowerCase().contains(query) ||
-            item.especialidades.any(
-                (e) => e.toLowerCase().contains(query));
+            item.especialidades.any((e) => e.toLowerCase().contains(query));
       }).toList();
     }
-
-
 
     // 3. Ordenamiento local (como complemento al orderBy del backend)
     switch (filters.sortBy) {
