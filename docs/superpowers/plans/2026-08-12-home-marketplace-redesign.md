@@ -340,22 +340,23 @@ The existing `test/home_filters_test.dart` asserts the removed pre-hub inline fo
 
 - [ ] **Step 2: Write failing Home composition tests**
 
-Mount `HomePage` with a consumer user, finite garage/provider overrides, fake location service, and a minimal router. Assert the first-occurrence order of `¿Qué necesitas hoy?`, `Solicitar repuesto`, `Talleres mejor valorados`, and `Mecánicos mejor valorados`. Assert promo copy and `Mi garage` are absent, while `Chats`, `Compras`, and the center logo remain. Test loading, empty, error, and data provider variants through overrides.
+Mount `HomePage` with a consumer user, finite garage/promo/provider overrides, fake location service, and a minimal router. Assert the first-occurrence order of `¿Qué necesitas hoy?`, `Solicitar repuesto`, promo copy, `Talleres mejor valorados`, and `Mecánicos mejor valorados`. Assert `Mi garage` is absent, while the promotional banner, `Chats`, `Compras`, and the center logo remain. Test loading, empty, error, and data provider variants through overrides.
 
 - [ ] **Step 3: Verify Home composition tests fail**
 
 Run: `flutter test test/features/home/presentation/pages/home_page_test.dart`
 
-Expected: current garage/promo composition and mechanic-before-workshop order fail.
+Expected: the missing question, misplaced primary flow, and mechanic-before-workshop order fail.
 
 - [ ] **Step 4: Patch `_buildHomeHub` narrowly**
 
-Preserve the existing welcome Snackbar, `extendBody`, tab switching, non-Home padding, approval overlay, scroll controller, and bottom inset. Remove consumer Home watching/rendering of promos and the expanded garage section. Compose:
+Preserve the existing welcome Snackbar, `extendBody`, tab switching, non-Home padding, approval overlay, scroll controller, bottom inset, and promotional banner. Remove only the expanded garage section from the consumer flow. Compose:
 
 ```dart
 const HomeHeaderExpanded(),
 const Padding(..., child: Text('¿Qué necesitas hoy?')),
 const Padding(..., child: CategoryGrid()),
+PromoCarousel(...),
 TopProvidersSection(workshops, 'Talleres mejor valorados'),
 TopProvidersSection(mechanic, 'Mecánicos mejor valorados'),
 ```

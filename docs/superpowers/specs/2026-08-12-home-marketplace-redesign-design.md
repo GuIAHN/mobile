@@ -31,11 +31,12 @@ The vertical order is:
 1. Orange header.
 2. Heading: `¿Qué necesitas hoy?`.
 3. Three equal direct-action cards.
-4. `Talleres mejor valorados`.
-5. `Mecánicos mejor valorados`.
-6. Bottom navigation with `Inicio`, `Chats`, centered logo, `Compras`, and `Perfil`.
+4. Promotional banner.
+5. `Talleres mejor valorados`.
+6. `Mecánicos mejor valorados`.
+7. Bottom navigation with `Inicio`, `Chats`, centered logo, `Compras`, and `Perfil`.
 
-Promotional banners and the expanded `Mi garage` carousel are removed from the consumer Home's primary flow. The selected vehicle remains available as a compact control inside the header, which preserves vehicle context without pushing the core actions below the fold.
+Promotional banners remain in the consumer Home after the direct actions and before the ranked provider sections. The expanded `Mi garage` carousel is removed from the primary flow; the selected vehicle remains available as a compact control inside the header, which preserves vehicle context without pushing the core actions below the fold.
 
 The existing store dashboard remains unchanged for store-role users. Role restrictions already encoded by `allowedServiceTypes` remain authoritative for provider roles; the three-action consumer layout applies when all three consumer actions are allowed.
 
