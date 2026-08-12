@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -73,6 +73,9 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
   UserCar? _selectedVehicle;
   String? _temporaryModelId;
 
+  @visibleForTesting
+  String? get debugTemporaryVariantId => _temporaryModelId;
+
   Category? _selectedCategory;
   Category? _selectedSubcategory;
   PartType? _selectedPartType;
@@ -114,8 +117,11 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
 
   void _onVehicleSelected(UserCar car, [String? modelId]) {
     setState(() {
+      final isSameTemporaryVehicle = car.id.startsWith('temp-') &&
+          _selectedVehicle?.id == car.id;
       _selectedVehicle = car;
-      _temporaryModelId = modelId;
+      _temporaryModelId = modelId ??
+          (isSameTemporaryVehicle ? _temporaryModelId : null);
       _currentStep = 2; // Pass to category selection
     });
   }

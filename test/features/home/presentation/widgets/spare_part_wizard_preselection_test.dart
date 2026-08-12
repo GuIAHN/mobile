@@ -36,4 +36,38 @@ void main() {
     expect(find.byIcon(Icons.check_rounded), findsOneWidget);
     expect(find.text('Selecciona la categoría'), findsNothing);
   });
+
+  testWidgets('keeps the initial variant when confirming the temporary car',
+      (tester) async {
+    const temporaryCar = UserCar(
+      id: 'temp-car-1',
+      brand: 'Audi',
+      model: '4000',
+      year: 1985,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          userCarsProvider.overrideWith((ref) async => [temporaryCar]),
+        ],
+        child: const MaterialApp(
+          home: SparePartWizardPage(
+            initialVehicle: temporaryCar,
+            initialVariantId: 'variant-1',
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text('Audi 4000'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Paso 2 de 3'), findsOneWidget);
+    final state = tester.state(find.byType(SparePartWizardPage)) as dynamic;
+    expect(state.debugTemporaryVariantId, 'variant-1');
+  });
 }

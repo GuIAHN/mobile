@@ -314,10 +314,25 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
     final isLocationShared = ref.watch(isLocationSharedProvider);
     final userName = ref.watch(authProvider).user?.name.trim();
     final selectedSearchVehicle = ref.watch(searchVehicleProvider);
-    final garageCars = ref.watch(userCarsProvider).valueOrNull;
+    final garageCarsAsync = ref.watch(userCarsProvider);
+    final garageCars = garageCarsAsync.valueOrNull;
     final fallbackVehicle =
         garageCars == null || garageCars.isEmpty ? null : garageCars.first;
     final selectedVehicle = selectedSearchVehicle ?? fallbackVehicle;
+    final vehicleStatusText = selectedVehicle != null
+        ? '${selectedVehicle.brand} ${selectedVehicle.model}'
+        : garageCarsAsync.when(
+            data: (_) => 'Seleccionar vehículo',
+            loading: () => 'Cargando vehículo…',
+            error: (_, __) => 'No pudimos cargar tu vehículo',
+          );
+    final vehicleSemanticsLabel = selectedVehicle != null
+        ? 'Vehículo seleccionado: ${selectedVehicle.brand} ${selectedVehicle.model}. Toca para cambiar.'
+        : garageCarsAsync.when(
+            data: (_) => 'Seleccionar vehículo',
+            loading: () => 'Cargando vehículo',
+            error: (_, __) => 'No pudimos cargar tu vehículo. Abrir selector.',
+          );
 
     final statusBarHeight = MediaQuery.of(context).padding.top;
 
@@ -351,41 +366,47 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
                       label: isLocationShared
                           ? 'Desactivar ubicación'
                           : 'Activar ubicación',
-                      child: SizedBox(
+                      child: ConstrainedBox(
                         key: const Key('home-location-control'),
-                        height: AppSpacing.xl5,
+                        constraints: const BoxConstraints(
+                          minHeight: AppSpacing.xl5,
+                        ),
                         child: Material(
                           color: Colors.transparent,
                           child: InkWell(
                             onTap: () => _handleLocationToggle(context),
                             borderRadius:
                                 BorderRadius.circular(AppSpacing.radiusMd),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  isLocationShared
-                                      ? Icons.location_on
-                                      : Icons.location_on_outlined,
-                                  color: AppColors.textOnPrimary,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Flexible(
-                                  child: Text(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: AppSpacing.sm,
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
                                     isLocationShared
-                                        ? 'Ubicación activada'
-                                        : 'Ubicación desactivada',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.hankenGrotesk(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textOnPrimary,
-                                      letterSpacing: -0.2,
+                                        ? Icons.location_on
+                                        : Icons.location_on_outlined,
+                                    color: AppColors.textOnPrimary,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Flexible(
+                                    child: Text(
+                                      isLocationShared
+                                          ? 'Ubicación activada'
+                                          : 'Ubicación desactivada',
+                                      softWrap: true,
+                                      style: GoogleFonts.hankenGrotesk(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textOnPrimary,
+                                        letterSpacing: -0.2,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -429,12 +450,12 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
               child: Semantics(
                 button: true,
                 excludeSemantics: true,
-                label: selectedVehicle == null
-                    ? 'Seleccionar vehículo'
-                    : 'Vehículo seleccionado: ${selectedVehicle.brand} ${selectedVehicle.model}. Toca para cambiar.',
-                child: SizedBox(
-                  width: double.infinity,
-                  height: AppSpacing.xl5,
+                label: vehicleSemanticsLabel,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minWidth: double.infinity,
+                    minHeight: AppSpacing.xl5,
+                  ),
                   child: Material(
                     color: Colors.transparent,
                     child: Ink(
@@ -455,6 +476,7 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
                           ),
                           child: Row(
                             children: [
@@ -466,11 +488,8 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
                               const SizedBox(width: AppSpacing.sm),
                               Expanded(
                                 child: Text(
-                                  selectedVehicle == null
-                                      ? 'Seleccionar vehículo'
-                                      : '${selectedVehicle.brand} ${selectedVehicle.model}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                  vehicleStatusText,
+                                  softWrap: true,
                                   style: GoogleFonts.hankenGrotesk(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,

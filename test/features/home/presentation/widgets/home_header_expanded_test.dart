@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
@@ -65,7 +68,9 @@ void main() {
     name: 'Elio',
   );
 
-  ProviderContainer containerWithCars(List<UserCar> cars) {
+  ProviderContainer containerWithGarage(
+    Future<List<UserCar>> Function(Ref ref) loadCars,
+  ) {
     return ProviderContainer(
       overrides: [
         authProvider.overrideWith(
@@ -73,11 +78,14 @@ void main() {
             const AuthState(status: AuthStatus.authenticated, user: user),
           ),
         ),
-        userCarsProvider.overrideWith((ref) async => cars),
+        userCarsProvider.overrideWith(loadCars),
         locationServiceProvider.overrideWithValue(_FakeLocationService()),
       ],
     );
   }
+
+  ProviderContainer containerWithCars(List<UserCar> cars) =>
+      containerWithGarage((ref) async => cars);
 
   Future<void> pumpHeader(
     WidgetTester tester,
@@ -134,7 +142,8 @@ void main() {
     expect(tester.getSize(locationTarget).height, greaterThanOrEqualTo(48));
     expect(find.bySemanticsLabel('Activar ubicación'), findsOneWidget);
     expect(
-      tester.getSize(find.bySemanticsLabel(RegExp('Vehículo seleccionado')))
+      tester
+          .getSize(find.bySemanticsLabel(RegExp('Vehículo seleccionado')))
           .height,
       greaterThanOrEqualTo(48),
     );
@@ -149,6 +158,38 @@ void main() {
     expect(find.text('Seleccionar vehículo'), findsOneWidget);
     expect(find.text('Ubicación desactivada'), findsOneWidget);
   });
+
+  testWidgets('shows an honest garage loading state', (tester) async {
+    final pendingCars = Completer<List<UserCar>>();
+    final container = containerWithGarage((ref) => pendingCars.future);
+    addTearDown(container.dispose);
+
+    await pumpHeader(tester, container);
+
+    expect(find.text('Cargando vehículo…'), findsOneWidget);
+    expect(find.text('Seleccionar vehículo'), findsNothing);
+    expect(
+      find.bySemanticsLabel(RegExp('Cargando vehículo')),
+      findsOneWidget,
+    );
+  }, semanticsEnabled: true);
+
+  testWidgets('shows an honest garage error state', (tester) async {
+    final container = containerWithGarage(
+      (ref) async => throw StateError('private backend detail'),
+    );
+    addTearDown(container.dispose);
+
+    await pumpHeader(tester, container);
+
+    expect(find.text('No pudimos cargar tu vehículo'), findsOneWidget);
+    expect(find.text('Seleccionar vehículo'), findsNothing);
+    expect(find.textContaining('private backend detail'), findsNothing);
+    expect(
+      find.bySemanticsLabel(RegExp('No pudimos cargar tu vehículo')),
+      findsOneWidget,
+    );
+  }, semanticsEnabled: true);
 
   testWidgets('updates the shared search vehicle after garage selection',
       (tester) async {
@@ -190,6 +231,10 @@ void main() {
         tester.getSize(find.bySemanticsLabel('Notificaciones')),
         const Size(48, 48),
       );
+      final locationParagraph = tester.renderObject<RenderParagraph>(
+        find.text('Ubicación desactivada'),
+      );
+      expect(locationParagraph.didExceedMaxLines, isFalse);
     }
   }, semanticsEnabled: true);
 }
