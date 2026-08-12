@@ -12,12 +12,10 @@ import '../../providers/home_providers.dart';
 import '../spare_part_wizard/spare_part_wizard_page.dart';
 
 /// Ilustración de cada categoría: icono Material con su color de acento.
-/// Se renderiza dentro de un fondo redondeado tintado (estilo "chip").
 class _CategoryStyle {
   final IconData icon;
-  final Color accentColor;
 
-  const _CategoryStyle({required this.icon, required this.accentColor});
+  const _CategoryStyle({required this.icon});
 }
 
 /// Tarjetas de categorías del home.
@@ -28,11 +26,16 @@ class _CategoryStyle {
 class CategoryGrid extends ConsumerWidget {
   const CategoryGrid({super.key});
 
-  void _handleCategoryTap(BuildContext context, WidgetRef ref, ServiceType type) {
+  void _handleCategoryTap(
+      BuildContext context, WidgetRef ref, ServiceType type) {
     HapticFeedback.selectionClick();
     switch (type) {
       case ServiceType.spareParts:
-        SparePartWizardPage.show(context);
+        SparePartWizardPage.show(
+          context,
+          initialVehicle: ref.read(searchVehicleProvider),
+          initialVariantId: ref.read(searchVehicleVariantIdProvider),
+        );
         break;
       case ServiceType.workshops:
         context.push(RouteNames.workshops);
@@ -46,31 +49,37 @@ class CategoryGrid extends ConsumerWidget {
     }
   }
 
-  /// Celeste cielo del trazo inferior de la "G" del logo.
-  static const Color _logoBlue = Color(0xFF4FC3F7);
-
   _CategoryStyle _styleFor(ServiceType type) {
     switch (type) {
       case ServiceType.spareParts:
         return const _CategoryStyle(
-          icon: Icons.build_outlined,
-          accentColor: _logoBlue,
+          icon: Icons.settings_outlined,
         );
       case ServiceType.workshops:
         return const _CategoryStyle(
           icon: Icons.home_repair_service_outlined,
-          accentColor: _logoBlue,
         );
       case ServiceType.mechanic:
         return const _CategoryStyle(
           icon: Icons.engineering_outlined,
-          accentColor: _logoBlue,
         );
       case ServiceType.storeDashboard:
         return const _CategoryStyle(
           icon: Icons.storefront_outlined,
-          accentColor: _logoBlue,
         );
+    }
+  }
+
+  String _actionLabel(ServiceType type) {
+    switch (type) {
+      case ServiceType.spareParts:
+        return 'Solicitar repuesto';
+      case ServiceType.workshops:
+        return 'Buscar talleres';
+      case ServiceType.mechanic:
+        return 'Buscar mecánicos';
+      case ServiceType.storeDashboard:
+        return type.label;
     }
   }
 
@@ -84,18 +93,26 @@ class CategoryGrid extends ConsumerWidget {
 
     if (availableTypes.isEmpty) return const SizedBox.shrink();
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        for (var i = 0; i < availableTypes.length; i++) ...[
-          if (i > 0) const SizedBox(width: 20),
-          _CategoryCard(
-            label: availableTypes[i].label,
-            style: _styleFor(availableTypes[i]),
-            onTap: () => _handleCategoryTap(context, ref, availableTypes[i]),
-          ),
-        ],
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) => IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < availableTypes.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              Expanded(
+                child: _CategoryCard(
+                  label: _actionLabel(availableTypes[i]),
+                  style: _styleFor(availableTypes[i]),
+                  isCompact: constraints.maxWidth < 400,
+                  onTap: () =>
+                      _handleCategoryTap(context, ref, availableTypes[i]),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
@@ -103,11 +120,13 @@ class CategoryGrid extends ConsumerWidget {
 class _CategoryCard extends StatefulWidget {
   final String label;
   final _CategoryStyle style;
+  final bool isCompact;
   final VoidCallback onTap;
 
   const _CategoryCard({
     required this.label,
     required this.style,
+    required this.isCompact,
     required this.onTap,
   });
 
@@ -120,49 +139,85 @@ class _CategoryCardState extends State<_CategoryCard> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) => setState(() => _isPressed = false),
-      onTapCancel: () => setState(() => _isPressed = false),
+    final animationsEnabled = !MediaQuery.disableAnimationsOf(context);
+    final radius = BorderRadius.circular(20);
+
+    return Semantics(
+      button: true,
+      label: widget.label,
       onTap: widget.onTap,
-      behavior: HitTestBehavior.opaque,
+      container: true,
+      excludeSemantics: true,
       child: AnimatedScale(
-        scale: _isPressed ? 0.94 : 1.0,
-        duration: const Duration(milliseconds: 120),
+        scale: animationsEnabled && _isPressed ? 0.97 : 1,
+        duration: animationsEnabled
+            ? const Duration(milliseconds: 160)
+            : Duration.zero,
         curve: Curves.easeOut,
-        child: SizedBox(
-          width: 84,
-          child: Column(
-            children: [
-              Container(
-                width: 76,
-                height: 76,
-                decoration: BoxDecoration(
-                  color: widget.style.accentColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(22),
+        child: Material(
+          color: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: radius,
+            side: const BorderSide(color: AppColors.border),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            borderRadius: radius,
+            onHighlightChanged: (isPressed) {
+              if (_isPressed != isPressed) {
+                setState(() => _isPressed = isPressed);
+              }
+            },
+            onTap: widget.onTap,
+            overlayColor: WidgetStatePropertyAll(
+              AppColors.primary.withValues(alpha: 0.08),
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 112),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: widget.isCompact ? 8 : 12,
+                  vertical: 14,
                 ),
-                child: Center(
-                  child: Icon(
-                    widget.style.icon,
-                    size: 34,
-                    color: widget.style.accentColor,
-                  ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryMuted,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        widget.style.icon,
+                        size: 24,
+                        color: AppColors.primaryInk,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      widget.label,
+                      maxLines: 2,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: widget.isCompact ? 12 : 13,
+                        height: 1.2,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 18,
+                      color: AppColors.primaryInk,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                widget.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.1,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
