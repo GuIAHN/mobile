@@ -164,7 +164,11 @@ class _HomePageState extends ConsumerState<HomePage> {
       child: promosAsync.when(
         data: (promos) => PromoCarousel(promos: promos),
         loading: () => const PromoSkeleton(),
-        error: (error, stack) => const SizedBox.shrink(),
+        error: (error, stack) => _PromoErrorCard(
+          onRetry: () {
+            ref.invalidate(adsAsPromosProvider(selectedType));
+          },
+        ),
       ),
     );
 
@@ -252,6 +256,90 @@ class _HomePageState extends ConsumerState<HomePage> {
           ],
         ],
       ],
+    );
+  }
+}
+
+class _PromoErrorCard extends StatelessWidget {
+  const _PromoErrorCard({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      child: Material(
+        key: const Key('promo-error-card'),
+        color: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          side: const BorderSide(color: AppColors.border),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryMuted,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                ),
+                child: const Icon(
+                  Icons.campaign_outlined,
+                  color: AppColors.primaryInk,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'No pudimos cargar la publicidad',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Comprueba tu conexión e inténtalo de nuevo.',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    TextButton(
+                      onPressed: onRetry,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primaryInk,
+                        minimumSize: const Size(48, 48),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm,
+                        ),
+                      ),
+                      child: Text(
+                        'Reintentar',
+                        style: GoogleFonts.hankenGrotesk(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

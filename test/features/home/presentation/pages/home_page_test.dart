@@ -24,6 +24,7 @@ import 'package:guiautomotriz_mobile/features/home/domain/entities/promo.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/pages/home_page.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/promo_carousel.dart';
+import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/spare_part_wizard_page.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/store_dashboard/store_dashboard_view.dart';
 import 'package:guiautomotriz_mobile/features/reports/domain/entities/store_dashboard.dart';
 import 'package:guiautomotriz_mobile/features/reports/presentation/providers/reports_provider.dart';
@@ -259,6 +260,30 @@ void main() {
     );
   });
 
+  testWidgets(
+      'spare-part action uses the first garage car displayed by the header',
+      (tester) async {
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+
+    expect(container.read(searchVehicleProvider), isNull);
+    expect(find.text('Toyota Corolla'), findsOneWidget);
+
+    await tester.tap(find.text('Solicitar repuesto'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final wizard = tester.widget<SparePartWizardPage>(
+      find.byType(SparePartWizardPage),
+    );
+    expect(wizard.initialVehicle, car);
+  });
+
   testWidgets('consumer ignores a stale store dashboard selection',
       (tester) async {
     final container = containerFor(
@@ -337,13 +362,19 @@ void main() {
     expect(find.byType(PromoCarousel), findsNothing);
   });
 
-  testWidgets('consumer Home hides failed promos without exposing raw errors',
+  testWidgets('consumer Home keeps a retryable ad slot after promo errors',
       (tester) async {
+    var attempts = 0;
     final container = containerFor(
       workshops: const AsyncValue.data([]),
       mechanics: const AsyncValue.data([]),
-      loadPromos: (ref, type) async =>
-          throw StateError('private advertising secret'),
+      loadPromos: (ref, type) async {
+        attempts += 1;
+        if (attempts == 1) {
+          throw StateError('private advertising secret');
+        }
+        return const [promo];
+      },
     );
     addTearDown(container.dispose);
 
@@ -351,8 +382,27 @@ void main() {
 
     expect(find.byType(PromoCarousel), findsNothing);
     expect(find.byType(PromoSkeleton), findsNothing);
+    expect(find.byKey(const Key('promo-error-card')), findsOneWidget);
+    expect(find.text('No pudimos cargar la publicidad'), findsOneWidget);
+    expect(find.text('Reintentar'), findsOneWidget);
     expect(find.textContaining('private advertising secret'), findsNothing);
     expect(find.text('Talleres mejor valorados'), findsOneWidget);
+
+    final actionY = tester.getBottomLeft(find.text('Solicitar repuesto')).dy;
+    final promoY =
+        tester.getTopLeft(find.byKey(const Key('promo-error-card'))).dy;
+    final workshopsY =
+        tester.getTopLeft(find.text('Talleres mejor valorados')).dy;
+    expect(actionY, lessThan(promoY));
+    expect(promoY, lessThan(workshopsY));
+
+    await tester.tap(find.text('Reintentar'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(attempts, 2);
+    expect(find.byKey(const Key('promo-error-card')), findsNothing);
+    expect(find.text('Revisión de frenos con descuento'), findsOneWidget);
   });
 
   testWidgets('consumer Home renders both provider loading states',
