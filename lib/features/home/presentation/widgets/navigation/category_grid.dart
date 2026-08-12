@@ -8,6 +8,7 @@ import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/domain/enums/service_type.dart';
 import '../../../../../core/providers/current_user_provider.dart';
 import '../../../../../core/router/route_names.dart';
+import '../../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../../providers/home_providers.dart';
 import '../spare_part_wizard/spare_part_wizard_page.dart';
 
@@ -31,9 +32,15 @@ class CategoryGrid extends ConsumerWidget {
     HapticFeedback.selectionClick();
     switch (type) {
       case ServiceType.spareParts:
+        final selectedVehicle = ref.read(searchVehicleProvider);
+        final garageCars = ref.read(userCarsProvider).valueOrNull;
+        final displayedVehicle = selectedVehicle ??
+            (garageCars == null || garageCars.isEmpty
+                ? null
+                : garageCars.first);
         SparePartWizardPage.show(
           context,
-          initialVehicle: ref.read(searchVehicleProvider),
+          initialVehicle: displayedVehicle,
           initialVariantId: ref.read(searchVehicleVariantIdProvider),
         );
         break;
