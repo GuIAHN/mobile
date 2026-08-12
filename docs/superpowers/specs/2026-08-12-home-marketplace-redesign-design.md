@@ -17,7 +17,7 @@ The approved reference is the final mockup from the 2026-08-12 design conversati
 - Keep the orange header.
 - Keep `Chats` in the bottom navigation; do not rename it to `Solicitudes`.
 - Keep the official guIAutomotriz logo in the center of the bottom navigation.
-- Raise the center logo roughly 10–12 dp above its previous position.
+- Keep the center logo visually close to the white bar instead of making it appear detached.
 - Keep Hanken Grotesk and the existing brand palette from `DESIGN_SYSTEM.md`.
 
 The visual language is "precision workshop / operational trust": cold-gray canvas, white surfaces, graphite text, orange for brand and direct action, cyan only for trust/location metadata, fine borders, and restrained shadows. The center logo is the single strong brand gesture; the rest of the screen remains quiet and systematic.
@@ -93,7 +93,7 @@ Consumer navigation keeps the current tab mapping and behavior:
 - Index 2: `Compras`.
 - Index 3: `Perfil`.
 
-The official `assets/images/logo_icon.png` is used without recoloring or distortion. The logo's visual diameter is reduced from the current oversized 88 dp treatment to approximately 64 dp and positioned so its center sits 10–12 dp higher than the approved second mockup. The bar reserves its space, respects bottom safe area, and content receives sufficient bottom inset.
+The official `assets/images/logo_icon.png` is used without recoloring or distortion. Following the in-app review, its visual and interactive bounds are exactly 76×76 dp. It is positioned 8 dp lower than the previous 64 dp implementation so the mark overlaps the white navigation surface more clearly and no longer appears detached. The complete circular hit target remains inside the `BottomNavBar` bounds, centered horizontally, clear of adjacent destinations, and reachable at every edge. The bar reserves its space, respects bottom safe area, and content receives sufficient bottom inset at 1× and 2× text scaling.
 
 `Inicio` remains a labeled destination even though the center logo also returns Home, because the user explicitly approved both. Semantics distinguish them as `Inicio` and `Volver al inicio, logo guIAutomotriz`. Navigation remains at five visible positions.
 
