@@ -44,10 +44,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
       final useCase = ref.read(createQuoteUseCaseProvider);
       final quoteRes = await useCase(
         threadId: thread.id,
-        isFixedPrice: result['isFixedPrice'] as bool,
         price: result['price'] as double?,
-        minPrice: result['minPrice'] as double?,
-        maxPrice: result['maxPrice'] as double?,
         brand: result['brand'] as String?,
         photoPath: result['photoPath'] as String?,
       );

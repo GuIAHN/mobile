@@ -4,12 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/image_source_selector_sheet.dart';
-
-/// Modalidad de la oferta.
-enum _QuoteMode { fixed, range }
 
 /// Formatea el texto con separadores de miles mientras se escribe
 /// (`12500` → `12,500`), limitando a 8 dígitos.
@@ -61,10 +57,8 @@ class _DecimalFormatter extends TextInputFormatter {
 
 /// Hoja de cotización con entrada de monto limpia: número grande en naranja
 /// con símbolo `$`, sin fondo ni teclado propio (usa el teclado del sistema).
-/// Permite ofertar un precio fijo o un rango estimado.
 ///
-/// Mantiene la misma API pública para no alterar al consumidor:
-/// devuelve `{isFixedPrice, price?, minPrice?, maxPrice?, brand?, photoPath?}`.
+/// Devuelve `{price, brand?, photoPath?}`.
 class QuoteInputDialog extends StatefulWidget {
   final String requestTitle;
 
@@ -88,15 +82,10 @@ class QuoteInputDialog extends StatefulWidget {
 }
 
 class _QuoteInputDialogState extends State<QuoteInputDialog> {
-  _QuoteMode _mode = _QuoteMode.fixed;
-
-  final _fixedController = TextEditingController();
-  final _minController = TextEditingController();
-  final _maxController = TextEditingController();
+  final _priceController = TextEditingController();
   final _brandController = TextEditingController();
 
-  final _fixedFocus = FocusNode();
-  final _minFocus = FocusNode();
+  final _priceFocus = FocusNode();
 
   final ImagePicker _picker = ImagePicker();
   String? _selectedImagePath;
@@ -106,19 +95,14 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
   void initState() {
     super.initState();
     // Actualiza el estado del botón al escribir.
-    for (final c in [_fixedController, _minController, _maxController]) {
-      c.addListener(() => setState(() => _errorMessage = null));
-    }
+    _priceController.addListener(() => setState(() => _errorMessage = null));
   }
 
   @override
   void dispose() {
-    _fixedController.dispose();
-    _minController.dispose();
-    _maxController.dispose();
+    _priceController.dispose();
     _brandController.dispose();
-    _fixedFocus.dispose();
-    _minFocus.dispose();
+    _priceFocus.dispose();
     super.dispose();
   }
 
@@ -129,53 +113,25 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
   }
 
   bool get _canSubmit {
-    if (_mode == _QuoteMode.fixed) {
-      final p = _value(_fixedController);
-      return p != null && p > 0;
-    }
-    final min = _value(_minController);
-    final max = _value(_maxController);
-    return min != null && max != null && min > 0 && max > 0 && min < max;
+    final p = _value(_priceController);
+    return p != null && p > 0;
   }
 
   void _submit() {
     setState(() => _errorMessage = null);
     final brand = _brandController.text.trim();
 
-    if (_mode == _QuoteMode.fixed) {
-      final price = _value(_fixedController);
-      if (price == null || price <= 0) {
-        setState(() => _errorMessage = 'Ingresa un precio mayor a 0.');
-        return;
-      }
-      HapticFeedback.mediumImpact();
-      Navigator.pop(context, {
-        'isFixedPrice': true,
-        'price': price,
-        if (brand.isNotEmpty) 'brand': brand,
-        if (_selectedImagePath != null) 'photoPath': _selectedImagePath,
-      });
-    } else {
-      final min = _value(_minController);
-      final max = _value(_maxController);
-      if (min == null || min <= 0 || max == null || max <= 0) {
-        setState(() => _errorMessage = 'Completa el rango con montos válidos.');
-        return;
-      }
-      if (min >= max) {
-        setState(() =>
-            _errorMessage = 'El monto máximo debe ser mayor al mínimo.');
-        return;
-      }
-      HapticFeedback.mediumImpact();
-      Navigator.pop(context, {
-        'isFixedPrice': false,
-        'minPrice': min,
-        'maxPrice': max,
-        if (brand.isNotEmpty) 'brand': brand,
-        if (_selectedImagePath != null) 'photoPath': _selectedImagePath,
-      });
+    final price = _value(_priceController);
+    if (price == null || price <= 0) {
+      setState(() => _errorMessage = 'Ingresa un precio mayor a 0.');
+      return;
     }
+    HapticFeedback.mediumImpact();
+    Navigator.pop(context, {
+      'price': price,
+      if (brand.isNotEmpty) 'brand': brand,
+      if (_selectedImagePath != null) 'photoPath': _selectedImagePath,
+    });
   }
 
   @override
@@ -230,82 +186,17 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 18),
-
-              // Toggle Fijo / Rango
-              _ModeToggle(
-                mode: _mode,
-                onChanged: (m) {
-                  HapticFeedback.selectionClick();
-                  setState(() {
-                    _mode = m;
-                    _errorMessage = null;
-                  });
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (m == _QuoteMode.fixed) {
-                      _fixedFocus.requestFocus();
-                    } else {
-                      _minFocus.requestFocus();
-                    }
-                  });
-                },
-              ),
               const SizedBox(height: 26),
 
               // Monto: número grande naranja con $
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 350),
-                switchInCurve: Curves.easeOutBack,
-                switchOutCurve: Curves.easeIn,
-                transitionBuilder: (child, animation) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: ScaleTransition(
-                      scale: Tween<double>(begin: 0.9, end: 1.0).animate(animation),
-                      child: child,
-                    ),
-                  );
-                },
-                child: _mode == _QuoteMode.fixed
-                    ? Padding(
-                        key: const ValueKey('fixed'),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: _AmountField(
-                          controller: _fixedController,
-                          focusNode: _fixedFocus,
-                          autofocus: true,
-                          fontSize: 72,
-                        ),
-                      )
-                    : Padding(
-                        key: const ValueKey('range'),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: _LabeledAmount(
-                                label: 'DESDE',
-                                controller: _minController,
-                                focusNode: _minFocus,
-                              ),
-                            ),
-                            Container(
-                              width: 1,
-                              height: 56,
-                              margin: const EdgeInsets.only(top: 24),
-                              color: AppColors.border,
-                            ),
-                            Expanded(
-                              child: _LabeledAmount(
-                                label: 'HASTA',
-                                controller: _maxController,
-                                focusNode: null,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: _AmountField(
+                  controller: _priceController,
+                  focusNode: _priceFocus,
+                  autofocus: true,
+                  fontSize: 72,
+                ),
               ),
 
               const SizedBox(height: 24),
@@ -451,110 +342,6 @@ class _AmountField extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Monto con etiqueta arriba (para el modo rango).
-class _LabeledAmount extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final FocusNode? focusNode;
-
-  const _LabeledAmount({
-    required this.label,
-    required this.controller,
-    required this.focusNode,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.4,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        _AmountField(
-          controller: controller,
-          focusNode: focusNode,
-          fontSize: 48,
-        ),
-      ],
-    );
-  }
-}
-
-// ── Toggle de modalidad ──────────────────────────────────────────────────────
-
-class _ModeToggle extends StatelessWidget {
-  final _QuoteMode mode;
-  final ValueChanged<_QuoteMode> onChanged;
-
-  const _ModeToggle({required this.mode, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.grey100,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          _segment('Precio fijo', _QuoteMode.fixed),
-          _segment('Rango estimado', _QuoteMode.range),
-        ],
-      ),
-    );
-  }
-
-  Widget _segment(String label, _QuoteMode value) {
-    final selected = mode == value;
-    return Expanded(
-      child: Semantics(
-        button: true,
-        selected: selected,
-        label: label,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => onChanged(value),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            decoration: BoxDecoration(
-              color: selected ? Colors.white : Colors.transparent,
-              borderRadius: BorderRadius.circular(11),
-              boxShadow: selected
-                  ? [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.06),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ]
-                  : [],
-            ),
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: selected ? AppColors.primary : AppColors.textSecondary,
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }

@@ -166,7 +166,7 @@ class ChatRemoteDataSource {
         offerId: json['id'],
         offerStatus: json['status'],
         hasQuote: true,
-        isFixedPrice: true,
+        isInquiry: json['status'] == 'INQUIRY',
         price: json['price'] != null
             ? double.tryParse(json['price'].toString())
             : null,
@@ -225,7 +225,7 @@ class ChatRemoteDataSource {
         offerId: json['offerId'],
         offerStatus: json['offerStatus'],
         hasQuote: json['hasQuote'] ?? false,
-        isFixedPrice: json['isFixedPrice'] ?? false,
+        isInquiry: json['isInquiry'] ?? false,
         price: json['price'] != null
             ? double.tryParse(json['price'].toString())
             : null,
@@ -249,12 +249,12 @@ class ChatRemoteDataSource {
     await _dioClient.patch('conversations/$conversationId/read');
   }
 
+  /// Crea la oferta para la solicitud. Sin [price] abre una consulta
+  /// (INQUIRY): el backend crea la conversación de inmediato y la tienda
+  /// puede chatear antes de cotizar.
   Future<ChatConversationModel> createQuote({
     required String threadId,
-    required bool isFixedPrice,
     double? price,
-    double? minPrice,
-    double? maxPrice,
     String? brand,
     String? photoPath,
   }) async {
@@ -284,39 +284,65 @@ class ChatRemoteDataSource {
 
     final payload = {
       'searchMatchId': searchMatchId,
-      'price': isFixedPrice ? price : minPrice,
-      'message': 'Nueva oferta enviada',
+      if (price != null) 'price': price,
       if (brand != null && brand.isNotEmpty) 'spareBrand': brand,
       if (sparePhotoUrl != null && sparePhotoUrl.isNotEmpty) 'sparePhotoUrl': sparePhotoUrl,
     };
-
 
     final response = await _dioClient.post('offers', data: payload);
     final json = response.data;
     final offerId = json['id'];
 
-    // Automatically create or fetch conversation for this offer
-    final convRes = await _dioClient
-        .post('conversations/from-offer', data: {'offerId': offerId});
-    final realConversationId = convRes.data['id'];
+    // Una INQUIRY ya trae conversationId (creada atómicamente en el backend).
+    // Para ofertas con precio, se crea/recupera vía from-offer.
+    String? realConversationId = json['conversationId'] as String?;
+    if (realConversationId == null) {
+      final convRes = await _dioClient
+          .post('conversations/from-offer', data: {'offerId': offerId});
+      realConversationId = convRes.data['id'] as String;
+    }
 
     return ChatConversationModel(
       id: realConversationId,
       threadId: threadId,
       participantName: 'Mi Tienda',
-      lastMessage: json['message'],
+      lastMessage: json['message'] ?? '',
       unreadCount: 0,
       lastMessageAt: DateTime.parse(json['createdAt']),
       offerId: offerId,
       offerStatus: json['status'],
       hasQuote: true,
-      isFixedPrice: true,
+      isInquiry: json['status'] == 'INQUIRY',
       price: json['price'] != null
           ? double.tryParse(json['price'].toString())
           : null,
       spareBrand: json['spareBrand'],
       sparePhotoUrl: json['sparePhotoUrl'],
     );
+  }
+
+  /// Cotiza (o re-cotiza) una oferta existente desde el chat.
+  /// PATCH /offers/:id — con precio sobre una INQUIRY la promueve a SENT.
+  Future<void> quoteOffer({
+    required String offerId,
+    required double price,
+    String? brand,
+    String? photoPath,
+  }) async {
+    String? sparePhotoUrl = photoPath;
+    if (photoPath != null &&
+        photoPath.isNotEmpty &&
+        !photoPath.startsWith('http://') &&
+        !photoPath.startsWith('https://')) {
+      sparePhotoUrl = await _dioClient.uploadImage(photoPath, folder: 'offers');
+    }
+
+    await _dioClient.patch('offers/$offerId', data: {
+      'price': price,
+      if (brand != null && brand.isNotEmpty) 'spareBrand': brand,
+      if (sparePhotoUrl != null && sparePhotoUrl.isNotEmpty)
+        'sparePhotoUrl': sparePhotoUrl,
+    });
   }
 
   Future<void> buyOffer(String offerId) async {

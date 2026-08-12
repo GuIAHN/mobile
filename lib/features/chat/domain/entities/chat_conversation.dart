@@ -14,10 +14,8 @@ class ChatConversation extends Equatable {
 
   // Pricing Quote Fields
   final bool hasQuote;
-  final bool isFixedPrice;
+  final bool isInquiry;
   final double? price;
-  final double? minPrice;
-  final double? maxPrice;
   final String? spareBrand;
   final String? sparePhotoUrl;
 
@@ -58,10 +56,8 @@ class ChatConversation extends Equatable {
     this.offerId,
     this.offerStatus,
     this.hasQuote = false,
-    this.isFixedPrice = true,
+    this.isInquiry = false,
     this.price,
-    this.minPrice,
-    this.maxPrice,
     this.spareBrand,
     this.sparePhotoUrl,
     this.storeLogoUrl,
@@ -89,12 +85,8 @@ class ChatConversation extends Equatable {
   });
 
   String get formattedPrice {
-    if (!hasQuote) return 'Sin cotizar';
-    if (isFixedPrice) {
-      return '\$${price?.toStringAsFixed(0)}';
-    } else {
-      return '\$${minPrice?.toStringAsFixed(0)} - \$${maxPrice?.toStringAsFixed(0)}';
-    }
+    if (!hasQuote || price == null) return 'Sin cotizar';
+    return '\$${price!.toStringAsFixed(0)}';
   }
 
   /// Distancia legible para chips ("1.2 km"). Null si no hay dato válido.
@@ -116,10 +108,8 @@ class ChatConversation extends Equatable {
         offerId,
         offerStatus,
         hasQuote,
-        isFixedPrice,
+        isInquiry,
         price,
-        minPrice,
-        maxPrice,
         spareBrand,
         sparePhotoUrl,
         storeLogoUrl,

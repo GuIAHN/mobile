@@ -1,20 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/services/location_service.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../providers/home_providers.dart';
+import '../../../../../core/services/location_service.dart';
+import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_spacing.dart';
+import '../../../../auth/presentation/providers/auth_provider.dart';
 
-class HomeHeader extends ConsumerStatefulWidget {
-  const HomeHeader({super.key});
+class HomeHeaderExpanded extends ConsumerStatefulWidget {
+  /// Contenido opcional integrado dentro del bloque de color
+  /// (ej. carrusel de publicidad, estilo Pedidos Ya).
+  final Widget? child;
+
+  /// Muestra el punto indicador sobre la campana de notificaciones.
+  final bool hasUnreadNotifications;
+
+  /// Acción al tocar la campana de notificaciones.
+  final VoidCallback? onNotificationsTap;
+
+  const HomeHeaderExpanded({
+    super.key,
+    this.child,
+    this.hasUnreadNotifications = false,
+    this.onNotificationsTap,
+  });
 
   @override
-  ConsumerState<HomeHeader> createState() => _HomeHeaderState();
+  ConsumerState<HomeHeaderExpanded> createState() => _HomeHeaderExpandedState();
 }
 
-class _HomeHeaderState extends ConsumerState<HomeHeader> {
+class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
   @override
   void initState() {
     super.initState();
@@ -45,7 +62,6 @@ class _HomeHeaderState extends ConsumerState<HomeHeader> {
 
     final service = ref.read(locationServiceProvider);
 
-    // 1. Verificar si el GPS está habilitado
     final isServiceEnabled = await service.isLocationServiceEnabled();
     if (!isServiceEnabled) {
       if (!context.mounted) return;
@@ -53,7 +69,6 @@ class _HomeHeaderState extends ConsumerState<HomeHeader> {
       return;
     }
 
-    // 2. Verificar y solicitar permisos
     var permission = await service.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await service.requestPermission();
@@ -75,7 +90,6 @@ class _HomeHeaderState extends ConsumerState<HomeHeader> {
       return;
     }
 
-    // 3. Activar compartir ubicación
     ref.read(isLocationSharedProvider.notifier).state = true;
     final success =
         await ref.read(userLocationProvider.notifier).updateLocation();
@@ -280,116 +294,166 @@ class _HomeHeaderState extends ConsumerState<HomeHeader> {
   @override
   Widget build(BuildContext context) {
     final isLocationShared = ref.watch(isLocationSharedProvider);
+    final userName = ref.watch(authProvider).user?.name.trim();
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-      child: Row(
-        children: [
-          // Logo + Nombre de la App "GUIA HN" con toques naranja (Todo Mayúsculas)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(
-                'assets/images/logo_icon.png',
-                height: 72,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return const SizedBox.shrink();
-                },
-              ),
-              const SizedBox(width: 10),
-              RichText(
-                text: TextSpan(
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
-                    letterSpacing: -0.5,
-                  ),
-                  children: [
-                    const TextSpan(text: 'GU'),
-                    TextSpan(
-                      text: 'IA',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        shadows: [
-                          Shadow(
-                            color: AppColors.primary.withValues(alpha: 0.25),
-                            offset: const Offset(0, 2),
-                            blurRadius: 4,
+    final statusBarHeight = MediaQuery.of(context).padding.top;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.only(
+          top: statusBarHeight + AppSpacing.sm,
+          bottom: AppSpacing.xl,
+        ),
+        decoration: const BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(28),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Fila superior: dirección + ubicación ──────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Row(
+                children: [
+                  // Ubicación (tappable para compartir/dejar de compartir)
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _handleLocationToggle(context),
+                      behavior: HitTestBehavior.opaque,
+                      child: Row(
+                        children: [
+                          Icon(
+                            isLocationShared
+                                ? Icons.location_on
+                                : Icons.location_on_outlined,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'Calle Geminis Don Emilio',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: Colors.white,
+                            size: 20,
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryLight],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(6),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.25),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
+
+                  const SizedBox(width: 8),
+
+                  // Notificaciones
+                  _NotificationButton(
+                    hasUnread: widget.hasUnreadNotifications,
+                    onTap: widget.onNotificationsTap,
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Saludo personalizado ───────────────────────────────────
+            if (userName != null && userName.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Text(
-                  'HN',
+                  'Hola, $userName !',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.hankenGrotesk(
-                    fontSize: 12,
+                    fontSize: 22,
                     fontWeight: FontWeight.w900,
                     color: Colors.white,
-                    letterSpacing: 0.5,
+                    letterSpacing: -0.3,
                   ),
                 ),
               ),
             ],
-          ),
-          const Spacer(),
-          // Toggle de Compartir Ubicación
-          GestureDetector(
-            onTap: () => _handleLocationToggle(context),
-            behavior: HitTestBehavior.opaque,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isLocationShared ? AppColors.primaryMuted : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color:
-                      isLocationShared ? AppColors.primary : AppColors.border,
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+
+            // ── Publicidad integrada dentro del bloque de color ────────────
+            if (widget.child != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: widget.child!,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Botón de notificaciones del header, con punto indicador de no leídas.
+class _NotificationButton extends StatelessWidget {
+  final bool hasUnread;
+  final VoidCallback? onTap;
+
+  const _NotificationButton({
+    required this.hasUnread,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: hasUnread
+          ? 'Notificaciones, tienes notificaciones sin leer'
+          : 'Notificaciones',
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(
+                Icons.notifications_outlined,
+                color: Colors.white,
+                size: 24,
+              ),
+              if (hasUnread)
+                Positioned(
+                  right: 1,
+                  top: 1,
+                  child: Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppColors.primary,
+                        width: 1.5,
+                      ),
+                    ),
                   ),
-                ],
-              ),
-              child: Icon(
-                isLocationShared
-                    ? Icons.location_on
-                    : Icons.location_on_outlined,
-                color: isLocationShared
-                    ? AppColors.primary
-                    : AppColors.textSecondary,
-                size: 20,
-              ),
-            ),
+                ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

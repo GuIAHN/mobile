@@ -313,8 +313,10 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                 if (details.offerId != null) ...[
                   const SizedBox(height: 12),
 
-                  // 1. Consumidor: Comprar Ahora
-                  if (!isStore && (!isBought && !isDelivered))
+                  // 1. Consumidor: Comprar Ahora (solo si ya hay precio)
+                  if (!isStore &&
+                      !details.isInquiry &&
+                      (!isBought && !isDelivered))
                     SizedBox(
                       width: double.infinity,
                       height: 42,

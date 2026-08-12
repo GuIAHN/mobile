@@ -89,6 +89,7 @@ class StoreDashboardView extends ConsumerWidget {
             crossAxisCount: 2,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
             mainAxisSpacing: 10,
             crossAxisSpacing: 10,
             childAspectRatio: 1.4,
@@ -246,6 +247,7 @@ class StoreDashboardView extends ConsumerWidget {
         GridView.count(
           crossAxisCount: 2,
           shrinkWrap: true,
+          padding: EdgeInsets.zero,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,

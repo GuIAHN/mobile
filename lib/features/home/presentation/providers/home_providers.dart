@@ -249,6 +249,25 @@ final homeItemsProvider =
   );
 });
 
+/// Top proveedores (mejor calificados y más cercanos) por tipo de servicio.
+/// Se usa en las secciones destacadas del home, independiente de los filtros
+/// de las pantallas de listado.
+final topProvidersProvider =
+    Provider.autoDispose.family<AsyncValue<List<HomeItem>>, ServiceType>(
+        (ref, type) {
+  final itemsAsync = ref.watch(homeItemsProvider(type));
+
+  return itemsAsync.whenData((items) {
+    final list = List<HomeItem>.from(items)
+      ..sort((a, b) {
+        final byRating = b.rating.compareTo(a.rating);
+        if (byRating != 0) return byRating;
+        return a.distanceKm.compareTo(b.distanceKm);
+      });
+    return list.take(6).toList();
+  });
+});
+
 /// Perfil completo de un proveedor (mecánico o taller) — para pantalla de detalle.
 final providerDetailProvider = FutureProvider.autoDispose
     .family<ProviderDetail, ({String id, ServiceType type})>(

@@ -11,6 +11,7 @@ import '../../domain/usecases/get_conversations_usecase.dart';
 import '../../domain/usecases/get_messages_usecase.dart';
 import '../../domain/usecases/send_message_usecase.dart';
 import '../../domain/usecases/create_quote_usecase.dart';
+import '../../domain/usecases/quote_offer_usecase.dart';
 import '../../domain/usecases/buy_offer_usecase.dart';
 import '../../domain/usecases/deliver_offer_usecase.dart';
 import '../../domain/usecases/mark_as_read_usecase.dart';
@@ -55,6 +56,10 @@ final sendMessageUseCaseProvider = Provider<SendMessageUseCase>((ref) {
 
 final createQuoteUseCaseProvider = Provider<CreateQuoteUseCase>((ref) {
   return CreateQuoteUseCase(ref.watch(chatRepositoryProvider));
+});
+
+final quoteOfferUseCaseProvider = Provider<QuoteOfferUseCase>((ref) {
+  return QuoteOfferUseCase(ref.watch(chatRepositoryProvider));
 });
 
 final buyOfferUseCaseProvider = Provider<BuyOfferUseCase>((ref) {

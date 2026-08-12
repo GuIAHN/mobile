@@ -104,9 +104,7 @@ class ChatConversationCard extends StatelessWidget {
 
                     // Precio protagonista
                     PriceText(
-                      amount: conv.isFixedPrice ? conv.price : null,
-                      minAmount: conv.isFixedPrice ? null : conv.minPrice,
-                      maxAmount: conv.isFixedPrice ? null : conv.maxPrice,
+                      amount: conv.price,
                       style: CardTokens.priceHero,
                     ),
                   ],

@@ -105,11 +105,7 @@ class StoreChatCard extends StatelessWidget {
                     Flexible(child: StatusBadge(status: status)),
                     const Spacer(),
                     if (conv.hasQuote)
-                      PriceText(
-                        amount: conv.isFixedPrice ? conv.price : null,
-                        minAmount: conv.isFixedPrice ? null : conv.minPrice,
-                        maxAmount: conv.isFixedPrice ? null : conv.maxPrice,
-                      ),
+                      PriceText(amount: conv.price),
                   ],
                 ),
 

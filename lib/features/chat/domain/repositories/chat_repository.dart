@@ -19,10 +19,14 @@ abstract class ChatRepository {
   
   Future<Either<Failure, ChatConversation>> createQuote({
     required String threadId,
-    required bool isFixedPrice,
     double? price,
-    double? minPrice,
-    double? maxPrice,
+    String? brand,
+    String? photoPath,
+  });
+
+  Future<Either<Failure, void>> quoteOffer({
+    required String offerId,
+    required double price,
     String? brand,
     String? photoPath,
   });

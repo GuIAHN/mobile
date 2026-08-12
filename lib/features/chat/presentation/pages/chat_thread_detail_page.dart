@@ -8,7 +8,6 @@ import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../providers/chat_providers.dart';
 import '../widgets/chat_conversation_card.dart';
-import '../widgets/quote_input_dialog.dart';
 import '../../domain/entities/chat_thread.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/staggered_entrance.dart';
@@ -165,8 +164,8 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
                       if (!a.hasQuote && !b.hasQuote) return 0;
                       if (!a.hasQuote) return 1;
                       if (!b.hasQuote) return -1;
-                      final priceA = a.isFixedPrice ? (a.price ?? double.infinity) : (a.minPrice ?? double.infinity);
-                      final priceB = b.isFixedPrice ? (b.price ?? double.infinity) : (b.minPrice ?? double.infinity);
+                      final priceA = a.price ?? double.infinity;
+                      final priceB = b.price ?? double.infinity;
                       return priceA.compareTo(priceB);
                     case _SortOption.distanceAsc:
                       final distA = a.distanceKm ?? double.infinity;
@@ -540,42 +539,25 @@ class _RequestSummaryCard extends StatelessWidget {
           else
             ElevatedButton(
               onPressed: () async {
-                final result = await QuoteInputDialog.show(context, thread.title);
-                if (result != null) {
-                  final isFixed = result['isFixedPrice'] as bool;
-                  final price = result['price'] as double?;
-                  final minPrice = result['minPrice'] as double?;
-                  final maxPrice = result['maxPrice'] as double?;
-                  final brand = result['brand'] as String?;
-                  final photoPath = result['photoPath'] as String?;
+                // Abre una consulta (INQUIRY) sin precio: el backend crea la
+                // conversación de inmediato para chatear antes de cotizar.
+                final useCase = ref.read(createQuoteUseCaseProvider);
+                final quoteRes = await useCase(threadId: thread.id);
 
-                  final useCase = ref.read(createQuoteUseCaseProvider);
-                  final quoteRes = await useCase(
-                    threadId: thread.id,
-                    isFixedPrice: isFixed,
-                    price: price,
-                    minPrice: minPrice,
-                    maxPrice: maxPrice,
-                    brand: brand,
-                    photoPath: photoPath,
-                  );
-
-                  quoteRes.fold(
-                    (failure) {
-                      context.showSnackBar(
-                        'Error al enviar cotización: ${failure.message}',
-                        isError: true,
-                      );
-                    },
-                    (newConv) {
-                      context.showSnackBar('¡Oferta enviada con éxito!');
-                      ref.invalidate(chatConversationsProvider(thread.id));
-                      ref.invalidate(chatThreadsProvider);
-                      ref.invalidate(myConversationsProvider);
-                      context.pushReplacement('/chats/${thread.id}/${newConv.id}');
-                    },
-                  );
-                }
+                quoteRes.fold(
+                  (failure) {
+                    context.showSnackBar(
+                      'Error al iniciar chat: ${failure.message}',
+                      isError: true,
+                    );
+                  },
+                  (newConv) {
+                    ref.invalidate(chatConversationsProvider(thread.id));
+                    ref.invalidate(chatThreadsProvider);
+                    ref.invalidate(myConversationsProvider);
+                    context.pushReplacement('/chats/${thread.id}/${newConv.id}');
+                  },
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
@@ -590,10 +572,10 @@ class _RequestSummaryCard extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.send_rounded, size: 20),
+                  const Icon(Icons.chat_bubble_outline_rounded, size: 20),
                   const SizedBox(width: 10),
                   Text(
-                    'ENVIAR OFERTA AL CLIENTE',
+                    'INICIAR CHAT CON EL CLIENTE',
                     style: GoogleFonts.hankenGrotesk(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,

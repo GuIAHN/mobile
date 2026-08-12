@@ -12,8 +12,6 @@ import 'card_tokens.dart';
 /// Siempre usa [Formatters.currency] + cifras tabulares (vía [CardTokens]).
 class PriceText extends StatelessWidget {
   final double? amount;
-  final double? minAmount;
-  final double? maxAmount;
 
   /// Estilo del precio. Por defecto [CardTokens.price]; usar
   /// [CardTokens.priceHero] cuando el precio es el elemento dominante.
@@ -25,22 +23,13 @@ class PriceText extends StatelessWidget {
   const PriceText({
     super.key,
     this.amount,
-    this.minAmount,
-    this.maxAmount,
     this.style,
     this.fallback = 'Sin cotizar',
   });
 
   @override
   Widget build(BuildContext context) {
-    final String text;
-    if (amount != null) {
-      text = Formatters.currency(amount!);
-    } else if (minAmount != null && maxAmount != null) {
-      text = '${Formatters.currency(minAmount!)} - ${Formatters.currency(maxAmount!)}';
-    } else {
-      text = fallback;
-    }
+    final String text = amount != null ? Formatters.currency(amount!) : fallback;
 
     return Text(
       text,

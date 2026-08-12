@@ -9,6 +9,7 @@ import '../widgets/active_offer_header_card.dart';
 import '../widgets/confirm_purchase_dialog.dart';
 import '../widgets/moderation_blocked_dialog.dart';
 import '../widgets/store_contact_sheet.dart';
+import '../widgets/quote_input_dialog.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
@@ -32,6 +33,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
   final _scrollController = ScrollController();
   bool _canSend = false;
   bool _isSending = false;
+  bool _isQuoting = false;
 
   @override
   void initState() {
@@ -108,16 +110,50 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
     }
   }
 
+  Future<void> _quoteFromChat(String offerId, String requestTitle) async {
+    final result = await QuoteInputDialog.show(context, requestTitle);
+    if (result == null) return;
+
+    setState(() => _isQuoting = true);
+    final scaffold = ScaffoldMessenger.of(context);
+    try {
+      final useCase = ref.read(quoteOfferUseCaseProvider);
+      final res = await useCase(
+        offerId: offerId,
+        price: result['price'] as double,
+        brand: result['brand'] as String?,
+        photoPath: result['photoPath'] as String?,
+      );
+      res.fold(
+        (failure) {
+          scaffold.showSnackBar(
+            SnackBar(
+              content: Text('Error al cotizar: ${failure.message}'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        },
+        (_) {
+          scaffold.showSnackBar(const SnackBar(
+            content: Text('¡Cotización enviada con éxito!'),
+            backgroundColor: AppColors.success,
+          ));
+          ref.invalidate(
+              chatConversationDetailsProvider(widget.conversationId));
+          ref.invalidate(myConversationsProvider);
+        },
+      );
+    } finally {
+      if (mounted) setState(() => _isQuoting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final messagesAsync =
         ref.watch(chatMessagesProvider(widget.conversationId));
     final currentRole = ref.watch(currentRoleProvider);
     final isStore = currentRole == UserRole.store;
-
-    final isLockedForStore = isStore &&
-        messagesAsync.hasValue &&
-        !(messagesAsync.value ?? []).any((m) => !m.isFromMe);
 
     // Scroll to bottom when data initially loads or updates
     ref.listen(chatMessagesProvider(widget.conversationId), (prev, next) {
@@ -210,6 +246,54 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
       body: SafeArea(
         child: Column(
           children: [
+            // ── Cotizar ahora (tienda, oferta en INQUIRY) ────────────────────
+            // Arriba y separado del compositor para evitar toques accidentales
+            // cerca del botón de enviar mensaje.
+            if (isStore &&
+                detailsAsync.valueOrNull?.isInquiry == true &&
+                detailsAsync.valueOrNull?.offerId != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                color: Colors.white,
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: ElevatedButton.icon(
+                    onPressed: _isQuoting
+                        ? null
+                        : () => _quoteFromChat(
+                              detailsAsync.valueOrNull!.offerId!,
+                              detailsAsync.valueOrNull!.subcategoryName ??
+                                  'la solicitud',
+                            ),
+                    icon: _isQuoting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.local_offer_rounded, size: 18),
+                    label: Text(
+                      'Cotizar ahora',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
             // ── Active Offer Header ─────────────────────────────────────────
             if (detailsAsync.valueOrNull != null &&
                 detailsAsync.valueOrNull!.hasQuote)
@@ -344,129 +428,91 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
             ),
 
             // ── Compose box ───────────────────────────────────────────────
-            if (isLockedForStore)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border(
-                    top: BorderSide(
-                        color: AppColors.border.withValues(alpha: 0.8)),
-                  ),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.grey50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: AppColors.border)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
                     children: [
-                      const Icon(
-                        Icons.lock_outline_rounded,
-                        color: AppColors.textSecondary,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          'El chat se activará cuando el cliente responda a tu cotización.',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
-                            height: 1.3,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: TextField(
+                            controller: _messageController,
+                            minLines: 1,
+                            maxLines: 5,
+                            textCapitalization: TextCapitalization.sentences,
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textPrimary,
+                            ),
+                            decoration: InputDecoration(
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
+                              hintText: 'Escribe un mensaje...',
+                              hintStyle: GoogleFonts.hankenGrotesk(
+                                fontSize: 15,
+                                color: AppColors.textDisabled,
+                              ),
+                            ),
+                            onSubmitted: (_) => _sendMessage(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Send Button
+                      Semantics(
+                        button: true,
+                        label: 'Enviar mensaje',
+                        child: GestureDetector(
+                          onTap: (_canSend && !_isSending)
+                              ? _sendMessage
+                              : null,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: _canSend
+                                  ? AppColors.primary
+                                  : AppColors.grey300,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: _isSending
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Icon(
+                                    Icons.send_rounded,
+                                    color: _canSend
+                                        ? Colors.white
+                                        : AppColors.textDisabled,
+                                    size: 18,
+                                  ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border(top: BorderSide(color: AppColors.border)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: TextField(
-                          controller: _messageController,
-                          minLines: 1,
-                          maxLines: 5,
-                          textCapitalization: TextCapitalization.sentences,
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textPrimary,
-                          ),
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                            hintText: 'Escribe un mensaje...',
-                            hintStyle: GoogleFonts.hankenGrotesk(
-                              fontSize: 15,
-                              color: AppColors.textDisabled,
-                            ),
-                          ),
-                          onSubmitted: (_) => _sendMessage(),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    // Send Button
-                    Semantics(
-                      button: true,
-                      label: 'Enviar mensaje',
-                      child: GestureDetector(
-                        onTap: (_canSend && !_isSending)
-                            ? _sendMessage
-                            : null,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: _canSend
-                                ? AppColors.primary
-                                : AppColors.grey300,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: _isSending
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Icon(
-                                  Icons.send_rounded,
-                                  color: _canSend
-                                      ? Colors.white
-                                      : AppColors.textDisabled,
-                                  size: 18,
-                                ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
+            ),
           ],
         ),
       ),

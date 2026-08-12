@@ -73,24 +73,38 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<Either<Failure, ChatConversation>> createQuote({
     required String threadId,
-    required bool isFixedPrice,
     double? price,
-    double? minPrice,
-    double? maxPrice,
     String? brand,
     String? photoPath,
   }) async {
     try {
       final conversation = await remoteDataSource.createQuote(
         threadId: threadId,
-        isFixedPrice: isFixedPrice,
         price: price,
-        minPrice: minPrice,
-        maxPrice: maxPrice,
         brand: brand,
         photoPath: photoPath,
       );
       return Right(conversation);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> quoteOffer({
+    required String offerId,
+    required double price,
+    String? brand,
+    String? photoPath,
+  }) async {
+    try {
+      await remoteDataSource.quoteOffer(
+        offerId: offerId,
+        price: price,
+        brand: brand,
+        photoPath: photoPath,
+      );
+      return const Right(null);
     } catch (e) {
       return Left(ErrorMapper.map(e));
     }
