@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
 import 'package:guiautomotriz_mobile/core/providers/current_user_provider.dart';
+import 'package:guiautomotriz_mobile/core/theme/app_colors.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/navigation/bottom_nav_bar.dart';
 
@@ -54,6 +55,34 @@ void main() {
         description: 'official guIAutomotriz logo image',
       );
 
+  Rect visualRect(WidgetTester tester, Finder finder) => Rect.fromPoints(
+        tester.getTopLeft(finder),
+        tester.getBottomRight(finder),
+      );
+
+  TextPainter labelPainter(WidgetTester tester, String label) {
+    final finder = find.text(label);
+    final text = tester.widget<Text>(finder);
+    final context = tester.element(finder);
+    final inheritedStyle = DefaultTextStyle.of(context).style;
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text.data,
+        style: inheritedStyle.merge(text.style),
+      ),
+      textAlign: text.textAlign ?? TextAlign.start,
+      textDirection: text.textDirection ?? Directionality.of(context),
+      textScaler: text.textScaler ?? MediaQuery.textScalerOf(context),
+      maxLines: text.maxLines,
+      ellipsis: text.overflow == TextOverflow.ellipsis ? '\u2026' : null,
+      locale: text.locale ?? Localizations.localeOf(context),
+      strutStyle: text.strutStyle,
+      textWidthBasis: text.textWidthBasis ?? TextWidthBasis.parent,
+      textHeightBehavior: text.textHeightBehavior,
+    )..layout(maxWidth: tester.getSize(finder).width);
+    return painter;
+  }
+
   testWidgets('consumer nav exposes approved labels and five positions',
       (tester) async {
     final container = containerFor(role: UserRole.consumer);
@@ -65,27 +94,92 @@ void main() {
       expect(find.text(label), findsOneWidget);
     }
     expect(logoFinder(), findsOneWidget);
-    expect(tester.getSize(logoFinder()), const Size.square(64));
+    final navRect = tester.getRect(find.byType(BottomNavBar));
+    final logoRect = visualRect(tester, logoFinder());
+    expect(logoRect.size, const Size.square(64));
+    expect(logoRect.left, greaterThanOrEqualTo(navRect.left));
+    expect(logoRect.top, greaterThanOrEqualTo(navRect.top));
+    expect(logoRect.right, lessThanOrEqualTo(navRect.right));
+    expect(logoRect.bottom, lessThanOrEqualTo(navRect.bottom));
+    expect(logoRect.center.dx, closeTo(navRect.center.dx, 0.01));
 
-    final centers = <double>[
-      tester.getCenter(find.text('Inicio')).dx,
-      tester.getCenter(find.text('Chats')).dx,
-      tester.getCenter(logoFinder()).dx,
-      tester.getCenter(find.text('Compras')).dx,
-      tester.getCenter(find.text('Perfil')).dx,
+    final slotRects = <Rect>[
+      tester.getRect(find.bySemanticsLabel('Inicio')),
+      tester.getRect(find.bySemanticsLabel('Chats')),
+      tester.getRect(find.bySemanticsLabel('Compras')),
+      tester.getRect(find.bySemanticsLabel('Perfil')),
     ];
-    expect(centers, orderedEquals([...centers]..sort()));
-
-    final navStack = find.byWidgetPredicate(
-      (widget) =>
-          widget is Stack &&
-          widget.alignment == Alignment.topCenter &&
-          widget.clipBehavior == Clip.none,
-      description: 'bottom navigation Stack',
+    for (final slot in slotRects.skip(1)) {
+      expect(slot.width, closeTo(slotRects.first.width, 0.01));
+    }
+    expect(
+      (slotRects[0].center.dx + slotRects[3].center.dx) / 2,
+      closeTo(logoRect.center.dx, 0.01),
     );
-    final stackTop = tester.getTopLeft(navStack).dy;
-    expect(tester.getTopLeft(logoFinder()).dy, stackTop - 12);
+    expect(
+      (slotRects[1].center.dx + slotRects[2].center.dx) / 2,
+      closeTo(logoRect.center.dx, 0.01),
+    );
+    final leftGap = logoRect.left - slotRects[1].right;
+    final rightGap = slotRects[2].left - logoRect.right;
+    expect(leftGap, greaterThanOrEqualTo(0));
+    expect(rightGap, closeTo(leftGap, 0.01));
+
+    final barMaterial = find.byWidgetPredicate(
+      (widget) => widget is Material && widget.color == AppColors.surface,
+      description: 'bottom navigation surface',
+    );
+    expect(barMaterial, findsOneWidget);
+    expect(
+      tester.getTopLeft(barMaterial).dy - logoRect.top,
+      kBottomNavOverhang + 12,
+    );
   });
+
+  for (final edge in const ['top', 'bottom', 'left', 'right']) {
+    testWidgets('center logo responds at its $edge edge', (tester) async {
+      final container = containerFor(
+        role: UserRole.consumer,
+        initialTab: 1,
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(subject(container));
+
+      final rect = tester.getRect(find.bySemanticsLabel(logoSemantics));
+      final point = switch (edge) {
+        'top' => Offset(rect.center.dx, rect.top + 1),
+        'bottom' => Offset(rect.center.dx, rect.bottom - 1),
+        'left' => Offset(rect.left + 1, rect.center.dy),
+        'right' => Offset(rect.right - 1, rect.center.dy),
+        _ => throw StateError('Unknown edge: $edge'),
+      };
+
+      await tester.tapAt(point);
+      await tester.pump();
+      expect(container.read(homeTabProvider), 0);
+    });
+  }
+
+  for (final initialTab in const [0, 1]) {
+    testWidgets(
+        'logo visual bounds remain exactly 64 dp on tab $initialTab at rest',
+        (tester) async {
+      final container = containerFor(
+        role: UserRole.consumer,
+        initialTab: initialTab,
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(subject(container));
+      await tester.pumpAndSettle();
+
+      expect(
+        visualRect(tester, logoFinder()).size,
+        const Size.square(64),
+      );
+    });
+  }
 
   testWidgets('consumer actions keep their tab mapping and logo returns home',
       (tester) async {
@@ -171,10 +265,11 @@ void main() {
     }
   });
 
-  testWidgets('reduced motion disables logo scaling', (tester) async {
+  testWidgets('reduced motion keeps logo geometry stable across selection',
+      (tester) async {
     final container = containerFor(
       role: UserRole.consumer,
-      initialTab: 1,
+      initialTab: 0,
     );
     addTearDown(container.dispose);
 
@@ -182,47 +277,124 @@ void main() {
       subject(container, disableAnimations: true),
     );
 
-    final animatedScale =
-        tester.widget<AnimatedScale>(find.byType(AnimatedScale));
-    expect(animatedScale.scale, 1);
-    expect(animatedScale.duration, Duration.zero);
+    final selectedRect = visualRect(tester, logoFinder());
+    container.read(homeTabProvider.notifier).state = 1;
+    await tester.pump();
+    final unselectedRect = visualRect(tester, logoFinder());
+    final opacity =
+        tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity));
+
+    expect(selectedRect.size, const Size.square(64));
+    expect(unselectedRect, selectedRect);
+    expect(opacity.duration, Duration.zero);
   });
 
-  testWidgets('nav fits small and large phones with scaled text and safe area',
+  testWidgets('all labels fit at 2x on representative phone widths',
       (tester) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
     final originalOnError = FlutterError.onError;
     final errors = <FlutterErrorDetails>[];
+    final truncatedLabels = <String>[];
+    final outOfSlotLabels = <String>[];
+    final containers = <ProviderContainer>[];
     FlutterError.onError = errors.add;
     try {
       for (final configuration in const [
-        (width: 320.0, height: 700.0, scale: 2.0, safeArea: 24.0),
-        (width: 430.0, height: 932.0, scale: 1.3, safeArea: 34.0),
+        (width: 320.0, height: 700.0),
+        (width: 375.0, height: 812.0),
+        (width: 430.0, height: 932.0),
       ]) {
+        tester.view.physicalSize = Size(
+          configuration.width,
+          configuration.height,
+        );
         final container = containerFor(role: UserRole.consumer);
+        containers.add(container);
         await tester.pumpWidget(
           subject(
             container,
             width: configuration.width,
             height: configuration.height,
-            textScale: configuration.scale,
-            bottomSafeArea: configuration.safeArea,
+            textScale: 2,
+            bottomSafeArea: 34,
           ),
         );
         await tester.pump();
 
-        expect(find.text('Compras'), findsOneWidget);
-        expect(
-          bottomNavContentInset(
-            tester.element(find.byType(BottomNavBar)),
-          ),
-          kBottomNavBarHeight + configuration.safeArea,
-        );
-        container.dispose();
+        for (final label in const ['Inicio', 'Chats', 'Compras', 'Perfil']) {
+          if (labelPainter(tester, label).didExceedMaxLines) {
+            truncatedLabels.add('${configuration.width}:$label');
+          }
+          final labelRect = visualRect(tester, find.text(label));
+          final slotRect = tester.getRect(find.bySemanticsLabel(label));
+          if (labelRect.left < slotRect.left - 0.01 ||
+              labelRect.top < slotRect.top - 0.01 ||
+              labelRect.right > slotRect.right + 0.01 ||
+              labelRect.bottom > slotRect.bottom + 0.01) {
+            outOfSlotLabels.add('${configuration.width}:$label');
+          }
+        }
       }
+      await tester.pumpWidget(const SizedBox.shrink());
     } finally {
       FlutterError.onError = originalOnError;
+      for (final container in containers) {
+        container.dispose();
+      }
     }
 
     expect(errors, isEmpty);
+    expect(truncatedLabels, isEmpty);
+    expect(outOfSlotLabels, isEmpty);
+  });
+
+  testWidgets('safe area moves every bar action above the system inset',
+      (tester) async {
+    const height = 812.0;
+    const safeArea = 34.0;
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(375, height);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final noInsetContainer = containerFor(role: UserRole.consumer);
+    final insetContainer = containerFor(role: UserRole.consumer);
+    addTearDown(noInsetContainer.dispose);
+    addTearDown(insetContainer.dispose);
+
+    await tester.pumpWidget(subject(noInsetContainer, height: height));
+    final baselineBottoms = <String, double>{
+      for (final label in const [
+        'Inicio',
+        'Chats',
+        'Compras',
+        'Perfil',
+        logoSemantics,
+      ])
+        label: tester.getRect(find.bySemanticsLabel(label)).bottom,
+    };
+
+    await tester.pumpWidget(
+      subject(
+        insetContainer,
+        height: height,
+        bottomSafeArea: safeArea,
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.getRect(find.byType(BottomNavBar)).bottom, height);
+    for (final label in const [
+      'Inicio',
+      'Chats',
+      'Compras',
+      'Perfil',
+      logoSemantics,
+    ]) {
+      final insetBottom = tester.getRect(find.bySemanticsLabel(label)).bottom;
+      expect(insetBottom, lessThanOrEqualTo(height - safeArea));
+      expect(baselineBottoms[label]! - insetBottom, closeTo(safeArea, 0.01));
+    }
   });
 }

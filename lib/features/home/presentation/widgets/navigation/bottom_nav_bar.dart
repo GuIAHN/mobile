@@ -47,7 +47,9 @@ class BottomNavBar extends ConsumerWidget {
       children: [
         // ── Barra ────────────────────────────────────────────────────────────
         Padding(
-          padding: const EdgeInsets.only(top: kBottomNavOverhang),
+          padding: const EdgeInsets.only(
+            top: kBottomNavOverhang + _kLogoLift,
+          ),
           child: Material(
             // Solo la barra tiene fondo. La franja superior (overhang) queda
             // transparente para que el contenido de la app se vea continuo
@@ -105,7 +107,7 @@ class BottomNavBar extends ConsumerWidget {
 
         // ── Logo central sobresaliente ───────────────────────────────────────
         Positioned(
-          top: -_kLogoLift,
+          top: 0,
           child: _CenterLogoButton(
             isSelected: activeTab == 0,
             onTap: () => selectTab(0),
@@ -147,8 +149,8 @@ class _CenterLogoButton extends StatelessWidget {
           onTap: onTap,
           child: SizedBox.square(
             dimension: _kLogoSize,
-            child: AnimatedScale(
-              scale: reduceMotion ? 1 : (isSelected ? 1.0 : 0.92),
+            child: AnimatedOpacity(
+              opacity: isSelected ? 1 : 0.88,
               duration: reduceMotion
                   ? Duration.zero
                   : const Duration(milliseconds: 200),
@@ -222,17 +224,22 @@ class _NavItem extends StatelessWidget {
                       isSelected ? AppColors.primary : AppColors.textSecondary,
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 11,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                    color: isSelected
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                    letterSpacing: 0.2,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.visible,
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 11,
+                      fontWeight:
+                          isSelected ? FontWeight.w800 : FontWeight.w600,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      letterSpacing: 0.2,
+                    ),
                   ),
                 ),
               ],
