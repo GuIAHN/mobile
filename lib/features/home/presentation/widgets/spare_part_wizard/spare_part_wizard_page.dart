@@ -34,15 +34,31 @@ part 'spare_part_wizard_step2.dart';
 part 'spare_part_wizard_step3.dart';
 
 class SparePartWizardPage extends ConsumerStatefulWidget {
+  final UserCar? initialVehicle;
+  final String? initialVariantId;
   final VoidCallback? onSubmitted;
 
-  const SparePartWizardPage({super.key, this.onSubmitted});
+  const SparePartWizardPage({
+    super.key,
+    this.initialVehicle,
+    this.initialVariantId,
+    this.onSubmitted,
+  });
 
-  static Future<void> show(BuildContext context, {VoidCallback? onSubmitted}) {
+  static Future<void> show(
+    BuildContext context, {
+    UserCar? initialVehicle,
+    String? initialVariantId,
+    VoidCallback? onSubmitted,
+  }) {
     return Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => SparePartWizardPage(onSubmitted: onSubmitted),
+        builder: (_) => SparePartWizardPage(
+          initialVehicle: initialVehicle,
+          initialVariantId: initialVariantId,
+          onSubmitted: onSubmitted,
+        ),
       ),
     );
   }
@@ -67,6 +83,8 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
   @override
   void initState() {
     super.initState();
+    _selectedVehicle = widget.initialVehicle;
+    _temporaryModelId = widget.initialVariantId;
     _detailsController.addListener(() => setState(() {}));
   }
 

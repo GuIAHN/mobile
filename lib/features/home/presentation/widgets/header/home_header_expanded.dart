@@ -8,6 +8,10 @@ import '../../../../../core/services/location_service.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../vehicles/domain/entities/user_car.dart';
+import '../../../../vehicles/presentation/providers/vehicle_providers.dart';
+import '../../../../vehicles/presentation/widgets/garage_vehicle_selector_sheet.dart';
+import '../../providers/home_providers.dart';
 
 class HomeHeaderExpanded extends ConsumerStatefulWidget {
   /// Contenido opcional integrado dentro del bloque de color
@@ -291,10 +295,29 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
     );
   }
 
+  Future<void> _handleVehicleSelection(
+    BuildContext context,
+    UserCar? selectedVehicle,
+  ) async {
+    final result = await GarageVehicleSelectorSheet.show(
+      context,
+      selectedCar: selectedVehicle,
+    );
+    if (!mounted || result == null) return;
+
+    ref.read(searchVehicleProvider.notifier).state = result.car;
+    ref.read(searchVehicleVariantIdProvider.notifier).state = result.variantId;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLocationShared = ref.watch(isLocationSharedProvider);
     final userName = ref.watch(authProvider).user?.name.trim();
+    final selectedSearchVehicle = ref.watch(searchVehicleProvider);
+    final garageCars = ref.watch(userCarsProvider).valueOrNull;
+    final fallbackVehicle =
+        garageCars == null || garageCars.isEmpty ? null : garageCars.first;
+    final selectedVehicle = selectedSearchVehicle ?? fallbackVehicle;
 
     final statusBarHeight = MediaQuery.of(context).padding.top;
 
@@ -307,7 +330,7 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
           bottom: AppSpacing.xl,
         ),
         decoration: const BoxDecoration(
-          color: AppColors.primary,
+          color: AppColors.primaryDark,
           borderRadius: BorderRadius.vertical(
             bottom: Radius.circular(28),
           ),
@@ -315,79 +338,161 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Fila superior: dirección + ubicación ──────────────────────
+            // ── Fila superior: ubicación + notificaciones ────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Row(
                 children: [
                   // Ubicación (tappable para compartir/dejar de compartir)
                   Expanded(
-                    child: GestureDetector(
-                      onTap: () => _handleLocationToggle(context),
-                      behavior: HitTestBehavior.opaque,
-                      child: Row(
-                        children: [
-                          Icon(
-                            isLocationShared
-                                ? Icons.location_on
-                                : Icons.location_on_outlined,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              'Calle Geminis Don Emilio',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.hankenGrotesk(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                                letterSpacing: -0.2,
-                              ),
+                    child: Semantics(
+                      button: true,
+                      excludeSemantics: true,
+                      label: isLocationShared
+                          ? 'Desactivar ubicación'
+                          : 'Activar ubicación',
+                      child: SizedBox(
+                        key: const Key('home-location-control'),
+                        height: AppSpacing.xl5,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => _handleLocationToggle(context),
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.radiusMd),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isLocationShared
+                                      ? Icons.location_on
+                                      : Icons.location_on_outlined,
+                                  color: AppColors.textOnPrimary,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Flexible(
+                                  child: Text(
+                                    isLocationShared
+                                        ? 'Ubicación activada'
+                                        : 'Ubicación desactivada',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.hankenGrotesk(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textOnPrimary,
+                                      letterSpacing: -0.2,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
 
-                  const SizedBox(width: 8),
-
-                  // Notificaciones
-                  _NotificationButton(
-                    hasUnread: widget.hasUnreadNotifications,
-                    onTap: widget.onNotificationsTap,
-                  ),
+                  if (widget.onNotificationsTap != null) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    _NotificationButton(
+                      hasUnread: widget.hasUnreadNotifications,
+                      onTap: widget.onNotificationsTap!,
+                    ),
+                  ],
                 ],
               ),
             ),
 
             // ── Saludo personalizado ───────────────────────────────────
             if (userName != null && userName.isNotEmpty) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: AppSpacing.sm),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Text(
-                  'Hola, $userName !',
+                  'Hola, $userName',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.hankenGrotesk(
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
-                    color: Colors.white,
+                    color: AppColors.textOnPrimary,
                     letterSpacing: -0.3,
                   ),
                 ),
               ),
             ],
+
+            const SizedBox(height: AppSpacing.md),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Semantics(
+                button: true,
+                excludeSemantics: true,
+                label: selectedVehicle == null
+                    ? 'Seleccionar vehículo'
+                    : 'Vehículo seleccionado: ${selectedVehicle.brand} ${selectedVehicle.model}. Toca para cambiar.',
+                child: SizedBox(
+                  width: double.infinity,
+                  height: AppSpacing.xl5,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Ink(
+                      decoration: BoxDecoration(
+                        color: AppColors.textOnPrimary.withValues(alpha: 0.06),
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusLg),
+                        border: Border.all(
+                          color:
+                              AppColors.textOnPrimary.withValues(alpha: 0.45),
+                        ),
+                      ),
+                      child: InkWell(
+                        onTap: () =>
+                            _handleVehicleSelection(context, selectedVehicle),
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusLg),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.directions_car_outlined,
+                                color: AppColors.textOnPrimary,
+                                size: 22,
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: Text(
+                                  selectedVehicle == null
+                                      ? 'Seleccionar vehículo'
+                                      : '${selectedVehicle.brand} ${selectedVehicle.model}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.hankenGrotesk(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textOnPrimary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              const Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                color: AppColors.textOnPrimary,
+                                size: 22,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
             // ── Publicidad integrada dentro del bloque de color ────────────
             if (widget.child != null) ...[
@@ -407,51 +512,56 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
 /// Botón de notificaciones del header, con punto indicador de no leídas.
 class _NotificationButton extends StatelessWidget {
   final bool hasUnread;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
   const _NotificationButton({
     required this.hasUnread,
-    this.onTap,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
+      excludeSemantics: true,
       label: hasUnread
           ? 'Notificaciones, tienes notificaciones sin leer'
           : 'Notificaciones',
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              const Icon(
-                Icons.notifications_outlined,
-                color: Colors.white,
-                size: 24,
-              ),
-              if (hasUnread)
-                Positioned(
-                  right: 1,
-                  top: 1,
-                  child: Container(
-                    width: 9,
-                    height: 9,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.primary,
-                        width: 1.5,
+      child: SizedBox.square(
+        dimension: AppSpacing.xl5,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(
+                  Icons.notifications_outlined,
+                  color: AppColors.textOnPrimary,
+                  size: 24,
+                ),
+                if (hasUnread)
+                  Positioned(
+                    right: 10,
+                    top: 9,
+                    child: Container(
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: AppColors.textOnPrimary,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.primaryDark,
+                          width: 1.5,
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
