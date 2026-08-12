@@ -153,13 +153,20 @@ class _HomePageState extends ConsumerState<HomePage> {
     final isDashboardSelected = selectedType == ServiceType.storeDashboard;
     final currentRole = ref.watch(currentRoleProvider);
     final isConsumer = currentRole.isConsumer;
-    final promosAsync =
-        isConsumer ? null : ref.watch(adsAsPromosProvider(selectedType));
+    final promosAsync = ref.watch(adsAsPromosProvider(selectedType));
     final allowedTypes = currentRole.allowedServiceTypes;
     // La tienda no tiene garage: aunque isDashboardSelected quede desactualizado
     // (ej. al volver de la lista de mecánicos/talleres), el rol manda.
     final showGarage =
         !isConsumer && !isDashboardSelected && !currentRole.isStore;
+    final promoSection = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: promosAsync.when(
+        data: (promos) => PromoCarousel(promos: promos),
+        loading: () => const PromoSkeleton(),
+        error: (error, stack) => const SizedBox.shrink(),
+      ),
+    );
 
     return ListView(
       controller: _scrollController,
@@ -179,14 +186,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
           // ── Publicidad ──────────────────────────────────────────────
           const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: promosAsync!.when(
-              data: (promos) => PromoCarousel(promos: promos),
-              loading: () => const PromoSkeleton(),
-              error: (error, stack) => const SizedBox.shrink(),
-            ),
-          ),
+          promoSection,
         ],
 
         if (isConsumer)
@@ -208,7 +208,9 @@ class _HomePageState extends ConsumerState<HomePage> {
           child: const CategoryGrid(),
         ),
 
-        if (isDashboardSelected)
+        if (isConsumer) promoSection,
+
+        if (isDashboardSelected && currentRole.isStore)
           // Dashboard para usuarios tipo tienda
           const StoreDashboardView()
         else if (isConsumer) ...[

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,8 +23,13 @@ import 'package:guiautomotriz_mobile/features/home/domain/entities/home_item.dar
 import 'package:guiautomotriz_mobile/features/home/domain/entities/promo.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/pages/home_page.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
+import 'package:guiautomotriz_mobile/features/home/presentation/widgets/promo_carousel.dart';
+import 'package:guiautomotriz_mobile/features/home/presentation/widgets/store_dashboard/store_dashboard_view.dart';
+import 'package:guiautomotriz_mobile/features/reports/domain/entities/store_dashboard.dart';
+import 'package:guiautomotriz_mobile/features/reports/presentation/providers/reports_provider.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/domain/entities/user_car.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/presentation/providers/vehicle_providers.dart';
+import 'package:guiautomotriz_mobile/shared/widgets/skeleton_loader.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _FakeLocationService extends LocationService {
@@ -50,6 +57,10 @@ class _TestAuthNotifier extends AuthNotifier {
 
   @override
   Future<void> checkAuthStatus() async {}
+
+  void authenticateAs(User user) {
+    state = AuthState(status: AuthStatus.authenticated, user: user);
+  }
 }
 
 void main() {
@@ -59,6 +70,18 @@ void main() {
     name: 'Elio',
     role: UserRole.consumer,
   );
+  const store = User(
+    id: 'store-1',
+    email: 'store@example.com',
+    name: 'Repuestos Norte',
+    role: UserRole.store,
+  );
+  const mechanic = User(
+    id: 'mechanic-1',
+    email: 'mechanic@example.com',
+    name: 'Mecánico Norte',
+    role: UserRole.mechanic,
+  );
   const car = UserCar(
     id: 'car-1',
     brand: 'Toyota',
@@ -66,12 +89,11 @@ void main() {
     year: 2022,
   );
   const promo = Promo(
-    title: 'PROMOCIÓN QUE NO DEBE APARECER',
+    title: 'Revisión de frenos con descuento',
     subtitle: 'Oferta de prueba',
     iconName: 'local_offer_outlined',
     gradientColors: [0xFFF25C05, 0xFFBF4704],
   );
-
   HomeItem providerFixture(ServiceType type) => HomeItem(
         id: '${type.name}-1',
         name:
@@ -88,23 +110,33 @@ void main() {
   ProviderContainer containerFor({
     required AsyncValue<List<HomeItem>> workshops,
     required AsyncValue<List<HomeItem>> mechanics,
+    User user = consumer,
+    _TestAuthNotifier? authNotifier,
+    ServiceType? initialServiceType,
+    Future<List<Promo>> Function(Ref ref, ServiceType type)? loadPromos,
   }) {
+    final notifier = authNotifier ??
+        _TestAuthNotifier(
+          AuthState(status: AuthStatus.authenticated, user: user),
+        );
     return ProviderContainer(
       overrides: [
-        authProvider.overrideWith(
-          (ref) => _TestAuthNotifier(
-            const AuthState(
-              status: AuthStatus.authenticated,
-              user: consumer,
-            ),
+        authProvider.overrideWith((ref) => notifier),
+        if (initialServiceType != null)
+          selectedServiceTypeProvider.overrideWith(
+            (ref) => initialServiceType,
           ),
-        ),
         userCarsProvider.overrideWith((ref) async => const [car]),
         locationServiceProvider.overrideWithValue(_FakeLocationService()),
-        adsAsPromosProvider.overrideWith((ref, type) async => const [promo]),
+        adsAsPromosProvider.overrideWith(
+          loadPromos ?? (ref, type) async => const [],
+        ),
         topProvidersProvider.overrideWith((ref, type) {
           return type == ServiceType.workshops ? workshops : mechanics;
         }),
+        storeDashboardProvider.overrideWith(
+          (ref) => Completer<DashboardResponse>().future,
+        ),
         welcomeShownProvider.overrideWith((ref) => true),
       ],
     );
@@ -184,6 +216,7 @@ void main() {
       mechanics: AsyncValue.data([
         providerFixture(ServiceType.mechanic),
       ]),
+      loadPromos: (ref, type) async => const [promo],
     );
     addTearDown(container.dispose);
 
@@ -203,7 +236,16 @@ void main() {
     }
     expect(firstOccurrenceY, orderedEquals([...firstOccurrenceY]..sort()));
 
-    expect(find.text('PROMOCIÓN QUE NO DEBE APARECER'), findsNothing);
+    final promoFinder = find.text('Revisión de frenos con descuento');
+    expect(promoFinder, findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Solicitar repuesto')).dy,
+      lessThan(tester.getTopLeft(promoFinder).dy),
+    );
+    expect(
+      tester.getTopLeft(promoFinder).dy,
+      lessThan(tester.getTopLeft(find.text('Talleres mejor valorados')).dy),
+    );
     expect(find.text('Mi garage'), findsNothing);
     expect(find.text('Chats'), findsOneWidget);
     expect(find.text('Compras'), findsOneWidget);
@@ -215,6 +257,102 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('consumer ignores a stale store dashboard selection',
+      (tester) async {
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      initialServiceType: ServiceType.storeDashboard,
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+
+    expect(find.byType(StoreDashboardView), findsNothing);
+    expect(find.text('¿Qué necesitas hoy?'), findsOneWidget);
+    expect(find.text('Talleres mejor valorados'), findsOneWidget);
+  });
+
+  testWidgets('store to consumer role transition replaces a stale dashboard',
+      (tester) async {
+    final authNotifier = _TestAuthNotifier(
+      const AuthState(status: AuthStatus.authenticated, user: store),
+    );
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      authNotifier: authNotifier,
+      initialServiceType: ServiceType.storeDashboard,
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+    expect(find.byType(StoreDashboardView), findsOneWidget);
+    expect(find.text('¿Qué necesitas hoy?'), findsNothing);
+
+    authNotifier.authenticateAs(consumer);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(StoreDashboardView), findsNothing);
+    expect(find.text('¿Qué necesitas hoy?'), findsOneWidget);
+    expect(find.text('Talleres mejor valorados'), findsOneWidget);
+  });
+
+  testWidgets('mechanic Home keeps only its role-allowed service sections',
+      (tester) async {
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      user: mechanic,
+      initialServiceType: ServiceType.spareParts,
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+    await tester.fling(homeListView(), const Offset(0, -1600), 5000);
+    await tester.pump();
+
+    expect(find.text('Talleres cerca de ti'), findsOneWidget);
+    expect(find.text('Mecánicos cerca de ti'), findsNothing);
+    expect(find.text('Solicitar repuesto'), findsOneWidget);
+    expect(find.text('Buscar mecánicos'), findsNothing);
+  });
+
+  testWidgets('consumer Home shows an ad skeleton while promos load',
+      (tester) async {
+    final pendingPromos = Completer<List<Promo>>();
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      loadPromos: (ref, type) => pendingPromos.future,
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+
+    expect(find.byType(PromoSkeleton), findsOneWidget);
+    expect(find.byType(PromoCarousel), findsNothing);
+  });
+
+  testWidgets('consumer Home hides failed promos without exposing raw errors',
+      (tester) async {
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      loadPromos: (ref, type) async =>
+          throw StateError('private advertising secret'),
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+
+    expect(find.byType(PromoCarousel), findsNothing);
+    expect(find.byType(PromoSkeleton), findsNothing);
+    expect(find.textContaining('private advertising secret'), findsNothing);
+    expect(find.text('Talleres mejor valorados'), findsOneWidget);
   });
 
   testWidgets('consumer Home renders both provider loading states',
