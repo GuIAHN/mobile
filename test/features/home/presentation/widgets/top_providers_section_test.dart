@@ -23,17 +23,26 @@ void main() {
         type: serviceType,
       );
 
-  Widget subject(AsyncValue<List<HomeItem>> state) {
+  Widget app({
+    required List<Override> overrides,
+    ServiceType type = serviceType,
+  }) {
+    final routePath = type == ServiceType.mechanic
+        ? RouteNames.mechanics
+        : RouteNames.workshops;
+    final title = type == ServiceType.mechanic
+        ? 'Mecánicos mejor valorados'
+        : 'Talleres mejor valorados';
     final router = GoRouter(
       initialLocation: '/',
       routes: [
         GoRoute(
           path: '/',
-          builder: (_, __) => const Scaffold(
+          builder: (_, __) => Scaffold(
             body: TopProvidersSection(
-              serviceType: serviceType,
-              title: 'Talleres mejor valorados',
-              routePath: RouteNames.workshops,
+              serviceType: type,
+              title: title,
+              routePath: routePath,
             ),
           ),
         ),
@@ -41,16 +50,38 @@ void main() {
           path: RouteNames.workshops,
           builder: (_, __) => const Scaffold(body: Text('workshops-route')),
         ),
+        GoRoute(
+          path: RouteNames.mechanics,
+          builder: (_, __) => const Scaffold(body: Text('mechanics-route')),
+        ),
       ],
     );
 
     return ProviderScope(
-      overrides: [
-        topProvidersProvider.overrideWith((ref, type) => state),
-      ],
+      overrides: overrides,
       child: MaterialApp.router(routerConfig: router),
     );
   }
+
+  Widget subject(
+    AsyncValue<List<HomeItem>> state, {
+    ServiceType type = serviceType,
+  }) =>
+      app(
+        type: type,
+        overrides: [
+          topProvidersProvider.overrideWith((ref, providerType) => state),
+        ],
+      );
+
+  Widget subjectFromHomeItems(
+    Future<List<HomeItem>> Function(Ref ref, ServiceType type) loader,
+  ) =>
+      app(
+        overrides: [
+          homeItemsProvider.overrideWith(loader),
+        ],
+      );
 
   testWidgets('shows three skeletons while providers load', (tester) async {
     await tester.pumpWidget(subject(const AsyncValue.loading()));
@@ -84,6 +115,46 @@ void main() {
     expect(find.textContaining('database secret'), findsNothing);
   });
 
+  testWidgets('uses the mechanic noun in the empty state', (tester) async {
+    await tester.pumpWidget(
+      subject(const AsyncValue.data([]), type: ServiceType.mechanic),
+    );
+
+    expect(find.text('Todavía no hay mecánicos valorados'), findsOneWidget);
+  });
+
+  testWidgets('uses the mechanic noun in the error state', (tester) async {
+    await tester.pumpWidget(
+      subject(
+        AsyncValue.error(Exception('database secret'), StackTrace.empty),
+        type: ServiceType.mechanic,
+      ),
+    );
+
+    expect(find.text('No pudimos cargar los mecánicos'), findsOneWidget);
+  });
+
+  testWidgets('retries the source provider and renders recovered providers',
+      (tester) async {
+    var loads = 0;
+    await tester.pumpWidget(
+      subjectFromHomeItems((ref, type) async {
+        loads++;
+        if (loads == 1) throw Exception('database secret');
+        return [fixture()];
+      }),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No pudimos cargar los talleres'), findsOneWidget);
+
+    await tester.tap(find.text('Reintentar'));
+    await tester.pumpAndSettle();
+
+    expect(loads, 2);
+    expect(find.text('Taller Norte'), findsOneWidget);
+  });
+
   testWidgets('shows rank and honest social proof for a provider',
       (tester) async {
     await tester.pumpWidget(subject(AsyncValue.data([fixture()])));
@@ -94,6 +165,17 @@ void main() {
     expect(find.text('2.4 km'), findsOneWidget);
     expect(find.text('Abierto'), findsOneWidget);
   });
+
+  testWidgets('announces each provider card with one consolidated label',
+      (tester) async {
+    await tester.pumpWidget(subject(AsyncValue.data([fixture()])));
+
+    expect(
+      find.bySemanticsLabel('Ver detalles de Taller Norte, puesto 1'),
+      findsOneWidget,
+    );
+    expect(find.bySemanticsLabel('Puesto 1'), findsNothing);
+  }, semanticsEnabled: true);
 
   testWidgets('labels a provider with no reviews honestly', (tester) async {
     await tester.pumpWidget(subject(AsyncValue.data([fixture(reviews: 0)])));

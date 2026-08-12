@@ -31,6 +31,7 @@ class TopProvidersSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final itemsAsync = ref.watch(topProvidersProvider(serviceType));
+    final providerNoun = _providerNoun(serviceType);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,8 +79,8 @@ class TopProvidersSection extends ConsumerWidget {
             data: (items) => Column(
               children: [
                 if (items.isEmpty)
-                  const _SectionStateCard(
-                    message: 'Todavía no hay talleres valorados',
+                  _SectionStateCard(
+                    message: 'Todavía no hay $providerNoun valorados',
                   ),
                 for (var i = 0; i < items.length; i++) ...[
                   if (i > 0) const SizedBox(height: 12),
@@ -97,7 +98,7 @@ class TopProvidersSection extends ConsumerWidget {
               ],
             ),
             error: (_, __) => _SectionStateCard(
-              message: 'No pudimos cargar los talleres',
+              message: 'No pudimos cargar los $providerNoun',
               action: TextButton.icon(
                 onPressed: () => ref.invalidate(homeItemsProvider(serviceType)),
                 style: TextButton.styleFrom(
@@ -112,6 +113,14 @@ class TopProvidersSection extends ConsumerWidget {
       ],
     );
   }
+}
+
+String _providerNoun(ServiceType serviceType) {
+  return switch (serviceType) {
+    ServiceType.mechanic => 'mecánicos',
+    ServiceType.workshops => 'talleres',
+    ServiceType.spareParts || ServiceType.storeDashboard => 'proveedores',
+  };
 }
 
 class _ProviderCard extends StatelessWidget {
@@ -139,16 +148,20 @@ class _ProviderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasPhoto = item.photo != null && item.photo!.isNotEmpty;
+    final onTap = item.id == null ? null : () => _onTap(context);
 
     return Semantics(
+      container: true,
       button: true,
       enabled: item.id != null,
       label: 'Ver detalles de ${item.name}, puesto $rank',
+      excludeSemantics: true,
+      onTap: onTap,
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(CardTokens.radius),
         child: InkWell(
-          onTap: item.id == null ? null : () => _onTap(context),
+          onTap: onTap,
           borderRadius: BorderRadius.circular(CardTokens.radius),
           child: Ink(
             width: double.infinity,
