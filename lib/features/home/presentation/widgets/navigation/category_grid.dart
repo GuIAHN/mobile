@@ -141,6 +141,10 @@ class _CategoryCardState extends State<_CategoryCard> {
   Widget build(BuildContext context) {
     final animationsEnabled = !MediaQuery.disableAnimationsOf(context);
     final radius = BorderRadius.circular(20);
+    final labelFontSize = widget.isCompact ? 12.0 : 13.0;
+    final allowExpandedLabel =
+        MediaQuery.textScalerOf(context).scale(labelFontSize) >
+            labelFontSize * 1.5;
 
     return Semantics(
       button: true,
@@ -199,10 +203,10 @@ class _CategoryCardState extends State<_CategoryCard> {
                     const SizedBox(height: 10),
                     Text(
                       widget.label,
-                      maxLines: 2,
+                      maxLines: allowExpandedLabel ? 6 : 2,
                       textAlign: TextAlign.center,
                       style: GoogleFonts.hankenGrotesk(
-                        fontSize: widget.isCompact ? 12 : 13,
+                        fontSize: labelFontSize,
                         height: 1.2,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary,

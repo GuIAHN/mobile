@@ -1,6 +1,5 @@
-import 'dart:ui' show SemanticsAction;
-
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -34,6 +33,7 @@ void main() {
     String? selectedVariantId,
     double width = 375,
     double textScale = 1,
+    bool disableAnimations = false,
   }) {
     final router = GoRouter(
       initialLocation: '/',
@@ -43,7 +43,13 @@ void main() {
           builder: (_, __) => Scaffold(
             body: Align(
               alignment: Alignment.topCenter,
-              child: SizedBox(width: width, child: const CategoryGrid()),
+              child: SizedBox(
+                width: width,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: CategoryGrid(),
+                ),
+              ),
             ),
           ),
         ),
@@ -75,6 +81,7 @@ void main() {
         data: MediaQueryData(
           size: Size(width, 800),
           textScaler: TextScaler.linear(textScale),
+          disableAnimations: disableAnimations,
         ),
         child: MaterialApp.router(routerConfig: router),
       ),
@@ -124,6 +131,8 @@ void main() {
       (tester) async {
     final flutterErrors = <FlutterErrorDetails>[];
     final actionSizesByConfiguration = <List<Size>>[];
+    final gridWidths = <double>[];
+    final labelsThatExceededMaxLines = <String>[];
     final previousOnError = FlutterError.onError;
     FlutterError.onError = flutterErrors.add;
 
@@ -135,11 +144,31 @@ void main() {
           );
           await tester.pump();
 
+          gridWidths.add(tester.getSize(find.byType(CategoryGrid)).width);
           final actionSizes = <Size>[];
           for (final label in actionLabels) {
             final action = find.bySemanticsLabel(label);
             if (action.evaluate().length == 1) {
               actionSizes.add(tester.getSize(action));
+            }
+            if (textScale == 2) {
+              final textFinder = find.text(label);
+              final text = tester.widget<Text>(textFinder);
+              final paragraph = tester.renderObject<RenderParagraph>(
+                textFinder,
+              );
+              final painter = TextPainter(
+                text: TextSpan(text: label, style: text.style),
+                maxLines: text.maxLines,
+                textAlign: text.textAlign ?? TextAlign.start,
+                textDirection: Directionality.of(tester.element(textFinder)),
+                textScaler: MediaQuery.textScalerOf(
+                  tester.element(textFinder),
+                ),
+              )..layout(maxWidth: paragraph.constraints.maxWidth);
+              if (painter.didExceedMaxLines) {
+                labelsThatExceededMaxLines.add('$width dp: $label');
+              }
             }
           }
           actionSizesByConfiguration.add(actionSizes);
@@ -150,16 +179,37 @@ void main() {
     }
 
     expect(
-      flutterErrors.where(
-        (details) => details.exceptionAsString().contains('overflowed'),
-      ),
+      flutterErrors,
       isEmpty,
+      reason:
+          flutterErrors.map((error) => error.exceptionAsString()).join('\n'),
     );
+    expect(gridWidths, <double>[335, 335, 335, 390, 390, 390]);
+    expect(labelsThatExceededMaxLines, isEmpty);
     for (final actionSizes in actionSizesByConfiguration) {
       expect(actionSizes, hasLength(3));
       expect(actionSizes.map((size) => size.width).toSet(), hasLength(1));
       expect(actionSizes.map((size) => size.height).toSet(), hasLength(1));
     }
+  });
+
+  testWidgets('reduced motion disables press scaling', (tester) async {
+    await tester.pumpWidget(subject(disableAnimations: true));
+
+    final action = find.bySemanticsLabel('Buscar talleres');
+    final animatedScale = find.descendant(
+      of: action,
+      matching: find.byType(AnimatedScale),
+    );
+    expect(animatedScale, findsOneWidget);
+    expect(tester.widget<AnimatedScale>(animatedScale).duration, Duration.zero);
+
+    final gesture = await tester.startGesture(tester.getCenter(action));
+    await tester.pump();
+
+    expect(tester.widget<AnimatedScale>(animatedScale).scale, 1);
+    expect(tester.widget<AnimatedScale>(animatedScale).duration, Duration.zero);
+    await gesture.cancel();
   });
 
   testWidgets('spare-parts action passes shared vehicle context to the wizard',
