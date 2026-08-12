@@ -53,7 +53,10 @@ class _HomePageState extends ConsumerState<HomePage> {
     final isStore = ref.watch(currentRoleProvider).isStore;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && authState.isAuthenticated && user != null && !ref.read(welcomeShownProvider)) {
+      if (mounted &&
+          authState.isAuthenticated &&
+          user != null &&
+          !ref.read(welcomeShownProvider)) {
         ref.read(welcomeShownProvider.notifier).state = true;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -98,7 +101,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             margin: const EdgeInsets.only(
               left: AppSpacing.lg,
               right: AppSpacing.lg,
-              bottom: 96,
+              bottom: AppSpacing.md,
             ),
           ),
         );
@@ -107,20 +110,31 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      // El body se extiende por debajo de la barra para que el contenido se vea
+      // continuo detrás de la parte saliente del logo central.
+      extendBody: true,
       bottomNavigationBar: const BottomNavBar(),
       body: Stack(
         children: [
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 250),
             child: activeTab == 0
                 ? _buildHomeHub()
                 : SafeArea(
                     bottom: false,
-                    child: activeTab == 1
-                        ? const ChatInboxPage()
-                        : activeTab == 2 && !isStore
-                            ? const MisComprasPage()
-                            : const ProfileTab(),
+                    child: Padding(
+                      // Las demás vistas no deben quedar tapadas por la barra.
+                      padding: EdgeInsets.only(
+                        bottom: bottomNavContentInset(context),
+                      ),
+                      child: activeTab == 1
+                          ? const ChatInboxPage()
+                          : activeTab == 2 && !isStore
+                              ? const MisComprasPage()
+                              : const ProfileTab(),
+                    ),
                   ),
           ),
           if (user != null && !user.approved)
@@ -137,17 +151,22 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget _buildHomeHub() {
     final selectedType = ref.watch(selectedServiceTypeProvider);
     final isDashboardSelected = selectedType == ServiceType.storeDashboard;
-    final promosAsync = ref.watch(adsAsPromosProvider(selectedType));
     final currentRole = ref.watch(currentRoleProvider);
+    final isConsumer = currentRole.isConsumer;
+    final promosAsync =
+        isConsumer ? null : ref.watch(adsAsPromosProvider(selectedType));
     final allowedTypes = currentRole.allowedServiceTypes;
     // La tienda no tiene garage: aunque isDashboardSelected quede desactualizado
     // (ej. al volver de la lista de mecánicos/talleres), el rol manda.
-    final showGarage = !isDashboardSelected && !currentRole.isStore;
+    final showGarage =
+        !isConsumer && !isDashboardSelected && !currentRole.isStore;
 
     return ListView(
       controller: _scrollController,
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.only(bottom: 32),
+      padding: EdgeInsets.only(
+        bottom: bottomNavContentInset(context) + AppSpacing.lg,
+      ),
       children: [
         // ── Header expandido: color sólido hasta la barra de estado
         //    y recorte inferior redondeado ──────────────────────────────
@@ -162,7 +181,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           const SizedBox(height: 20),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: promosAsync.when(
+            child: promosAsync!.when(
               data: (promos) => PromoCarousel(promos: promos),
               loading: () => const PromoSkeleton(),
               error: (error, stack) => const SizedBox.shrink(),
@@ -170,16 +189,46 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ],
 
+        if (isConsumer)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+            child: Text(
+              '¿Qué necesitas hoy?',
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+
         // ── Tarjetas de categorías estilo Pedidos Ya (redirigen a flujos) ──
-        const Padding(
-          padding: EdgeInsets.fromLTRB(20, 20, 20, 16),
-          child: CategoryGrid(),
+        Padding(
+          padding: EdgeInsets.fromLTRB(20, isConsumer ? 0 : 20, 20, 16),
+          child: const CategoryGrid(),
         ),
 
         if (isDashboardSelected)
           // Dashboard para usuarios tipo tienda
           const StoreDashboardView()
-        else ...[
+        else if (isConsumer) ...[
+          if (allowedTypes.contains(ServiceType.workshops)) ...[
+            const SizedBox(height: 8),
+            const TopProvidersSection(
+              serviceType: ServiceType.workshops,
+              title: 'Talleres mejor valorados',
+              routePath: RouteNames.workshops,
+            ),
+          ],
+          if (allowedTypes.contains(ServiceType.mechanic)) ...[
+            const SizedBox(height: 24),
+            const TopProvidersSection(
+              serviceType: ServiceType.mechanic,
+              title: 'Mecánicos mejor valorados',
+              routePath: RouteNames.mechanics,
+            ),
+          ],
+        ] else ...[
           // ── Top mecánicos cercanos ────────────────────────────────
           if (allowedTypes.contains(ServiceType.mechanic)) ...[
             const SizedBox(height: 8),
