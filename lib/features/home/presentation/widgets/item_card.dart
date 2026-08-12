@@ -127,21 +127,22 @@ class _ItemCardState extends State<ItemCard> {
                             ),
                     ),
                   ),
-                  Positioned(
-                    bottom: -2,
-                    right: -2,
-                    child: Container(
-                      width: 14,
-                      height: 14,
-                      decoration: BoxDecoration(
-                        color: item.isOpen
-                            ? AppColors.success
-                            : AppColors.textDisabled,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
+                  if (item.isOpen != null)
+                    Positioned(
+                      bottom: -2,
+                      right: -2,
+                      child: Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: item.isOpen!
+                              ? AppColors.success
+                              : AppColors.textDisabled,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
               const SizedBox(width: 16),
@@ -216,17 +217,18 @@ class _ItemCardState extends State<ItemCard> {
                         // Distancia Tag
                         _Tag(
                           backgroundColor: AppColors.grey50,
-                          border: Border.all(
-                              color: AppColors.border, width: 0.5),
+                          border:
+                              Border.all(color: AppColors.border, width: 0.5),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(Icons.near_me_outlined,
-                                  size: 11,
-                                  color: AppColors.textSecondary),
+                                  size: 11, color: AppColors.textSecondary),
                               const SizedBox(width: 4),
                               Text(
-                                '${item.distanceKm.toStringAsFixed(1)} km',
+                                item.distanceKm == null
+                                    ? 'Distancia no disponible'
+                                    : '${item.distanceKm!.toStringAsFixed(1)} km',
                                 style: GoogleFonts.hankenGrotesk(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
@@ -240,8 +242,8 @@ class _ItemCardState extends State<ItemCard> {
                         // Tarifa Tag (solo mecánicos con tarifa)
                         if (item.tarifa != null) ...[
                           _Tag(
-                            backgroundColor: AppColors.success
-                                .withValues(alpha: 0.08),
+                            backgroundColor:
+                                AppColors.success.withValues(alpha: 0.08),
                             child: Text(
                               '${Formatters.currencyCompact(item.tarifa!)}/h',
                               style: GoogleFonts.hankenGrotesk(
@@ -256,8 +258,8 @@ class _ItemCardState extends State<ItemCard> {
                         // Delivery Tag
                         if (item.hasDelivery) ...[
                           _Tag(
-                            backgroundColor: AppColors.success
-                                .withValues(alpha: 0.08),
+                            backgroundColor:
+                                AppColors.success.withValues(alpha: 0.08),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -286,9 +288,8 @@ class _ItemCardState extends State<ItemCard> {
               // Botón Favorito (target táctil ≥44px + semántica de toggle)
               Semantics(
                 button: true,
-                label: _isFavorite
-                    ? 'Quitar de favoritos'
-                    : 'Agregar a favoritos',
+                label:
+                    _isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos',
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () {

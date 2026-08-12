@@ -61,4 +61,33 @@ void main() {
     expect(invalidString.reviews, 0);
     expect(nonScalar.reviews, 0);
   });
+
+  test('preserves a missing distance as unknown', () {
+    final json = providerJson({})..remove('distancia_km');
+
+    final provider = ProviderModel.fromJson(
+      json,
+      ServiceType.workshops,
+    );
+
+    expect(provider.distanceKm, isNull);
+  });
+
+  test('preserves a missing open status as unknown', () {
+    final provider = ProviderModel.fromJson(
+      providerJson({}),
+      ServiceType.workshops,
+    );
+
+    expect(provider.isOpen, isNull);
+  });
+
+  test('parses explicit open status without changing known payloads', () {
+    final provider = ProviderModel.fromJson(
+      providerJson({'isOpen': false}),
+      ServiceType.workshops,
+    );
+
+    expect(provider.isOpen, isFalse);
+  });
 }

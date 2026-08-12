@@ -28,11 +28,17 @@ int providerRankComparison(HomeItem a, HomeItem b) {
   if (byRating != 0) return byRating;
   final byReviews = b.reviews.compareTo(a.reviews);
   if (byReviews != 0) return byReviews;
-  final byDistance = a.distanceKm.compareTo(b.distanceKm);
+  final byDistance = _compareKnownDistanceFirst(a.distanceKm, b.distanceKm);
   if (byDistance != 0) return byDistance;
   final byName = a.name.compareTo(b.name);
   if (byName != 0) return byName;
   return (a.id ?? '').compareTo(b.id ?? '');
+}
+
+int _compareKnownDistanceFirst(double? a, double? b) {
+  if (a == null) return b == null ? 0 : 1;
+  if (b == null) return -1;
+  return a.compareTo(b);
 }
 
 // ── Search Providers ────────────────────────────────────────────────────────
@@ -311,7 +317,9 @@ final filteredHomeItemsProvider =
     // 3. Ordenamiento local (como complemento al orderBy del backend)
     switch (filters.sortBy) {
       case SortOption.cercania:
-        list.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
+        list.sort(
+          (a, b) => _compareKnownDistanceFirst(a.distanceKm, b.distanceKm),
+        );
         break;
       case SortOption.rating:
         list.sort((a, b) => b.rating.compareTo(a.rating));

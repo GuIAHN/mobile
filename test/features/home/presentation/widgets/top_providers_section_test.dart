@@ -11,14 +11,19 @@ import 'package:guiautomotriz_mobile/features/home/presentation/widgets/sections
 void main() {
   const serviceType = ServiceType.workshops;
 
-  HomeItem fixture({int reviews = 24}) => HomeItem(
+  HomeItem fixture({
+    int reviews = 24,
+    double? distanceKm = 2.4,
+    bool? isOpen = true,
+  }) =>
+      HomeItem(
         id: 'workshop-1',
         name: 'Taller Norte',
         detail: 'Diagnóstico y frenos',
         rating: 4.8,
         reviews: reviews,
-        distanceKm: 2.4,
-        isOpen: true,
+        distanceKm: distanceKm,
+        isOpen: isOpen,
         iconName: 'warehouse_outlined',
         type: serviceType,
       );
@@ -182,6 +187,23 @@ void main() {
 
     expect(find.text('4.8'), findsOneWidget);
     expect(find.text('Sin reseñas'), findsOneWidget);
+  });
+
+  testWidgets(
+      'does not invent distance or open status when metadata is missing',
+      (tester) async {
+    await tester.pumpWidget(
+      subject(
+        AsyncValue.data([
+          fixture(distanceKm: null, isOpen: null),
+        ]),
+      ),
+    );
+
+    expect(find.text('Distancia no disponible'), findsOneWidget);
+    expect(find.text('Horario no disponible'), findsOneWidget);
+    expect(find.text('0.0 km'), findsNothing);
+    expect(find.text('Abierto'), findsNothing);
   });
 
   testWidgets('keeps provider information available on small and large phones',

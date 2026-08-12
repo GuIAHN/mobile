@@ -240,27 +240,28 @@ class _ProviderCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 7, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: item.isOpen
-                                  ? AppColors.successLight
-                                  : AppColors.grey100,
-                              borderRadius: BorderRadius.circular(99),
-                            ),
-                            child: Text(
-                              item.isOpen ? 'Abierto' : 'Cerrado',
-                              style: GoogleFonts.hankenGrotesk(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.2,
-                                color: item.isOpen
-                                    ? AppColors.successInk
-                                    : AppColors.textMeta,
+                          if (item.isOpen != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: item.isOpen!
+                                    ? AppColors.successLight
+                                    : AppColors.grey100,
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              child: Text(
+                                item.isOpen! ? 'Abierto' : 'Cerrado',
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.2,
+                                  color: item.isOpen!
+                                      ? AppColors.successInk
+                                      : AppColors.textMeta,
+                                ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: CardTokens.tight),
@@ -284,12 +285,19 @@ class _ProviderCard extends StatelessWidget {
                           const Icon(Icons.place_outlined,
                               size: 13, color: AppColors.celesteInk),
                           Text(
-                            '${item.distanceKm.toStringAsFixed(1)} km',
+                            item.distanceKm == null
+                                ? 'Distancia no disponible'
+                                : '${item.distanceKm!.toStringAsFixed(1)} km',
                             style: CardTokens.meta.copyWith(
                               fontWeight: FontWeight.w800,
                               color: AppColors.celesteInk,
                             ),
                           ),
+                          if (item.isOpen == null)
+                            Text(
+                              'Horario no disponible',
+                              style: CardTokens.meta,
+                            ),
                         ],
                       ),
                       const SizedBox(height: CardTokens.gap),

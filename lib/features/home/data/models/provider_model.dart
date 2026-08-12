@@ -51,6 +51,14 @@ class ProviderModel extends HomeItem {
     final reviews = rawReviews is num
         ? rawReviews.toInt()
         : int.tryParse(rawReviews?.toString() ?? '') ?? 0;
+    final rawOpen = json['isOpen'] ?? json['is_open'] ?? json['abierto'];
+    final isOpen = switch (rawOpen) {
+      bool value => value,
+      num value => value != 0,
+      String value when value.toLowerCase() == 'true' => true,
+      String value when value.toLowerCase() == 'false' => false,
+      _ => null,
+    };
 
     return ProviderModel(
       id: json['id'] as String,
@@ -58,8 +66,8 @@ class ProviderModel extends HomeItem {
       detail: detail,
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       reviews: reviews,
-      distanceKm: (json['distancia_km'] as num?)?.toDouble() ?? 0.0,
-      isOpen: true, // El backend filtra activos; asumir disponible
+      distanceKm: (json['distancia_km'] as num?)?.toDouble(),
+      isOpen: isOpen,
       iconName: iconName,
       type: type,
       especialidades: especialidades,

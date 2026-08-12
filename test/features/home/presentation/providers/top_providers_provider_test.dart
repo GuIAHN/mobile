@@ -9,7 +9,7 @@ HomeItem provider({
   required String name,
   required double rating,
   required int reviews,
-  required double distanceKm,
+  required double? distanceKm,
 }) {
   return HomeItem(
     id: id,
@@ -114,6 +114,32 @@ void main() {
     final result = await readTopProviders(container);
 
     expect(result.map((item) => item.id), ['nearer', 'farther']);
+  });
+
+  test('ranks a known distance ahead of an unknown distance on a tie',
+      () async {
+    final container = containerWith([
+      provider(
+        id: 'unknown-distance',
+        name: 'Unknown Distance',
+        rating: 4.8,
+        reviews: 40,
+        distanceKm: null,
+      ),
+      provider(
+        id: 'known-distance',
+        name: 'Known Distance',
+        rating: 4.8,
+        reviews: 40,
+        distanceKm: 12,
+      ),
+    ]);
+    addTearDown(container.dispose);
+
+    final result = await readTopProviders(container);
+
+    expect(
+        result.map((item) => item.id), ['known-distance', 'unknown-distance']);
   });
 
   test('returns only the three highest-ranked providers', () async {

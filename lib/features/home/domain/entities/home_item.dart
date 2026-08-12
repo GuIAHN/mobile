@@ -8,8 +8,12 @@ class HomeItem extends Equatable {
   final String detail;
   final double rating;
   final int reviews;
-  final double distanceKm;
-  final bool isOpen;
+
+  /// Distance returned by the backend. `null` means it was not provided.
+  final double? distanceKm;
+
+  /// Current availability returned by the backend. `null` means unknown.
+  final bool? isOpen;
   final String iconName;
   final ServiceType type;
   final List<int>? gradientColors;
