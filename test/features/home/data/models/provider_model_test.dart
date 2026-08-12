@@ -47,4 +47,18 @@ void main() {
 
     expect(provider.reviews, 0);
   });
+
+  test('uses zero reviews when the aggregate is malformed', () {
+    final invalidString = ProviderModel.fromJson(
+      providerJson({'ratingCount': 'invalid'}),
+      ServiceType.workshops,
+    );
+    final nonScalar = ProviderModel.fromJson(
+      providerJson({'reviews': []}),
+      ServiceType.workshops,
+    );
+
+    expect(invalidString.reviews, 0);
+    expect(nonScalar.reviews, 0);
+  });
 }
