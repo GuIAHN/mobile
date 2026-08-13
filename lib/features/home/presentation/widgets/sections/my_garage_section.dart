@@ -11,6 +11,7 @@ import '../../../../vehicles/presentation/widgets/_atoms/vehicle_type_illustrati
 import '../../../../auth/presentation/providers/auth_provider.dart';
 import '../spare_part_wizard/spare_part_wizard_page.dart';
 import '../../providers/home_providers.dart';
+import '../../../../../shared/widgets/section_header.dart';
 
 /// Sección "Mi garage" del home: tarjetas horizontales de los vehículos
 /// del usuario, con acceso rápido a buscar repuestos y gestionar el garage
@@ -25,75 +26,59 @@ class MyGarageSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Mi garage',
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.3,
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  ref.read(homeTabProvider.notifier).state = 3;
-                },
-                behavior: HitTestBehavior.opaque,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-                  child: Text(
-                    'Gestionar',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+        SectionHeader(
+          title: 'Mi garage',
+          icon: Icons.directions_car_rounded,
+          action: SectionHeaderAction(
+            label: 'Gestionar',
+            onTap: () {
+              HapticFeedback.selectionClick();
+              ref.read(homeTabProvider.notifier).state = 3;
+            },
           ),
         ),
         const SizedBox(height: 12),
-        userCarsAsync.when(
-          data: (cars) {
-            if (cars.isEmpty) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _AddVehicleCard(ref: ref),
-              );
-            }
-            return SizedBox(
-              height: 170,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: cars.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (context, index) =>
-                    _GarageCard(car: cars[index]),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 260),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          child: KeyedSubtree(
+            key: ValueKey<bool>(userCarsAsync.isLoading),
+            child: userCarsAsync.when(
+              data: (cars) {
+                if (cars.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _AddVehicleCard(ref: ref),
+                  );
+                }
+                return SizedBox(
+                  height: 170,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: cars.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                    itemBuilder: (context, index) =>
+                        _GarageCard(car: cars[index]),
+                  ),
+                );
+              },
+              loading: () => SizedBox(
+                height: 170,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  itemCount: 3,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (_, __) => const _GarageCardSkeleton(),
+                ),
               ),
-            );
-          },
-          loading: () => SizedBox(
-            height: 170,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: 2,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, __) => const _GarageCardSkeleton(),
+              error: (_, __) => const SizedBox.shrink(),
             ),
           ),
-          error: (_, __) => const SizedBox.shrink(),
         ),
       ],
     );
@@ -126,7 +111,7 @@ class _GarageCard extends StatelessWidget {
                 Container(
                   height: 90,
                   width: double.infinity,
-                  color: AppColors.grey50,
+                  color: AppColors.primaryMuted.withValues(alpha: 0.35),
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
                   child: VehicleTypeIllustration(
                     vehicleType: car.vehicleType,
@@ -207,9 +192,19 @@ class _GarageCardSkeleton extends StatelessWidget {
     return Container(
       width: 140,
       decoration: BoxDecoration(
-        color: AppColors.grey50,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.10),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
     );
   }

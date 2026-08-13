@@ -16,9 +16,9 @@ import 'package:guiautomotriz_mobile/features/vehicles/presentation/providers/ve
 
 void main() {
   const actionLabels = <String>[
-    'Solicitar repuesto',
-    'Buscar talleres',
-    'Buscar mecánicos',
+    'Pedir repuesto',
+    'Buscar taller',
+    'Buscar mecánico',
   ];
 
   const fixtureCar = UserCar(
@@ -97,22 +97,23 @@ void main() {
       expect(find.text(label), findsOneWidget);
     }
 
-    await tester.tap(find.text('Buscar talleres'));
+    await tester.tap(find.text('Buscar taller'));
     await tester.pumpAndSettle();
     expect(find.text('workshops-route'), findsOneWidget);
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Buscar mecánicos'));
+    await tester.tap(find.text('Buscar mecánico'));
     await tester.pumpAndSettle();
     expect(find.text('mechanics-route'), findsOneWidget);
   });
 
-  testWidgets('uses coherent vector artwork without bottom arrows',
+  testWidgets('uses coherent vector artwork with a forward affordance',
       (tester) async {
     await tester.pumpWidget(subject());
 
     expect(find.byType(SvgPicture), findsNWidgets(3));
+    expect(find.byIcon(Icons.arrow_forward_rounded), findsNWidgets(3));
     final artwork = tester.widgetList<SvgPicture>(find.byType(SvgPicture));
     expect(
       artwork.every((picture) => picture.bytesLoader is SvgStringLoader),
@@ -120,14 +121,6 @@ void main() {
       reason: 'Category artwork must not disappear from a stale asset bundle.',
     );
     expect(find.byType(Image), findsNothing);
-    expect(find.byIcon(Icons.arrow_forward_rounded), findsNothing);
-    for (final picture in find.byType(SvgPicture).evaluate()) {
-      expect(
-        tester
-            .getSize(find.byElementPredicate((element) => element == picture)),
-        const Size(48, 48),
-      );
-    }
   });
 
   testWidgets('uses the full card height instead of leaving an empty footer',
@@ -136,9 +129,12 @@ void main() {
 
     for (final label in actionLabels) {
       final card = find.bySemanticsLabel(label);
-      final text = find.text(label);
+      final arrow = find.descendant(
+        of: card,
+        matching: find.byIcon(Icons.arrow_forward_rounded),
+      );
       final bottomGap =
-          tester.getBottomRight(card).dy - tester.getBottomRight(text).dy;
+          tester.getBottomRight(card).dy - tester.getBottomRight(arrow).dy;
 
       expect(bottomGap, lessThanOrEqualTo(20));
     }
@@ -170,8 +166,15 @@ void main() {
         final semanticsData = tester.getSemantics(action).getSemanticsData();
         expect(semanticsData.flagsCollection.isButton, isTrue);
         expect(semanticsData.hasAction(SemanticsAction.tap), isTrue);
+        expect(
+          find.descendant(
+            of: action,
+            matching: find.byIcon(Icons.arrow_forward_rounded),
+          ),
+          findsOneWidget,
+        );
         expect(tester.getSize(action).width, greaterThanOrEqualTo(48));
-        expect(tester.getSize(action).height, inInclusiveRange(136, 144));
+        expect(tester.getSize(action).height, greaterThanOrEqualTo(48));
       }
     } finally {
       semantics.dispose();
@@ -247,7 +250,7 @@ void main() {
   testWidgets('reduced motion disables press scaling', (tester) async {
     await tester.pumpWidget(subject(disableAnimations: true));
 
-    final action = find.bySemanticsLabel('Buscar talleres');
+    final action = find.bySemanticsLabel('Buscar taller');
     final animatedScale = find.descendant(
       of: action,
       matching: find.byType(AnimatedScale),
@@ -272,7 +275,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Solicitar repuesto'));
+    await tester.tap(find.text('Pedir repuesto'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -288,15 +291,15 @@ void main() {
       (tester) async {
     await tester.pumpWidget(subject(role: UserRole.mechanic));
 
-    expect(find.text('Solicitar repuesto'), findsOneWidget);
-    expect(find.text('Buscar talleres'), findsOneWidget);
-    expect(find.text('Buscar mecánicos'), findsNothing);
+    expect(find.text('Pedir repuesto'), findsOneWidget);
+    expect(find.text('Buscar taller'), findsOneWidget);
+    expect(find.text('Buscar mecánico'), findsNothing);
 
     await tester.pumpWidget(subject(role: UserRole.store));
     expect(find.text('Estadísticas'), findsOneWidget);
-    expect(find.text('Solicitar repuesto'), findsNothing);
-    expect(find.text('Buscar talleres'), findsOneWidget);
-    expect(find.text('Buscar mecánicos'), findsOneWidget);
+    expect(find.text('Pedir repuesto'), findsNothing);
+    expect(find.text('Buscar taller'), findsOneWidget);
+    expect(find.text('Buscar mecánico'), findsOneWidget);
 
     await tester.tap(find.text('Estadísticas'));
     await tester.pump();

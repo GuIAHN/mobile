@@ -19,7 +19,6 @@ import '../../domain/usecases/get_home_items_usecase.dart';
 import '../../domain/usecases/get_promos_usecase.dart';
 import '../../domain/usecases/get_provider_detail_usecase.dart';
 import '../../domain/usecases/search_providers_usecase.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../vehicles/domain/entities/user_car.dart';
 import '../../../chat/presentation/providers/chat_providers.dart';
 
@@ -331,12 +330,4 @@ final filteredHomeItemsProvider =
 
     return list;
   });
-});
-
-/// Controla si el snack de bienvenida ya fue mostrado en esta sesión.
-final welcomeShownProvider = StateProvider<bool>((ref) {
-  final isAuthenticated =
-      ref.watch(authProvider.select((s) => s.isAuthenticated));
-  if (!isAuthenticated) return false;
-  return false;
 });

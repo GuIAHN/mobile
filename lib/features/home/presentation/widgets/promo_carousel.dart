@@ -26,30 +26,46 @@ class _PromoCarouselState extends ConsumerState<PromoCarousel> {
   @override
   void initState() {
     super.initState();
-    _startAutoScroll();
-    
+
     // Rastreo de la primera impresión al cargar
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.promos.isNotEmpty) {
-        ref.read(adTrackerProvider.notifier).trackImpression(widget.promos[0].id);
+        ref
+            .read(adTrackerProvider.notifier)
+            .trackImpression(widget.promos[0].id);
       }
     });
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncAutoScroll();
+  }
+
+  @override
   void didUpdateWidget(PromoCarousel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.promos != widget.promos && _pageController.hasClients) {
-      _pageController.jumpToPage(0);
+    if (oldWidget.promos != widget.promos) {
+      _autoScrollTimer?.cancel();
+      _autoScrollTimer = null;
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(0);
+      }
       setState(() => _currentIndex = 0);
-      _startAutoScroll();
+      _syncAutoScroll();
     }
   }
 
-  void _startAutoScroll() {
-    _autoScrollTimer?.cancel();
-    if (widget.promos.length <= 1) return;
-    
+  void _syncAutoScroll() {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _autoScrollTimer?.cancel();
+      _autoScrollTimer = null;
+      return;
+    }
+
+    if (widget.promos.length <= 1 || _autoScrollTimer != null) return;
+
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (!_pageController.hasClients) return;
       final nextPage = (_currentIndex + 1) % widget.promos.length;
@@ -71,6 +87,7 @@ class _PromoCarouselState extends ConsumerState<PromoCarousel> {
   @override
   Widget build(BuildContext context) {
     if (widget.promos.isEmpty) return const SizedBox.shrink();
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     return Stack(
       children: [
@@ -83,7 +100,9 @@ class _PromoCarouselState extends ConsumerState<PromoCarousel> {
               setState(() => _currentIndex = index);
               // Rastrear impresión de la página actual
               if (widget.promos.isNotEmpty) {
-                ref.read(adTrackerProvider.notifier).trackImpression(widget.promos[index].id);
+                ref
+                    .read(adTrackerProvider.notifier)
+                    .trackImpression(widget.promos[index].id);
               }
             },
             itemBuilder: (context, index) {
@@ -93,19 +112,25 @@ class _PromoCarouselState extends ConsumerState<PromoCarousel> {
         ),
         // Indicadores tipo líneas horizontales superpuestos en la esquina inferior izquierda
         Positioned(
-          left: 24, // Alineado con el padding de texto interior de la card (que tiene horizontal: 4 padding de PageView + 20 de la card)
+          left:
+              24, // Alineado con el padding de texto interior de la card (que tiene horizontal: 4 padding de PageView + 20 de la card)
           bottom: 16,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: List.generate(widget.promos.length, (index) {
               final isSelected = index == _currentIndex;
               return AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
+                key: Key('promo-indicator-$index'),
+                duration: reduceMotion
+                    ? Duration.zero
+                    : const Duration(milliseconds: 250),
                 margin: const EdgeInsets.only(right: 6),
                 width: isSelected ? 28 : 14,
                 height: 3,
                 decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : Colors.white.withValues(alpha: 0.4),
+                  color: isSelected
+                      ? AppColors.primary
+                      : Colors.white.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(99),
                 ),
               );
@@ -133,7 +158,7 @@ class _BannerCard extends ConsumerWidget {
           if (promo.ctaUrl != null && promo.ctaUrl!.isNotEmpty) {
             // Track click!
             ref.read(adTrackerProvider.notifier).trackClick(promo.id);
-            
+
             final Uri url = Uri.parse(promo.ctaUrl!);
             if (await canLaunchUrl(url)) {
               await launchUrl(url, mode: LaunchMode.externalApplication);
@@ -248,7 +273,7 @@ class _BannerCard extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'FEATURED SERVICE',
+                        'DESTACADO',
                         style: GoogleFonts.hankenGrotesk(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,

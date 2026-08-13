@@ -249,7 +249,7 @@ class _RegisterTypePageState extends State<RegisterTypePage> {
                         foregroundColor: Colors.white,
                         disabledForegroundColor: AppColors.loginOnSurfaceVar.withValues(alpha: 0.5),
                         elevation: _selectedRole == null ? 0 : 3,
-                        shadowColor: const Color(0x4DFF5C00),
+                        shadowColor: AppColors.primary.withValues(alpha: 0.3),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                         ),

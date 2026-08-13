@@ -117,6 +117,15 @@ final chatThreadsProvider = FutureProvider<ChatThreadsResult>((ref) async {
   );
 });
 
+/// Indica si hay algún hilo de chat con mensajes sin leer.
+/// Usado para el punto indicador de la campana de notificaciones del home.
+final hasUnreadChatThreadsProvider = Provider<bool>((ref) {
+  final threadsAsync = ref.watch(chatThreadsProvider);
+  return threadsAsync.valueOrNull?.threads
+          .any((thread) => thread.unreadCount > 0) ??
+      false;
+});
+
 final myConversationsProvider = FutureProvider<List<ChatConversation>>((ref) async {
   final repository = ref.watch(chatRepositoryProvider);
   final socketService = ref.watch(socketServiceProvider);

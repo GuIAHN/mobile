@@ -8,10 +8,6 @@ import '../../../../../core/services/location_service.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
-import '../../../../vehicles/domain/entities/user_car.dart';
-import '../../../../vehicles/presentation/providers/vehicle_providers.dart';
-import '../../../../vehicles/presentation/widgets/garage_vehicle_selector_sheet.dart';
-import '../../providers/home_providers.dart';
 
 class HomeHeaderExpanded extends ConsumerStatefulWidget {
   /// Contenido opcional integrado dentro del bloque de color
@@ -49,283 +45,128 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
   Future<void> _checkInitialLocationPermission() async {
     final service = ref.read(locationServiceProvider);
     final permission = await service.checkPermission();
-    if (permission == LocationPermission.whileInUse ||
-        permission == LocationPermission.always) {
-      final isServiceEnabled = await service.isLocationServiceEnabled();
-      if (isServiceEnabled) {
-        ref.read(isLocationSharedProvider.notifier).state = true;
-        await _updateCurrentLocation();
+
+    if (permission == LocationPermission.always ||
+        permission == LocationPermission.whileInUse) {
+      final isShared = ref.read(isLocationSharedProvider);
+      if (isShared) {
+        _resolveLocationName();
       }
     }
   }
 
-  Future<bool> _updateCurrentLocation() async {
-    final success =
-        await ref.read(userLocationProvider.notifier).updateLocation();
-    if (!success) return false;
+  Future<void> _resolveLocationName() async {
+    try {
+      final service = ref.read(locationServiceProvider);
+      final pos = await service.getCurrentPosition();
+      if (!mounted) return;
 
-    final position = ref.read(userLocationProvider).valueOrNull;
-    if (position == null) return true;
+      final placeName =
+          await service.getAddressFromCoordinates(pos.latitude, pos.longitude);
+      if (!mounted) return;
 
-    final locationName = await ref
-        .read(locationServiceProvider)
-        .getAddressFromCoordinates(position.latitude, position.longitude);
-    if (mounted && locationName != null && locationName.isNotEmpty) {
-      setState(() => _resolvedLocationName = locationName);
+      setState(() {
+        _resolvedLocationName = placeName;
+      });
+    } catch (_) {
+      // Ignorar fallos de ubicación en fallback
     }
-    return true;
   }
 
   Future<void> _handleLocationToggle(BuildContext context) async {
-    final isCurrentlyShared = ref.read(isLocationSharedProvider);
-    if (isCurrentlyShared) {
+    final service = ref.read(locationServiceProvider);
+    final isShared = ref.read(isLocationSharedProvider);
+
+    if (isShared) {
       ref.read(isLocationSharedProvider.notifier).state = false;
       setState(() => _resolvedLocationName = null);
-      return;
-    }
 
-    final service = ref.read(locationServiceProvider);
-
-    final isServiceEnabled = await service.isLocationServiceEnabled();
-    if (!isServiceEnabled) {
-      if (!context.mounted) return;
-      _showGpsDisabledDialog(context);
-      return;
-    }
-
-    var permission = await service.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await service.requestPermission();
-      if (permission == LocationPermission.denied) {
-        if (!context.mounted) return;
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Permiso de ubicación denegado por el usuario.'),
-            backgroundColor: AppColors.error,
+            content: Text('Ubicación desactivada'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.primary,
           ),
         );
-        return;
+      }
+    } else {
+      final permission = await service.requestPermission();
+      if (!context.mounted) return;
+
+      if (permission == LocationPermission.always ||
+          permission == LocationPermission.whileInUse) {
+        ref.read(isLocationSharedProvider.notifier).state = true;
+        ref.invalidate(userLocationProvider);
+        _resolveLocationName();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ubicación activada'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      } else if (permission == LocationPermission.deniedForever) {
+        _showLocationSettingsDialog(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Permiso de ubicación denegado'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.primary,
+          ),
+        );
       }
     }
-
-    if (permission == LocationPermission.deniedForever) {
-      if (!context.mounted) return;
-      _showSettingsRedirectDialog(context);
-      return;
-    }
-
-    ref.read(isLocationSharedProvider.notifier).state = true;
-    final success = await _updateCurrentLocation();
-    if (!success) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'No se pudo obtener la ubicación exacta. Usando última conocida.'),
-          backgroundColor: AppColors.primary,
-        ),
-      );
-    }
   }
 
-  void _showGpsDisabledDialog(BuildContext context) {
+  void _showLocationSettingsDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Row(
-          children: [
-            const Icon(Icons.location_off_rounded,
-                color: AppColors.primary, size: 28),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'GPS Desactivado',
-                style: GoogleFonts.hankenGrotesk(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 18,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-          ],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Permiso de ubicación permanente denegado',
+          style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.w700),
         ),
         content: Text(
-          'El servicio de ubicación (GPS) está apagado en tu dispositivo. Puedes activarlo en tu configuración o continuar usando la última ubicación conocida.',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-            height: 1.5,
-          ),
+          'Para mostrarte mecánicos y talleres cercanos, necesitamos acceso a tu ubicación. '
+          'Por favor, habilita el permiso en los ajustes de tu dispositivo.',
+          style: GoogleFonts.hankenGrotesk(),
         ),
-        actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
         actions: [
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    side: const BorderSide(color: AppColors.border),
-                  ),
-                  child: Text(
-                    'Cancelar',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancelar',
+              style: GoogleFonts.hankenGrotesk(color: AppColors.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ref.read(locationServiceProvider).openAppSettings();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    final service = ref.read(locationServiceProvider);
-                    final lastKnown = await service.getLastKnownPosition();
-                    if (lastKnown != null) {
-                      ref.read(isLocationSharedProvider.notifier).state = true;
-                      ref.read(userLocationProvider.notifier).updateLocation();
-                    } else {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                              'No hay ubicación conocida anterior. Activa el GPS.'),
-                          backgroundColor: AppColors.error,
-                        ),
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    'Usar última',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
+            child: Text(
+              'Ir a Ajustes',
+              style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
     );
-  }
-
-  void _showSettingsRedirectDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Row(
-          children: [
-            const Icon(Icons.settings_applications_rounded,
-                color: AppColors.primary, size: 28),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Permiso de Ubicación',
-                style: GoogleFonts.hankenGrotesk(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 18,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          'Para buscar talleres o repuestos cercanos a ti, la aplicación necesita acceder a tu ubicación. Por favor, actívala en los Ajustes del sistema.',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-            height: 1.5,
-          ),
-        ),
-        actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
-        actions: [
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    side: const BorderSide(color: AppColors.border),
-                  ),
-                  child: Text(
-                    'Cancelar',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    ref.read(locationServiceProvider).openAppSettings();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    'Ir a Ajustes',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _handleVehicleSelection(
-    BuildContext context,
-    UserCar? selectedVehicle,
-  ) async {
-    final result = await GarageVehicleSelectorSheet.show(
-      context,
-      selectedCar: selectedVehicle,
-    );
-    if (!mounted || result == null) return;
-
-    ref.read(searchVehicleProvider.notifier).state = result.car;
-    ref.read(searchVehicleVariantIdProvider.notifier).state = result.variantId;
   }
 
   @override
@@ -333,26 +174,7 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
     final isLocationShared = ref.watch(isLocationSharedProvider);
     final locationAsync = ref.watch(userLocationProvider);
     final userName = ref.watch(authProvider).user?.name.trim();
-    final selectedSearchVehicle = ref.watch(searchVehicleProvider);
-    final garageCarsAsync = ref.watch(userCarsProvider);
-    final garageCars = garageCarsAsync.valueOrNull;
-    final fallbackVehicle =
-        garageCars == null || garageCars.isEmpty ? null : garageCars.first;
-    final selectedVehicle = selectedSearchVehicle ?? fallbackVehicle;
-    final vehicleStatusText = selectedVehicle != null
-        ? '${selectedVehicle.brand} ${selectedVehicle.model}'
-        : garageCarsAsync.when(
-            data: (_) => 'Seleccionar vehículo',
-            loading: () => 'Cargando vehículo…',
-            error: (_, __) => 'No pudimos cargar tu vehículo',
-          );
-    final vehicleSemanticsLabel = selectedVehicle != null
-        ? 'Vehículo seleccionado: ${selectedVehicle.brand} ${selectedVehicle.model}. Toca para cambiar.'
-        : garageCarsAsync.when(
-            data: (_) => 'Seleccionar vehículo',
-            loading: () => 'Cargando vehículo',
-            error: (_, __) => 'No pudimos cargar tu vehículo. Abrir selector.',
-          );
+
     final locationText = !isLocationShared
         ? 'Ubicación desactivada'
         : _resolvedLocationName ??
@@ -366,79 +188,134 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
       value: SystemUiOverlayStyle.light,
       child: Container(
         width: double.infinity,
-        padding: EdgeInsets.only(
-          top: statusBarHeight + AppSpacing.sm,
-          bottom: AppSpacing.xl,
-        ),
+        clipBehavior: Clip.antiAlias,
         decoration: const BoxDecoration(
-          color: AppColors.primaryDark,
+          color: AppColors.primary,
           borderRadius: BorderRadius.vertical(
             bottom: Radius.circular(28),
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            // ── Fila superior: ubicación + notificaciones ────────────────
+            // ── Formas orgánicas translúcidas de fondo (estilo mockup) ─────
+            Positioned(
+              top: -60,
+              right: -50,
+              child: Container(
+                width: 220,
+                height: 220,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.13),
+                ),
+              ),
+            ),
+            Positioned(
+              top: -110,
+              right: -100,
+              child: Container(
+                width: 320,
+                height: 320,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.06),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: -50,
+              left: -55,
+              child: Container(
+                width: 170,
+                height: 170,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.11),
+                ),
+              ),
+            ),
+
+            // ── Contenido del Header ─────────────────────────────────────
+            Padding(
+              padding: EdgeInsets.only(
+                top: statusBarHeight + AppSpacing.sm,
+                bottom: 32,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Fila superior: ubicación chip + notificaciones ───────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Ubicación (tappable para compartir/dejar de compartir)
-                  Expanded(
+                  Flexible(
                     child: Semantics(
                       button: true,
                       excludeSemantics: true,
                       label: isLocationShared
-                          ? 'Desactivar ubicación. Ubicación actual: '
-                              '$locationText'
+                          ? 'Desactivar ubicación. Ubicación actual: $locationText'
                           : 'Activar ubicación',
-                      child: ConstrainedBox(
-                        key: const Key('home-location-control'),
-                        constraints: const BoxConstraints(
-                          minHeight: AppSpacing.xl5,
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () => _handleLocationToggle(context),
-                            borderRadius:
-                                BorderRadius.circular(AppSpacing.radiusMd),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: AppSpacing.sm,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          key: const Key('home-location-control'),
+                          onTap: () => _handleLocationToggle(context),
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radiusFull),
+                          child: Container(
+                            height: 36,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.18),
+                              borderRadius:
+                                  BorderRadius.circular(AppSpacing.radiusFull),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.35),
+                                width: 1.0,
                               ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    isLocationShared
-                                        ? Icons.location_on
-                                        : Icons.location_on_outlined,
-                                    color: AppColors.textOnPrimary,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: AppSpacing.sm),
-                                  Flexible(
-                                    child: Text(
-                                      locationText,
-                                      softWrap: true,
-                                      style: GoogleFonts.hankenGrotesk(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.textOnPrimary,
-                                        letterSpacing: -0.2,
-                                      ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isLocationShared
+                                      ? Icons.location_on_rounded
+                                      : Icons.location_off_rounded,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 5),
+                                Flexible(
+                                  child: Text(
+                                    locationText,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.hankenGrotesk(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                      letterSpacing: -0.1,
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
+                                const SizedBox(width: 3),
+                                const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ),
                     ),
                   ),
-
                   if (widget.onNotificationsTap != null) ...[
                     const SizedBox(width: AppSpacing.sm),
                     _NotificationButton(
@@ -450,95 +327,44 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
               ),
             ),
 
-            // ── Saludo personalizado ───────────────────────────────────
+            // ── Saludo + tagline ─────────────────────────────────────────
             if (userName != null && userName.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: 20),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: Text(
-                  'Hola, $userName',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textOnPrimary,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ),
-            ],
-
-            const SizedBox(height: AppSpacing.md),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: Semantics(
-                button: true,
-                excludeSemantics: true,
-                label: vehicleSemanticsLabel,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minWidth: double.infinity,
-                    minHeight: AppSpacing.xl5,
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: Ink(
-                      decoration: BoxDecoration(
-                        color: AppColors.textOnPrimary.withValues(alpha: 0.06),
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.radiusLg),
-                        border: Border.all(
-                          color:
-                              AppColors.textOnPrimary.withValues(alpha: 0.45),
-                        ),
-                      ),
-                      child: InkWell(
-                        onTap: () =>
-                            _handleVehicleSelection(context, selectedVehicle),
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.radiusLg),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: AppSpacing.sm,
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.directions_car_outlined,
-                                color: AppColors.textOnPrimary,
-                                size: 22,
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Expanded(
-                                child: Text(
-                                  vehicleStatusText,
-                                  softWrap: true,
-                                  style: GoogleFonts.hankenGrotesk(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.textOnPrimary,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              const Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                color: AppColors.textOnPrimary,
-                                size: 22,
-                              ),
-                            ],
-                          ),
-                        ),
+                padding: const EdgeInsets.only(left: 24, right: AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hola, $userName',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 27,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                        height: 1.1,
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '¿En qué podemos ayudarte hoy?',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withValues(alpha: 0.85),
+                        letterSpacing: -0.1,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
+            ] else ...[
+              const SizedBox(height: 16),
+            ],
 
-            // ── Publicidad integrada dentro del bloque de color ────────────
+            // ── Publicidad integrada dentro del bloque de color ──────────
             if (widget.child != null) ...[
               const SizedBox(height: AppSpacing.lg),
               Padding(
@@ -546,10 +372,13 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
                 child: widget.child!,
               ),
             ],
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      ],
+    ),
+  ),
+);
   }
 }
 
@@ -572,35 +401,37 @@ class _NotificationButton extends StatelessWidget {
           ? 'Notificaciones, tienes notificaciones sin leer'
           : 'Notificaciones',
       child: SizedBox.square(
-        dimension: AppSpacing.xl5,
+        dimension: 48,
         child: Material(
-          color: Colors.transparent,
+          color: Colors.white.withValues(alpha: 0.20),
+          shape: CircleBorder(
+            side: BorderSide(
+              color: Colors.white.withValues(alpha: 0.35),
+              width: 1,
+            ),
+          ),
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+            customBorder: const CircleBorder(),
             child: Stack(
               alignment: Alignment.center,
               clipBehavior: Clip.none,
               children: [
                 const Icon(
                   Icons.notifications_outlined,
-                  color: AppColors.textOnPrimary,
-                  size: 24,
+                  color: Colors.white,
+                  size: 20,
                 ),
                 if (hasUnread)
                   Positioned(
-                    right: 10,
-                    top: 9,
+                    right: 9,
+                    top: 8,
                     child: Container(
-                      width: 9,
-                      height: 9,
-                      decoration: BoxDecoration(
-                        color: AppColors.textOnPrimary,
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.primaryDark,
-                          width: 1.5,
-                        ),
                       ),
                     ),
                   ),

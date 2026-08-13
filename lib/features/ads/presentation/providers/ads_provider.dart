@@ -74,7 +74,7 @@ final adsAsPromosProvider =
           title: ad.title,
           subtitle: ad.description ?? ad.brandName,
           iconName: 'local_offer_outlined', // Icono genérico por defecto
-          gradientColors: const [0xFFF25C05, 0xFFBF4704], // Naranja por defecto
+          gradientColors: const [0xFFF25C05, 0xFFF25C05], // Naranja por defecto
           imageUrl: ad.mediaUrl,
           ctaUrl: ad.ctaUrl,
         );

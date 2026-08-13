@@ -24,6 +24,7 @@ import 'package:guiautomotriz_mobile/features/home/domain/entities/promo.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/pages/home_page.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/promo_carousel.dart';
+import 'package:guiautomotriz_mobile/features/home/presentation/widgets/sections/top_providers_section.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/spare_part_wizard_page.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/store_dashboard/store_dashboard_view.dart';
 import 'package:guiautomotriz_mobile/features/reports/domain/entities/store_dashboard.dart';
@@ -138,7 +139,6 @@ void main() {
         storeDashboardProvider.overrideWith(
           (ref) => Completer<DashboardResponse>().future,
         ),
-        welcomeShownProvider.overrideWith((ref) => true),
       ],
     );
   }
@@ -206,6 +206,51 @@ void main() {
         description: 'Home vertical ListView',
       );
 
+  testWidgets('consumer Home places provider groups in keyed surfaces',
+      (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(430, 1800));
+    final container = containerFor(
+      workshops: AsyncValue.data([
+        providerFixture(ServiceType.workshops),
+      ]),
+      mechanics: AsyncValue.data([
+        providerFixture(ServiceType.mechanic),
+      ]),
+      loadPromos: (ref, type) async => const [promo],
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container, height: 1800);
+
+    final promoFinder = find.text('Revisión de frenos con descuento');
+    final workshopsSurface =
+        find.byKey(const Key('home-provider-section-workshops'));
+    final mechanicsSurface =
+        find.byKey(const Key('home-provider-section-mechanics'));
+    expect(workshopsSurface, findsOneWidget);
+    expect(mechanicsSurface, findsOneWidget);
+    expect(
+      tester.getTopLeft(promoFinder).dy,
+      lessThan(tester.getTopLeft(workshopsSurface).dy),
+    );
+
+    final workshopsSection = tester.widget<TopProvidersSection>(
+      find.descendant(
+        of: workshopsSurface,
+        matching: find.byType(TopProvidersSection),
+      ),
+    );
+    expect(workshopsSection.serviceType, ServiceType.workshops);
+    final mechanicsSection = tester.widget<TopProvidersSection>(
+      find.descendant(
+        of: mechanicsSurface,
+        matching: find.byType(TopProvidersSection),
+      ),
+    );
+    expect(mechanicsSection.serviceType, ServiceType.mechanic);
+  });
+
   testWidgets('consumer Home uses the approved content and visual order',
       (tester) async {
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -225,7 +270,7 @@ void main() {
 
     const orderedLabels = [
       '¿Qué necesitas hoy?',
-      'Solicitar repuesto',
+      'Pedir repuesto',
       'Talleres mejor valorados',
       'Mecánicos mejor valorados',
     ];
@@ -240,13 +285,49 @@ void main() {
     final promoFinder = find.text('Revisión de frenos con descuento');
     expect(promoFinder, findsOneWidget);
     expect(
-      tester.getTopLeft(find.text('Solicitar repuesto')).dy,
+      tester.getTopLeft(find.text('Pedir repuesto')).dy,
       lessThan(tester.getTopLeft(promoFinder).dy),
     );
     expect(
       tester.getTopLeft(promoFinder).dy,
       lessThan(tester.getTopLeft(find.text('Talleres mejor valorados')).dy),
     );
+
+    final workshopsSurface =
+        find.byKey(const Key('home-provider-section-workshops'));
+    final mechanicsSurface =
+        find.byKey(const Key('home-provider-section-mechanics'));
+    expect(workshopsSurface, findsOneWidget);
+    expect(mechanicsSurface, findsOneWidget);
+    expect(
+      tester.getTopLeft(workshopsSurface).dy,
+      lessThan(tester.getTopLeft(mechanicsSurface).dy),
+    );
+    expect(
+      tester.getTopLeft(promoFinder).dy,
+      lessThan(tester.getTopLeft(workshopsSurface).dy),
+    );
+
+    expect(
+      find.byKey(const Key('home-selected-vehicle-control')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('home-vehicle-chips-list')), findsNothing);
+
+    final workshopsSection = tester.widget<TopProvidersSection>(
+      find.descendant(
+        of: workshopsSurface,
+        matching: find.byType(TopProvidersSection),
+      ),
+    );
+    expect(workshopsSection.serviceType, ServiceType.workshops);
+    final mechanicsSection = tester.widget<TopProvidersSection>(
+      find.descendant(
+        of: mechanicsSurface,
+        matching: find.byType(TopProvidersSection),
+      ),
+    );
+    expect(mechanicsSection.serviceType, ServiceType.mechanic);
     expect(find.text('Mi garage'), findsNothing);
     expect(find.text('Chats'), findsOneWidget);
     expect(find.text('Compras'), findsOneWidget);
@@ -273,9 +354,9 @@ void main() {
     await pumpHome(tester, container);
 
     expect(container.read(searchVehicleProvider), isNull);
-    expect(find.text('Toyota Corolla'), findsOneWidget);
+    expect(find.text('Toyota Corolla · 2022'), findsOneWidget);
 
-    await tester.tap(find.text('Solicitar repuesto'));
+    await tester.tap(find.text('Pedir repuesto'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -343,8 +424,8 @@ void main() {
 
     expect(find.text('Talleres cerca de ti'), findsOneWidget);
     expect(find.text('Mecánicos cerca de ti'), findsNothing);
-    expect(find.text('Solicitar repuesto'), findsOneWidget);
-    expect(find.text('Buscar mecánicos'), findsNothing);
+    expect(find.text('Pedir repuesto'), findsOneWidget);
+    expect(find.text('Buscar mecánico'), findsNothing);
   });
 
   testWidgets('consumer Home shows an ad skeleton while promos load',
@@ -389,7 +470,7 @@ void main() {
     expect(find.textContaining('private advertising secret'), findsNothing);
     expect(find.text('Talleres mejor valorados'), findsOneWidget);
 
-    final actionY = tester.getBottomLeft(find.text('Solicitar repuesto')).dy;
+    final actionY = tester.getBottomLeft(find.text('Pedir repuesto')).dy;
     final promoY =
         tester.getTopLeft(find.byKey(const Key('promo-error-card'))).dy;
     final workshopsY =
@@ -490,13 +571,21 @@ void main() {
       (tester) async {
     final previousOnError = FlutterError.onError;
     final errors = <FlutterErrorDetails>[];
+    final errorContexts = <String>[];
     final missingContent = <String>[];
-    FlutterError.onError = errors.add;
+    var activeMatrixCase = 'width=unknown, textScale=unknown';
+    FlutterError.onError = (error) {
+      errors.add(error);
+      errorContexts.add(
+        '$activeMatrixCase: ${error.exceptionAsString()}',
+      );
+    };
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     try {
       for (final width in const [375.0, 430.0]) {
         for (final textScale in const [1.0, 1.3, 2.0]) {
+          activeMatrixCase = 'width=$width, textScale=$textScale';
           final height = width == 375 ? 812.0 : 932.0;
           await tester.binding.setSurfaceSize(Size(width, height));
           final container = containerFor(
@@ -523,7 +612,7 @@ void main() {
           await tester.pump();
 
           if (find.text('Mecánicos mejor valorados').evaluate().length != 1) {
-            missingContent.add('$width/$textScale');
+            missingContent.add(activeMatrixCase);
           }
           container.dispose();
         }
@@ -532,11 +621,15 @@ void main() {
       FlutterError.onError = previousOnError;
     }
 
-    expect(missingContent, isEmpty);
+    expect(
+      missingContent,
+      isEmpty,
+      reason: 'Missing content at: ${missingContent.join(', ')}',
+    );
     expect(
       errors,
       isEmpty,
-      reason: errors.map((error) => error.exceptionAsString()).join('\n'),
+      reason: errorContexts.join('\n'),
     );
   });
 

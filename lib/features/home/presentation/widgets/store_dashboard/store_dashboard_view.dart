@@ -136,11 +136,11 @@ class StoreDashboardView extends ConsumerWidget {
                     _svgSend,
                     width: 18,
                     height: 18,
-                    colorFilter: const ColorFilter.mode(Color(0xFFEA580C), BlendMode.srcIn),
+                    colorFilter: const ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
                   ),
-                  themeColor: const Color(0xFFEA580C),
-                  iconColor: const Color(0xFFEA580C),
-                  iconBgColor: const Color(0xFFFFF7ED),
+                  themeColor: AppColors.primary,
+                  iconColor: AppColors.primary,
+                  iconBgColor: AppColors.primaryMuted,
                   deltaPct: quotesMetric.payload['deltaPct'] != null
                       ? (quotesMetric.payload['deltaPct'] as num).toDouble()
                       : null,

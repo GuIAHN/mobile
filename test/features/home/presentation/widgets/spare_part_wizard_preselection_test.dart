@@ -64,6 +64,10 @@ void main() {
 
     await tester.tap(find.text('Audi 4000'));
     await tester.pump();
+    await tester.ensureVisible(find.text('Continuar'));
+    await tester.pump();
+    await tester.tap(find.text('Continuar'));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Paso 2 de 3'), findsOneWidget);

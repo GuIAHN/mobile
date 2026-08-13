@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../providers/home_providers.dart';
 import '../../../ads/presentation/providers/ads_provider.dart';
@@ -15,15 +15,21 @@ import '../widgets/unapproved_overlay.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../chat/presentation/pages/chat_inbox_page.dart';
 import '../../../chat/presentation/pages/mis_compras_page.dart';
+import '../../../chat/presentation/providers/chat_providers.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
+import '../../../../shared/widgets/section_header.dart';
 
 // Componentes del Home (hub de navegación)
 import '../widgets/header/home_header_expanded.dart';
+import '../widgets/home_section_surface.dart';
 import '../widgets/sections/top_providers_section.dart';
 import '../widgets/sections/my_garage_section.dart';
 import '../widgets/store_dashboard/store_dashboard_view.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/providers/current_user_provider.dart';
+
+/// Ritmo vertical entre secciones del home.
+const double _kSectionGap = 24;
 
 /// Home reestructurado: ya NO filtra contenido.
 /// Actúa como hub de navegación (estilo Mercado Libre / Pedidos Ya):
@@ -51,62 +57,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     final authState = ref.watch(authProvider);
     final user = authState.user;
     final isStore = ref.watch(currentRoleProvider).isStore;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted &&
-          authState.isAuthenticated &&
-          user != null &&
-          !ref.read(welcomeShownProvider)) {
-        ref.read(welcomeShownProvider.notifier).state = true;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.waving_hand_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      '¡Hola, ${user.name}!',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        fontSize: 15,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            backgroundColor: AppColors.secondary,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(milliseconds: 2000),
-            elevation: 6,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-            ),
-            margin: const EdgeInsets.only(
-              left: AppSpacing.lg,
-              right: AppSpacing.lg,
-              bottom: AppSpacing.md,
-            ),
-          ),
-        );
-      }
-    });
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -155,19 +105,28 @@ class _HomePageState extends ConsumerState<HomePage> {
     final isConsumer = currentRole.isConsumer;
     final promosAsync = ref.watch(adsAsPromosProvider(selectedType));
     final allowedTypes = currentRole.allowedServiceTypes;
+    final hasUnreadChats = ref.watch(hasUnreadChatThreadsProvider);
     // La tienda no tiene garage: aunque isDashboardSelected quede desactualizado
     // (ej. al volver de la lista de mecánicos/talleres), el rol manda.
     final showGarage =
         !isConsumer && !isDashboardSelected && !currentRole.isStore;
     final promoSection = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: promosAsync.when(
-        data: (promos) => PromoCarousel(promos: promos),
-        loading: () => const PromoSkeleton(),
-        error: (error, stack) => _PromoErrorCard(
-          onRetry: () {
-            ref.invalidate(adsAsPromosProvider(selectedType));
-          },
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 260),
+        switchInCurve: Curves.easeOut,
+        switchOutCurve: Curves.easeIn,
+        child: KeyedSubtree(
+          key: ValueKey<bool>(promosAsync.isLoading),
+          child: promosAsync.when(
+            data: (promos) => PromoCarousel(promos: promos),
+            loading: () => const PromoSkeleton(),
+            error: (error, stack) => _PromoErrorCard(
+              onRetry: () {
+                ref.invalidate(adsAsPromosProvider(selectedType));
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -181,34 +140,38 @@ class _HomePageState extends ConsumerState<HomePage> {
       children: [
         // ── Header expandido: color sólido hasta la barra de estado
         //    y recorte inferior redondeado ──────────────────────────────
-        const HomeHeaderExpanded(),
+        HomeHeaderExpanded(
+          hasUnreadNotifications: hasUnreadChats,
+          onNotificationsTap: () =>
+              ref.read(homeTabProvider.notifier).state = 1,
+        ),
 
         if (showGarage) ...[
           // ── Mi garage: vehículos del usuario con acceso rápido ─────────
-          const SizedBox(height: 20),
+          const SizedBox(height: _kSectionGap),
           const MyGarageSection(),
 
           // ── Publicidad ──────────────────────────────────────────────
-          const SizedBox(height: 20),
+          const SizedBox(height: _kSectionGap),
           promoSection,
         ],
 
-        if (isConsumer)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-            child: Text(
-              '¿Qué necesitas hoy?',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
+        if (isConsumer) ...[
+          const SizedBox(height: _kSectionGap),
+          const SectionHeader(
+            title: '¿Qué necesitas buscar hoy?',
+            icon: Icons.search_rounded,
           ),
+        ],
 
-        // ── Tarjetas de categorías estilo Pedidos Ya (redirigen a flujos) ──
+        // ── Tarjetas de acción principales ──────────────────────────────────
         Padding(
-          padding: EdgeInsets.fromLTRB(20, isConsumer ? 0 : 20, 20, 16),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            isConsumer ? 12 : _kSectionGap,
+            20,
+            16,
+          ),
           child: const CategoryGrid(),
         ),
 
@@ -219,25 +182,31 @@ class _HomePageState extends ConsumerState<HomePage> {
           const StoreDashboardView()
         else if (isConsumer) ...[
           if (allowedTypes.contains(ServiceType.workshops)) ...[
-            const SizedBox(height: 8),
-            const TopProvidersSection(
-              serviceType: ServiceType.workshops,
-              title: 'Talleres mejor valorados',
-              routePath: RouteNames.workshops,
+            const SizedBox(height: _kSectionGap),
+            const HomeSectionSurface(
+              key: Key('home-provider-section-workshops'),
+              child: TopProvidersSection(
+                serviceType: ServiceType.workshops,
+                title: 'Talleres mejor valorados',
+                routePath: RouteNames.workshops,
+              ),
             ),
           ],
           if (allowedTypes.contains(ServiceType.mechanic)) ...[
-            const SizedBox(height: 24),
-            const TopProvidersSection(
-              serviceType: ServiceType.mechanic,
-              title: 'Mecánicos mejor valorados',
-              routePath: RouteNames.mechanics,
+            const SizedBox(height: _kSectionGap),
+            const HomeSectionSurface(
+              key: Key('home-provider-section-mechanics'),
+              child: TopProvidersSection(
+                serviceType: ServiceType.mechanic,
+                title: 'Mecánicos mejor valorados',
+                routePath: RouteNames.mechanics,
+              ),
             ),
           ],
         ] else ...[
           // ── Top mecánicos cercanos ────────────────────────────────
           if (allowedTypes.contains(ServiceType.mechanic)) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: _kSectionGap),
             const TopProvidersSection(
               serviceType: ServiceType.mechanic,
               title: 'Mecánicos cerca de ti',
@@ -247,7 +216,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
           // ── Top talleres cercanos ─────────────────────────────────
           if (allowedTypes.contains(ServiceType.workshops)) ...[
-            const SizedBox(height: 24),
+            const SizedBox(height: _kSectionGap),
             const TopProvidersSection(
               serviceType: ServiceType.workshops,
               title: 'Talleres cerca de ti',
@@ -301,20 +270,12 @@ class _PromoErrorCard extends StatelessWidget {
                   children: [
                     Text(
                       'No pudimos cargar la publicidad',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
+                      style: AppTypography.title,
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       'Comprueba tu conexión e inténtalo de nuevo.',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
-                      ),
+                      style: AppTypography.meta,
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     TextButton(
@@ -326,12 +287,7 @@ class _PromoErrorCard extends StatelessWidget {
                           horizontal: AppSpacing.sm,
                         ),
                       ),
-                      child: Text(
-                        'Reintentar',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      child: Text('Reintentar', style: AppTypography.label),
                     ),
                   ],
                 ),

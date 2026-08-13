@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_decorations.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/router/route_names.dart';
@@ -44,28 +46,8 @@ class _ItemCardState extends State<ItemCard> {
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
-
-    final Color accentColor;
-    final Color softBgColor;
-
-    switch (item.type) {
-      case ServiceType.mechanic:
-        accentColor = AppColors.primary;
-        softBgColor = AppColors.primaryMuted;
-        break;
-      case ServiceType.spareParts:
-        accentColor = AppColors.primary;
-        softBgColor = AppColors.primaryMuted;
-        break;
-      case ServiceType.storeDashboard:
-        accentColor = AppColors.primary;
-        softBgColor = AppColors.primaryMuted;
-        break;
-      case ServiceType.workshops:
-        accentColor = AppColors.secondary;
-        softBgColor = AppColors.grey200;
-        break;
-    }
+    const accentColor = AppColors.primaryInk;
+    const softBgColor = AppColors.primaryMuted;
 
     return GestureDetector(
       onTapDown: (_) => setState(() => _isPressed = true),
@@ -80,70 +62,49 @@ class _ItemCardState extends State<ItemCard> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(
-                item.type == ServiceType.workshops ? 14 : 20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.10),
+              width: 1.0,
+            ),
+            boxShadow: AppDecorations.soft,
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Avatar + indicador de estado
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  _HeroWrapper(
-                    // Continuidad espacial hacia la pantalla de detalle
-                    tag: item.id != null ? 'provider-avatar-${item.id}' : null,
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      clipBehavior: Clip.antiAlias,
-                      decoration: BoxDecoration(
-                        color: softBgColor,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: item.photo != null && item.photo!.isNotEmpty
-                          ? Image.network(
-                              item.photo!,
-                              width: 48,
-                              height: 48,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Icon(
-                                getIconData(item.iconName),
-                                color: accentColor,
-                                size: 22,
-                              ),
-                            )
-                          : Icon(
-                              getIconData(item.iconName),
-                              color: accentColor,
-                              size: 22,
-                            ),
+              // Avatar
+              _HeroWrapper(
+                tag: item.id != null ? 'provider-avatar-${item.id}' : null,
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: softBgColor,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.15),
+                      width: 1.0,
                     ),
                   ),
-                  if (item.isOpen != null)
-                    Positioned(
-                      bottom: -2,
-                      right: -2,
-                      child: Container(
-                        width: 14,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          color: item.isOpen!
-                              ? AppColors.success
-                              : AppColors.textDisabled,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+                  child: item.photo != null && item.photo!.isNotEmpty
+                      ? Image.network(
+                          item.photo!,
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Icon(
+                            getIconData(item.iconName),
+                            color: accentColor,
+                            size: 22,
+                          ),
+                        )
+                      : Icon(
+                          getIconData(item.iconName),
+                          color: accentColor,
+                          size: 22,
                         ),
-                      ),
-                    ),
-                ],
+                ),
               ),
               const SizedBox(width: 16),
 
@@ -156,11 +117,7 @@ class _ItemCardState extends State<ItemCard> {
                       item.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
+                      style: AppTypography.title.copyWith(fontSize: 14.5),
                     ),
                     const SizedBox(height: 3),
                     // Especialidades o detalle
@@ -170,11 +127,7 @@ class _ItemCardState extends State<ItemCard> {
                           : item.detail,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.textSecondary,
-                      ),
+                      style: AppTypography.bodySm,
                     ),
                     const SizedBox(height: 8),
                     Wrap(
@@ -182,31 +135,31 @@ class _ItemCardState extends State<ItemCard> {
                       runSpacing: 6,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
+
                         // Rating Tag
                         _Tag(
-                          backgroundColor: const Color(0xFFFEF3C7),
+                          backgroundColor: AppColors.warningLight,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(Icons.star_rounded,
-                                  size: 13, color: Color(0xFFF59E0B)),
+                                  size: 13, color: AppColors.warning),
                               const SizedBox(width: 4),
                               Text(
                                 item.rating.toStringAsFixed(1),
-                                style: GoogleFonts.hankenGrotesk(
+                                style: AppTypography.meta.copyWith(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
-                                  color: const Color(0xFFB5790F),
+                                  color: AppColors.warningInk,
                                 ),
                               ),
                               if (item.reviews > 0) ...[
                                 const SizedBox(width: 4),
                                 Text(
                                   '(${item.reviews})',
-                                  style: GoogleFonts.hankenGrotesk(
+                                  style: AppTypography.meta.copyWith(
                                     fontSize: 9.5,
-                                    fontWeight: FontWeight.w500,
-                                    color: const Color(0xFFC29A4D),
+                                    color: AppColors.warningInk,
                                   ),
                                 ),
                               ],
@@ -227,12 +180,11 @@ class _ItemCardState extends State<ItemCard> {
                               const SizedBox(width: 4),
                               Text(
                                 item.distanceKm == null
-                                    ? 'Distancia no disponible'
+                                    ? 'Sin distancia'
                                     : '${item.distanceKm!.toStringAsFixed(1)} km',
-                                style: GoogleFonts.hankenGrotesk(
+                                style: AppTypography.meta.copyWith(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.textSecondary,
                                 ),
                               ),
                             ],
@@ -242,14 +194,13 @@ class _ItemCardState extends State<ItemCard> {
                         // Tarifa Tag (solo mecánicos con tarifa)
                         if (item.tarifa != null) ...[
                           _Tag(
-                            backgroundColor:
-                                AppColors.success.withValues(alpha: 0.08),
+                            backgroundColor: AppColors.successLight,
                             child: Text(
                               '${Formatters.currencyCompact(item.tarifa!)}/h',
-                              style: GoogleFonts.hankenGrotesk(
+                              style: AppTypography.meta.copyWith(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.success,
+                                color: AppColors.successInk,
                               ),
                             ),
                           ),
@@ -258,20 +209,19 @@ class _ItemCardState extends State<ItemCard> {
                         // Delivery Tag
                         if (item.hasDelivery) ...[
                           _Tag(
-                            backgroundColor:
-                                AppColors.success.withValues(alpha: 0.08),
+                            backgroundColor: AppColors.successLight,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 const Icon(Icons.local_shipping_rounded,
-                                    size: 11, color: AppColors.success),
+                                    size: 11, color: AppColors.successInk),
                                 const SizedBox(width: 4),
                                 Text(
                                   'Delivery',
-                                  style: GoogleFonts.hankenGrotesk(
+                                  style: AppTypography.meta.copyWith(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.success,
+                                    color: AppColors.successInk,
                                   ),
                                 ),
                               ],
@@ -375,7 +325,11 @@ class _Tag extends StatelessWidget {
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(8),
-        border: border,
+        border: border ??
+            Border.all(
+              color: AppColors.primary.withValues(alpha: 0.10),
+              width: 0.8,
+            ),
       ),
       child: child,
     );

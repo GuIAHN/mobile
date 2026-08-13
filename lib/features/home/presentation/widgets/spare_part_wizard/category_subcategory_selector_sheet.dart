@@ -7,6 +7,15 @@ import '../../../../catalog/domain/entities/category.dart';
 import '../../../../catalog/domain/entities/category_node.dart';
 import '../../../../catalog/presentation/providers/catalog_providers.dart';
 
+/// ID de la subcategoría "Otro" devuelta por [CategorySubcategorySelectorSheet].
+///
+/// Público a propósito: el paso 3 del wizard necesita comparar contra este
+/// valor real (antes comparaba contra el literal 'other_subcategory_id',
+/// que nunca coincidía con el UUID real y dejaba la validación de "Otro"
+/// muerta).
+const kOtherSubcategoryId = '4340eca0-6410-414c-9655-e91711666860';
+const kOtherCategoryId = 'f4ff2288-c7bc-4c42-b0ee-0e66a46e0395';
+
 class CategorySubcategoryResult {
   final Category category;
   final Category subcategory;
@@ -52,8 +61,8 @@ class CategorySubcategorySelectorSheet extends ConsumerStatefulWidget {
 
 class _CategorySubcategorySelectorSheetState
     extends ConsumerState<CategorySubcategorySelectorSheet> {
-  static const _otherCategoryId = 'f4ff2288-c7bc-4c42-b0ee-0e66a46e0395';
-  static const _otherSubcategoryId = '4340eca0-6410-414c-9655-e91711666860';
+  static const _otherCategoryId = kOtherCategoryId;
+  static const _otherSubcategoryId = kOtherSubcategoryId;
 
   List<String> _expandedPath = const [];
   bool _didInitializeExpansion = false;
@@ -253,7 +262,10 @@ class _CategorySubcategorySelectorSheetState
               ),
               const SizedBox(height: 2),
               Text(
-                'Tipo de repuesto',
+                // No "Tipo de repuesto": ese nombre ya lo usa el selector
+                // Nuevo/Usado/Reacondicionado del paso 2, y esta hoja elige
+                // la categoría del repuesto, un campo distinto.
+                'Categoría del repuesto',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.hankenGrotesk(

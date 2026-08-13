@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_decorations.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../domain/entities/home_filters.dart';
 import '../../domain/entities/sort_option.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
+import '../../../../shared/widgets/app_chip.dart';
 
 class FiltersSheet extends ConsumerStatefulWidget {
   final HomeFilters initialFilters;
@@ -36,8 +38,6 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
       widget.serviceType == ServiceType.mechanic ||
       widget.serviceType == ServiceType.workshops;
 
-  bool get _isMechanic => widget.serviceType == ServiceType.mechanic;
-
   @override
   Widget build(BuildContext context) {
     final hasChanges = _tempFilters != const HomeFilters();
@@ -55,7 +55,7 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
           ),
         child: Material(
           color: Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: AppDecorations.sheet,
           child: Padding(
             padding: EdgeInsets.only(
               left: AppSpacing.xl,
@@ -91,11 +91,12 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: AppColors.primaryMuted,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.radiusMd),
                           ),
                           child: const Icon(
                             Icons.tune_rounded,
-                            color: AppColors.primary,
+                            color: AppColors.primaryInk,
                             size: 18,
                           ),
                         ),
@@ -103,34 +104,31 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Filtros',
-                              style: GoogleFonts.hankenGrotesk(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
+                            Text('Filtros', style: AppTypography.h2),
                             if (activeCount > 0)
                               Text(
                                 '$activeCount filtro${activeCount > 1 ? 's' : ''} activo${activeCount > 1 ? 's' : ''}',
-                                style: GoogleFonts.hankenGrotesk(
-                                  fontSize: 11.5,
+                                style: AppTypography.meta.copyWith(
                                   fontWeight: FontWeight.w600,
-                                  color: AppColors.primary,
+                                  color: AppColors.primaryInk,
                                 ),
                               ),
                           ],
                         ),
                       ],
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 20),
-                      color: AppColors.textSecondary,
-                      onPressed: () => Navigator.pop(context),
-                      style: IconButton.styleFrom(
-                        backgroundColor: AppColors.grey100,
-                        padding: const EdgeInsets.all(6),
+                    Semantics(
+                      button: true,
+                      label: 'Cerrar filtros',
+                      excludeSemantics: true,
+                      child: IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        color: AppColors.textSecondary,
+                        onPressed: () => Navigator.pop(context),
+                        style: IconButton.styleFrom(
+                          backgroundColor: AppColors.grey100,
+                          minimumSize: const Size(44, 44),
+                        ),
                       ),
                     ),
                   ],
@@ -145,62 +143,18 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // ── Ordenar por ──────────────────────────────────
-                        _buildLabel('ORDENAR POR'),
+                        _buildLabel('ORDENAR POR', Icons.swap_vert_rounded),
                         const SizedBox(height: 10),
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
                           children: SortOption.values.map((option) {
                             final isSelected = _tempFilters.sortBy == option;
-                            return Expanded(
-                              child: GestureDetector(
-                                onTap: () {
-                                  HapticFeedback.selectionClick();
-                                  setState(() => _tempFilters =
-                                      _tempFilters.copyWith(sortBy: option));
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  curve: Curves.easeOut,
-                                  margin: EdgeInsets.only(
-                                      right: option == SortOption.values.last
-                                          ? 0
-                                          : 8),
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 11),
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? AppColors.primary
-                                        : Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? AppColors.primary
-                                          : AppColors.border,
-                                      width: 1.2,
-                                    ),
-                                    boxShadow: isSelected
-                                        ? [
-                                            BoxShadow(
-                                              color: AppColors.primary
-                                                  .withValues(alpha: 0.15),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 3),
-                                            ),
-                                          ]
-                                        : null,
-                                  ),
-                                  child: Text(
-                                    option.label,
-                                    style: GoogleFonts.hankenGrotesk(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: isSelected
-                                          ? Colors.white
-                                          : AppColors.textPrimary,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                            return AppChip(
+                              label: option.label,
+                              selected: isSelected,
+                              onTap: () => setState(() => _tempFilters =
+                                  _tempFilters.copyWith(sortBy: option)),
                             );
                           }).toList(),
                         ),
@@ -208,61 +162,19 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
 
                         // ── Radio de búsqueda ────────────────────────────
                         if (_isProviderSearch) ...[
-                          _buildLabel('RADIO DE BÚSQUEDA'),
+                          _buildLabel(
+                              'RADIO DE BÚSQUEDA', Icons.radar_rounded),
                           const SizedBox(height: 10),
-                          Row(
-                            children:
-                                [5.0, 10.0, 20.0, 30.0, 50.0].map((km) {
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [5.0, 10.0, 20.0, 30.0, 50.0].map((km) {
                               final isSelected = _tempFilters.radioKm == km;
-                              return Expanded(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    HapticFeedback.selectionClick();
-                                    setState(() => _tempFilters =
-                                        _tempFilters.copyWith(radioKm: km));
-                                  },
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 200),
-                                    curve: Curves.easeOut,
-                                    margin: EdgeInsets.only(
-                                        right: km == 50.0 ? 0 : 6),
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 11),
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? AppColors.primary
-                                          : Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: isSelected
-                                            ? AppColors.primary
-                                            : AppColors.border,
-                                        width: 1.2,
-                                      ),
-                                      boxShadow: isSelected
-                                          ? [
-                                              BoxShadow(
-                                                color: AppColors.primary
-                                                    .withValues(alpha: 0.15),
-                                                blurRadius: 8,
-                                                offset: const Offset(0, 3),
-                                              ),
-                                            ]
-                                          : null,
-                                    ),
-                                    child: Text(
-                                      '${km.toInt()} km',
-                                      style: GoogleFonts.hankenGrotesk(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w800,
-                                        color: isSelected
-                                            ? Colors.white
-                                            : AppColors.textPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                              return AppChip(
+                                label: '${km.toInt()} km',
+                                selected: isSelected,
+                                onTap: () => setState(() => _tempFilters =
+                                    _tempFilters.copyWith(radioKm: km)),
                               );
                             }).toList(),
                           ),
@@ -270,89 +182,33 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                         ],
 
                         // ── Valoración mínima ────────────────────────────
-                        _buildLabel('VALORACIÓN MÍNIMA'),
+                        _buildLabel(
+                            'VALORACIÓN MÍNIMA', Icons.star_border_rounded),
                         const SizedBox(height: 10),
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [0.0, 3.0, 4.0, 4.5].map((rating) {
                             final isSelected =
                                 _tempFilters.minRating == rating;
-                            return Expanded(
-                              child: GestureDetector(
-                                onTap: () {
-                                  HapticFeedback.selectionClick();
-                                  setState(() => _tempFilters =
-                                      _tempFilters.copyWith(
-                                          minRating: rating));
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  curve: Curves.easeOut,
-                                  margin: EdgeInsets.only(
-                                      right: rating == 4.5 ? 0 : 8),
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 11),
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? AppColors.primaryMuted
-                                        : Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? AppColors.primary
-                                          : AppColors.border,
-                                      width: 1.2,
-                                    ),
-                                  ),
-                                  child: rating == 0.0
-                                      ? Text(
-                                          'Todas',
-                                          style: GoogleFonts.hankenGrotesk(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w800,
-                                            color: isSelected
-                                                ? AppColors.primary
-                                                : AppColors.textPrimary,
-                                          ),
-                                        )
-                                      : Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(Icons.star_rounded,
-                                                size: 13,
-                                                color: isSelected
-                                                    ? AppColors.primary
-                                                    : const Color(0xFFF59E0B)),
-                                            const SizedBox(width: 3),
-                                            Text(
-                                              '$rating+',
-                                              style: GoogleFonts.hankenGrotesk(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w800,
-                                                color: isSelected
-                                                    ? AppColors.primary
-                                                    : AppColors.textPrimary,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                ),
-                              ),
+                            return AppChip(
+                              label: rating == 0.0 ? 'Todas' : '$rating+ ★',
+                              selected: isSelected,
+                              onTap: () => setState(() => _tempFilters =
+                                  _tempFilters.copyWith(minRating: rating)),
                             );
                           }).toList(),
                         ),
                         const SizedBox(height: 24),
 
-
                         // ── Especialidades ───────────────────────────────
                         if (_isProviderSearch) ...[
-                          _buildLabel('ESPECIALIDADES'),
+                          _buildLabel('ESPECIALIDADES',
+                              Icons.build_circle_outlined),
                           const SizedBox(height: 10),
                           _buildSpecialtyChips(),
                           const SizedBox(height: 24),
                         ],
-
                       ],
                     ),
                   ),
@@ -377,7 +233,8 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 18, vertical: 14),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.radiusMd)),
                         minimumSize: const Size(0, 48),
                       ),
                       child: Row(
@@ -385,9 +242,7 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                         children: [
                           const Icon(Icons.restart_alt, size: 16),
                           const SizedBox(width: 6),
-                          Text('Limpiar',
-                              style: GoogleFonts.hankenGrotesk(
-                                  fontSize: 14, fontWeight: FontWeight.w700)),
+                          Text('Limpiar', style: AppTypography.label),
                         ],
                       ),
                     ),
@@ -401,21 +256,19 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
-                          shadowColor:
-                              AppColors.primary.withValues(alpha: 0.35),
+                          shadowColor: AppColors.primary.withValues(alpha: 0.35),
                           elevation: 4,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
+                              borderRadius:
+                                  BorderRadius.circular(AppSpacing.radiusMd)),
                         ),
                         child: Text(
                           activeCount > 0
-                              ? 'APLICAR ($activeCount)'
-                              : 'APLICAR FILTROS',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1,
+                              ? 'Aplicar ($activeCount)'
+                              : 'Aplicar filtros',
+                          style: AppTypography.label.copyWith(
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -430,7 +283,6 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
     ));
   }
 
-
   // ── Specialty Chips ───────────────────────────────────────────────────────
 
   Widget _buildSpecialtyChips() {
@@ -438,11 +290,8 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
     return specialtiesAsync.when(
       data: (specialties) {
         if (specialties.isEmpty) {
-          return Text(
-            'No hay especialidades disponibles',
-            style: GoogleFonts.hankenGrotesk(
-                fontSize: 13, color: AppColors.textSecondary),
-          );
+          return Text('No hay especialidades disponibles',
+              style: AppTypography.bodySm);
         }
         return Wrap(
           spacing: 8,
@@ -450,51 +299,19 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
           children: specialties.map((specialty) {
             final isSelected =
                 _tempFilters.specialtyIds.contains(specialty.id);
-            return GestureDetector(
+            return AppChip(
+              label: specialty.name,
+              selected: isSelected,
               onTap: () {
-                HapticFeedback.selectionClick();
-                final current =
-                    List<String>.from(_tempFilters.specialtyIds);
+                final current = List<String>.from(_tempFilters.specialtyIds);
                 if (isSelected) {
                   current.remove(specialty.id);
                 } else {
                   current.add(specialty.id);
                 }
-                setState(() => _tempFilters =
-                    _tempFilters.copyWith(specialtyIds: current));
+                setState(() =>
+                    _tempFilters = _tempFilters.copyWith(specialtyIds: current));
               },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : Colors.white,
-                  borderRadius: BorderRadius.circular(99),
-                  border: Border.all(
-                    color: isSelected ? AppColors.primary : AppColors.border,
-                    width: 1.2,
-                  ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color:
-                                AppColors.primary.withValues(alpha: 0.15),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Text(
-                  specialty.name,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color:
-                        isSelected ? Colors.white : AppColors.textPrimary,
-                  ),
-                ),
-              ),
             );
           }).toList(),
         );
@@ -505,49 +322,19 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
             child: CircularProgressIndicator(
                 strokeWidth: 2, color: AppColors.primary)),
       ),
-      error: (_, __) => Text(
-        'Error al cargar especialidades',
-        style: GoogleFonts.hankenGrotesk(
-            fontSize: 13, color: AppColors.textSecondary),
-      ),
+      error: (_, __) => Text('Error al cargar especialidades',
+          style: AppTypography.bodySm),
     );
   }
 
-
-
-  Widget _buildLabel(String text) {
+  Widget _buildLabel(String text, IconData icon) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(_labelIcon(text), size: 14, color: AppColors.textSecondary),
+        Icon(icon, size: 14, color: AppColors.textSecondary),
         const SizedBox(width: 6),
-        Text(
-          text,
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.5,
-            color: AppColors.textSecondary,
-          ),
-        ),
+        Text(text, style: AppTypography.overline),
       ],
     );
-  }
-
-  IconData _labelIcon(String label) {
-    switch (label) {
-      case 'ORDENAR POR':
-        return Icons.swap_vert_rounded;
-      case 'RADIO DE BÚSQUEDA':
-        return Icons.radar_rounded;
-      case 'VALORACIÓN MÍNIMA':
-        return Icons.star_border_rounded;
-      case 'TARIFA MÁXIMA / HORA':
-        return Icons.payments_outlined;
-      case 'ESPECIALIDADES':
-        return Icons.build_circle_outlined;
-      default:
-        return Icons.filter_list;
-    }
   }
 }

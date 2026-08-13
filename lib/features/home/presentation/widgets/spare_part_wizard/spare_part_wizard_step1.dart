@@ -3,11 +3,13 @@ part of 'spare_part_wizard_page.dart';
 class _SparePartWizardStep1 extends ConsumerWidget {
   final UserCar? selectedCar;
   final void Function(UserCar car, [String? modelId]) onVehicleSelected;
+  final VoidCallback onNext;
 
   const _SparePartWizardStep1({
     super.key,
     required this.selectedCar,
     required this.onVehicleSelected,
+    required this.onNext,
   });
 
   void _handleManualVehicleAdd(BuildContext context) async {
@@ -33,33 +35,17 @@ class _SparePartWizardStep1 extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '¿Para qué vehículo es?',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary,
-              letterSpacing: -0.5,
-            ),
-          ),
+          Text('¿Para qué vehículo es?', style: AppTypography.h1),
           const SizedBox(height: 8),
           Text(
             'Selecciona un vehículo de tu garage para cotizar repuestos compatibles.',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 15,
-              color: AppColors.textSecondary,
-              height: 1.4,
-            ),
+            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 32),
 
           Text(
             'Tus Vehículos',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
+            style: AppTypography.title.copyWith(fontSize: 14),
           ),
           const SizedBox(height: 16),
           userCarsAsync.when(
@@ -77,10 +63,7 @@ class _SparePartWizardStep1 extends ConsumerWidget {
                       padding: const EdgeInsets.only(bottom: 24),
                       child: Text(
                         'No tienes vehículos registrados en tu garaje.',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                        ),
+                        style: AppTypography.bodySm,
                       ),
                     )
                   else ...[
@@ -118,17 +101,40 @@ class _SparePartWizardStep1 extends ConsumerWidget {
                         foregroundColor: AppColors.textPrimary,
                         side: const BorderSide(color: AppColors.border),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         elevation: 0,
                       ),
                       icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
                       label: Text(
-                        cars.isEmpty ? 'Agregar otro vehículo' : 'Buscar otro modelo no registrado...',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14.5,
+                        // Sin vehículos: se ofrece agregar el primero.
+                        // Con al menos uno: se ofrece uno distinto a los ya listados.
+                        cars.isEmpty ? 'Agregar vehículo' : 'Usar otro vehículo',
+                        style: AppTypography.label.copyWith(fontSize: 14.5),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: selectedCar != null ? onNext : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: AppColors.grey200,
+                        disabledForegroundColor: AppColors.textDisabled,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
+                        elevation: selectedCar != null ? 4 : 0,
+                      ),
+                      child: Text(
+                        'Continuar',
+                        style: AppTypography.label.copyWith(
+                          fontSize: 16,
+                          color: Colors.white,
+                          letterSpacing: 1,
                         ),
                       ),
                     ),
@@ -136,8 +142,26 @@ class _SparePartWizardStep1 extends ConsumerWidget {
                 ],
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Text('Error: $e'),
+            loading: () => SizedBox(
+              height: 220,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: 2,
+                separatorBuilder: (_, __) => const SizedBox(width: 14),
+                itemBuilder: (_, __) => const SizedBox(
+                  width: 230,
+                  child: SkeletonBox(height: 220, borderRadius: AppSpacing.radiusXl),
+                ),
+              ),
+            ),
+            error: (e, _) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: ErrorView(
+                message: 'No pudimos cargar tus vehículos.',
+                onRetry: () => ref.invalidate(userCarsProvider),
+              ),
+            ),
           ),
         ],
       ),

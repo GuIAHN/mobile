@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 abstract class AppColors {
   // ── Primario — Naranja Automotriz ────────────────────────────────────────
   static const Color primary       = Color(0xFFF25C05); // #F25C05 — Naranja principal
-  static const Color primaryLight  = Color(0xFFF5813A); // naranja claro
-  static const Color primaryDark   = Color(0xFFBF4704); // naranja oscuro
+  static const Color primaryLight  = Color(0xFFF25C05); // Naranja principal
+  static const Color primaryDark   = Color(0xFFF25C05); // Naranja principal
   static const Color primaryMuted  = Color(0xFFFDE8DA); // naranja muy suave (fondo)
 
   // ── Secundario — Carbón / Near-black ─────────────────────────────────────
@@ -75,7 +75,7 @@ abstract class AppColors {
   // Los pares primary/primaryMuted, success/successLight, etc. no llegan a
   // 4.5:1 (WCAG AA) para texto. Estos tonos sí, sin tocar los tokens base
   // (que se siguen usando para fondos, iconos grandes y acentos).
-  static const Color primaryInk = Color(0xFFA83E05); // 5.28:1 sobre primaryMuted
+  static const Color primaryInk = Color(0xFFF25C05); // Naranja principal
   static const Color successInk = Color(0xFF15803D); // 4.57:1 sobre successLight
   static const Color warningInk = Color(0xFF92400E); // 6.37:1 sobre warningLight
   static const Color errorInk   = Color(0xFFB91C1C); // 5.30:1 sobre errorLight

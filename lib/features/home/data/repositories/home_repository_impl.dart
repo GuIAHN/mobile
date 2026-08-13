@@ -26,7 +26,7 @@ class HomeRepositoryImpl implements HomeRepository {
         title: 'Mecánicos certificados',
         subtitle: 'Verificados y con garantía escrita',
         iconName: 'verified_outlined',
-        gradientColors: [0xFFF25C05, 0xFFF5813A],
+        gradientColors: [0xFFF25C05, 0xFFF25C05],
         imageUrl:
             'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=600&q=80',
       ),
@@ -44,7 +44,7 @@ class HomeRepositoryImpl implements HomeRepository {
         title: 'Toyota Original',
         subtitle: 'Hasta 20% en piezas seleccionadas',
         iconName: 'local_offer_outlined',
-        gradientColors: [0xFFF25C05, 0xFFBF4704],
+        gradientColors: [0xFFF25C05, 0xFFF25C05],
         imageUrl:
             'https://images.unsplash.com/photo-1507136566006-cfc505b114fc?auto=format&fit=crop&w=600&q=80',
       ),

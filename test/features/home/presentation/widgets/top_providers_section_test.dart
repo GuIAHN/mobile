@@ -36,6 +36,7 @@ void main() {
   Widget app({
     required List<Override> overrides,
     ServiceType type = serviceType,
+    double textScale = 1,
   }) {
     final routePath = type == ServiceType.mechanic
         ? RouteNames.mechanics
@@ -69,16 +70,26 @@ void main() {
 
     return ProviderScope(
       overrides: overrides,
-      child: MaterialApp.router(routerConfig: router),
+      child: MaterialApp.router(
+        routerConfig: router,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(textScale),
+          ),
+          child: child!,
+        ),
+      ),
     );
   }
 
   Widget subject(
     AsyncValue<List<HomeItem>> state, {
     ServiceType type = serviceType,
+    double textScale = 1,
   }) =>
       app(
         type: type,
+        textScale: textScale,
         overrides: [
           topProvidersProvider.overrideWith((ref, providerType) => state),
         ],
@@ -94,18 +105,18 @@ void main() {
       );
 
   testWidgets('shows three skeletons while providers load', (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(375, 800));
     await tester.pumpWidget(subject(const AsyncValue.loading()));
 
     final firstSkeleton = find.byKey(const Key('top-provider-skeleton-1'));
     expect(firstSkeleton, findsOneWidget);
-    expect(find.byKey(const Key('top-provider-skeleton-2')), findsOneWidget);
-    expect(find.byKey(const Key('top-provider-skeleton-3')), findsOneWidget);
 
     final media =
         find.byKey(const Key('top-provider-skeleton-media-workshops-1'));
     expect(media, findsOneWidget);
-    expect(tester.getSize(media).width, tester.getSize(firstSkeleton).width);
-    expect(tester.getSize(media).height, 128);
+    expect(tester.getSize(media).width, 327);
+    expect(tester.getSize(media).height, closeTo(183.9375, 0.1));
   });
 
   testWidgets('shows an empty state and navigates to all workshops',
@@ -194,16 +205,18 @@ void main() {
     expect(find.bySemanticsLabel('Puesto 1'), findsNothing);
   }, semanticsEnabled: true);
 
-  testWidgets(
-      'reserves panoramic workshop media even when its photo is missing',
+  testWidgets('reserves 16:9 workshop media even when its photo is missing',
       (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(375, 800));
     await tester.pumpWidget(subject(AsyncValue.data([fixture()])));
 
     final card = find.bySemanticsLabel('Ver detalles de Taller Norte');
     final media = find.byKey(const Key('top-provider-media-workshop-1'));
     expect(media, findsOneWidget);
     expect(tester.getSize(media).width, tester.getSize(card).width);
-    expect(tester.getSize(media).aspectRatio, greaterThan(2));
+    expect(tester.getSize(media).width, 327);
+    expect(tester.getSize(media).height, closeTo(183.9375, 0.1));
     expect(tester.getTopLeft(media), tester.getTopLeft(card));
   });
 
@@ -231,7 +244,7 @@ void main() {
     );
   }, semanticsEnabled: true);
 
-  testWidgets('uses panoramic workshop media and a compact mechanic portrait',
+  testWidgets('uses 16:9 workshop media and a compact mechanic portrait',
       (tester) async {
     await tester.pumpWidget(
       subject(
@@ -249,7 +262,10 @@ void main() {
       tester.getSize(workshopPhoto).width,
       tester.getSize(workshopCard).width,
     );
-    expect(tester.getSize(workshopPhoto).height, 128);
+    expect(
+      tester.getSize(workshopPhoto).height,
+      closeTo(tester.getSize(workshopPhoto).width * 9 / 16, 0.1),
+    );
     expect(
       tester.getBottomRight(workshopPhoto).dy,
       lessThan(tester.getTopLeft(find.text('Taller Norte')).dy),
@@ -281,9 +297,69 @@ void main() {
     final mechanicCard = find.bySemanticsLabel('Ver detalles de Pedro Pérez');
     final mechanicHeight = tester.getSize(mechanicCard).height;
 
-    expect(workshopHeight, 244);
     expect(mechanicHeight, 164);
     expect(mechanicHeight, lessThan(workshopHeight));
+  });
+
+  testWidgets('keeps each missing provider photo in its intended shape',
+      (tester) async {
+    await tester.pumpWidget(subject(AsyncValue.data([fixture()])));
+
+    final workshopFallback =
+        find.byKey(const Key('top-provider-workshop-fallback-workshop-1'));
+    expect(workshopFallback, findsOneWidget);
+    expect(
+      tester.getSize(workshopFallback).height,
+      closeTo(tester.getSize(workshopFallback).width * 9 / 16, 0.1),
+    );
+    expect(
+      tester.getSize(workshopFallback).width,
+      tester
+          .getSize(find.bySemanticsLabel('Ver detalles de Taller Norte'))
+          .width,
+    );
+
+    await tester.pumpWidget(
+      subject(
+        AsyncValue.data([
+          fixture(
+            id: 'mechanic-1',
+            name: 'Pedro Pérez',
+            type: ServiceType.mechanic,
+          ),
+        ]),
+        type: ServiceType.mechanic,
+      ),
+    );
+
+    final mechanicFallback =
+        find.byKey(const Key('top-provider-mechanic-fallback-mechanic-1'));
+    expect(mechanicFallback, findsOneWidget);
+    expect(tester.getSize(mechanicFallback), const Size(76, 76));
+    expect(
+      find.ancestor(of: mechanicFallback, matching: find.byType(ClipOval)),
+      findsOneWidget,
+    );
+  }, semanticsEnabled: true);
+
+  testWidgets('overlays workshop availability in the lower media corner',
+      (tester) async {
+    await tester.pumpWidget(subject(AsyncValue.data([fixture()])));
+
+    final media = find.byKey(const Key('top-provider-media-workshop-1'));
+    final availability =
+        find.byKey(const Key('top-provider-availability-workshop-1'));
+    expect(availability, findsOneWidget);
+    expect(
+      find.descendant(of: media, matching: availability),
+      findsOneWidget,
+    );
+
+    final mediaRect = tester.getRect(media);
+    final availabilityRect = tester.getRect(availability);
+    expect(availabilityRect.left, lessThan(mediaRect.center.dx));
+    expect(availabilityRect.center.dy, greaterThan(mediaRect.center.dy));
+    expect(availabilityRect.bottom, lessThanOrEqualTo(mediaRect.bottom));
   });
 
   testWidgets('labels a provider with no reviews honestly', (tester) async {
@@ -321,5 +397,56 @@ void main() {
       expect(find.text('Taller Norte'), findsOneWidget);
       expect(tester.takeException(), isNull);
     }
+  });
+
+  testWidgets('keeps all provider metadata at supported scaled phone layouts',
+      (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final flutterErrors = <FlutterErrorDetails>[];
+    final previousOnError = FlutterError.onError;
+    FlutterError.onError = flutterErrors.add;
+    addTearDown(() => FlutterError.onError = previousOnError);
+
+    final cases = [
+      (ServiceType.workshops, fixture()),
+      (
+        ServiceType.mechanic,
+        fixture(
+          id: 'mechanic-1',
+          name: 'Pedro Pérez',
+          type: ServiceType.mechanic,
+        ),
+      ),
+    ];
+
+    for (final width in const [375.0, 430.0]) {
+      for (final scale in const [1.0, 1.3, 2.0]) {
+        for (final providerCase in cases) {
+          await tester.binding.setSurfaceSize(Size(width, 900));
+          await tester.pumpWidget(
+            subject(
+              AsyncValue.data([providerCase.$2]),
+              type: providerCase.$1,
+              textScale: scale,
+            ),
+          );
+
+          expect(find.text(providerCase.$2.name), findsOneWidget);
+          expect(find.text('4.8'), findsOneWidget);
+          expect(find.text('24 reseñas'), findsOneWidget);
+          expect(find.text('2.4 km'), findsOneWidget);
+          expect(find.text('Abierto'), findsOneWidget);
+          expect(find.text('Diagnóstico y frenos'), findsOneWidget);
+        }
+      }
+    }
+
+    expect(
+      flutterErrors.where(
+        (details) => details.exceptionAsString().contains('overflowed'),
+      ),
+      isEmpty,
+    );
+    expect(flutterErrors, isEmpty);
   });
 }

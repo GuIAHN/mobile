@@ -24,8 +24,14 @@ class _SparePartWizardStep3 extends ConsumerWidget {
 
     final needsDetails = isOtroCategory;
     final hasDetailsIfRequired = !needsDetails || detailsController.text.trim().isNotEmpty;
+    final hasLocation = isLocationShared && userLocation != null;
     // canSubmit requires location shared, location obtained, and details if required
-    final canSubmit = hasDetailsIfRequired && isLocationShared && userLocation != null;
+    final canSubmit = hasDetailsIfRequired && hasLocation;
+    final blockedReason = !hasDetailsIfRequired
+        ? 'Agrega un detalle para continuar.'
+        : !hasLocation
+            ? 'Comparte tu ubicación para continuar.'
+            : null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
@@ -33,23 +39,11 @@ class _SparePartWizardStep3 extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Detalles finales',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary,
-              letterSpacing: -0.5,
-            ),
-          ),
+          Text('Detalles finales', style: AppTypography.h1),
           const SizedBox(height: 8),
           Text(
             'Agrega cualquier detalle adicional que ayude a la tienda a encontrar la pieza correcta.',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 15,
-              color: AppColors.textSecondary,
-              height: 1.4,
-            ),
+            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 32),
 
@@ -83,19 +77,31 @@ class _SparePartWizardStep3 extends ConsumerWidget {
                 foregroundColor: Colors.white,
                 disabledBackgroundColor: AppColors.grey200,
                 disabledForegroundColor: AppColors.textDisabled,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
                 elevation: canSubmit ? 4 : 0,
               ),
               child: Text(
-                'Enviar Solicitud',
-                style: GoogleFonts.hankenGrotesk(
+                'Enviar solicitud',
+                style: AppTypography.label.copyWith(
                   fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1,
+                  color: canSubmit ? Colors.white : AppColors.textDisabled,
                 ),
               ),
             ),
           ),
+          if (blockedReason != null) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: Text(
+                blockedReason,
+                textAlign: TextAlign.center,
+                style:
+                    AppTypography.meta.copyWith(color: AppColors.textSecondary),
+              ),
+            ),
+          ],
         ],
       ),
     );

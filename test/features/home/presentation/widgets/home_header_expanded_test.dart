@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
@@ -157,13 +156,20 @@ void main() {
         (widget) =>
             widget is Container &&
             widget.decoration is BoxDecoration &&
-            (widget.decoration! as BoxDecoration).color ==
-                AppColors.primaryDark,
+            (widget.decoration! as BoxDecoration).color == AppColors.primary,
       ),
       findsOneWidget,
     );
     expect(find.text('Hola, Elio'), findsOneWidget);
-    expect(find.text('Audi 4000'), findsOneWidget);
+    final vehicleControl =
+        find.byKey(const Key('home-selected-vehicle-control'));
+    expect(vehicleControl, findsOneWidget);
+    expect(find.text('Audi 4000 · 1985'), findsOneWidget);
+    expect(find.text('¿En qué podemos ayudarte hoy?'), findsNothing);
+    expect(
+      tester.getSize(vehicleControl).height,
+      greaterThanOrEqualTo(48),
+    );
     expect(find.text('Ubicación desactivada'), findsOneWidget);
     expect(find.byIcon(Icons.notifications_outlined), findsNothing);
 
@@ -172,10 +178,8 @@ void main() {
     expect(tester.getSize(locationTarget).height, greaterThanOrEqualTo(48));
     expect(find.bySemanticsLabel('Activar ubicación'), findsOneWidget);
     expect(
-      tester
-          .getSize(find.bySemanticsLabel(RegExp('Vehículo seleccionado')))
-          .height,
-      greaterThanOrEqualTo(48),
+      find.bySemanticsLabel('Vehículo seleccionado: Audi 4000, 1985'),
+      findsOneWidget,
     );
   }, semanticsEnabled: true);
 
@@ -185,8 +189,16 @@ void main() {
 
     await pumpHeader(tester, container);
 
+    expect(
+      find.byKey(const Key('home-selected-vehicle-control')),
+      findsOneWidget,
+    );
     expect(find.text('Seleccionar vehículo'), findsOneWidget);
     expect(find.text('Ubicación desactivada'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Seleccionar vehículo'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('shows the current resolved location name', (tester) async {
@@ -199,6 +211,7 @@ void main() {
         ),
         userCarsProvider.overrideWith((ref) async => const [audi]),
         locationServiceProvider.overrideWithValue(_EnabledLocationService()),
+        isLocationSharedProvider.overrideWith((ref) => true),
       ],
     );
     addTearDown(container.dispose);
@@ -217,10 +230,14 @@ void main() {
 
     await pumpHeader(tester, container);
 
+    expect(
+      find.byKey(const Key('home-selected-vehicle-control')),
+      findsOneWidget,
+    );
     expect(find.text('Cargando vehículo…'), findsOneWidget);
     expect(find.text('Seleccionar vehículo'), findsNothing);
     expect(
-      find.bySemanticsLabel(RegExp('Cargando vehículo')),
+      find.bySemanticsLabel('Cargando vehículo'),
       findsOneWidget,
     );
   }, semanticsEnabled: true);
@@ -233,11 +250,17 @@ void main() {
 
     await pumpHeader(tester, container);
 
+    expect(
+      find.byKey(const Key('home-selected-vehicle-control')),
+      findsOneWidget,
+    );
     expect(find.text('No pudimos cargar tu vehículo'), findsOneWidget);
     expect(find.text('Seleccionar vehículo'), findsNothing);
     expect(find.textContaining('private backend detail'), findsNothing);
     expect(
-      find.bySemanticsLabel(RegExp('No pudimos cargar tu vehículo')),
+      find.bySemanticsLabel(
+        'No pudimos cargar tu vehículo. Toca para intentarlo de nuevo',
+      ),
       findsOneWidget,
     );
   }, semanticsEnabled: true);
@@ -248,7 +271,7 @@ void main() {
     addTearDown(container.dispose);
 
     await pumpHeader(tester, container);
-    await tester.tap(find.text('Audi 4000'));
+    await tester.tap(find.byKey(const Key('home-selected-vehicle-control')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('Toyota Corolla').last);
@@ -257,7 +280,7 @@ void main() {
 
     expect(container.read(searchVehicleProvider), toyota);
     expect(container.read(searchVehicleVariantIdProvider), isNull);
-    expect(find.text('Toyota Corolla'), findsOneWidget);
+    expect(find.text('Toyota Corolla · 2020'), findsOneWidget);
   });
 
   testWidgets('fits small and large phones with scaled text and 48 dp actions',
@@ -277,15 +300,18 @@ void main() {
         textScale: 2,
       );
 
+      final vehicleControl =
+          find.byKey(const Key('home-selected-vehicle-control'));
+      expect(vehicleControl, findsOneWidget);
       expect(tester.takeException(), isNull);
+      expect(
+        tester.getSize(vehicleControl).height,
+        greaterThanOrEqualTo(48),
+      );
       expect(
         tester.getSize(find.bySemanticsLabel('Notificaciones')),
         const Size(48, 48),
       );
-      final locationParagraph = tester.renderObject<RenderParagraph>(
-        find.text('Ubicación desactivada'),
-      );
-      expect(locationParagraph.didExceedMaxLines, isFalse);
     }
   }, semanticsEnabled: true);
 }

@@ -83,7 +83,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('PASO 2 DE 3'), findsOneWidget);
-    expect(find.text('Tipo de repuesto'), findsOneWidget);
+    expect(find.text('Categoría del repuesto'), findsOneWidget);
     expect(find.byType(TextField), findsNothing);
     expect(find.textContaining('¿Qué tipo de repuesto'), findsNothing);
     expect(find.text('1'), findsNothing);
@@ -119,7 +119,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.text('Tipo de repuesto'), findsOneWidget);
+      expect(find.text('Categoría del repuesto'), findsOneWidget);
       expect(
         find.byKey(const ValueKey('category-root-frenos')),
         findsOneWidget,

@@ -19,7 +19,8 @@ class _SparePartWizardStep2 extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<_SparePartWizardStep2> createState() => _SparePartWizardStep2State();
+  ConsumerState<_SparePartWizardStep2> createState() =>
+      _SparePartWizardStep2State();
 }
 
 class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
@@ -35,7 +36,7 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
 
   void _openCategorySelector() async {
     // For now, if we don't have it exported, we would use a similar approach
-    // Wait, since _CategorySubcategorySelectorSheet is private in the other file, 
+    // Wait, since _CategorySubcategorySelectorSheet is private in the other file,
     // I need to either make it public or copy it.
     // Given we are replacing RequestSparePartForm eventually, we can create a public one.
     // Assuming we have CategorySubcategorySelectorSheet available in another file soon.
@@ -51,7 +52,8 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
 
   @override
   Widget build(BuildContext context) {
-    final hasCategory = widget.selectedCategory != null && widget.selectedSubcategory != null;
+    final hasCategory =
+        widget.selectedCategory != null && widget.selectedSubcategory != null;
     final hasPartType = widget.selectedPartType != null;
     final canProceed = hasCategory && hasPartType;
 
@@ -61,26 +63,13 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '¿Qué repuesto necesitas?',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary,
-              letterSpacing: -0.5,
-            ),
-          ),
+          Text('¿Qué repuesto necesitas?', style: AppTypography.h1),
           const SizedBox(height: 8),
           Text(
             'Indícanos la categoría y el tipo de repuesto.',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 15,
-              color: AppColors.textSecondary,
-              height: 1.4,
-            ),
+            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 32),
-
           _buildLabel('CATEGORÍA DE REPUESTO *'),
           const SizedBox(height: 6),
           _SelectorField(
@@ -89,7 +78,6 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
             onTap: _openCategorySelector,
           ),
           const SizedBox(height: 24),
-
           _buildLabel('TIPO DE REPUESTO *'),
           const SizedBox(height: 8),
           FormPartTypeSelector(
@@ -97,7 +85,6 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
             onPartTypeSelected: widget.onPartTypeChanged,
           ),
           const SizedBox(height: 48),
-
           SizedBox(
             width: double.infinity,
             height: 54,
@@ -108,7 +95,8 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
                 foregroundColor: Colors.white,
                 disabledBackgroundColor: AppColors.grey200,
                 disabledForegroundColor: AppColors.textDisabled,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
                 elevation: canProceed ? 4 : 0,
               ),
               child: Text(
@@ -163,27 +151,51 @@ class _SelectorField extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(
+              color: hasValue ? AppColors.primary : AppColors.border,
+              width: hasValue ? 1.4 : 1,
+            ),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           child: Row(
             children: [
+              // Ícono de "buscar en el catálogo" — este campo abre un
+              // selector explorable, no despliega una lista en el lugar
+              // (por eso no usa unfold_more, que sugiere lo segundo).
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: hasValue ? AppColors.primaryMuted : AppColors.grey100,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.search_rounded,
+                  color:
+                      hasValue ? AppColors.primaryInk : AppColors.textSecondary,
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   hasValue ? value : placeholder,
                   style: GoogleFonts.hankenGrotesk(
                     fontSize: 15,
                     fontWeight: hasValue ? FontWeight.w600 : FontWeight.w500,
-                    color: hasValue ? AppColors.textPrimary : AppColors.textDisabled,
+                    color: hasValue
+                        ? AppColors.textPrimary
+                        : AppColors.textDisabled,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               const Icon(
-                Icons.unfold_more_rounded,
+                Icons.chevron_right_rounded,
                 color: AppColors.textSecondary,
-                size: 20,
+                size: 22,
               ),
             ],
           ),

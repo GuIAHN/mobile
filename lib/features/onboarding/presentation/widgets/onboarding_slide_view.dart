@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/onboarding_slide.dart';
 
 /// Widget que renderiza el contenido de texto centrado para cada slide del onboarding.
@@ -22,7 +23,7 @@ class OnboardingSlideView extends StatelessWidget {
               slide.tagline,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: Color(0xFFFFB598), // Naranja atenuado para el tagline
+                color: AppColors.primaryMuted,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 4,

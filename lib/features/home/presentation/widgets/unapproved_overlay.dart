@@ -44,13 +44,13 @@ class UnapprovedOverlay extends ConsumerWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppColors.warning.withValues(alpha: 0.15),
+                  decoration: const BoxDecoration(
+                    color: AppColors.primaryMuted,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.hourglass_empty_rounded,
-                    color: AppColors.warning,
+                    color: AppColors.primary,
                     size: 48,
                   ),
                 ),

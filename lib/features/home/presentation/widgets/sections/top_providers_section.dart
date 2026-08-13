@@ -4,27 +4,35 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_spacing.dart';
+import '../../../../../core/theme/app_decorations.dart';
 import '../../../../../core/domain/enums/service_type.dart';
 import '../../../../../core/router/route_names.dart';
 import '../../../domain/entities/home_item.dart';
 import '../../providers/home_providers.dart';
 import '../icon_mapper.dart';
+import '../../../../../shared/widgets/section_header.dart';
 import '../../../../chat/presentation/widgets/_atoms/card_tokens.dart';
 
-const double _providerCardRadius = 10;
+const double _providerCardRadius = AppSpacing.radiusLg;
 const double _workshopCardBaseHeight = 244;
 const double _mechanicCardBaseHeight = 164;
-const double _workshopMediaHeight = 128;
+const double _workshopDetailsBaseHeight = 116;
 const double _mechanicMediaWidth = 104;
 
-double _providerCardHeight(BuildContext context, ServiceType serviceType) {
+double _providerCardHeight(
+  BuildContext context,
+  ServiceType serviceType,
+  double cardWidth,
+) {
   final scaler = MediaQuery.textScalerOf(context);
   final scale = scaler.scale(14) / 14;
   final normalizedScale = (scale - 1).clamp(0.0, 1.0);
 
   return switch (serviceType) {
     ServiceType.mechanic => _mechanicCardBaseHeight + normalizedScale * 120,
-    ServiceType.workshops => _workshopCardBaseHeight + normalizedScale * 100,
+    ServiceType.workshops =>
+      cardWidth * 9 / 16 + _workshopDetailsBaseHeight + normalizedScale * 100,
     ServiceType.spareParts ||
     ServiceType.storeDashboard =>
       _workshopCardBaseHeight + normalizedScale * 100,
@@ -50,71 +58,55 @@ class TopProvidersSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final itemsAsync = ref.watch(topProvidersProvider(serviceType));
     final providerNoun = _providerNoun(serviceType);
+    final headerIcon = serviceType == ServiceType.workshops
+        ? Icons.storefront_rounded
+        : Icons.engineering_rounded;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () => context.push(routePath),
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(48, 48),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                ),
-                child: Text(
-                  'Ver todos',
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-            ],
+        SectionHeader(
+          title: title,
+          icon: headerIcon,
+          action: SectionHeaderAction(
+            label: 'Ver todos',
+            onTap: () => context.push(routePath),
           ),
         ),
         const SizedBox(height: 12),
-        itemsAsync.when(
-          data: (items) => items.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _SectionStateCard(
-                    message: 'Todavía no hay $providerNoun valorados',
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 260),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          child: KeyedSubtree(
+            key: ValueKey<bool>(itemsAsync.isLoading),
+            child: itemsAsync.when(
+              data: (items) => items.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _SectionStateCard(
+                        message: 'Todavía no hay $providerNoun valorados',
+                      ),
+                    )
+                  : _ProviderSequence(
+                      items: items,
+                      serviceType: serviceType,
+                    ),
+              loading: () => _ProviderSkeletonSequence(serviceType: serviceType),
+              error: (_, __) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _SectionStateCard(
+                  message: 'No pudimos cargar los $providerNoun',
+                  action: TextButton.icon(
+                    onPressed: () =>
+                        ref.invalidate(homeItemsProvider(serviceType)),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                    ),
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Reintentar'),
                   ),
-                )
-              : _ProviderSequence(
-                  items: items,
-                  serviceType: serviceType,
                 ),
-          loading: () => _ProviderSkeletonSequence(serviceType: serviceType),
-          error: (_, __) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _SectionStateCard(
-              message: 'No pudimos cargar los $providerNoun',
-              action: TextButton.icon(
-                onPressed: () => ref.invalidate(homeItemsProvider(serviceType)),
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(48, 48),
-                ),
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Reintentar'),
               ),
             ),
           ),
@@ -139,8 +131,9 @@ class _ProviderSequence extends StatelessWidget {
       builder: (context, constraints) {
         final cardWidth =
             (constraints.maxWidth - 48).clamp(300.0, 340.0).toDouble();
+        final cardHeight = _providerCardHeight(context, serviceType, cardWidth);
         return SizedBox(
-          height: _providerCardHeight(context, serviceType),
+          height: cardHeight,
           child: ListView.separated(
             key: const Key('top-providers-horizontal-list'),
             scrollDirection: Axis.horizontal,
@@ -150,7 +143,7 @@ class _ProviderSequence extends StatelessWidget {
             separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (_, index) => SizedBox(
               width: cardWidth,
-              child: _ProviderCard(item: items[index]),
+              child: _ProviderCard(item: items[index], height: cardHeight),
             ),
           ),
         );
@@ -169,8 +162,9 @@ String _providerNoun(ServiceType serviceType) {
 
 class _ProviderCard extends StatelessWidget {
   final HomeItem item;
+  final double height;
 
-  const _ProviderCard({required this.item});
+  const _ProviderCard({required this.item, required this.height});
 
   void _onTap(BuildContext context) {
     if (item.id == null) return;
@@ -213,7 +207,7 @@ class _ProviderCard extends StatelessWidget {
             onTap: onTap,
             borderRadius: radius,
             child: SizedBox(
-              height: _providerCardHeight(context, item.type),
+              height: height,
               child: item.type == ServiceType.workshops
                   ? _WorkshopProviderBody(item: item)
                   : _MechanicProviderBody(item: item),
@@ -237,10 +231,10 @@ class _WorkshopProviderBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
+        AspectRatio(
           key: Key('top-provider-media-$id'),
-          height: _workshopMediaHeight,
-          child: _ProviderMedia(item: item),
+          aspectRatio: 16 / 9,
+          child: _WorkshopProviderMedia(item: item),
         ),
         Expanded(
           child: Padding(
@@ -265,15 +259,7 @@ class _WorkshopProviderBody extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 6),
-                Row(
-                  children: [
-                    _AvailabilityLine(isOpen: item.isOpen),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _SpecialtyText(item: item),
-                    ),
-                  ],
-                ),
+                Flexible(child: _SpecialtyText(item: item)),
               ],
             ),
           ),
@@ -298,7 +284,7 @@ class _MechanicProviderBody extends StatelessWidget {
         SizedBox(
           key: Key('top-provider-media-$id'),
           width: _mechanicMediaWidth,
-          child: _ProviderMedia(item: item),
+          child: _MechanicProviderMedia(item: item),
         ),
         Expanded(
           child: Padding(
@@ -427,23 +413,116 @@ class _SpecialtyText extends StatelessWidget {
   }
 }
 
-class _ProviderMedia extends StatelessWidget {
+class _WorkshopProviderMedia extends StatelessWidget {
   final HomeItem item;
 
-  const _ProviderMedia({required this.item});
+  const _WorkshopProviderMedia({required this.item});
 
   @override
   Widget build(BuildContext context) {
-    final fallback = DecoratedBox(
-      decoration: const BoxDecoration(color: AppColors.grey50),
+    final id = item.id ?? item.name;
+    final fallback = _ProviderFallback(
+      key: Key('top-provider-workshop-fallback-$id'),
+      iconName: item.iconName,
+    );
+
+    return SizedBox.expand(
+      key: Key('top-provider-workshop-photo-$id'),
       child: Stack(
         fit: StackFit.expand,
         children: [
-          const Align(
-            alignment: Alignment.centerLeft,
-            child:
-                SizedBox(width: 4, child: ColoredBox(color: AppColors.primary)),
+          _ProviderPhoto(photo: item.photo, fallback: fallback),
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 10,
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: _AvailabilityPill(
+                key: Key('top-provider-availability-$id'),
+                isOpen: item.isOpen,
+              ),
+            ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MechanicProviderMedia extends StatelessWidget {
+  final HomeItem item;
+
+  const _MechanicProviderMedia({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final id = item.id ?? item.name;
+    final fallback = _ProviderFallback(
+      key: Key('top-provider-mechanic-fallback-$id'),
+      iconName: item.iconName,
+      showAccent: false,
+    );
+
+    return Center(
+      child: ClipOval(
+        child: SizedBox(
+          key: Key('top-provider-mechanic-avatar-$id'),
+          width: 76,
+          height: 76,
+          child: _ProviderPhoto(photo: item.photo, fallback: fallback),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProviderPhoto extends StatelessWidget {
+  final String? photo;
+  final Widget fallback;
+
+  const _ProviderPhoto({required this.photo, required this.fallback});
+
+  @override
+  Widget build(BuildContext context) {
+    if (photo == null || photo!.isEmpty) return fallback;
+
+    return Image.network(
+      photo!,
+      fit: BoxFit.cover,
+      alignment: Alignment.center,
+      loadingBuilder: (context, child, progress) =>
+          progress == null ? child : fallback,
+      errorBuilder: (_, __, ___) => fallback,
+    );
+  }
+}
+
+class _ProviderFallback extends StatelessWidget {
+  final String iconName;
+  final bool showAccent;
+
+  const _ProviderFallback({
+    super.key,
+    required this.iconName,
+    this.showAccent = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: AppColors.grey50,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (showAccent)
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: SizedBox(
+                width: 4,
+                child: ColoredBox(color: AppColors.primary),
+              ),
+            ),
           Center(
             child: Container(
               width: 48,
@@ -451,10 +530,10 @@ class _ProviderMedia extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: AppColors.primaryMuted,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
-                getIconData(item.iconName),
+                getIconData(iconName),
                 size: 28,
                 color: AppColors.primaryInk,
               ),
@@ -463,38 +542,26 @@ class _ProviderMedia extends StatelessWidget {
         ],
       ),
     );
+  }
+}
 
-    Widget photo() {
-      if (item.photo == null || item.photo!.isEmpty) return fallback;
-      return Image.network(
-        item.photo!,
-        fit: BoxFit.cover,
-        alignment: Alignment.center,
-        loadingBuilder: (context, child, progress) =>
-            progress == null ? child : fallback,
-        errorBuilder: (_, __, ___) => fallback,
-      );
-    }
+class _AvailabilityPill extends StatelessWidget {
+  final bool? isOpen;
 
-    final id = item.id ?? item.name;
-    if (item.type == ServiceType.workshops) {
-      return SizedBox(
-        key: Key('top-provider-workshop-photo-$id'),
-        width: double.infinity,
-        height: _workshopMediaHeight,
-        child: photo(),
-      );
-    }
+  const _AvailabilityPill({super.key, required this.isOpen});
 
-    return Center(
-      child: ClipOval(
-        child: SizedBox(
-          key: Key('top-provider-mechanic-avatar-$id'),
-          width: 76,
-          height: 76,
-          child: photo(),
-        ),
+  @override
+  Widget build(BuildContext context) {
+    if (isOpen == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
       ),
+      child: _AvailabilityLine(isOpen: isOpen),
     );
   }
 }
@@ -506,15 +573,15 @@ class _AvailabilityLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = switch (isOpen) {
+    if (isOpen == null) return const SizedBox.shrink();
+
+    final color = switch (isOpen!) {
       true => AppColors.successInk,
       false => AppColors.textMeta,
-      null => AppColors.textMeta,
     };
-    final label = switch (isOpen) {
+    final label = switch (isOpen!) {
       true => 'Abierto',
       false => 'Cerrado',
-      null => 'Horario no disponible',
     };
 
     return Row(
@@ -555,7 +622,7 @@ class _SectionStateCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(_providerCardRadius),
-        boxShadow: CardTokens.shadow,
+        boxShadow: AppDecorations.soft,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -574,32 +641,39 @@ class _SectionStateCard extends StatelessWidget {
 class _ProviderCardSkeleton extends StatelessWidget {
   final ServiceType serviceType;
   final int index;
+  final double height;
 
   const _ProviderCardSkeleton({
     super.key,
     required this.serviceType,
     required this.index,
+    required this.height,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      height: _providerCardHeight(context, serviceType),
+      height: height,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(_providerCardRadius),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.10),
+          width: 1.0,
+        ),
+        boxShadow: AppDecorations.soft,
       ),
       child: serviceType == ServiceType.workshops
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                SizedBox(
+                AspectRatio(
                   key: Key(
                     'top-provider-skeleton-media-${serviceType.name}-$index',
                   ),
-                  height: _workshopMediaHeight,
+                  aspectRatio: 16 / 9,
                   child: const ColoredBox(color: AppColors.grey100),
                 ),
                 Expanded(child: _SkeletonDetails(barBuilder: _bar)),
@@ -674,8 +748,9 @@ class _ProviderSkeletonSequence extends StatelessWidget {
       builder: (context, constraints) {
         final cardWidth =
             (constraints.maxWidth - 48).clamp(300.0, 340.0).toDouble();
+        final cardHeight = _providerCardHeight(context, serviceType, cardWidth);
         return SizedBox(
-          height: _providerCardHeight(context, serviceType),
+          height: cardHeight,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -687,6 +762,7 @@ class _ProviderSkeletonSequence extends StatelessWidget {
                 key: Key('top-provider-skeleton-${index + 1}'),
                 serviceType: serviceType,
                 index: index + 1,
+                height: cardHeight,
               ),
             ),
           ),
