@@ -28,6 +28,36 @@ class _FakeLocationService extends LocationService {
       LocationPermission.denied;
 }
 
+class _EnabledLocationService extends LocationService {
+  @override
+  Future<LocationPermission> checkPermission() async =>
+      LocationPermission.whileInUse;
+
+  @override
+  Future<bool> isLocationServiceEnabled() async => true;
+
+  @override
+  Future<Position> getCurrentPosition() async => Position(
+        longitude: -66.9036,
+        latitude: 10.4806,
+        timestamp: DateTime(2026),
+        accuracy: 5,
+        altitude: 0,
+        altitudeAccuracy: 0,
+        heading: 0,
+        headingAccuracy: 0,
+        speed: 0,
+        speedAccuracy: 0,
+      );
+
+  @override
+  Future<String?> getAddressFromCoordinates(
+    double latitude,
+    double longitude,
+  ) async =>
+      'Sabana Grande, Caracas';
+}
+
 class _MockAuthRepository extends Mock implements AuthRepository {}
 
 class _MockSecureStorage extends Mock implements SecureStorage {}
@@ -157,6 +187,27 @@ void main() {
 
     expect(find.text('Seleccionar vehículo'), findsOneWidget);
     expect(find.text('Ubicación desactivada'), findsOneWidget);
+  });
+
+  testWidgets('shows the current resolved location name', (tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        authProvider.overrideWith(
+          (ref) => _TestAuthNotifier(
+            const AuthState(status: AuthStatus.authenticated, user: user),
+          ),
+        ),
+        userCarsProvider.overrideWith((ref) async => const [audi]),
+        locationServiceProvider.overrideWithValue(_EnabledLocationService()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await pumpHeader(tester, container);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sabana Grande, Caracas'), findsOneWidget);
+    expect(find.text('Ubicación activada'), findsNothing);
   });
 
   testWidgets('shows an honest garage loading state', (tester) async {

@@ -254,7 +254,8 @@ void main() {
       find.byWidgetPredicate(
         (widget) =>
             widget is Image &&
-            widget.image == const AssetImage('assets/images/logo_icon.png'),
+            widget.image ==
+                const AssetImage('assets/images/logo_icon_zoom.png'),
       ),
       findsOneWidget,
     );
@@ -396,6 +397,8 @@ void main() {
     expect(actionY, lessThan(promoY));
     expect(promoY, lessThan(workshopsY));
 
+    await tester.ensureVisible(find.text('Reintentar'));
+    await tester.pump();
     await tester.tap(find.text('Reintentar'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));

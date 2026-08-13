@@ -1,4 +1,5 @@
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Provider para exponer el servicio de ubicación.
@@ -41,6 +42,40 @@ class LocationService {
     return await Geolocator.getLastKnownPosition();
   }
 
+  /// Convierte coordenadas en una etiqueta breve y legible para el header.
+  Future<String?> getAddressFromCoordinates(
+    double latitude,
+    double longitude,
+  ) async {
+    try {
+      final placemarks =
+          await Geocoding().placemarkFromCoordinates(latitude, longitude);
+      if (placemarks.isEmpty) return null;
+
+      final place = placemarks.first;
+      final parts = <String>[
+        place.street ?? '',
+        place.subLocality ?? '',
+        place.locality ?? '',
+        place.administrativeArea ?? '',
+      ].map((part) => part.trim()).where((part) => part.isNotEmpty).toList();
+
+      final uniqueParts = <String>[];
+      for (final part in parts) {
+        if (!uniqueParts.any(
+          (existing) => existing.toLowerCase() == part.toLowerCase(),
+        )) {
+          uniqueParts.add(part);
+        }
+        if (uniqueParts.length == 2) break;
+      }
+
+      return uniqueParts.isEmpty ? null : uniqueParts.join(', ');
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Abre la configuración de la aplicación en el dispositivo del usuario.
   Future<bool> openAppSettings() async {
     return await Geolocator.openAppSettings();
@@ -50,9 +85,8 @@ class LocationService {
 /// Notificador de estado para la posición del usuario.
 class UserLocationNotifier extends StateNotifier<AsyncValue<Position?>> {
   final LocationService _locationService;
-  final Ref _ref;
 
-  UserLocationNotifier(this._locationService, this._ref)
+  UserLocationNotifier(this._locationService)
       : super(const AsyncValue.data(null));
 
   /// Intenta actualizar la ubicación del usuario.
@@ -62,7 +96,8 @@ class UserLocationNotifier extends StateNotifier<AsyncValue<Position?>> {
     try {
       final serviceEnabled = await _locationService.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        state = const AsyncValue.error('Servicio de ubicación desactivado', StackTrace.empty);
+        state = const AsyncValue.error(
+            'Servicio de ubicación desactivado', StackTrace.empty);
         return false;
       }
 
@@ -70,13 +105,16 @@ class UserLocationNotifier extends StateNotifier<AsyncValue<Position?>> {
       if (permission == LocationPermission.denied) {
         permission = await _locationService.requestPermission();
         if (permission == LocationPermission.denied) {
-          state = const AsyncValue.error('Permiso de ubicación denegado', StackTrace.empty);
+          state = const AsyncValue.error(
+              'Permiso de ubicación denegado', StackTrace.empty);
           return false;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        state = const AsyncValue.error('Permisos de ubicación denegados permanentemente', StackTrace.empty);
+        state = const AsyncValue.error(
+            'Permisos de ubicación denegados permanentemente',
+            StackTrace.empty);
         return false;
       }
 
@@ -99,5 +137,5 @@ class UserLocationNotifier extends StateNotifier<AsyncValue<Position?>> {
 final userLocationProvider =
     StateNotifierProvider<UserLocationNotifier, AsyncValue<Position?>>((ref) {
   final service = ref.watch(locationServiceProvider);
-  return UserLocationNotifier(service, ref);
+  return UserLocationNotifier(service);
 });

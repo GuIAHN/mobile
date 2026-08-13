@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/service_type.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
@@ -107,6 +108,56 @@ void main() {
     expect(find.text('mechanics-route'), findsOneWidget);
   });
 
+  testWidgets('uses coherent vector artwork without bottom arrows',
+      (tester) async {
+    await tester.pumpWidget(subject());
+
+    expect(find.byType(SvgPicture), findsNWidgets(3));
+    final artwork = tester.widgetList<SvgPicture>(find.byType(SvgPicture));
+    expect(
+      artwork.every((picture) => picture.bytesLoader is SvgStringLoader),
+      isTrue,
+      reason: 'Category artwork must not disappear from a stale asset bundle.',
+    );
+    expect(find.byType(Image), findsNothing);
+    expect(find.byIcon(Icons.arrow_forward_rounded), findsNothing);
+    for (final picture in find.byType(SvgPicture).evaluate()) {
+      expect(
+        tester
+            .getSize(find.byElementPredicate((element) => element == picture)),
+        const Size(48, 48),
+      );
+    }
+  });
+
+  testWidgets('uses the full card height instead of leaving an empty footer',
+      (tester) async {
+    await tester.pumpWidget(subject(width: 430));
+
+    for (final label in actionLabels) {
+      final card = find.bySemanticsLabel(label);
+      final text = find.text(label);
+      final bottomGap =
+          tester.getBottomRight(card).dy - tester.getBottomRight(text).dy;
+
+      expect(bottomGap, lessThanOrEqualTo(20));
+    }
+  }, semanticsEnabled: true);
+
+  testWidgets('aligns the three category artworks on the same baseline',
+      (tester) async {
+    await tester.pumpWidget(subject(width: 430));
+
+    final centers = tester
+        .widgetList<SvgPicture>(find.byType(SvgPicture))
+        .map((picture) => tester.getCenter(find.byWidget(picture)).dy)
+        .toList();
+
+    expect(centers, hasLength(3));
+    expect(centers[1], closeTo(centers[0], 0.1));
+    expect(centers[2], closeTo(centers[0], 0.1));
+  });
+
   testWidgets('each consumer action is a button with a 48 dp touch target',
       (tester) async {
     await tester.pumpWidget(subject());
@@ -120,7 +171,7 @@ void main() {
         expect(semanticsData.flagsCollection.isButton, isTrue);
         expect(semanticsData.hasAction(SemanticsAction.tap), isTrue);
         expect(tester.getSize(action).width, greaterThanOrEqualTo(48));
-        expect(tester.getSize(action).height, greaterThanOrEqualTo(48));
+        expect(tester.getSize(action).height, inInclusiveRange(136, 144));
       }
     } finally {
       semantics.dispose();

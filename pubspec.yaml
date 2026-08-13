@@ -48,6 +48,7 @@ dependencies:
   firebase_messaging: ^16.4.3
   flutter_local_notifications: ^22.2.0
   flutter_svg: ^2.3.0
+  geocoding: ^5.0.0
 
 dev_dependencies:
   flutter_test:
@@ -77,5 +78,6 @@ flutter:
     - assets/images/onboarding/
     - assets/images/logo.png
     - assets/images/logo_icon.png
+    - assets/images/logo_icon_zoom.png
     - assets/images/vehicles/
     - assets/images/categories/

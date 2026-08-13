@@ -12,20 +12,25 @@ void main() {
   const serviceType = ServiceType.workshops;
 
   HomeItem fixture({
+    String id = 'workshop-1',
+    String name = 'Taller Norte',
     int reviews = 24,
     double? distanceKm = 2.4,
     bool? isOpen = true,
+    String? photo,
+    ServiceType type = serviceType,
   }) =>
       HomeItem(
-        id: 'workshop-1',
-        name: 'Taller Norte',
+        id: id,
+        name: name,
         detail: 'Diagnóstico y frenos',
         rating: 4.8,
         reviews: reviews,
         distanceKm: distanceKm,
         isOpen: isOpen,
         iconName: 'warehouse_outlined',
-        type: serviceType,
+        type: type,
+        photo: photo,
       );
 
   Widget app({
@@ -91,9 +96,16 @@ void main() {
   testWidgets('shows three skeletons while providers load', (tester) async {
     await tester.pumpWidget(subject(const AsyncValue.loading()));
 
-    expect(find.byKey(const Key('top-provider-skeleton-1')), findsOneWidget);
+    final firstSkeleton = find.byKey(const Key('top-provider-skeleton-1'));
+    expect(firstSkeleton, findsOneWidget);
     expect(find.byKey(const Key('top-provider-skeleton-2')), findsOneWidget);
     expect(find.byKey(const Key('top-provider-skeleton-3')), findsOneWidget);
+
+    final media =
+        find.byKey(const Key('top-provider-skeleton-media-workshops-1'));
+    expect(media, findsOneWidget);
+    expect(tester.getSize(media).width, tester.getSize(firstSkeleton).width);
+    expect(tester.getSize(media).height, 128);
   });
 
   testWidgets('shows an empty state and navigates to all workshops',
@@ -160,11 +172,11 @@ void main() {
     expect(find.text('Taller Norte'), findsOneWidget);
   });
 
-  testWidgets('shows rank and honest social proof for a provider',
+  testWidgets('shows provider without rank and keeps honest social proof',
       (tester) async {
     await tester.pumpWidget(subject(AsyncValue.data([fixture()])));
 
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('1'), findsNothing);
     expect(find.text('4.8'), findsOneWidget);
     expect(find.text('24 reseñas'), findsOneWidget);
     expect(find.text('2.4 km'), findsOneWidget);
@@ -176,11 +188,103 @@ void main() {
     await tester.pumpWidget(subject(AsyncValue.data([fixture()])));
 
     expect(
-      find.bySemanticsLabel('Ver detalles de Taller Norte, puesto 1'),
+      find.bySemanticsLabel('Ver detalles de Taller Norte'),
       findsOneWidget,
     );
     expect(find.bySemanticsLabel('Puesto 1'), findsNothing);
   }, semanticsEnabled: true);
+
+  testWidgets(
+      'reserves panoramic workshop media even when its photo is missing',
+      (tester) async {
+    await tester.pumpWidget(subject(AsyncValue.data([fixture()])));
+
+    final card = find.bySemanticsLabel('Ver detalles de Taller Norte');
+    final media = find.byKey(const Key('top-provider-media-workshop-1'));
+    expect(media, findsOneWidget);
+    expect(tester.getSize(media).width, tester.getSize(card).width);
+    expect(tester.getSize(media).aspectRatio, greaterThan(2));
+    expect(tester.getTopLeft(media), tester.getTopLeft(card));
+  });
+
+  testWidgets('lays multiple providers in a horizontal sequence',
+      (tester) async {
+    await tester.pumpWidget(
+      subject(
+        AsyncValue.data([
+          fixture(),
+          fixture(id: 'workshop-2', name: 'Taller Este'),
+          fixture(id: 'workshop-3', name: 'Taller Sur'),
+        ]),
+      ),
+    );
+
+    final first = find.bySemanticsLabel('Ver detalles de Taller Norte');
+    final second = find.bySemanticsLabel('Ver detalles de Taller Este');
+    expect(
+        tester.getTopLeft(second).dx, greaterThan(tester.getTopLeft(first).dx));
+    expect(tester.getTopLeft(second).dy,
+        closeTo(tester.getTopLeft(first).dy, 0.1));
+    expect(
+      find.byKey(const Key('top-providers-horizontal-list')),
+      findsOneWidget,
+    );
+  }, semanticsEnabled: true);
+
+  testWidgets('uses panoramic workshop media and a compact mechanic portrait',
+      (tester) async {
+    await tester.pumpWidget(
+      subject(
+        AsyncValue.data([
+          fixture(photo: 'https://example.com/workshop.jpg'),
+        ]),
+      ),
+    );
+
+    final workshopPhoto =
+        find.byKey(const Key('top-provider-workshop-photo-workshop-1'));
+    expect(workshopPhoto, findsOneWidget);
+    final workshopCard = find.bySemanticsLabel('Ver detalles de Taller Norte');
+    expect(
+      tester.getSize(workshopPhoto).width,
+      tester.getSize(workshopCard).width,
+    );
+    expect(tester.getSize(workshopPhoto).height, 128);
+    expect(
+      tester.getBottomRight(workshopPhoto).dy,
+      lessThan(tester.getTopLeft(find.text('Taller Norte')).dy),
+    );
+    final workshopHeight = tester.getSize(workshopCard).height;
+
+    await tester.pumpWidget(
+      subject(
+        AsyncValue.data([
+          fixture(
+            id: 'mechanic-1',
+            name: 'Pedro Pérez',
+            photo: 'https://example.com/mechanic.jpg',
+            type: ServiceType.mechanic,
+          ),
+        ]),
+        type: ServiceType.mechanic,
+      ),
+    );
+
+    final mechanicAvatar =
+        find.byKey(const Key('top-provider-mechanic-avatar-mechanic-1'));
+    expect(mechanicAvatar, findsOneWidget);
+    expect(tester.getSize(mechanicAvatar), const Size(76, 76));
+    expect(
+      find.ancestor(of: mechanicAvatar, matching: find.byType(ClipOval)),
+      findsOneWidget,
+    );
+    final mechanicCard = find.bySemanticsLabel('Ver detalles de Pedro Pérez');
+    final mechanicHeight = tester.getSize(mechanicCard).height;
+
+    expect(workshopHeight, 244);
+    expect(mechanicHeight, 164);
+    expect(mechanicHeight, lessThan(workshopHeight));
+  });
 
   testWidgets('labels a provider with no reviews honestly', (tester) async {
     await tester.pumpWidget(subject(AsyncValue.data([fixture(reviews: 0)])));

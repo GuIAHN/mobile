@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../catalog/domain/entities/category.dart';
 import '../../../../catalog/domain/entities/category_node.dart';
-import '../../../../catalog/domain/entities/category_search_result.dart';
 import '../../../../catalog/presentation/providers/catalog_providers.dart';
 
 class CategorySubcategoryResult {
@@ -18,19 +17,18 @@ class CategorySubcategoryResult {
   });
 }
 
-class _ShimmerSkeleton extends StatelessWidget {
-  const _ShimmerSkeleton();
-  @override
-  Widget build(BuildContext context) => const Center(child: CircularProgressIndicator());
-}
-
 class CategorySubcategorySelectorSheet extends ConsumerStatefulWidget {
-  static Future<CategorySubcategoryResult?> show(BuildContext context, {Category? initialCategory, Category? initialSubcategory}) {
+  static Future<CategorySubcategoryResult?> show(
+    BuildContext context, {
+    Category? initialCategory,
+    Category? initialSubcategory,
+  }) {
     return showModalBottomSheet<CategorySubcategoryResult>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withOpacity(0.4),
+      barrierColor: Colors.black.withValues(alpha: 0.48),
       builder: (_) => CategorySubcategorySelectorSheet(
         initialCategory: initialCategory,
         initialSubcategory: initialSubcategory,
@@ -42,523 +40,629 @@ class CategorySubcategorySelectorSheet extends ConsumerStatefulWidget {
   final Category? initialSubcategory;
 
   const CategorySubcategorySelectorSheet({
+    super.key,
     this.initialCategory,
     this.initialSubcategory,
   });
 
   @override
   ConsumerState<CategorySubcategorySelectorSheet> createState() =>
-      CategorySubcategorySelectorSheetState();
+      _CategorySubcategorySelectorSheetState();
 }
 
-class CategorySubcategorySelectorSheetState
+class _CategorySubcategorySelectorSheetState
     extends ConsumerState<CategorySubcategorySelectorSheet> {
-  final _searchController = TextEditingController();
-  String _query = '';
-  bool _isDebouncing = false;
-  // Navegación de nivel: null = mostrar raíces, != null = mostrar hijos de ese nodo
-  _CategoryNodeNav? _navNode;
+  static const _otherCategoryId = 'f4ff2288-c7bc-4c42-b0ee-0e66a46e0395';
+  static const _otherSubcategoryId = '4340eca0-6410-414c-9655-e91711666860';
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  List<String> _expandedPath = const [];
+  bool _didInitializeExpansion = false;
+
+  Duration get _expansionDuration => MediaQuery.of(context).disableAnimations
+      ? Duration.zero
+      : const Duration(milliseconds: 180);
+
+  void _initializeExpansion(List<CategoryNode> roots) {
+    if (_didInitializeExpansion) return;
+    _didInitializeExpansion = true;
+
+    final initialId = widget.initialCategory?.id;
+    CategoryNode? initialRoot;
+    if (initialId != null) {
+      for (final root in roots) {
+        if (root.id == initialId) {
+          initialRoot = root;
+          break;
+        }
+      }
+    }
+    initialRoot ??= roots.cast<CategoryNode?>().firstWhere(
+          (root) => root?.children.isNotEmpty ?? false,
+          orElse: () => null,
+        );
+
+    if (initialRoot != null && initialRoot.children.isNotEmpty) {
+      _expandedPath = <String>[initialRoot.id];
+    }
   }
 
-  void _onQueryChanged(String val) {
-    // Reset nav when user starts typing
-    if (_navNode != null && val.isNotEmpty) {
-      setState(() => _navNode = null);
-    }
-    final trimmed = val.trim();
-    if (trimmed.length < 2) {
-      setState(() {
-        _query = '';
-        _isDebouncing = false;
-      });
+  void _toggleNode(
+    CategoryNode node,
+    List<CategoryNode> tree,
+    List<String> ancestors,
+  ) {
+    if (node.children.isEmpty) {
+      _selectLeaf(node, tree);
       return;
     }
 
-    setState(() => _isDebouncing = true);
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (!mounted) return;
-      setState(() {
-        _query = trimmed;
-        _isDebouncing = false;
-      });
-    });
-  }
-
-  void _clearSearch() {
-    _searchController.clear();
+    final depth = ancestors.length;
+    final isExpanded =
+        _expandedPath.length > depth && _expandedPath[depth] == node.id;
     setState(() {
-      _query = '';
-      _isDebouncing = false;
+      _expandedPath = isExpanded
+          ? List<String>.of(ancestors)
+          : <String>[...ancestors, node.id];
     });
   }
 
-  /// Resolves the selection to (category, subcategory) and pops.
-  /// If [node] has children, it's a parent/intermediate category → navigate into it to select subcategories.
-  /// Only leaf nodes (nodes without children) can be selected as final subcategories.
-  void _onNodeTapped(CategoryNode node, List<CategoryNode> tree, {bool fromSearch = false}) {
-    if (node.children.isNotEmpty) {
-      // Navigate one level deeper to show subcategories
-      setState(() {
-        _navNode = _CategoryNodeNav(node: node, parent: _navNode);
-        _query = '';
-        _searchController.clear();
-      });
-      return;
-    }
-
-    // Resolve parent category + subcategory for the form contract
+  void _selectLeaf(CategoryNode node, List<CategoryNode> tree) {
     final Category category;
     final Category subcategory;
 
     if (node.parentId == null) {
-      // Root with no children selected directly — treat as both cat and subcat
       category = Category(id: node.id, name: node.name);
-      subcategory = Category(id: node.id, name: node.name, parentId: null);
+      subcategory = Category(id: node.id, name: node.name);
     } else {
-      // Find root ancestor to use as category
       final root = _findRoot(tree, node);
       category = Category(id: root.id, name: root.name);
-      subcategory = Category(id: node.id, name: node.name, parentId: node.parentId);
+      subcategory = Category(
+        id: node.id,
+        name: node.name,
+        parentId: node.parentId,
+      );
     }
 
     Navigator.pop(
       context,
-      CategorySubcategoryResult(category: category, subcategory: subcategory),
+      CategorySubcategoryResult(
+        category: category,
+        subcategory: subcategory,
+      ),
     );
   }
 
   CategoryNode _findRoot(List<CategoryNode> tree, CategoryNode target) {
     for (final root in tree) {
-      if (root.id == target.id) return root;
-      final found = _findInChildren(root, target);
-      if (found != null) return root;
+      if (root.id == target.id || _containsNode(root, target.id)) {
+        return root;
+      }
     }
     return target;
   }
 
-  CategoryNode? _findInChildren(CategoryNode current, CategoryNode target) {
-    if (current.id == target.id) return current;
+  bool _containsNode(CategoryNode current, String targetId) {
     for (final child in current.children) {
-      final found = _findInChildren(child, target);
-      if (found != null) return found;
+      if (child.id == targetId || _containsNode(child, targetId)) {
+        return true;
+      }
     }
-    return null;
+    return false;
   }
 
-  void _onOtroSelected() {
-    const otroCategory = Category(id: 'f4ff2288-c7bc-4c42-b0ee-0e66a46e0395', name: 'Otro');
+  void _selectOther() {
     Navigator.pop(
       context,
       const CategorySubcategoryResult(
-        category: otroCategory,
+        category: Category(id: _otherCategoryId, name: 'Otro'),
         subcategory: Category(
-          id: '4340eca0-6410-414c-9655-e91711666860',
+          id: _otherSubcategoryId,
           name: 'Otro',
-          parentId: 'f4ff2288-c7bc-4c42-b0ee-0e66a46e0395',
+          parentId: _otherCategoryId,
         ),
       ),
     );
   }
 
+  void _handleBack() {
+    if (_expandedPath.length > 1) {
+      setState(() {
+        _expandedPath = _expandedPath.sublist(0, _expandedPath.length - 1);
+      });
+      return;
+    }
+    Navigator.maybePop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final treeAsync = ref.watch(categoryTreeProvider);
-    final searchUseCase = ref.watch(searchCategoriesUseCaseProvider);
+    final mediaQuery = MediaQuery.of(context);
 
     return Container(
+      height: mediaQuery.size.height * 0.88,
       decoration: const BoxDecoration(
-        color: AppColors.background,
+        color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 12,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 26,
-      ),
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.82,
+      padding: EdgeInsets.fromLTRB(
+        20,
+        12,
+        20,
+        mediaQuery.padding.bottom + 12,
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Handle ───────────────────────────────────────────────────────
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 18),
-              decoration: BoxDecoration(
-                color: AppColors.grey300,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
-
-          // ── Header ───────────────────────────────────────────────────────
-          Row(
-            children: [
-              if (_navNode != null) ...[
-                GestureDetector(
-                  onTap: () => setState(() {
-                    _navNode = _navNode?.parent;
-                    _query = '';
-                    _searchController.clear();
-                  }),
-                  behavior: HitTestBehavior.opaque,
-                  child: const Padding(
-                    padding: EdgeInsets.only(right: 12, top: 4, bottom: 4),
-                    child: Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      size: 18,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ],
-              Expanded(
-                child: Text(
-                  _navNode != null ? _navNode!.node.name : 'Categoría de Repuesto',
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // ── Barra de búsqueda ────────────────────────────────────────────
-          TextField(
-            controller: _searchController,
-            onChanged: _onQueryChanged,
-            autofocus: false,
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 14.5,
-              color: AppColors.textPrimary,
-            ),
-            decoration: InputDecoration(
-              hintText: 'Buscar categoría o subcategoría...',
-              hintStyle: GoogleFonts.hankenGrotesk(
-                color: AppColors.textDisabled,
-                fontSize: 14,
-              ),
-              prefixIcon: const Icon(
-                Icons.search_rounded,
-                size: 20,
-                color: AppColors.textSecondary,
-              ),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? _isDebouncing
-                      ? const Padding(
-                          padding: EdgeInsets.all(14),
-                          child: SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        )
-                      : GestureDetector(
-                          onTap: _clearSearch,
-                          child: const Icon(
-                            Icons.close_rounded,
-                            size: 18,
-                            color: AppColors.textSecondary,
-                          ),
-                        )
-                  : null,
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: AppColors.primary,
-                  width: 1.5,
-                ),
-              ),
-            ),
-          ),
+          const _SheetHandle(),
           const SizedBox(height: 14),
-
-          // ── Contenido principal ──────────────────────────────────────────
+          _buildHeader(),
+          const SizedBox(height: 24),
           Expanded(
             child: treeAsync.when(
-              loading: () => _buildSkeleton(),
-              error: (err, _) => _buildError(() => ref.invalidate(categoryTreeProvider)),
-              data: (tree) {
-                final rawText = _searchController.text.trim();
-                if (rawText.length == 1) {
-                  return _buildEmptyState(
-                    'Ingresa al menos 2 caracteres para iniciar la búsqueda.',
-                  );
-                }
-
-                // En modo búsqueda activa
-                if (_query.isNotEmpty) {
-                  final results = searchUseCase.call(tree, _query);
-                  return _buildSearchResults(results, tree);
-                }
-
-                // En modo navegación de nodo
-                if (_navNode != null) {
-                  return _buildNodeChildren(_navNode!.node.children, tree);
-                }
-
-                // Estado inicial: mostrar raíces
-                return _buildRootGrid(tree);
-              },
+              loading: _buildLoading,
+              error: (_, __) => _buildError(),
+              data: _buildAccordion,
             ),
           ),
-
-          const SizedBox(height: 12),
-
-          // ── Botón "Otro" (siempre visible) ────────────────────────────────
-          Semantics(
-            button: true,
-            label: 'Otro / no encuentro mi categoría',
-            child: Material(
-              color: AppColors.primaryMuted,
-              borderRadius: BorderRadius.circular(14),
-              child: InkWell(
-                onTap: _onOtroSelected,
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.add_circle_outline_rounded,
-                        color: AppColors.primary,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Otro / no encuentro mi categoría',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        color: AppColors.primary,
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: _selectOther,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primaryInk,
+              minimumSize: const Size(48, 48),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              textStyle: GoogleFonts.hankenGrotesk(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
               ),
             ),
+            child: const Text('Otro / no encuentro mi categoría'),
           ),
         ],
       ),
     );
   }
 
-  bool _isOtroCategoryNode(String name) {
-    final n = name.trim().toLowerCase();
-    return n == 'otro' ||
-        n == 'otra' ||
-        n == 'otros' ||
-        n == 'otras' ||
-        n.startsWith('otro /') ||
-        n.startsWith('otra /') ||
-        n.startsWith('otro (');
-  }
-
-  // ── Grid de categorías raíz ──────────────────────────────────────────────
-  Widget _buildRootGrid(List<CategoryNode> tree) {
-    final filteredTree = tree
-        .where((node) => !_isOtroCategoryNode(node.name))
-        .toList();
-
-    return GridView.builder(
-      padding: EdgeInsets.zero,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 2.8,
-      ),
-      itemCount: filteredTree.length,
-      itemBuilder: (_, i) {
-        final node = filteredTree[i];
-        final isActive = node.id == widget.initialCategory?.id;
-        return _RootCategoryTile(
-          node: node,
-          isActive: isActive,
-          onTap: () => _onNodeTapped(node, tree),
-        );
-      },
-    );
-  }
-
-  // ── Hijos de un nodo de navegación ──────────────────────────────────────
-  Widget _buildNodeChildren(List<CategoryNode> children, List<CategoryNode> tree) {
-    final filteredChildren = children
-        .where((node) => !_isOtroCategoryNode(node.name))
-        .toList();
-
-    if (filteredChildren.isEmpty) {
-      return _buildEmptyState('Esta categoría no tiene subcategorías.');
-    }
-    return ListView.separated(
-      padding: EdgeInsets.zero,
-      itemCount: filteredChildren.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.border),
-      itemBuilder: (_, i) {
-        final node = filteredChildren[i];
-        final isActive = node.id == widget.initialSubcategory?.id;
-        return _CategoryResultTile(
-          name: node.name,
-          breadcrumbLabel: '',
-          isActive: isActive,
-          hasChildren: node.children.isNotEmpty,
-          query: '',
-          onTap: () => _onNodeTapped(node, tree),
-        );
-      },
-    );
-  }
-
-  Widget _buildSearchResults(List<CategorySearchResult> results, List<CategoryNode> tree) {
-    // Filter: hide items named 'Otro'/'Otra'
-    final filtered = results
-        .where((r) => !_isOtroCategoryNode(r.node.name))
-        .toList();
-
-    if (filtered.isEmpty) {
-      return _buildEmptyState(
-        'No se encontraron resultados para "$_query".\nPuedes usar "Otro" si no encuentras tu categoría.',
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildHeader() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Contador de resultados
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          child: Padding(
-            key: ValueKey(filtered.length),
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Text(
-              '${filtered.length} resultado${filtered.length != 1 ? 's' : ''}',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
-            ),
+        IconButton(
+          onPressed: _handleBack,
+          tooltip: 'Volver',
+          constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 20,
+            color: AppColors.textPrimary,
           ),
         ),
+        const SizedBox(width: 12),
         Expanded(
-          child: ListView.separated(
-            padding: EdgeInsets.zero,
-            itemCount: filtered.length,
-            separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.border),
-            itemBuilder: (_, i) {
-              final r = filtered[i];
-              final isActive = r.node.id == widget.initialSubcategory?.id;
-              return _CategoryResultTile(
-                name: r.node.name,
-                breadcrumbLabel: r.breadcrumbLabel,
-                isActive: isActive,
-                hasChildren: r.node.children.isNotEmpty,
-                query: _query,
-                onTap: () => _onNodeTapped(r.node, tree, fromSearch: true),
-              );
-            },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'PASO 2 DE 3',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                  color: AppColors.textMeta,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Tipo de repuesto',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  height: 1.12,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        IconButton(
+          onPressed: () => Navigator.maybePop(context),
+          tooltip: 'Cerrar selector',
+          constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+          icon: const Icon(
+            Icons.close_rounded,
+            size: 26,
+            color: AppColors.textPrimary,
           ),
         ),
       ],
     );
   }
 
-  // ── Skeleton loader ──────────────────────────────────────────────────────
-  Widget _buildSkeleton() {
-    return const _ShimmerSkeleton();
+  Widget _buildAccordion(List<CategoryNode> tree) {
+    final roots = tree.where((node) => !_isOther(node.name)).toList();
+    if (roots.isEmpty) {
+      return _buildEmpty();
+    }
+
+    _initializeExpansion(roots);
+
+    return ListView.separated(
+      padding: EdgeInsets.zero,
+      physics: const BouncingScrollPhysics(),
+      itemCount: roots.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final root = roots[index];
+        final isExpanded = _isNodeExpanded(root, 0);
+        return _RootAccordion(
+          root: root,
+          isExpanded: isExpanded,
+          isSelected: root.id == widget.initialCategory?.id,
+          duration: _expansionDuration,
+          onTap: () => _toggleNode(root, tree, const []),
+          children: isExpanded
+              ? _buildNodeList(
+                  root.children,
+                  tree,
+                  ancestors: <String>[root.id],
+                )
+              : null,
+        );
+      },
+    );
   }
 
-  // ── Error state ──────────────────────────────────────────────────────────
-  Widget _buildError(VoidCallback onRetry) {
+  Widget _buildNodeList(
+    List<CategoryNode> nodes,
+    List<CategoryNode> tree, {
+    required List<String> ancestors,
+  }) {
+    final visibleNodes = nodes.where((node) => !_isOther(node.name)).toList();
+
+    return Column(
+      key: ValueKey('category-children-${ancestors.last}'),
+      children: [
+        for (var index = 0; index < visibleNodes.length; index++) ...[
+          if (index > 0)
+            const Divider(height: 1, thickness: 1, color: AppColors.border),
+          _buildNode(
+            visibleNodes[index],
+            tree,
+            ancestors: ancestors,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildNode(
+    CategoryNode node,
+    List<CategoryNode> tree, {
+    required List<String> ancestors,
+  }) {
+    final depth = ancestors.length;
+    final isExpanded = _isNodeExpanded(node, depth);
+    final isSelected = node.id == widget.initialSubcategory?.id;
+
+    return Column(
+      children: [
+        _CategoryRow(
+          key: ValueKey('category-node-${node.id}'),
+          node: node,
+          depth: depth,
+          isExpanded: isExpanded,
+          isSelected: isSelected,
+          onTap: () => _toggleNode(node, tree, ancestors),
+        ),
+        AnimatedSize(
+          duration: _expansionDuration,
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: isExpanded
+              ? _buildNodeList(
+                  node.children,
+                  tree,
+                  ancestors: <String>[...ancestors, node.id],
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+
+  bool _isNodeExpanded(CategoryNode node, int depth) {
+    return node.children.isNotEmpty &&
+        _expandedPath.length > depth &&
+        _expandedPath[depth] == node.id;
+  }
+
+  bool _isOther(String name) {
+    final normalized = name.trim().toLowerCase();
+    return normalized == 'otro' ||
+        normalized == 'otra' ||
+        normalized == 'otros' ||
+        normalized == 'otras' ||
+        normalized.startsWith('otro /') ||
+        normalized.startsWith('otra /') ||
+        normalized.startsWith('otro (');
+  }
+
+  Widget _buildLoading() {
+    return const Center(
+      child: CircularProgressIndicator(color: AppColors.primary),
+    );
+  }
+
+  Widget _buildError() {
+    return _SelectorState(
+      icon: Icons.wifi_off_rounded,
+      message: 'No pudimos cargar las categorías.',
+      actionLabel: 'Reintentar',
+      onAction: () => ref.invalidate(categoryTreeProvider),
+    );
+  }
+
+  Widget _buildEmpty() {
+    return _SelectorState(
+      icon: Icons.inventory_2_outlined,
+      message: 'No hay categorías disponibles en este momento.',
+      actionLabel: 'Reintentar',
+      onAction: () => ref.invalidate(categoryTreeProvider),
+    );
+  }
+}
+
+class _SheetHandle extends StatelessWidget {
+  const _SheetHandle();
+
+  @override
+  Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Container(
+        width: 40,
+        height: 4,
+        decoration: BoxDecoration(
+          color: AppColors.grey300,
+          borderRadius: BorderRadius.circular(99),
+        ),
+      ),
+    );
+  }
+}
+
+class _RootAccordion extends StatelessWidget {
+  final CategoryNode root;
+  final bool isExpanded;
+  final bool isSelected;
+  final Duration duration;
+  final VoidCallback onTap;
+  final Widget? children;
+
+  const _RootAccordion({
+    required this.root,
+    required this.isExpanded,
+    required this.isSelected,
+    required this.duration,
+    required this.onTap,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
         children: [
-          const Icon(Icons.wifi_off_rounded, size: 40, color: AppColors.textSecondary),
-          const SizedBox(height: 12),
-          Text(
-            'Error al cargar las categorías',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Semantics(
+                button: true,
+                selected: isSelected,
+                expanded: isExpanded,
+                label: root.name,
+                child: Material(
+                  color: isExpanded
+                      ? AppColors.primaryMuted.withValues(alpha: 0.56)
+                      : AppColors.surface,
+                  child: InkWell(
+                    key: ValueKey('category-root-${root.id}'),
+                    onTap: onTap,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 60),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 16, 8),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _categoryIcon(root.name),
+                              size: 28,
+                              color: isExpanded
+                                  ? AppColors.primaryInk
+                                  : AppColors.textSecondary,
+                            ),
+                            const SizedBox(width: 18),
+                            Expanded(
+                              child: Text(
+                                root.name,
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Icon(
+                              isExpanded
+                                  ? Icons.keyboard_arrow_up_rounded
+                                  : Icons.keyboard_arrow_down_rounded,
+                              size: 24,
+                              color: AppColors.textSecondary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              AnimatedSize(
+                duration: duration,
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: children == null
+                    ? const SizedBox.shrink()
+                    : Column(
+                        children: [
+                          const Divider(
+                            height: 1,
+                            thickness: 1,
+                            color: AppColors.border,
+                          ),
+                          children!,
+                        ],
+                      ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          TextButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh_rounded, size: 16),
-            label: Text(
-              'Reintentar',
-              style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.w700),
+          if (isExpanded)
+            const Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: ColoredBox(
+                color: AppColors.primary,
+                child: SizedBox(width: 3),
+              ),
             ),
-            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
-          ),
         ],
       ),
     );
   }
+}
 
-  // ── Empty state ──────────────────────────────────────────────────────────
-  Widget _buildEmptyState(String message) {
+class _CategoryRow extends StatelessWidget {
+  final CategoryNode node;
+  final int depth;
+  final bool isExpanded;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _CategoryRow({
+    super.key,
+    required this.node,
+    required this.depth,
+    required this.isExpanded,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final leftInset = 64.0 + ((depth - 1) * 20);
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      expanded: node.children.isNotEmpty ? isExpanded : null,
+      label: node.name,
+      child: Material(
+        color: isSelected
+            ? AppColors.primaryMuted.withValues(alpha: 0.56)
+            : AppColors.surface,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 52),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(leftInset, 10, 16, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      node.name,
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 15,
+                        height: 1.25,
+                        fontWeight:
+                            isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  if (isSelected)
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      size: 22,
+                      color: AppColors.primary,
+                    )
+                  else if (node.children.isNotEmpty)
+                    Icon(
+                      isExpanded
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      size: 22,
+                      color: AppColors.textSecondary,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SelectorState extends StatelessWidget {
+  final IconData icon;
+  final String message;
+  final String actionLabel;
+  final VoidCallback onAction;
+
+  const _SelectorState({
+    required this.icon,
+    required this.message,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 8),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.search_off_rounded, size: 40, color: AppColors.textSecondary),
+            Icon(icon, size: 36, color: AppColors.textSecondary),
             const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
               style: GoogleFonts.hankenGrotesk(
-                fontSize: 13.5,
+                fontSize: 15,
+                height: 1.4,
                 color: AppColors.textSecondary,
-                height: 1.5,
               ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: onAction,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primaryInk,
+                minimumSize: const Size(48, 48),
+              ),
+              child: Text(actionLabel),
             ),
           ],
         ),
@@ -567,221 +671,28 @@ class CategorySubcategorySelectorSheetState
   }
 }
 
-// ── Tile de categoría raíz (grid) ─────────────────────────────────────────
-class _RootCategoryTile extends StatefulWidget {
-  final CategoryNode node;
-  final bool isActive;
-  final VoidCallback onTap;
+IconData _categoryIcon(String name) {
+  final normalized = name
+      .trim()
+      .toLowerCase()
+      .replaceAll('á', 'a')
+      .replaceAll('é', 'e')
+      .replaceAll('í', 'i')
+      .replaceAll('ó', 'o')
+      .replaceAll('ú', 'u');
 
-  const _RootCategoryTile({
-    required this.node,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  State<_RootCategoryTile> createState() => _RootCategoryTileState();
-}
-
-class _RootCategoryTileState extends State<_RootCategoryTile> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) => setState(() => _pressed = false),
-      onTapCancel: () => setState(() => _pressed = false),
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _pressed ? 0.96 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: widget.isActive ? AppColors.primaryMuted : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: widget.isActive ? AppColors.primary : AppColors.border,
-              width: widget.isActive ? 1.5 : 1.0,
-            ),
-            boxShadow: widget.isActive
-                ? [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.12),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : [],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  widget.node.name,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 13,
-                    fontWeight: widget.isActive ? FontWeight.w800 : FontWeight.w600,
-                    color: widget.isActive ? AppColors.primary : AppColors.textPrimary,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (widget.node.children.isNotEmpty)
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 16,
-                  color: widget.isActive ? AppColors.primary : AppColors.textSecondary,
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
+  if (normalized.contains('freno')) return Icons.album_outlined;
+  if (normalized.contains('motor')) return Icons.settings_outlined;
+  if (normalized.contains('suspension')) return Icons.linear_scale_rounded;
+  if (normalized.contains('transmision')) {
+    return Icons.precision_manufacturing_outlined;
   }
-}
-
-// ── Tile de resultado de búsqueda / hijo de nodo ──────────────────────────
-class _CategoryResultTile extends StatelessWidget {
-  final String name;
-  final String breadcrumbLabel;
-  final bool isActive;
-  final bool hasChildren;
-  final String query;
-  final VoidCallback onTap;
-
-  const _CategoryResultTile({
-    required this.name,
-    required this.breadcrumbLabel,
-    required this.isActive,
-    required this.hasChildren,
-    required this.query,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _HighlightedText(
-                    text: name,
-                    query: query,
-                    baseStyle: GoogleFonts.hankenGrotesk(
-                      fontSize: 15,
-                      fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-                      color: isActive ? AppColors.primary : AppColors.textPrimary,
-                    ),
-                    highlightStyle: GoogleFonts.hankenGrotesk(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  if (breadcrumbLabel.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(Icons.subdirectory_arrow_right_rounded,
-                            size: 12, color: AppColors.textSecondary),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            breadcrumbLabel,
-                            style: GoogleFonts.hankenGrotesk(
-                              fontSize: 11.5,
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            if (isActive)
-              const Icon(Icons.check_circle_rounded,
-                  color: AppColors.primary, size: 20)
-            else
-              Icon(
-                hasChildren
-                    ? Icons.chevron_right_rounded
-                    : Icons.arrow_forward_ios_rounded,
-                color: AppColors.textSecondary,
-                size: hasChildren ? 20 : 14,
-              ),
-          ],
-        ),
-      ),
-    );
+  if (normalized.contains('calefaccion') || normalized.contains('a/c')) {
+    return Icons.ac_unit_rounded;
   }
+  if (normalized.contains('lubric')) return Icons.oil_barrel_outlined;
+  if (normalized.contains('electric')) return Icons.bolt_outlined;
+  if (normalized.contains('direccion')) return Icons.adjust_rounded;
+  if (normalized.contains('escape')) return Icons.air_rounded;
+  return Icons.build_outlined;
 }
-
-// ── Widget para texto con highlights ─────────────────────────────────────
-class _HighlightedText extends StatelessWidget {
-  final String text;
-  final String query;
-  final TextStyle baseStyle;
-  final TextStyle highlightStyle;
-
-  const _HighlightedText({
-    required this.text,
-    required this.query,
-    required this.baseStyle,
-    required this.highlightStyle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (query.isEmpty) {
-      return Text(text, style: baseStyle);
-    }
-    final lower = text.toLowerCase();
-    final queryLower = query.toLowerCase();
-    final index = lower.indexOf(queryLower);
-    if (index == -1) {
-      return Text(text, style: baseStyle);
-    }
-
-    return RichText(
-      text: TextSpan(children: [
-        if (index > 0)
-          TextSpan(text: text.substring(0, index), style: baseStyle),
-        TextSpan(
-          text: text.substring(index, index + query.length),
-          style: highlightStyle,
-        ),
-        if (index + query.length < text.length)
-          TextSpan(
-            text: text.substring(index + query.length),
-            style: baseStyle,
-          ),
-      ]),
-    );
-  }
-}
-
-// ── Helper de navegación ──────────────────────────────────────────────────
-class _CategoryNodeNav {
-  final CategoryNode node;
-  final _CategoryNodeNav? parent;
-  const _CategoryNodeNav({required this.node, this.parent});
-}
-
-// ── Alias tipado para resultados de búsqueda ──────────────────────────────

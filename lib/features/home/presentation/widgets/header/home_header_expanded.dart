@@ -36,6 +36,8 @@ class HomeHeaderExpanded extends ConsumerStatefulWidget {
 }
 
 class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
+  String? _resolvedLocationName;
+
   @override
   void initState() {
     super.initState();
@@ -52,15 +54,33 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
       final isServiceEnabled = await service.isLocationServiceEnabled();
       if (isServiceEnabled) {
         ref.read(isLocationSharedProvider.notifier).state = true;
-        await ref.read(userLocationProvider.notifier).updateLocation();
+        await _updateCurrentLocation();
       }
     }
+  }
+
+  Future<bool> _updateCurrentLocation() async {
+    final success =
+        await ref.read(userLocationProvider.notifier).updateLocation();
+    if (!success) return false;
+
+    final position = ref.read(userLocationProvider).valueOrNull;
+    if (position == null) return true;
+
+    final locationName = await ref
+        .read(locationServiceProvider)
+        .getAddressFromCoordinates(position.latitude, position.longitude);
+    if (mounted && locationName != null && locationName.isNotEmpty) {
+      setState(() => _resolvedLocationName = locationName);
+    }
+    return true;
   }
 
   Future<void> _handleLocationToggle(BuildContext context) async {
     final isCurrentlyShared = ref.read(isLocationSharedProvider);
     if (isCurrentlyShared) {
       ref.read(isLocationSharedProvider.notifier).state = false;
+      setState(() => _resolvedLocationName = null);
       return;
     }
 
@@ -95,8 +115,7 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
     }
 
     ref.read(isLocationSharedProvider.notifier).state = true;
-    final success =
-        await ref.read(userLocationProvider.notifier).updateLocation();
+    final success = await _updateCurrentLocation();
     if (!success) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -312,6 +331,7 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
   @override
   Widget build(BuildContext context) {
     final isLocationShared = ref.watch(isLocationSharedProvider);
+    final locationAsync = ref.watch(userLocationProvider);
     final userName = ref.watch(authProvider).user?.name.trim();
     final selectedSearchVehicle = ref.watch(searchVehicleProvider);
     final garageCarsAsync = ref.watch(userCarsProvider);
@@ -333,6 +353,12 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
             loading: () => 'Cargando vehículo',
             error: (_, __) => 'No pudimos cargar tu vehículo. Abrir selector.',
           );
+    final locationText = !isLocationShared
+        ? 'Ubicación desactivada'
+        : _resolvedLocationName ??
+            (locationAsync.isLoading
+                ? 'Obteniendo ubicación…'
+                : 'Ubicación actual');
 
     final statusBarHeight = MediaQuery.of(context).padding.top;
 
@@ -364,7 +390,8 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
                       button: true,
                       excludeSemantics: true,
                       label: isLocationShared
-                          ? 'Desactivar ubicación'
+                          ? 'Desactivar ubicación. Ubicación actual: '
+                              '$locationText'
                           : 'Activar ubicación',
                       child: ConstrainedBox(
                         key: const Key('home-location-control'),
@@ -393,9 +420,7 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
                                   const SizedBox(width: AppSpacing.sm),
                                   Flexible(
                                     child: Text(
-                                      isLocationShared
-                                          ? 'Ubicación activada'
-                                          : 'Ubicación desactivada',
+                                      locationText,
                                       softWrap: true,
                                       style: GoogleFonts.hankenGrotesk(
                                         fontSize: 15,

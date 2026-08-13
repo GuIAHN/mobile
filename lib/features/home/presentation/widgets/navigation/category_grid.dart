@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -12,12 +13,47 @@ import '../../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../../providers/home_providers.dart';
 import '../spare_part_wizard/spare_part_wizard_page.dart';
 
-/// Ilustración de cada categoría: icono Material con su color de acento.
+/// Ilustración automotriz de cada categoría.
 class _CategoryStyle {
-  final IconData icon;
+  final String? svg;
+  final IconData fallbackIcon;
 
-  const _CategoryStyle({required this.icon});
+  const _CategoryStyle({
+    this.svg,
+    required this.fallbackIcon,
+  });
 }
+
+const _sparePartsArtwork = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <g stroke="#A83E05" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M19 8h10l2 5 5 2 5 8-4 2v9H11v-9l-4-2 5-8 5-2 2-5Z"/>
+    <circle cx="24" cy="23" r="6"/>
+    <path d="M24 17v-4M24 33v-4M18 23h-4M34 23h-4M19.7 18.7l-2.8-2.8M31.1 30.1l-2.8-2.8M28.3 18.7l2.8-2.8M16.9 30.1l2.8-2.8M15 34v6M33 34v6"/>
+  </g>
+</svg>
+''';
+
+const _workshopsArtwork = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <g stroke="#A83E05" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 18 12 9h24l5 9v22H7V18Z"/>
+    <path d="M7 18h34M13 40V27h22v13M17 27l2-6h10l2 6M18 33h12M15 14h18"/>
+  </g>
+  <circle cx="17" cy="29" r="1.5" fill="#A83E05"/>
+  <circle cx="31" cy="29" r="1.5" fill="#A83E05"/>
+</svg>
+''';
+
+const _mechanicsArtwork = '''
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <g stroke="#A83E05" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="21" cy="16" r="6"/>
+    <path d="M10 39c1-8 5-12 11-12s10 4 11 12H10ZM15 11v5h12v-5"/>
+    <path d="m34 10 3 3-9 9-4 1 1-4 9-9ZM33 11l3 3M29 21l3 3"/>
+  </g>
+</svg>
+''';
 
 /// Tarjetas de categorías del home.
 /// Cada tarjeta REDIRIGE a su flujo correspondiente:
@@ -60,19 +96,22 @@ class CategoryGrid extends ConsumerWidget {
     switch (type) {
       case ServiceType.spareParts:
         return const _CategoryStyle(
-          icon: Icons.settings_outlined,
+          svg: _sparePartsArtwork,
+          fallbackIcon: Icons.settings_outlined,
         );
       case ServiceType.workshops:
         return const _CategoryStyle(
-          icon: Icons.home_repair_service_outlined,
+          svg: _workshopsArtwork,
+          fallbackIcon: Icons.home_repair_service_outlined,
         );
       case ServiceType.mechanic:
         return const _CategoryStyle(
-          icon: Icons.engineering_outlined,
+          svg: _mechanicsArtwork,
+          fallbackIcon: Icons.engineering_outlined,
         );
       case ServiceType.storeDashboard:
         return const _CategoryStyle(
-          icon: Icons.storefront_outlined,
+          fallbackIcon: Icons.storefront_outlined,
         );
     }
   }
@@ -147,8 +186,8 @@ class _CategoryCardState extends State<_CategoryCard> {
   @override
   Widget build(BuildContext context) {
     final animationsEnabled = !MediaQuery.disableAnimationsOf(context);
-    final radius = BorderRadius.circular(20);
-    final labelFontSize = widget.isCompact ? 12.0 : 13.0;
+    final radius = BorderRadius.circular(10);
+    final labelFontSize = widget.isCompact ? 12.5 : 13.5;
     final allowExpandedLabel =
         MediaQuery.textScalerOf(context).scale(labelFontSize) >
             labelFontSize * 1.5;
@@ -167,9 +206,10 @@ class _CategoryCardState extends State<_CategoryCard> {
         curve: Curves.easeOut,
         child: Material(
           color: AppColors.surface,
+          elevation: 1.5,
+          shadowColor: Colors.black.withValues(alpha: 0.12),
           shape: RoundedRectangleBorder(
             borderRadius: radius,
-            side: const BorderSide(color: AppColors.border),
           ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -184,30 +224,37 @@ class _CategoryCardState extends State<_CategoryCard> {
               AppColors.primary.withValues(alpha: 0.08),
             ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 112),
+              constraints: const BoxConstraints(minHeight: 140),
               child: Padding(
                 padding: EdgeInsets.symmetric(
                   horizontal: widget.isCompact ? 8 : 12,
-                  vertical: 14,
+                  vertical: 12,
                 ),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      width: 44,
-                      height: 44,
+                      width: widget.isCompact ? 68 : 72,
+                      height: widget.isCompact ? 68 : 72,
                       decoration: BoxDecoration(
                         color: AppColors.primaryMuted,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       alignment: Alignment.center,
-                      child: Icon(
-                        widget.style.icon,
-                        size: 24,
-                        color: AppColors.primaryInk,
-                      ),
+                      child: widget.style.svg == null
+                          ? Icon(
+                              widget.style.fallbackIcon,
+                              size: 38,
+                              color: AppColors.primaryInk,
+                            )
+                          : SvgPicture.string(
+                              widget.style.svg!,
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.contain,
+                              semanticsLabel: widget.label,
+                            ),
                     ),
-                    const SizedBox(height: 10),
                     Text(
                       widget.label,
                       maxLines: allowExpandedLabel ? 6 : 2,
@@ -218,12 +265,6 @@ class _CategoryCardState extends State<_CategoryCard> {
                         fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 18,
-                      color: AppColors.primaryInk,
                     ),
                   ],
                 ),

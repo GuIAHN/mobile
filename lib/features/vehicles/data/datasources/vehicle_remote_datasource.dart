@@ -74,7 +74,22 @@ class VehicleRemoteDataSource {
       if (response.data == null) {
         throw const ParseException();
       }
-      return UserCarModel.fromJson(response.data!);
+      final createdCar = UserCarModel.fromJson(response.data!);
+      final hasCompleteVehicleIdentity = createdCar.brand.isNotEmpty &&
+          createdCar.model.isNotEmpty &&
+          createdCar.year > 0;
+      if (hasCompleteVehicleIdentity) return createdCar;
+
+      // The create endpoint may return only the new relation ids. Hydrate the
+      // authoritative garage record before it reaches the in-memory profile
+      // cache, otherwise the UI displays an empty brand/model and year 0.
+      final detailResponse = await _client.get<Map<String, dynamic>>(
+        '/me/cars/${createdCar.id}',
+      );
+      if (detailResponse.data == null) {
+        throw const ParseException();
+      }
+      return UserCarModel.fromJson(detailResponse.data!);
     } catch (e) {
       rethrow;
     }

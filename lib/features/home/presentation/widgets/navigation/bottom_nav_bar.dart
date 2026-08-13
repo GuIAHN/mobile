@@ -7,7 +7,10 @@ import '../../../../../core/providers/current_user_provider.dart';
 import '../../providers/home_providers.dart';
 
 /// Tamaño del logo central.
-const double _kLogoSize = 64;
+const double _kLogoSize = 88;
+
+/// Desplaza el logo hacia la barra para que se perciba integrado a ella.
+const double _kLogoTopOffset = 8;
 
 /// Elevación adicional respecto al mockup anterior.
 const double _kLogoLift = 12;
@@ -117,7 +120,7 @@ class BottomNavBar extends ConsumerWidget {
 
         // ── Logo central sobresaliente ───────────────────────────────────────
         Positioned(
-          top: 0,
+          top: _kLogoTopOffset,
           child: _CenterLogoButton(
             isSelected: activeTab == 0,
             onTap: () => selectTab(0),
@@ -166,7 +169,7 @@ class _CenterLogoButton extends StatelessWidget {
                   : const Duration(milliseconds: 200),
               curve: Curves.easeOut,
               child: Image.asset(
-                'assets/images/logo_icon.png',
+                'assets/images/logo_icon_zoom.png',
                 width: _kLogoSize,
                 height: _kLogoSize,
                 fit: BoxFit.contain,

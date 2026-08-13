@@ -12,7 +12,7 @@ import 'package:guiautomotriz_mobile/features/home/presentation/widgets/navigati
 
 void main() {
   const logoSemantics = 'Volver al inicio, logo guIAutomotriz';
-  const logoAsset = AssetImage('assets/images/logo_icon.png');
+  const logoAsset = AssetImage('assets/images/logo_icon_zoom.png');
 
   ProviderContainer containerFor({
     required UserRole role,
@@ -104,7 +104,8 @@ void main() {
     expect(logoFinder(), findsOneWidget);
     final navRect = tester.getRect(find.byType(BottomNavBar));
     final logoRect = visualRect(tester, logoFinder());
-    expect(logoRect.size, const Size.square(64));
+    expect(logoRect.size, const Size.square(88));
+    expect(logoRect.top - navRect.top, 8);
     expect(logoRect.left, greaterThanOrEqualTo(navRect.left));
     expect(logoRect.top, greaterThanOrEqualTo(navRect.top));
     expect(logoRect.right, lessThanOrEqualTo(navRect.right));
@@ -140,7 +141,7 @@ void main() {
     expect(barMaterial, findsOneWidget);
     expect(
       tester.getTopLeft(barMaterial).dy - logoRect.top,
-      kBottomNavOverhang + 12,
+      kBottomNavOverhang + 4,
     );
   });
 
@@ -171,7 +172,7 @@ void main() {
 
   for (final initialTab in const [0, 1]) {
     testWidgets(
-        'logo visual bounds remain exactly 64 dp on tab $initialTab at rest',
+        'logo visual bounds remain exactly 88 dp on tab $initialTab at rest',
         (tester) async {
       final container = containerFor(
         role: UserRole.consumer,
@@ -184,7 +185,7 @@ void main() {
 
       expect(
         visualRect(tester, logoFinder()).size,
-        const Size.square(64),
+        const Size.square(88),
       );
     });
   }
@@ -266,8 +267,7 @@ void main() {
       expect(logoData.flagsCollection.isButton, isTrue);
       expect(logoData.flagsCollection.isSelected, Tristate.isFalse);
       expect(logoData.hasAction(SemanticsAction.tap), isTrue);
-      expect(tester.getSize(logo).width, greaterThanOrEqualTo(64));
-      expect(tester.getSize(logo).height, greaterThanOrEqualTo(64));
+      expect(tester.getSize(logo), const Size.square(88));
     } finally {
       semantics.dispose();
     }
@@ -292,7 +292,7 @@ void main() {
     final opacity =
         tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity));
 
-    expect(selectedRect.size, const Size.square(64));
+    expect(selectedRect.size, const Size.square(88));
     expect(unselectedRect, selectedRect);
     expect(opacity.duration, Duration.zero);
   });
