@@ -64,60 +64,77 @@ Widget _testApp({
   LocationService? locationService,
   double textScale = 1,
   bool disableAnimations = false,
+  ProviderContainer? container,
 }) {
+  final app = MaterialApp(
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaler: TextScaler.linear(textScale),
+        disableAnimations: disableAnimations,
+      ),
+      child: child!,
+    ),
+    home: Builder(
+      builder: (context) => Scaffold(
+        body: Center(
+          child: ElevatedButton(
+            key: const Key('open-location-picker'),
+            onPressed: () async {
+              final result = await showDialog<RequestLocationSelection>(
+                context: context,
+                barrierDismissible: false,
+                builder: (_) => RequestLocationPickerDialog(
+                  initialCenter: const LatLng(10.4806, -66.9036),
+                  initialSelection: initialSelection,
+                  mapBuilder: (context, selection, onMapTap, onMapError) =>
+                      GestureDetector(
+                    key: const Key('fake-location-map'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => onMapTap(
+                      const LatLng(10.5001, -66.9002),
+                    ),
+                    onLongPress: onMapError,
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              );
+              onResult(result);
+            },
+            child: const Text('Abrir'),
+          ),
+        ),
+      ),
+    ),
+  );
+  if (container != null) {
+    return UncontrolledProviderScope(container: container, child: app);
+  }
   return ProviderScope(
     overrides: [
       locationServiceProvider.overrideWithValue(
         locationService ?? _FakeLocationService(),
       ),
     ],
-    child: MaterialApp(
-      builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          textScaler: TextScaler.linear(textScale),
-          disableAnimations: disableAnimations,
-        ),
-        child: child!,
-      ),
-      home: Builder(
-        builder: (context) => Scaffold(
-          body: Center(
-            child: ElevatedButton(
-              key: const Key('open-location-picker'),
-              onPressed: () async {
-                final result = await showDialog<RequestLocationSelection>(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (_) => RequestLocationPickerDialog(
-                    initialCenter: const LatLng(10.4806, -66.9036),
-                    initialSelection: initialSelection,
-                    mapBuilder: (context, selection, onMapTap) =>
-                        GestureDetector(
-                      key: const Key('fake-location-map'),
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => onMapTap(
-                        const LatLng(10.5001, -66.9002),
-                      ),
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
-                );
-                onResult(result);
-              },
-              child: const Text('Abrir'),
-            ),
-          ),
-        ),
-      ),
-    ),
+    child: app,
   );
 }
 
 void main() {
   testWidgets('a map tap updates the draft returned by confirmation',
       (tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        locationServiceProvider.overrideWithValue(_FakeLocationService()),
+      ],
+    );
+    addTearDown(container.dispose);
     RequestLocationSelection? result;
-    await tester.pumpWidget(_testApp(onResult: (value) => result = value));
+    await tester.pumpWidget(
+      _testApp(
+        container: container,
+        onResult: (value) => result = value,
+      ),
+    );
 
     await tester.tap(find.byKey(const Key('open-location-picker')));
     await tester.pumpAndSettle();
@@ -132,6 +149,8 @@ void main() {
     expect(result?.latitude, 10.5001);
     expect(result?.longitude, -66.9002);
     expect(result?.source, RequestLocationSource.mapTap);
+    expect(container.read(isLocationSharedProvider), isFalse);
+    expect(container.read(userLocationProvider).valueOrNull, isNull);
   });
 
   testWidgets('closing the dialog discards its draft', (tester) async {
@@ -218,6 +237,23 @@ void main() {
     expect(result?.source, RequestLocationSource.mapTap);
   });
 
+  testWidgets('a tile failure shows a retryable map notice', (tester) async {
+    await tester.pumpWidget(_testApp(onResult: (_) {}));
+
+    await tester.tap(find.byKey(const Key('open-location-picker')));
+    await tester.pumpAndSettle();
+    await tester.longPress(find.byKey(const Key('fake-location-map')));
+    await tester.pump();
+
+    expect(find.text('No pudimos cargar el mapa.'), findsOneWidget);
+    expect(find.text('Reintentar'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('retry-request-location-map')));
+    await tester.pump();
+
+    expect(find.text('No pudimos cargar el mapa.'), findsNothing);
+  });
+
   testWidgets('fits a small phone with enlarged text and 48dp actions',
       (tester) async {
     tester.view.physicalSize = const Size(320, 700);
@@ -277,6 +313,30 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Elegir ubicación'), findsOneWidget);
+    expect(find.text('Usar esta ubicación'), findsOneWidget);
+  });
+
+  testWidgets('fits a representative landscape viewport', (tester) async {
+    tester.view.physicalSize = const Size(700, 320);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      _testApp(
+        initialSelection: const RequestLocationSelection(
+          latitude: 10.4806,
+          longitude: -66.9036,
+          source: RequestLocationSource.mapTap,
+        ),
+        onResult: (_) {},
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('open-location-picker')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
     expect(find.text('Usar esta ubicación'), findsOneWidget);
   });
 }

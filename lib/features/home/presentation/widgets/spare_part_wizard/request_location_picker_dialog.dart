@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +16,7 @@ typedef RequestLocationMapBuilder = Widget Function(
   BuildContext context,
   RequestLocationSelection? selection,
   ValueChanged<LatLng> onMapTap,
+  VoidCallback onMapError,
 );
 
 class RequestLocationPickerDialog extends ConsumerStatefulWidget {
@@ -51,8 +54,11 @@ class RequestLocationPickerDialog extends ConsumerStatefulWidget {
 class _RequestLocationPickerDialogState
     extends ConsumerState<RequestLocationPickerDialog> {
   final MapController _mapController = MapController();
+  final StreamController<void> _tileResetController =
+      StreamController<void>.broadcast();
   RequestLocationSelection? _draft;
   bool _isLocating = false;
+  bool _mapError = false;
   String? _locationError;
   int _selectionRevision = 0;
 
@@ -64,8 +70,21 @@ class _RequestLocationPickerDialogState
 
   @override
   void dispose() {
+    _tileResetController.close();
     _mapController.dispose();
     super.dispose();
+  }
+
+  void _handleMapError() {
+    if (!mounted || _mapError) return;
+    setState(() => _mapError = true);
+  }
+
+  void _retryMap() {
+    setState(() => _mapError = false);
+    if (widget.mapBuilder == null) {
+      _tileResetController.add(null);
+    }
   }
 
   Future<void> _selectPoint(
@@ -155,9 +174,12 @@ class _RequestLocationPickerDialogState
   Widget _buildMap(BuildContext context) {
     final customBuilder = widget.mapBuilder;
     if (customBuilder != null) {
-      return customBuilder(context, _draft, (point) {
-        _selectPoint(point, RequestLocationSource.mapTap);
-      });
+      return customBuilder(
+        context,
+        _draft,
+        (point) => _selectPoint(point, RequestLocationSource.mapTap),
+        _handleMapError,
+      );
     }
 
     return FlutterMap(
@@ -177,6 +199,8 @@ class _RequestLocationPickerDialogState
           urlTemplate:
               'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
           userAgentPackageName: 'com.guiautomotriz.mobile',
+          reset: _tileResetController.stream,
+          errorTileCallback: (_, __, ___) => _handleMapError(),
         ),
         if (_draft != null)
           MarkerLayer(
@@ -224,6 +248,53 @@ class _RequestLocationPickerDialogState
           child: Stack(
             children: [
               Positioned.fill(child: _buildMap(context)),
+              if (_mapError)
+                Positioned(
+                  top: 88,
+                  left: AppSpacing.lg,
+                  right: AppSpacing.lg,
+                  child: Semantics(
+                    container: true,
+                    liveRegion: true,
+                    label:
+                        'No pudimos cargar el mapa. Reintentar carga del mapa.',
+                    excludeSemantics: true,
+                    child: Material(
+                      color: AppColors.surface,
+                      elevation: 2,
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                          left: AppSpacing.lg,
+                          right: AppSpacing.xs,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.map_outlined,
+                              color: AppColors.errorInk,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                'No pudimos cargar el mapa.',
+                                style: AppTypography.bodySm,
+                              ),
+                            ),
+                            TextButton(
+                              key: const Key('retry-request-location-map'),
+                              onPressed: _retryMap,
+                              style: TextButton.styleFrom(
+                                minimumSize: const Size(48, 48),
+                              ),
+                              child: const Text('Reintentar'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               Positioned(
                 top: AppSpacing.md,
                 left: AppSpacing.lg,
