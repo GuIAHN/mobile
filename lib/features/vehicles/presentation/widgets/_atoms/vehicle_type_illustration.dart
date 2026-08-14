@@ -51,40 +51,55 @@ class VehicleTypeIllustration extends StatelessWidget {
   Widget build(BuildContext context) {
     final assetPath = getAssetPath(vehicleType);
     final pixelRatio = MediaQuery.devicePixelRatioOf(context);
-    final decodeWidth = (width * pixelRatio).round().clamp(240, 1024);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final resolvedWidth = width.isFinite && width > 0
+            ? width
+            : constraints.hasBoundedWidth
+                ? constraints.maxWidth
+                : 240.0;
+        final resolvedHeight = height.isFinite && height > 0
+            ? height
+            : constraints.hasBoundedHeight
+                ? constraints.maxHeight
+                : 120.0;
+        final decodeWidth =
+            (resolvedWidth * pixelRatio).round().clamp(240, 1024);
 
-    final img = Image.asset(
-      assetPath,
-      fit: fit,
-      cacheWidth: decodeWidth,
-      filterQuality: FilterQuality.medium,
-      excludeFromSemantics: true,
-      errorBuilder: (_, __, ___) => const Center(
-        child: Icon(
-          Icons.directions_car_rounded,
-          color: AppColors.primary,
-          size: 32,
-        ),
-      ),
-    );
+        final img = Image.asset(
+          assetPath,
+          fit: fit,
+          cacheWidth: decodeWidth,
+          filterQuality: FilterQuality.medium,
+          excludeFromSemantics: true,
+          errorBuilder: (_, __, ___) => const Center(
+            child: Icon(
+              Icons.directions_car_rounded,
+              color: AppColors.primary,
+              size: 32,
+            ),
+          ),
+        );
 
-    if (!showBackground) {
-      return SizedBox(
-        width: width,
-        height: height,
-        child: img,
-      );
-    }
+        if (!showBackground) {
+          return SizedBox(
+            width: resolvedWidth,
+            height: resolvedHeight,
+            child: img,
+          );
+        }
 
-    return Container(
-      width: width,
-      height: height,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: img,
+        return Container(
+          width: resolvedWidth,
+          height: resolvedHeight,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: img,
+        );
+      },
     );
   }
 }
