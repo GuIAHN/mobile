@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_spacing.dart';
+import '../../../../../core/theme/app_typography.dart';
 import '../../../../catalog/domain/entities/category.dart';
 import '../../../../catalog/domain/entities/category_node.dart';
 import '../../../../catalog/presentation/providers/catalog_providers.dart';
@@ -24,6 +26,18 @@ class CategorySubcategoryResult {
     required this.category,
     required this.subcategory,
   });
+}
+
+class _CategorySearchResult {
+  final CategoryNode node;
+  final List<String> path;
+
+  const _CategorySearchResult({
+    required this.node,
+    required this.path,
+  });
+
+  String get breadcrumb => path.join(' › ');
 }
 
 class CategorySubcategorySelectorSheet extends ConsumerStatefulWidget {
@@ -66,6 +80,14 @@ class _CategorySubcategorySelectorSheetState
 
   List<String> _expandedPath = const [];
   bool _didInitializeExpansion = false;
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Duration get _expansionDuration => MediaQuery.of(context).disableAnimations
       ? Duration.zero
@@ -205,12 +227,16 @@ class _CategorySubcategorySelectorSheetState
           const _SheetHandle(),
           const SizedBox(height: 14),
           _buildHeader(),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          _buildSearchField(),
+          const SizedBox(height: 16),
           Expanded(
             child: treeAsync.when(
               loading: _buildLoading,
               error: (_, __) => _buildError(),
-              data: _buildAccordion,
+              data: (tree) => _query.trim().length < 2
+                  ? _buildAccordion(tree)
+                  : _buildSearchResults(tree),
             ),
           ),
           const SizedBox(height: 8),
@@ -230,6 +256,112 @@ class _CategorySubcategorySelectorSheetState
         ],
       ),
     );
+  }
+
+  Widget _buildSearchField() {
+    return TextField(
+      controller: _searchController,
+      onChanged: (value) => setState(() => _query = value),
+      textInputAction: TextInputAction.search,
+      style: AppTypography.body,
+      decoration: InputDecoration(
+        hintText: 'Buscar pieza o categoría',
+        hintStyle: AppTypography.body.copyWith(
+          color: AppColors.textPlaceholder,
+        ),
+        prefixIcon: const Icon(
+          Icons.search_rounded,
+          color: AppColors.textSecondary,
+        ),
+        suffixIcon: _query.isEmpty
+            ? null
+            : IconButton(
+                tooltip: 'Limpiar búsqueda',
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() => _query = '');
+                },
+                icon: const Icon(Icons.close_rounded),
+              ),
+        filled: true,
+        fillColor: AppColors.grey50,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchResults(List<CategoryNode> tree) {
+    final normalized = _query.trim().toLowerCase();
+    final results = <_CategorySearchResult>[];
+    for (final root in tree.where((node) => !_isOther(node.name))) {
+      _collectSearchResults(
+        root,
+        <String>[root.name],
+        normalized,
+        results,
+      );
+    }
+
+    if (results.isEmpty) {
+      return _SelectorState(
+        icon: Icons.search_off_rounded,
+        message: 'No encontramos esa pieza.',
+        actionLabel: 'Elegir Otro',
+        onAction: _selectOther,
+      );
+    }
+
+    return ListView.separated(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      itemCount: results.length,
+      separatorBuilder: (_, __) =>
+          const Divider(height: 1, color: AppColors.border),
+      itemBuilder: (context, index) {
+        final result = results[index];
+        return ListTile(
+          minTileHeight: 64,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+          title: Text(result.node.name, style: AppTypography.title),
+          subtitle: Text(
+            result.breadcrumb,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.bodySm,
+          ),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => _selectLeaf(result.node, tree),
+        );
+      },
+    );
+  }
+
+  void _collectSearchResults(
+    CategoryNode node,
+    List<String> path,
+    String query,
+    List<_CategorySearchResult> results,
+  ) {
+    if (node.children.isEmpty &&
+        (node.name.toLowerCase().contains(query) ||
+            path.join(' ').toLowerCase().contains(query))) {
+      results.add(_CategorySearchResult(node: node, path: path));
+    }
+    for (final child in node.children.where((item) => !_isOther(item.name))) {
+      _collectSearchResults(
+        child,
+        <String>[...path, child.name],
+        query,
+        results,
+      );
+    }
   }
 
   Widget _buildHeader() {

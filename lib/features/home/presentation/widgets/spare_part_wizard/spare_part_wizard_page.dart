@@ -12,7 +12,6 @@ import '../../../../../core/domain/enums/part_type.dart';
 import '../../../../../shared/widgets/image_source_selector_sheet.dart';
 import '../../../../../shared/widgets/error_view.dart';
 import '../../../../../shared/widgets/skeleton_loader.dart';
-import '../../../../../core/utils/extensions.dart';
 import '../../../../../core/services/location_service.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../vehicles/domain/entities/user_car.dart';
@@ -32,6 +31,8 @@ import 'request_location_selection.dart';
 part 'spare_part_wizard_step1.dart';
 part 'spare_part_wizard_step2.dart';
 part 'spare_part_wizard_step3.dart';
+part 'spare_part_wizard_chrome.dart';
+part 'spare_part_wizard_summary.dart';
 
 class SparePartWizardPage extends ConsumerStatefulWidget {
   final UserCar? initialVehicle;
@@ -70,8 +71,10 @@ class SparePartWizardPage extends ConsumerStatefulWidget {
 
 class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
   int _currentStep = 1;
-  // +1 = avanzando (entra desde la derecha), -1 = retrocediendo.
-  int _direction = 1;
+  late final PageController _pageController;
+  bool _isSubmitting = false;
+  String? _submitError;
+  bool _isDirty = false;
 
   UserCar? _selectedVehicle;
   String? _temporaryModelId;
@@ -90,37 +93,45 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
   @override
   void initState() {
     super.initState();
+    _pageController = PageController();
     _selectedVehicle = widget.initialVehicle;
     _temporaryModelId = widget.initialVariantId;
-    _detailsController.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
+    _pageController.dispose();
     _detailsController.dispose();
     super.dispose();
   }
 
-  void _nextStep() {
+  Future<void> _goToStep(int nextStep) async {
+    if (nextStep < 1 || nextStep > 3 || nextStep == _currentStep) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     setState(() {
-      if (_currentStep < 3) {
-        _direction = 1;
-        _currentStep++;
-      }
+      _currentStep = nextStep;
+      _submitError = null;
     });
+    if (reduceMotion) {
+      _pageController.jumpToPage(nextStep - 1);
+      return;
+    }
+    await _pageController.animateToPage(
+      nextStep - 1,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   Future<void> _prevStep() async {
     if (_currentStep > 1) {
-      setState(() {
-        _direction = -1;
-        _currentStep--;
-      });
+      await _goToStep(_currentStep - 1);
       return;
     }
     // En el paso 1, salir descarta el vehículo ya elegido: confirmar antes
     // de perderlo silenciosamente.
-    if (_selectedVehicle == null) {
+    if (!_isDirty) {
       Navigator.pop(context);
       return;
     }
@@ -132,7 +143,7 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
         ),
         title: Text('¿Descartar solicitud?', style: AppTypography.h1),
         content: Text(
-          'Perderás el vehículo que ya seleccionaste.',
+          'Perderás los datos que ya seleccionaste para esta solicitud.',
           style: AppTypography.body.copyWith(color: AppColors.textSecondary),
         ),
         actionsPadding: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
@@ -188,6 +199,7 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
       _selectedVehicle = car;
       _temporaryModelId =
           modelId ?? (isSameTemporaryVehicle ? _temporaryModelId : null);
+      _isDirty = true;
       // Solo selecciona: avanzar de paso requiere tocar "Continuar",
       // igual que en los pasos 2 y 3.
     });
@@ -214,27 +226,15 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
       ),
     );
     if (result != null && mounted) {
-      setState(() => _requestLocation = result);
-    }
-  }
-
-  void _showLoadingOverlay() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      ),
-    );
-  }
-
-  void _hideLoadingOverlay() {
-    if (mounted && Navigator.canPop(context)) {
-      Navigator.pop(context);
+      setState(() {
+        _requestLocation = result;
+        _isDirty = true;
+      });
     }
   }
 
   Future<void> _submit() async {
+    if (_isSubmitting) return;
     final vehicle = _selectedVehicle;
     final subcat = _selectedSubcategory;
     final partType = _selectedPartType;
@@ -247,49 +247,61 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
       return;
     }
 
-    String userCarId = vehicle.id;
+    setState(() {
+      _isSubmitting = true;
+      _submitError = null;
+    });
 
-    if (vehicle.id.startsWith('temp-')) {
-      if (_temporaryModelId == null) {
-        context.showSnackBar('Error: Modelo no identificado', isError: true);
-        return;
+    try {
+      String userCarId = vehicle.id;
+      if (vehicle.id.startsWith('temp-')) {
+        if (_temporaryModelId == null) {
+          setState(() => _submitError = 'No identificamos el modelo elegido.');
+          return;
+        }
+        final addResult = await ref.read(addCarToGarageUseCaseProvider)(
+          variantId: _temporaryModelId!,
+        );
+        if (!mounted) return;
+        final registeredCar = addResult.fold((failure) {
+          setState(() {
+            _submitError = 'No pudimos guardar el vehículo: ${failure.message}';
+          });
+          return null;
+        }, (car) {
+          ref.read(authProvider.notifier).addUserCar(car);
+          return car;
+        });
+        if (registeredCar == null) return;
+        setState(() {
+          _selectedVehicle = registeredCar;
+          _temporaryModelId = null;
+        });
+        userCarId = registeredCar.id;
       }
-      _showLoadingOverlay();
-      final addResult = await ref.read(addCarToGarageUseCaseProvider)(
-          variantId: _temporaryModelId!);
-      _hideLoadingOverlay();
+
+      await ref.read(searchRequestNotifierProvider.notifier).submitSearch(
+            userCarId: userCarId,
+            subcategoryId: subcat.id,
+            details: _detailsController.text.trim(),
+            partType: partType,
+            fotoUrl: _selectedImagePath,
+            lat: requestLocation.latitude,
+            lon: requestLocation.longitude,
+          );
 
       if (!mounted) return;
-      final registeredCar = addResult.fold((l) {
-        context.showSnackBar('Error al registrar vehículo: ${l.message}',
-            isError: true);
-        return null;
-      }, (r) {
-        ref.read(authProvider.notifier).addUserCar(r);
-        return r;
-      });
-      if (registeredCar == null) return;
-      userCarId = registeredCar.id;
-    }
-
-    _showLoadingOverlay();
-    await ref.read(searchRequestNotifierProvider.notifier).submitSearch(
-          userCarId: userCarId,
-          subcategoryId: subcat.id,
-          details: _detailsController.text,
-          partType: partType,
-          fotoUrl: _selectedImagePath,
-          lat: requestLocation.latitude,
-          lon: requestLocation.longitude,
-        );
-    _hideLoadingOverlay();
-
-    if (!mounted) return;
-    final state = ref.read(searchRequestNotifierProvider);
-    if (state.status == SearchRequestStatus.success) {
-      _showSuccessDialog();
-    } else if (state.status == SearchRequestStatus.error) {
-      context.showSnackBar('Error: ${state.errorMessage}', isError: true);
+      final state = ref.read(searchRequestNotifierProvider);
+      if (state.status == SearchRequestStatus.success) {
+        _showSuccessDialog();
+      } else {
+        setState(() {
+          _submitError = state.errorMessage ??
+              'No pudimos enviar la solicitud. Intenta nuevamente.';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
@@ -297,207 +309,209 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.5),
-      builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Builder(builder: (context) {
-              final reduceMotion = MediaQuery.disableAnimationsOf(context);
-              final icon = Container(
-                width: 72,
-                height: 72,
-                decoration: const BoxDecoration(
-                    color: AppColors.primaryMuted, shape: BoxShape.circle),
-                child: const Icon(Icons.check_circle_rounded,
-                    color: AppColors.primary, size: 44),
-              );
-              if (reduceMotion) return icon;
-              return TweenAnimationBuilder<double>(
-                duration: const Duration(milliseconds: 700),
-                curve: Curves.elasticOut,
-                tween: Tween(begin: 0.0, end: 1.0),
-                builder: (context, value, child) =>
-                    Transform.scale(scale: value, child: child),
-                child: icon,
-              );
-            }),
-            const SizedBox(height: 24),
-            Text('¡Solicitud enviada!', style: AppTypography.h1),
-            const SizedBox(height: 12),
-            Text(
-              'Hemos enviado tu requerimiento de repuesto a las tiendas afiliadas más cercanas. Te notificaremos en la sección de Chats apenas recibas cotizaciones.',
-              textAlign: TextAlign.center,
-              style: AppTypography.body.copyWith(
-                color: AppColors.textSecondary,
-                height: 1.5,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: SafeArea(
+          top: false,
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 32,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Builder(builder: (context) {
+                    final reduceMotion =
+                        MediaQuery.disableAnimationsOf(context);
+                    final icon = Container(
+                      width: 72,
+                      height: 72,
+                      decoration: const BoxDecoration(
+                          color: AppColors.primaryMuted,
+                          shape: BoxShape.circle),
+                      child: const Icon(Icons.check_circle_rounded,
+                          color: AppColors.primary, size: 44),
+                    );
+                    if (reduceMotion) return icon;
+                    return TweenAnimationBuilder<double>(
+                      duration: const Duration(milliseconds: 420),
+                      curve: Curves.easeOutBack,
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      builder: (context, value, child) =>
+                          Transform.scale(scale: value, child: child),
+                      child: icon,
+                    );
+                  }),
+                  const SizedBox(height: 24),
+                  Text('Solicitud enviada', style: AppTypography.h1),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Ya estamos buscando tiendas cercanas. Te avisaremos cuando recibas respuestas.',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.body.copyWith(
+                      color: AppColors.textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                  if (_selectedVehicle != null &&
+                      _selectedSubcategory != null) ...[
+                    const SizedBox(height: 20),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.grey50,
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusLg),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Text(
+                        _selectedVehicle!.brand +
+                            ' ' +
+                            _selectedVehicle!.model +
+                            ' · ' +
+                            _selectedSubcategory!.name,
+                        textAlign: TextAlign.center,
+                        style: AppTypography.title,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context); // Close Success
+                        Navigator.pop(context); // Close Wizard
+                        ref
+                            .read(searchRequestNotifierProvider.notifier)
+                            .reset();
+                        ref.invalidate(chatThreadsProvider);
+                        widget.onSubmitted?.call();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(32)),
+                        elevation: 4,
+                        shadowColor: AppColors.primary.withValues(alpha: 0.3),
+                      ),
+                      child: Text('Entendido',
+                          style: AppTypography.label.copyWith(
+                            fontSize: 15,
+                            color: Colors.white,
+                          )),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context); // Close Success
-                  Navigator.pop(context); // Close Wizard
-                  ref.read(searchRequestNotifierProvider.notifier).reset();
-                  ref.invalidate(chatThreadsProvider);
-                  widget.onSubmitted?.call();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(32)),
-                  elevation: 4,
-                  shadowColor: AppColors.primary.withValues(alpha: 0.3),
-                ),
-                child: Text('Entendido',
-                    style: AppTypography.label.copyWith(
-                      fontSize: 15,
-                      color: Colors.white,
-                    )),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  String get _primaryLabel {
+    if (_currentStep < 3) return 'Continuar';
+    if (_isSubmitting) return 'Enviando solicitud…';
+    return _submitError == null ? 'Enviar solicitud' : 'Reintentar envío';
+  }
+
+  bool get _canUsePrimaryAction {
+    switch (_currentStep) {
+      case 1:
+        return _selectedVehicle != null;
+      case 2:
+        return _selectedSubcategory != null && _selectedPartType != null;
+      default:
+        final hasRequiredDetails =
+            _selectedSubcategory?.id != kOtherSubcategoryId ||
+                _detailsController.text.trim().isNotEmpty;
+        return _requestLocation != null && hasRequiredDetails;
+    }
+  }
+
+  Future<void> _handlePrimaryAction() async {
+    if (!_canUsePrimaryAction || _isSubmitting) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (_currentStep < 3) {
+      await _goToStep(_currentStep + 1);
+      return;
+    }
+    await _submit();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: [
-                  Semantics(
-                    button: true,
-                    label: 'Volver',
-                    excludeSemantics: true,
-                    child: IconButton(
-                      onPressed: _prevStep,
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                          size: 20),
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'Paso $_currentStep de 3',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.label.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 48), // Balance the icon button
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Semantics(
-                label: 'Progreso: paso $_currentStep de 3, '
-                    '${_stepLabel(_currentStep)}',
-                child: Row(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _prevStep();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _WizardHeader(step: _currentStep, onBack: _prevStep),
+              const Divider(height: 1, color: AppColors.border),
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
                   children: [
-                    _buildStepIndicator(1),
-                    _buildStepIndicatorLine(),
-                    _buildStepIndicator(2),
-                    _buildStepIndicatorLine(),
-                    _buildStepIndicator(3),
+                    _buildStep(1),
+                    _buildStep(2),
+                    _buildStep(3),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            const Divider(height: 1, color: AppColors.border),
-            // Content
-            Expanded(
-              child: Builder(builder: (context) {
-                final reduceMotion = MediaQuery.disableAnimationsOf(context);
-                return AnimatedSwitcher(
-                  duration: reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 300),
-                  transitionBuilder: (child, animation) {
-                    final offset = Tween<Offset>(
-                      begin: Offset(_direction * 0.05, 0),
-                      end: Offset.zero,
-                    ).animate(CurvedAnimation(
-                        parent: animation, curve: Curves.easeOut));
-                    return FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(position: offset, child: child),
-                    );
-                  },
-                  child: _buildCurrentStep(),
-                );
-              }),
-            ),
-          ],
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: _detailsController,
+                builder: (context, _, __) => _WizardBottomBar(
+                  label: _primaryLabel,
+                  enabled: _canUsePrimaryAction,
+                  loading: _isSubmitting,
+                  errorMessage: _submitError,
+                  onPressed: _handlePrimaryAction,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStepIndicator(int stepIndex) {
-    final isActive = _currentStep >= stepIndex;
-    return Expanded(
-      flex: 2,
-      child: Container(
-        height: 4,
-        decoration: BoxDecoration(
-          color: isActive ? AppColors.primary : AppColors.grey200,
-          borderRadius: BorderRadius.circular(2),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStepIndicatorLine() {
-    return const SizedBox(width: 8);
-  }
-
-  String _stepLabel(int step) {
+  Widget _buildStep(int step) {
     switch (step) {
-      case 1:
-        return 'Vehículo';
-      case 2:
-        return 'Repuesto';
-      default:
-        return 'Detalles';
-    }
-  }
-
-  Widget _buildCurrentStep() {
-    switch (_currentStep) {
       case 1:
         return _SparePartWizardStep1(
           key: const ValueKey('step1'),
           selectedCar: _selectedVehicle,
           onVehicleSelected: _onVehicleSelected,
-          onNext: _nextStep,
         );
       case 2:
         return _SparePartWizardStep2(
           key: const ValueKey('step2'),
+          selectedVehicle: _selectedVehicle,
           selectedCategory: _selectedCategory,
           selectedSubcategory: _selectedSubcategory,
           selectedPartType: _selectedPartType,
@@ -505,25 +519,37 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
             setState(() {
               _selectedCategory = cat;
               _selectedSubcategory = subcat;
+              _isDirty = true;
             });
           },
           onPartTypeChanged: (pt) {
             setState(() {
               _selectedPartType = pt;
+              _isDirty = true;
             });
           },
-          onNext: _nextStep,
+          onEditVehicle: () => _goToStep(1),
         );
       case 3:
         return SparePartWizardStep3(
           key: const ValueKey('step3'),
+          selectedVehicle: _selectedVehicle,
+          selectedCategory: _selectedCategory,
+          selectedSubcategory: _selectedSubcategory,
+          selectedPartType: _selectedPartType,
           detailsController: _detailsController,
           selectedImagePath: _selectedImagePath,
           isOtroCategory: _selectedSubcategory?.id == kOtherSubcategoryId,
           requestLocation: _requestLocation,
           onLocationTap: _openRequestLocationPicker,
-          onImagePicked: (path) => setState(() => _selectedImagePath = path),
-          onSubmit: _submit,
+          onEditVehicle: () => _goToStep(1),
+          onEditPart: () => _goToStep(2),
+          onImagePicked: (path) {
+            setState(() {
+              _selectedImagePath = path;
+              _isDirty = true;
+            });
+          },
         );
       default:
         return const SizedBox();

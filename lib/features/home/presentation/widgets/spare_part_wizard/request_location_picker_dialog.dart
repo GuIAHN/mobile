@@ -58,9 +58,13 @@ class _RequestLocationPickerDialogState
       StreamController<void>.broadcast();
   RequestLocationSelection? _draft;
   bool _isLocating = false;
+  bool _isMapMoving = false;
+  bool _isResolvingAddress = false;
   bool _mapError = false;
   String? _locationError;
   int _selectionRevision = 0;
+  Timer? _reverseGeocodeDebounce;
+  LatLng? _programmaticTarget;
 
   @override
   void initState() {
@@ -70,6 +74,7 @@ class _RequestLocationPickerDialogState
 
   @override
   void dispose() {
+    _reverseGeocodeDebounce?.cancel();
     _tileResetController.close();
     _mapController.dispose();
     super.dispose();
@@ -100,6 +105,7 @@ class _RequestLocationPickerDialogState
     setState(() {
       _draft = selection;
       _locationError = null;
+      _isResolvingAddress = true;
     });
 
     final label =
@@ -116,6 +122,7 @@ class _RequestLocationPickerDialogState
       return;
     }
     setState(() {
+      _isResolvingAddress = false;
       _draft = RequestLocationSelection(
         latitude: point.latitude,
         longitude: point.longitude,
@@ -125,8 +132,42 @@ class _RequestLocationPickerDialogState
     });
   }
 
+  void _handleMapEvent(MapEvent event) {
+    if (event is MapEventMoveStart) {
+      if (!_isMapMoving) setState(() => _isMapMoving = true);
+      return;
+    }
+    if (event is! MapEventMoveEnd) return;
+    final point = event.camera.center;
+    final target = _programmaticTarget;
+    if (target != null &&
+        (target.latitude - point.latitude).abs() < 0.000001 &&
+        (target.longitude - point.longitude).abs() < 0.000001) {
+      _programmaticTarget = null;
+      if (_isMapMoving) setState(() => _isMapMoving = false);
+      return;
+    }
+    _reverseGeocodeDebounce?.cancel();
+    setState(() {
+      _isMapMoving = false;
+      _isResolvingAddress = true;
+      _locationError = null;
+      _draft = RequestLocationSelection(
+        latitude: point.latitude,
+        longitude: point.longitude,
+        source: RequestLocationSource.mapTap,
+      );
+    });
+    _reverseGeocodeDebounce = Timer(
+      const Duration(milliseconds: 450),
+      () => _selectPoint(point, RequestLocationSource.mapTap),
+    );
+  }
+
   Future<void> _useCurrentLocation() async {
     if (_isLocating) return;
+    _reverseGeocodeDebounce?.cancel();
+    _selectionRevision++;
     setState(() {
       _isLocating = true;
       _locationError = null;
@@ -154,6 +195,7 @@ class _RequestLocationPickerDialogState
       final position = await service.getCurrentPosition();
       final point = LatLng(position.latitude, position.longitude);
       if (widget.mapBuilder == null) {
+        _programmaticTarget = point;
         _mapController.move(point, 16);
       }
       await _selectPoint(point, RequestLocationSource.gps);
@@ -190,50 +232,23 @@ class _RequestLocationPickerDialogState
         interactionOptions: const InteractionOptions(
           flags: InteractiveFlag.drag | InteractiveFlag.pinchZoom,
         ),
+        onMapEvent: _handleMapEvent,
         onTap: (_, point) {
+          _reverseGeocodeDebounce?.cancel();
+          _programmaticTarget = point;
+          _mapController.move(point, _mapController.camera.zoom);
           _selectPoint(point, RequestLocationSource.mapTap);
         },
       ),
       children: [
         TileLayer(
           urlTemplate:
-              'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+              'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
           userAgentPackageName: 'com.guiautomotriz.mobile',
+          retinaMode: RetinaMode.isHighDensity(context),
           reset: _tileResetController.stream,
           errorTileCallback: (_, __, ___) => _handleMapError(),
         ),
-        if (_draft != null)
-          MarkerLayer(
-            markers: [
-              Marker(
-                point: LatLng(_draft!.latitude, _draft!.longitude),
-                width: 52,
-                height: 52,
-                child: Semantics(
-                  label: 'Ubicación seleccionada: ${_draft!.displayLabel}',
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 12,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.location_on_rounded,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
       ],
     );
   }
@@ -248,6 +263,17 @@ class _RequestLocationPickerDialogState
           child: Stack(
             children: [
               Positioned.fill(child: _buildMap(context)),
+              if (widget.mapBuilder == null)
+                Center(
+                  child: AnimatedSlide(
+                    offset: _isMapMoving ? const Offset(0, -0.12) : Offset.zero,
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 140),
+                    curve: Curves.easeOut,
+                    child: const _CenterLocationPin(),
+                  ),
+                ),
               if (_mapError)
                 Positioned(
                   top: 88,
@@ -345,22 +371,26 @@ class _RequestLocationPickerDialogState
                   button: true,
                   label: 'Usar mi ubicación actual',
                   excludeSemantics: true,
-                  child: FloatingActionButton.small(
-                    key: const Key('use-current-request-location'),
-                    onPressed: _isLocating ? null : _useCurrentLocation,
-                    backgroundColor: AppColors.surface,
-                    foregroundColor: AppColors.primary,
-                    elevation: 3,
-                    child: _isLocating
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: AppColors.primary,
-                            ),
-                          )
-                        : const Icon(Icons.my_location_rounded),
+                  child: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: FloatingActionButton(
+                      key: const Key('use-current-request-location'),
+                      onPressed: _isLocating ? null : _useCurrentLocation,
+                      backgroundColor: AppColors.surface,
+                      foregroundColor: AppColors.primary,
+                      elevation: 3,
+                      child: _isLocating
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: AppColors.primary,
+                              ),
+                            )
+                          : const Icon(Icons.my_location_rounded),
+                    ),
                   ),
                 ),
               ),
@@ -391,8 +421,12 @@ class _RequestLocationPickerDialogState
                             style: AppTypography.overline),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
-                          selection?.displayLabel ??
-                              'Toca el mapa para colocar el marcador.',
+                          _isMapMoving
+                              ? 'Suelta el mapa para elegir este punto.'
+                              : _isResolvingAddress
+                                  ? 'Buscando dirección…'
+                                  : selection?.displayLabel ??
+                                      'Mueve el mapa para elegir un punto.',
                           style: AppTypography.body.copyWith(
                             color: selection == null
                                 ? AppColors.textSecondary
@@ -414,7 +448,9 @@ class _RequestLocationPickerDialogState
                           height: AppSpacing.buttonHeightLg,
                           child: ElevatedButton(
                             key: const Key('confirm-request-location'),
-                            onPressed: selection == null
+                            onPressed: selection == null ||
+                                    _isMapMoving ||
+                                    _isResolvingAddress
                                 ? null
                                 : () => Navigator.pop(context, selection),
                             style: ElevatedButton.styleFrom(
@@ -446,6 +482,38 @@ class _RequestLocationPickerDialogState
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CenterLocationPin extends StatelessWidget {
+  const _CenterLocationPin();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Punto seleccionado en el centro del mapa',
+      child: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.24),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.location_on_rounded,
+          color: Colors.white,
+          size: 30,
         ),
       ),
     );

@@ -1,21 +1,23 @@
 part of 'spare_part_wizard_page.dart';
 
 class _SparePartWizardStep2 extends ConsumerStatefulWidget {
+  final UserCar? selectedVehicle;
   final Category? selectedCategory;
   final Category? selectedSubcategory;
   final PartType? selectedPartType;
   final void Function(Category?, Category?) onCategoryChanged;
   final void Function(PartType?) onPartTypeChanged;
-  final VoidCallback onNext;
+  final VoidCallback onEditVehicle;
 
   const _SparePartWizardStep2({
     super.key,
+    required this.selectedVehicle,
     required this.selectedCategory,
     required this.selectedSubcategory,
     required this.selectedPartType,
     required this.onCategoryChanged,
     required this.onPartTypeChanged,
-    required this.onNext,
+    required this.onEditVehicle,
   });
 
   @override
@@ -52,13 +54,9 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
 
   @override
   Widget build(BuildContext context) {
-    final hasCategory =
-        widget.selectedCategory != null && widget.selectedSubcategory != null;
-    final hasPartType = widget.selectedPartType != null;
-    final canProceed = hasCategory && hasPartType;
-
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+      key: const PageStorageKey('spare-wizard-step-2'),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,10 +64,23 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
           Text('¿Qué repuesto necesitas?', style: AppTypography.h1),
           const SizedBox(height: 8),
           Text(
-            'Indícanos la categoría y el tipo de repuesto.',
+            'Encuentra la categoría y elige el nivel de compatibilidad.',
             style: AppTypography.body.copyWith(color: AppColors.textSecondary),
           ),
-          const SizedBox(height: 32),
+          if (widget.selectedVehicle != null) ...[
+            const SizedBox(height: 20),
+            _WizardSelectionSummary(
+              icon: Icons.directions_car_outlined,
+              eyebrow: 'VEHÍCULO',
+              title: widget.selectedVehicle!.brand +
+                  ' ' +
+                  widget.selectedVehicle!.model,
+              subtitle: 'Año ' + widget.selectedVehicle!.year.toString(),
+              actionLabel: 'Cambiar',
+              onAction: widget.onEditVehicle,
+            ),
+          ],
+          const SizedBox(height: 24),
           _buildLabel('CATEGORÍA DE REPUESTO *'),
           const SizedBox(height: 6),
           _SelectorField(
@@ -84,46 +95,13 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
             selectedPartType: widget.selectedPartType,
             onPartTypeSelected: widget.onPartTypeChanged,
           ),
-          const SizedBox(height: 48),
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: ElevatedButton(
-              onPressed: canProceed ? widget.onNext : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: AppColors.grey200,
-                disabledForegroundColor: AppColors.textDisabled,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-                elevation: canProceed ? 4 : 0,
-              ),
-              child: Text(
-                'Continuar',
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1,
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 
   Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: GoogleFonts.hankenGrotesk(
-        fontSize: 11,
-        fontWeight: FontWeight.w800,
-        color: AppColors.textSecondary,
-        letterSpacing: 1.2,
-      ),
-    );
+    return Text(text, style: AppTypography.overline);
   }
 }
 

@@ -24,32 +24,41 @@ class VehicleTypeIllustration extends StatelessWidget {
     switch (t) {
       case 'SPORT':
       case 'SPORTS':
-        return 'assets/images/vehicles/sport.png';
+        return 'assets/images/vehicles/v2/sport.webp';
       case 'SUV':
       case 'UTILITY':
-        return 'assets/images/vehicles/suv.png';
+        return 'assets/images/vehicles/v2/suv.webp';
       case 'PICKUP':
       case 'TRUCK':
-        return 'assets/images/vehicles/pickup.png';
+        return 'assets/images/vehicles/v2/pickup.webp';
       case 'VAN':
       case 'MINIVAN':
-        return 'assets/images/vehicles/van.png';
+        return 'assets/images/vehicles/v2/van.webp';
       case 'MOTORCYCLE':
-        return 'assets/images/vehicles/motorcycle.png';
+      case 'MOTO':
+        return 'assets/images/vehicles/v2/motorcycle.webp';
+      case 'COMPACT':
+      case 'HATCHBACK':
+        return 'assets/images/vehicles/v2/compact.webp';
       case 'CAR':
       case 'SEDAN':
       default:
-        return 'assets/images/vehicles/sedan.png';
+        return 'assets/images/vehicles/v2/sedan.webp';
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final assetPath = getAssetPath(vehicleType);
+    final pixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final decodeWidth = (width * pixelRatio).round().clamp(240, 1024);
 
     final img = Image.asset(
       assetPath,
       fit: fit,
+      cacheWidth: decodeWidth,
+      filterQuality: FilterQuality.medium,
+      excludeFromSemantics: true,
       errorBuilder: (_, __, ___) => const Center(
         child: Icon(
           Icons.directions_car_rounded,

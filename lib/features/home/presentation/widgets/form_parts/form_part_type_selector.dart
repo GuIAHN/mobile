@@ -15,20 +15,37 @@ class FormPartTypeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: PartType.values.map((type) {
-        final esSeleccionado = selectedPartType == type;
-        return Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: _PartTypeTile(
-              type: type,
-              isSelected: esSeleccionado,
-              onTap: () => onPartTypeSelected(type),
-            ),
-          ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stack = constraints.maxWidth < 350;
+        final tiles = PartType.values
+            .map(
+              (type) => _PartTypeTile(
+                type: type,
+                isSelected: selectedPartType == type,
+                onTap: () => onPartTypeSelected(type),
+              ),
+            )
+            .toList();
+        if (stack) {
+          return Column(
+            children: [
+              for (var index = 0; index < tiles.length; index++) ...[
+                if (index > 0) const SizedBox(height: 8),
+                tiles[index],
+              ],
+            ],
+          );
+        }
+        return Row(
+          children: [
+            for (var index = 0; index < tiles.length; index++) ...[
+              if (index > 0) const SizedBox(width: 8),
+              Expanded(child: tiles[index]),
+            ],
+          ],
         );
-      }).toList(),
+      },
     );
   }
 }
@@ -53,18 +70,20 @@ class _PartTypeTileState extends State<_PartTypeTile> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) => setState(() => _isPressed = false),
-      onTapCancel: () => setState(() => _isPressed = false),
-      onTap: widget.onTap,
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    return Semantics(
+      button: true,
+      selected: widget.isSelected,
+      label: widget.type.label + ', ' + widget.type.description,
+      excludeSemantics: true,
       child: AnimatedScale(
         scale: _isPressed ? 0.95 : 1.0,
-        duration: const Duration(milliseconds: 100),
+        duration:
+            reduceMotion ? Duration.zero : const Duration(milliseconds: 90),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-          height: 92,
+          duration:
+              reduceMotion ? Duration.zero : const Duration(milliseconds: 180),
+          constraints: const BoxConstraints(minHeight: 94),
           decoration: BoxDecoration(
             color: widget.isSelected ? AppColors.primaryMuted : Colors.white,
             borderRadius: BorderRadius.circular(14),
@@ -82,25 +101,70 @@ class _PartTypeTileState extends State<_PartTypeTile> {
                   ]
                 : [],
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                widget.type.icon,
-                color: widget.isSelected ? AppColors.primary : AppColors.textSecondary,
-                size: 24,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                widget.type.label,
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 13.5,
-                  fontWeight: widget.isSelected ? FontWeight.w800 : FontWeight.w600,
-                  color: widget.isSelected ? AppColors.primary : AppColors.textPrimary,
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: widget.onTap,
+              onHighlightChanged: (value) => setState(() => _isPressed = value),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                child: Stack(
+                  children: [
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          widget.type.icon,
+                          color: widget.isSelected
+                              ? AppColors.primary
+                              : AppColors.textSecondary,
+                          size: 24,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          widget.type.label,
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 13,
+                            fontWeight: widget.isSelected
+                                ? FontWeight.w800
+                                : FontWeight.w700,
+                            color: widget.isSelected
+                                ? AppColors.primary
+                                : AppColors.textPrimary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.type.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 10.5,
+                            height: 1.15,
+                            color: AppColors.textSecondary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                    if (widget.isSelected)
+                      const Positioned(
+                        top: 0,
+                        right: 0,
+                        child: Icon(
+                          Icons.check_circle_rounded,
+                          color: AppColors.primary,
+                          size: 18,
+                        ),
+                      ),
+                  ],
                 ),
-                textAlign: TextAlign.center,
               ),
-            ],
+            ),
           ),
         ),
       ),
