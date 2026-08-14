@@ -1,179 +1,174 @@
+import 'package:dartz/dartz.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/service_type.dart';
+import 'package:guiautomotriz_mobile/core/error/failures.dart';
+import 'package:guiautomotriz_mobile/core/services/location_service.dart';
+import 'package:guiautomotriz_mobile/features/home/domain/entities/home_filters.dart';
 import 'package:guiautomotriz_mobile/features/home/domain/entities/home_item.dart';
+import 'package:guiautomotriz_mobile/features/home/domain/entities/promo.dart';
+import 'package:guiautomotriz_mobile/features/home/domain/entities/provider_detail.dart';
+import 'package:guiautomotriz_mobile/features/home/domain/entities/top_providers_result.dart';
+import 'package:guiautomotriz_mobile/features/home/domain/repositories/home_repository.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 
-HomeItem provider({
-  required String id,
-  required String name,
-  required double rating,
-  required int reviews,
-  required double? distanceKm,
-}) {
-  return HomeItem(
-    id: id,
-    name: name,
-    detail: 'Automotive service',
-    rating: rating,
-    reviews: reviews,
-    distanceKm: distanceKm,
-    isOpen: true,
-    iconName: 'warehouse_outlined',
-    type: ServiceType.workshops,
-  );
+class _FakeHomeRepository implements HomeRepository {
+  _FakeHomeRepository(this.result);
+
+  final TopProvidersResult result;
+  int calls = 0;
+  double? receivedLat;
+  double? receivedLng;
+
+  @override
+  Future<Either<Failure, TopProvidersResult>> getTopProviders({
+    double? lat,
+    double? lng,
+  }) async {
+    calls++;
+    receivedLat = lat;
+    receivedLng = lng;
+    return Right(result);
+  }
+
+  @override
+  Future<Either<Failure, List<HomeItem>>> getHomeItems(ServiceType type) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Either<Failure, List<Promo>>> getPromos(ServiceType type) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Either<Failure, ProviderDetail>> getProviderDetail({
+    required String id,
+    required ServiceType type,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Either<Failure, List<HomeItem>>> searchProviders({
+    required ServiceType type,
+    required HomeFilters filters,
+    int page = 1,
+  }) =>
+      throw UnimplementedError();
 }
 
-ProviderContainer containerWith(List<HomeItem> items) {
-  return ProviderContainer(
-    overrides: [
-      homeItemsProvider.overrideWith((ref, type) async => items),
-    ],
-  );
+class _FixedLocationNotifier extends UserLocationNotifier {
+  _FixedLocationNotifier(Position position) : super(LocationService()) {
+    state = AsyncValue.data(position);
+  }
 }
 
-Future<List<HomeItem>> readTopProviders(ProviderContainer container) async {
-  await container.read(homeItemsProvider(ServiceType.workshops).future);
-  return container
-      .read(topProvidersProvider(ServiceType.workshops))
-      .requireValue;
+HomeItem provider(String id, ServiceType type) => HomeItem(
+      id: id,
+      name: id,
+      detail: 'Servicio automotriz',
+      rating: 4.8,
+      reviews: 20,
+      distanceKm: null,
+      isOpen: null,
+      iconName: type == ServiceType.workshops
+          ? 'warehouse_outlined'
+          : 'build_outlined',
+      type: type,
+    );
+
+TopProvidersResult groupedResult() => TopProvidersResult(
+      workshops: [
+        provider('backend-first', ServiceType.workshops),
+        provider('backend-second', ServiceType.workshops),
+        provider('backend-third', ServiceType.workshops),
+        provider('backend-fourth', ServiceType.workshops),
+      ],
+      mechanics: [provider('mechanic-first', ServiceType.mechanic)],
+    );
+
+Future<void> loadBothGroups(ProviderContainer container) async {
+  final workshops = container.listen(
+    topProvidersProvider(ServiceType.workshops),
+    (_, __) {},
+    fireImmediately: true,
+  );
+  final mechanics = container.listen(
+    topProvidersProvider(ServiceType.mechanic),
+    (_, __) {},
+    fireImmediately: true,
+  );
+  addTearDown(workshops.close);
+  addTearDown(mechanics.close);
+  await container.read(homeTopProvidersProvider.future);
 }
 
 void main() {
-  test('ranks a higher rating ahead of more reviews and a shorter distance',
+  test('both sections share one fetch and preserve the backend collections',
       () async {
-    final container = containerWith([
-      provider(
-        id: 'well-reviewed-nearby',
-        name: 'Well Reviewed Nearby',
-        rating: 4.8,
-        reviews: 800,
-        distanceKm: 0.2,
-      ),
-      provider(
-        id: 'highest-rating',
-        name: 'Highest Rating',
-        rating: 4.9,
-        reviews: 1,
-        distanceKm: 10,
-      ),
-    ]);
+    final repository = _FakeHomeRepository(groupedResult());
+    final container = ProviderContainer(
+      overrides: [homeRepositoryProvider.overrideWithValue(repository)],
+    );
     addTearDown(container.dispose);
 
-    final result = await readTopProviders(container);
+    await loadBothGroups(container);
 
-    expect(result.map((item) => item.id),
-        ['highest-rating', 'well-reviewed-nearby']);
-  });
-
-  test('ranks more reviews ahead when ratings are equal', () async {
-    final container = containerWith([
-      provider(
-        id: 'nearby-fewer-reviews',
-        name: 'Nearby Fewer Reviews',
-        rating: 4.8,
-        reviews: 10,
-        distanceKm: 0.2,
-      ),
-      provider(
-        id: 'farther-more-reviews',
-        name: 'Farther More Reviews',
-        rating: 4.8,
-        reviews: 40,
-        distanceKm: 8,
-      ),
-    ]);
-    addTearDown(container.dispose);
-
-    final result = await readTopProviders(container);
-
-    expect(result.map((item) => item.id),
-        ['farther-more-reviews', 'nearby-fewer-reviews']);
-  });
-
-  test('ranks a shorter distance ahead when ratings and reviews are equal',
-      () async {
-    final container = containerWith([
-      provider(
-        id: 'farther',
-        name: 'Farther Workshop',
-        rating: 4.8,
-        reviews: 40,
-        distanceKm: 5,
-      ),
-      provider(
-        id: 'nearer',
-        name: 'Nearer Workshop',
-        rating: 4.8,
-        reviews: 40,
-        distanceKm: 1,
-      ),
-    ]);
-    addTearDown(container.dispose);
-
-    final result = await readTopProviders(container);
-
-    expect(result.map((item) => item.id), ['nearer', 'farther']);
-  });
-
-  test('ranks a known distance ahead of an unknown distance on a tie',
-      () async {
-    final container = containerWith([
-      provider(
-        id: 'unknown-distance',
-        name: 'Unknown Distance',
-        rating: 4.8,
-        reviews: 40,
-        distanceKm: null,
-      ),
-      provider(
-        id: 'known-distance',
-        name: 'Known Distance',
-        rating: 4.8,
-        reviews: 40,
-        distanceKm: 12,
-      ),
-    ]);
-    addTearDown(container.dispose);
-
-    final result = await readTopProviders(container);
-
+    final workshops = container
+        .read(topProvidersProvider(ServiceType.workshops))
+        .requireValue;
+    final mechanics =
+        container.read(topProvidersProvider(ServiceType.mechanic)).requireValue;
+    expect(repository.calls, 1);
     expect(
-        result.map((item) => item.id), ['known-distance', 'unknown-distance']);
+      workshops.map((item) => item.id),
+      ['backend-first', 'backend-second', 'backend-third', 'backend-fourth'],
+    );
+    expect(mechanics.single.id, 'mechanic-first');
   });
 
-  test('returns only the three highest-ranked providers', () async {
-    final container = containerWith([
-      provider(
-          id: 'fourth', name: 'Fourth', rating: 4.5, reviews: 5, distanceKm: 1),
-      provider(
-          id: 'second', name: 'Second', rating: 4.8, reviews: 5, distanceKm: 1),
-      provider(
-          id: 'fifth', name: 'Fifth', rating: 4.4, reviews: 5, distanceKm: 1),
-      provider(
-          id: 'first', name: 'First', rating: 4.9, reviews: 5, distanceKm: 1),
-      provider(
-          id: 'third', name: 'Third', rating: 4.7, reviews: 5, distanceKm: 1),
-    ]);
+  test('active location is sent once to the grouped fetch', () async {
+    final repository = _FakeHomeRepository(groupedResult());
+    final position = Position(
+      longitude: -66.9036,
+      latitude: 10.4806,
+      timestamp: DateTime(2026),
+      accuracy: 5,
+      altitude: 0,
+      altitudeAccuracy: 0,
+      heading: 0,
+      headingAccuracy: 0,
+      speed: 0,
+      speedAccuracy: 0,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        homeRepositoryProvider.overrideWithValue(repository),
+        isLocationSharedProvider.overrideWith((ref) => true),
+        userLocationProvider.overrideWith(
+          (ref) => _FixedLocationNotifier(position),
+        ),
+      ],
+    );
     addTearDown(container.dispose);
 
-    final result = await readTopProviders(container);
+    await loadBothGroups(container);
 
-    expect(result.map((item) => item.id), ['first', 'second', 'third']);
+    expect(repository.calls, 1);
+    expect(repository.receivedLat, 10.4806);
+    expect(repository.receivedLng, -66.9036);
   });
 
-  test('does not mutate the home items list while ranking', () async {
-    final input = [
-      provider(
-          id: 'second', name: 'Second', rating: 4.8, reviews: 5, distanceKm: 1),
-      provider(
-          id: 'first', name: 'First', rating: 4.9, reviews: 5, distanceKm: 1),
-    ];
-    final container = containerWith(input);
+  test('inactive location omits coordinates from the grouped fetch', () async {
+    final repository = _FakeHomeRepository(groupedResult());
+    final container = ProviderContainer(
+      overrides: [homeRepositoryProvider.overrideWithValue(repository)],
+    );
     addTearDown(container.dispose);
 
-    await readTopProviders(container);
+    await loadBothGroups(container);
 
-    expect(input.map((item) => item.id), ['second', 'first']);
+    expect(repository.calls, 1);
+    expect(repository.receivedLat, isNull);
+    expect(repository.receivedLng, isNull);
   });
 }

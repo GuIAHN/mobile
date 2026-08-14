@@ -92,14 +92,14 @@ class TopProvidersSection extends ConsumerWidget {
                       items: items,
                       serviceType: serviceType,
                     ),
-              loading: () => _ProviderSkeletonSequence(serviceType: serviceType),
+              loading: () =>
+                  _ProviderSkeletonSequence(serviceType: serviceType),
               error: (_, __) => Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: _SectionStateCard(
                   message: 'No pudimos cargar los $providerNoun',
                   action: TextButton.icon(
-                    onPressed: () =>
-                        ref.invalidate(homeItemsProvider(serviceType)),
+                    onPressed: () => ref.invalidate(homeTopProvidersProvider),
                     style: TextButton.styleFrom(
                       minimumSize: const Size(48, 48),
                     ),

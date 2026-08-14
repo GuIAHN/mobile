@@ -6,7 +6,9 @@ import '../../domain/entities/home_filters.dart';
 import '../../domain/entities/home_item.dart';
 import '../../domain/entities/promo.dart';
 import '../../domain/entities/provider_detail.dart';
+import '../../domain/entities/top_providers_result.dart';
 import '../../domain/repositories/home_repository.dart';
+import '../datasources/home_remote_datasource.dart';
 import '../datasources/search_remote_datasource.dart';
 import '../models/home_item_model.dart';
 import '../models/promo_model.dart';
@@ -14,9 +16,13 @@ import '../models/provider_model.dart';
 import '../models/provider_detail_model.dart';
 
 class HomeRepositoryImpl implements HomeRepository {
-  final SearchRemoteDatasource _remoteDatasource;
+  final SearchRemoteDatasource _searchRemoteDatasource;
+  final HomeRemoteDatasource _homeRemoteDatasource;
 
-  HomeRepositoryImpl(this._remoteDatasource);
+  HomeRepositoryImpl(
+    this._searchRemoteDatasource,
+    this._homeRemoteDatasource,
+  );
 
   // ── Promos (datos locales) ────────────────────────────────────────────────
 
@@ -123,6 +129,34 @@ class HomeRepositoryImpl implements HomeRepository {
   // ── HomeRepository impl ───────────────────────────────────────────────────
 
   @override
+  Future<Either<Failure, TopProvidersResult>> getTopProviders({
+    double? lat,
+    double? lng,
+  }) async {
+    try {
+      final response = await _homeRemoteDatasource.getTopProviders(
+        lat: lat,
+        lng: lng,
+      );
+      final workshops = ProviderModel.fromJsonList(
+        response['workshops'] as List<dynamic>? ?? const [],
+        ServiceType.workshops,
+      );
+      final mechanics = ProviderModel.fromJsonList(
+        response['mechanics'] as List<dynamic>? ?? const [],
+        ServiceType.mechanic,
+      );
+      return Right(
+        TopProvidersResult(workshops: workshops, mechanics: mechanics),
+      );
+    } on DioException catch (error) {
+      return Left(_mapDioError(error));
+    } catch (error) {
+      return Left(UnexpectedFailure(message: error.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, List<Promo>>> getPromos(ServiceType type) async {
     try {
       await Future.delayed(const Duration(milliseconds: 200));
@@ -134,8 +168,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   @override
-  Future<Either<Failure, List<HomeItem>>> getHomeItems(
-      ServiceType type) async {
+  Future<Either<Failure, List<HomeItem>>> getHomeItems(ServiceType type) async {
     // spareParts usa mocks; mechanics y workshops usan backend vía searchProviders
     if (type == ServiceType.spareParts) {
       try {
@@ -165,9 +198,9 @@ class HomeRepositoryImpl implements HomeRepository {
 
       final Map<String, dynamic> response;
       if (type == ServiceType.mechanic) {
-        response = await _remoteDatasource.searchMechanics(params);
+        response = await _searchRemoteDatasource.searchMechanics(params);
       } else {
-        response = await _remoteDatasource.searchWorkshops(params);
+        response = await _searchRemoteDatasource.searchWorkshops(params);
       }
 
       final List<dynamic> data = response['data'] as List<dynamic>? ?? [];
@@ -188,10 +221,10 @@ class HomeRepositoryImpl implements HomeRepository {
     try {
       final Map<String, dynamic> json;
       if (type == ServiceType.mechanic || type == ServiceType.workshops) {
-        json = await _remoteDatasource.getMechanicDetail(id);
+        json = await _searchRemoteDatasource.getMechanicDetail(id);
         return Right(ProviderDetailModel.fromMechanicJson(json));
       } else {
-        json = await _remoteDatasource.getStoreDetail(id);
+        json = await _searchRemoteDatasource.getStoreDetail(id);
         return Right(ProviderDetailModel.fromStoreJson(json));
       }
     } on DioException catch (e) {
@@ -216,8 +249,8 @@ class HomeRepositoryImpl implements HomeRepository {
         if (statusCode == 401) return const UnauthorizedFailure();
         if (statusCode == 403) return const ForbiddenFailure();
         if (statusCode == 404) return const NotFoundFailure();
-        final msg = e.response?.data?['message']?.toString() ??
-            'Error del servidor';
+        final msg =
+            e.response?.data?['message']?.toString() ?? 'Error del servidor';
         return ServerFailure(message: msg, code: statusCode);
     }
   }

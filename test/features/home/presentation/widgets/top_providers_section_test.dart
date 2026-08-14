@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/service_type.dart';
 import 'package:guiautomotriz_mobile/core/router/route_names.dart';
 import 'package:guiautomotriz_mobile/features/home/domain/entities/home_item.dart';
+import 'package:guiautomotriz_mobile/features/home/domain/entities/top_providers_result.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/sections/top_providers_section.dart';
 
@@ -95,12 +96,12 @@ void main() {
         ],
       );
 
-  Widget subjectFromHomeItems(
-    Future<List<HomeItem>> Function(Ref ref, ServiceType type) loader,
+  Widget subjectFromTopProviders(
+    Future<TopProvidersResult> Function(Ref ref) loader,
   ) =>
       app(
         overrides: [
-          homeItemsProvider.overrideWith(loader),
+          homeTopProvidersProvider.overrideWith(loader),
         ],
       );
 
@@ -166,10 +167,13 @@ void main() {
       (tester) async {
     var loads = 0;
     await tester.pumpWidget(
-      subjectFromHomeItems((ref, type) async {
+      subjectFromTopProviders((ref) async {
         loads++;
         if (loads == 1) throw Exception('database secret');
-        return [fixture()];
+        return TopProvidersResult(
+          workshops: [fixture()],
+          mechanics: const [],
+        );
       }),
     );
     await tester.pumpAndSettle();

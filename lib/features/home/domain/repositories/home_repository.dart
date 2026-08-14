@@ -5,8 +5,15 @@ import '../entities/home_filters.dart';
 import '../entities/home_item.dart';
 import '../entities/promo.dart';
 import '../entities/provider_detail.dart';
+import '../entities/top_providers_result.dart';
 
 abstract class HomeRepository {
+  /// Talleres y mecánicos destacados obtenidos en una sola petición.
+  Future<Either<Failure, TopProvidersResult>> getTopProviders({
+    double? lat,
+    double? lng,
+  });
+
   /// Promos/banners por tipo de servicio (datos locales por ahora).
   Future<Either<Failure, List<Promo>>> getPromos(ServiceType type);
 

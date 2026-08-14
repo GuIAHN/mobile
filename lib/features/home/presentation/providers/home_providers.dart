@@ -5,6 +5,7 @@ import '../../../../core/domain/enums/part_type.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../data/datasources/search_remote_datasource.dart';
+import '../../data/datasources/home_remote_datasource.dart';
 import '../../data/repositories/home_repository_impl.dart';
 import '../../data/repositories/search_repository_impl.dart';
 import '../../domain/entities/home_filters.dart';
@@ -12,27 +13,17 @@ import '../../domain/entities/home_item.dart';
 import '../../domain/entities/promo.dart';
 import '../../domain/entities/provider_detail.dart';
 import '../../domain/entities/sort_option.dart';
+import '../../domain/entities/top_providers_result.dart';
 import '../../domain/repositories/home_repository.dart';
 import '../../domain/repositories/search_repository.dart';
 import '../../domain/usecases/create_search_request_usecase.dart';
 import '../../domain/usecases/get_home_items_usecase.dart';
 import '../../domain/usecases/get_promos_usecase.dart';
 import '../../domain/usecases/get_provider_detail_usecase.dart';
+import '../../domain/usecases/get_top_providers_usecase.dart';
 import '../../domain/usecases/search_providers_usecase.dart';
 import '../../../vehicles/domain/entities/user_car.dart';
 import '../../../chat/presentation/providers/chat_providers.dart';
-
-int providerRankComparison(HomeItem a, HomeItem b) {
-  final byRating = b.rating.compareTo(a.rating);
-  if (byRating != 0) return byRating;
-  final byReviews = b.reviews.compareTo(a.reviews);
-  if (byReviews != 0) return byReviews;
-  final byDistance = _compareKnownDistanceFirst(a.distanceKm, b.distanceKm);
-  if (byDistance != 0) return byDistance;
-  final byName = a.name.compareTo(b.name);
-  if (byName != 0) return byName;
-  return (a.id ?? '').compareTo(b.id ?? '');
-}
 
 int _compareKnownDistanceFirst(double? a, double? b) {
   if (a == null) return b == null ? 0 : 1;
@@ -143,9 +134,15 @@ final searchRemoteDatasourceProvider = Provider<SearchRemoteDatasource>((ref) {
   return SearchRemoteDatasourceImpl(client);
 });
 
+final homeRemoteDatasourceProvider = Provider<HomeRemoteDatasource>((ref) {
+  return HomeRemoteDatasource(ref.watch(dioClientProvider));
+});
+
 final homeRepositoryProvider = Provider<HomeRepository>((ref) {
-  final datasource = ref.watch(searchRemoteDatasourceProvider);
-  return HomeRepositoryImpl(datasource);
+  return HomeRepositoryImpl(
+    ref.watch(searchRemoteDatasourceProvider),
+    ref.watch(homeRemoteDatasourceProvider),
+  );
 });
 
 // ── Use Case Providers ────────────────────────────────────────────────────────
@@ -156,6 +153,10 @@ final getPromosUseCaseProvider = Provider<GetPromosUseCase>((ref) {
 
 final getHomeItemsUseCaseProvider = Provider<GetHomeItemsUseCase>((ref) {
   return GetHomeItemsUseCase(ref.watch(homeRepositoryProvider));
+});
+
+final getTopProvidersUseCaseProvider = Provider<GetTopProvidersUseCase>((ref) {
+  return GetTopProvidersUseCase(ref.watch(homeRepositoryProvider));
 });
 
 final searchProvidersUseCaseProvider = Provider<SearchProvidersUseCase>((ref) {
@@ -269,16 +270,42 @@ final homeItemsProvider = FutureProvider.family
   );
 });
 
-/// Top proveedores (mejor calificados y más cercanos) por tipo de servicio.
-/// Se usa en las secciones destacadas del home, independiente de los filtros
-/// de las pantallas de listado.
+/// Una única carga agrupada para las dos secciones destacadas del Home.
+final homeTopProvidersProvider =
+    FutureProvider.autoDispose<TopProvidersResult>((ref) async {
+  final isLocationShared = ref.watch(isLocationSharedProvider);
+  var location =
+      isLocationShared ? ref.read(userLocationProvider).valueOrNull : null;
+
+  if (isLocationShared &&
+      location == null &&
+      ref.read(userLocationProvider).isLoading) {
+    await ref
+        .read(userLocationProvider.notifier)
+        .stream
+        .firstWhere((state) => !state.isLoading);
+    location = ref.read(userLocationProvider).valueOrNull;
+  }
+
+  final result = await ref.watch(getTopProvidersUseCaseProvider)(
+    lat: location?.latitude,
+    lng: location?.longitude,
+  );
+  return result.fold(
+    (failure) => throw Exception(failure.message),
+    (providers) => providers,
+  );
+});
+
+/// Selector sin I/O: ambas familias observan la misma respuesta agrupada.
 final topProvidersProvider = Provider.autoDispose
     .family<AsyncValue<List<HomeItem>>, ServiceType>((ref, type) {
-  final itemsAsync = ref.watch(homeItemsProvider(type));
-
-  return itemsAsync.whenData((items) {
-    final list = List<HomeItem>.from(items)..sort(providerRankComparison);
-    return list.take(3).toList(growable: false);
+  return ref.watch(homeTopProvidersProvider).whenData((providers) {
+    return switch (type) {
+      ServiceType.workshops => providers.workshops,
+      ServiceType.mechanic => providers.mechanics,
+      ServiceType.spareParts || ServiceType.storeDashboard => const [],
+    };
   });
 });
 
