@@ -28,8 +28,15 @@ class _FakeLocationService extends LocationService {
 }
 
 class _EnabledLocationService extends LocationService {
+  double? lastAddressLatitude;
+  double? lastAddressLongitude;
+
   @override
   Future<LocationPermission> checkPermission() async =>
+      LocationPermission.whileInUse;
+
+  @override
+  Future<LocationPermission> requestPermission() async =>
       LocationPermission.whileInUse;
 
   @override
@@ -53,8 +60,11 @@ class _EnabledLocationService extends LocationService {
   Future<String?> getAddressFromCoordinates(
     double latitude,
     double longitude,
-  ) async =>
-      'Sabana Grande, Caracas';
+  ) async {
+    lastAddressLatitude = latitude;
+    lastAddressLongitude = longitude;
+    return 'Sabana Grande, Caracas';
+  }
 }
 
 class _MockAuthRepository extends Mock implements AuthRepository {}
@@ -221,6 +231,62 @@ void main() {
 
     expect(find.text('Sabana Grande, Caracas'), findsOneWidget);
     expect(find.text('Ubicación activada'), findsNothing);
+  });
+
+  testWidgets('activation stores and labels the same search position',
+      (tester) async {
+    final service = _EnabledLocationService();
+    final container = ProviderContainer(
+      overrides: [
+        authProvider.overrideWith(
+          (ref) => _TestAuthNotifier(
+            const AuthState(status: AuthStatus.authenticated, user: user),
+          ),
+        ),
+        userCarsProvider.overrideWith((ref) async => const [audi]),
+        locationServiceProvider.overrideWithValue(service),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await pumpHeader(tester, container);
+    await tester.tap(find.byKey(const Key('home-location-control')));
+    await tester.pumpAndSettle();
+
+    final position = container.read(userLocationProvider).valueOrNull;
+    expect(position?.latitude, 10.4806);
+    expect(position?.longitude, -66.9036);
+    expect(container.read(isLocationSharedProvider), isTrue);
+    expect(find.text('Sabana Grande, Caracas'), findsOneWidget);
+    expect(service.lastAddressLatitude, position?.latitude);
+    expect(service.lastAddressLongitude, position?.longitude);
+  });
+
+  testWidgets('deactivation clears the active search position', (tester) async {
+    final service = _EnabledLocationService();
+    final container = ProviderContainer(
+      overrides: [
+        authProvider.overrideWith(
+          (ref) => _TestAuthNotifier(
+            const AuthState(status: AuthStatus.authenticated, user: user),
+          ),
+        ),
+        userCarsProvider.overrideWith((ref) async => const [audi]),
+        locationServiceProvider.overrideWithValue(service),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await pumpHeader(tester, container);
+    await tester.tap(find.byKey(const Key('home-location-control')));
+    await tester.pumpAndSettle();
+    expect(container.read(userLocationProvider).valueOrNull, isNotNull);
+
+    await tester.tap(find.byKey(const Key('home-location-control')));
+    await tester.pumpAndSettle();
+
+    expect(container.read(isLocationSharedProvider), isFalse);
+    expect(container.read(userLocationProvider).valueOrNull, isNull);
   });
 
   testWidgets('shows an honest garage loading state', (tester) async {
