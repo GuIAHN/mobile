@@ -15,7 +15,6 @@ import '../../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../../core/services/location_service.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../vehicles/domain/entities/user_car.dart';
-import '../../../../vehicles/data/models/user_car_model.dart';
 import '../../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../../../../vehicles/presentation/widgets/vehicle_selection_modal.dart';
 import '../../../../vehicles/presentation/widgets/_atoms/vehicle_type_illustration.dart';

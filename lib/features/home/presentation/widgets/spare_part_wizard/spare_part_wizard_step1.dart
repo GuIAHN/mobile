@@ -303,6 +303,7 @@ class _VehicleCardState extends State<_VehicleCard> {
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 13, 16, 14),
                       child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
@@ -320,8 +321,6 @@ class _VehicleCardState extends State<_VehicleCard> {
                             overflow: TextOverflow.ellipsis,
                             style: AppTypography.meta,
                           ),
-                          const Spacer(),
-                          _VehicleBackendDetails(car: car),
                         ],
                       ),
                     ),
@@ -372,85 +371,6 @@ class _BrandMark extends StatelessWidget {
           color: AppColors.primary,
           size: 25,
         ),
-      ),
-    );
-  }
-}
-
-class _VehicleBackendDetails extends StatelessWidget {
-  final UserCar car;
-
-  const _VehicleBackendDetails({required this.car});
-
-  @override
-  Widget build(BuildContext context) {
-    final model = car is UserCarModel ? car as UserCarModel : null;
-    final details = <Widget>[];
-    final plate = model?.placa?.trim();
-    final color = model?.color?.trim();
-
-    if (plate != null && plate.isNotEmpty) {
-      details.add(
-        _VehicleDetailChip(
-          icon: Icons.pin_outlined,
-          label: plate.toUpperCase(),
-        ),
-      );
-    }
-    if (color != null && color.isNotEmpty) {
-      details.add(
-        _VehicleDetailChip(
-          icon: Icons.palette_outlined,
-          label: color,
-        ),
-      );
-    }
-    if (details.isEmpty) {
-      details.add(
-        _VehicleDetailChip(
-          icon: Icons.category_outlined,
-          label: car.vehicleType.toUpperCase(),
-        ),
-      );
-    }
-
-    return Wrap(spacing: 6, runSpacing: 5, children: details);
-  }
-}
-
-class _VehicleDetailChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _VehicleDetailChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 28),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.grey100,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: AppColors.textSecondary),
-          const SizedBox(width: 4),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 112),
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.meta.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
