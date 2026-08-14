@@ -50,18 +50,18 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Últimos detalles', style: AppTypography.h1),
-          const SizedBox(height: 8),
-          Text(
-            'Ayuda a las tiendas a identificar la pieza y dónde la necesitas.',
-            style: AppTypography.body.copyWith(
-              color: AppColors.textSecondary,
-            ),
+          const _WizardStepIntro(
+            icon: Icons.fact_check_outlined,
+            eyebrow: 'CONFIRMACIÓN',
+            title: 'Completa tu solicitud',
+            description:
+                'Revisa lo elegido y agrega la información para las tiendas.',
           ),
           if (widget.selectedVehicle != null) ...[
             const SizedBox(height: 20),
             _WizardSelectionSummary(
               icon: Icons.directions_car_outlined,
+              imageUrl: widget.selectedVehicle!.computedBrandLogoUrl,
               eyebrow: 'VEHÍCULO',
               title: widget.selectedVehicle!.brand +
                   ' ' +
@@ -83,11 +83,11 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
             ),
           ],
           const SizedBox(height: 24),
-          Text(
-            widget.isOtroCategory
-                ? 'DETALLES · REQUERIDOS'
-                : 'DETALLES · OPCIONALES',
-            style: AppTypography.overline,
+          _WizardSectionHeader(
+            icon: Icons.notes_rounded,
+            title: 'Describe la pieza',
+            helper: 'Agrega datos que ayuden a identificarla',
+            badge: widget.isOtroCategory ? 'Requerido' : 'Opcional',
           ),
           const SizedBox(height: 8),
           TextField(
@@ -130,15 +130,25 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
             ),
           ),
           const SizedBox(height: 20),
-          Text('UBICACIÓN · REQUERIDA', style: AppTypography.overline),
-          const SizedBox(height: 8),
+          const _WizardSectionHeader(
+            icon: Icons.location_on_outlined,
+            title: 'Indica la ubicación',
+            helper: 'Dónde necesitas recibir respuestas',
+            badge: 'Requerido',
+          ),
+          const SizedBox(height: 10),
           RequestLocationPreview(
             selection: widget.requestLocation,
             onTap: widget.onLocationTap,
           ),
           const SizedBox(height: 20),
-          Text('FOTO · OPCIONAL', style: AppTypography.overline),
-          const SizedBox(height: 8),
+          const _WizardSectionHeader(
+            icon: Icons.add_a_photo_outlined,
+            title: 'Agrega una foto',
+            helper: 'Una referencia visual mejora la cotización',
+            badge: 'Opcional',
+          ),
+          const SizedBox(height: 10),
           _buildPhotoArea(context),
           if (_imageError != null) ...[
             const SizedBox(height: 8),

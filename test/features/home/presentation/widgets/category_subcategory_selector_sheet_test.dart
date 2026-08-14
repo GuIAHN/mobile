@@ -77,14 +77,15 @@ void main() {
     );
   }
 
-  testWidgets('uses the approved compact header without search or prompt',
+  testWidgets('uses the compact header with local category search',
       (tester) async {
     await tester.pumpWidget(buildSubject());
+    await tester.pump(const Duration(milliseconds: 360));
     await tester.pumpAndSettle();
 
-    expect(find.text('PASO 2 DE 3'), findsOneWidget);
-    expect(find.text('Categoría del repuesto'), findsOneWidget);
-    expect(find.byType(TextField), findsNothing);
+    expect(find.text('CATÁLOGO DE PIEZAS'), findsOneWidget);
+    expect(find.text('Busca tu repuesto'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
     expect(find.textContaining('¿Qué tipo de repuesto'), findsNothing);
     expect(find.text('1'), findsNothing);
     expect(find.text('2'), findsNothing);
@@ -95,6 +96,7 @@ void main() {
 
   testWidgets('shows one root accordion expanded at a time', (tester) async {
     await tester.pumpWidget(buildSubject());
+    await tester.pump(const Duration(milliseconds: 360));
     await tester.pumpAndSettle();
 
     expect(
@@ -116,10 +118,11 @@ void main() {
       (tester) async {
     for (final size in const [Size(375, 667), Size(430, 932)]) {
       await tester.pumpWidget(buildSubject(textScale: 2, size: size));
+      await tester.pump(const Duration(milliseconds: 360));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.text('Categoría del repuesto'), findsOneWidget);
+      expect(find.text('Busca tu repuesto'), findsOneWidget);
       expect(
         find.byKey(const ValueKey('category-root-frenos')),
         findsOneWidget,
@@ -154,7 +157,13 @@ void main() {
     );
 
     await tester.tap(find.text('Abrir selector'));
+    await tester.pump();
+    expect(find.byKey(const Key('category-sheet-shell')), findsOneWidget);
+    expect(find.byKey(const Key('category-sheet-warmup')), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 360));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('category-sheet-content')), findsOneWidget);
     await tester.tap(find.text('Pastillas de freno'));
     await tester.pumpAndSettle();
 
@@ -169,6 +178,8 @@ void main() {
       buildSubject(categoryLoader: (ref) => pendingCategories.future),
     );
     await tester.pump();
+    expect(find.byKey(const Key('category-sheet-warmup')), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 360));
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
     pendingCategories.complete(const <CategoryNode>[]);
@@ -187,6 +198,7 @@ void main() {
         ),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 360));
     await tester.pumpAndSettle();
 
     expect(find.text('No pudimos cargar las categorías.'), findsOneWidget);

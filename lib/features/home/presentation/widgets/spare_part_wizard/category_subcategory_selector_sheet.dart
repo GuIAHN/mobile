@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -52,6 +54,10 @@ class CategorySubcategorySelectorSheet extends ConsumerStatefulWidget {
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.48),
+      sheetAnimationStyle: const AnimationStyle(
+        duration: Duration(milliseconds: 320),
+        reverseDuration: Duration(milliseconds: 220),
+      ),
       builder: (_) => CategorySubcategorySelectorSheet(
         initialCategory: initialCategory,
         initialSubcategory: initialSubcategory,
@@ -82,9 +88,20 @@ class _CategorySubcategorySelectorSheetState
   bool _didInitializeExpansion = false;
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
+  bool _contentReady = false;
+  Timer? _entranceTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _entranceTimer = Timer(const Duration(milliseconds: 340), () {
+      if (mounted) setState(() => _contentReady = true);
+    });
+  }
 
   @override
   void dispose() {
+    _entranceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -211,6 +228,7 @@ class _CategorySubcategorySelectorSheetState
     final mediaQuery = MediaQuery.of(context);
 
     return Container(
+      key: const Key('category-sheet-shell'),
       height: mediaQuery.size.height * 0.88,
       decoration: const BoxDecoration(
         color: AppColors.surface,
@@ -231,12 +249,24 @@ class _CategorySubcategorySelectorSheetState
           _buildSearchField(),
           const SizedBox(height: 16),
           Expanded(
-            child: treeAsync.when(
-              loading: _buildLoading,
-              error: (_, __) => _buildError(),
-              data: (tree) => _query.trim().length < 2
-                  ? _buildAccordion(tree)
-                  : _buildSearchResults(tree),
+            child: AnimatedSwitcher(
+              duration: mediaQuery.disableAnimations
+                  ? Duration.zero
+                  : const Duration(milliseconds: 160),
+              child: !_contentReady
+                  ? const _CategorySheetWarmup(
+                      key: Key('category-sheet-warmup'),
+                    )
+                  : KeyedSubtree(
+                      key: const Key('category-sheet-content'),
+                      child: treeAsync.when(
+                        loading: _buildLoading,
+                        error: (_, __) => _buildError(),
+                        data: (tree) => _query.trim().length < 2
+                            ? _buildAccordion(tree)
+                            : _buildSearchResults(tree),
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 8),
@@ -384,7 +414,7 @@ class _CategorySubcategorySelectorSheetState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'PASO 2 DE 3',
+                'CATÁLOGO DE PIEZAS',
                 style: GoogleFonts.hankenGrotesk(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -394,10 +424,7 @@ class _CategorySubcategorySelectorSheetState
               ),
               const SizedBox(height: 2),
               Text(
-                // No "Tipo de repuesto": ese nombre ya lo usa el selector
-                // Nuevo/Usado/Reacondicionado del paso 2, y esta hoja elige
-                // la categoría del repuesto, un campo distinto.
-                'Categoría del repuesto',
+                'Busca tu repuesto',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.hankenGrotesk(
@@ -571,6 +598,26 @@ class _SheetHandle extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.grey300,
           borderRadius: BorderRadius.circular(99),
+        ),
+      ),
+    );
+  }
+}
+
+class _CategorySheetWarmup extends StatelessWidget {
+  const _CategorySheetWarmup({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 5,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (_, index) => Container(
+        height: 60,
+        decoration: BoxDecoration(
+          color: index == 0 ? AppColors.primaryMuted : AppColors.grey100,
+          borderRadius: BorderRadius.circular(14),
         ),
       ),
     );

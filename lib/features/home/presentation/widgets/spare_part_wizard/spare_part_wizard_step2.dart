@@ -37,11 +37,6 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
   }
 
   void _openCategorySelector() async {
-    // For now, if we don't have it exported, we would use a similar approach
-    // Wait, since _CategorySubcategorySelectorSheet is private in the other file,
-    // I need to either make it public or copy it.
-    // Given we are replacing RequestSparePartForm eventually, we can create a public one.
-    // Assuming we have CategorySubcategorySelectorSheet available in another file soon.
     final result = await CategorySubcategorySelectorSheet.show(
       context,
       initialCategory: widget.selectedCategory,
@@ -61,16 +56,17 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('¿Qué repuesto necesitas?', style: AppTypography.h1),
-          const SizedBox(height: 8),
-          Text(
-            'Encuentra la categoría y elige el nivel de compatibilidad.',
-            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+          const _WizardStepIntro(
+            icon: Icons.settings_outlined,
+            eyebrow: 'REPUESTO',
+            title: '¿Qué pieza necesitas?',
+            description: 'Selecciona la pieza y el tipo que prefieres recibir.',
           ),
           if (widget.selectedVehicle != null) ...[
             const SizedBox(height: 20),
             _WizardSelectionSummary(
               icon: Icons.directions_car_outlined,
+              imageUrl: widget.selectedVehicle!.computedBrandLogoUrl,
               eyebrow: 'VEHÍCULO',
               title: widget.selectedVehicle!.brand +
                   ' ' +
@@ -81,16 +77,26 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
             ),
           ],
           const SizedBox(height: 24),
-          _buildLabel('CATEGORÍA DE REPUESTO *'),
-          const SizedBox(height: 6),
+          const _WizardSectionHeader(
+            icon: Icons.search_rounded,
+            title: 'Busca la pieza',
+            helper: 'Categoría y subcategoría',
+            badge: 'Requerido',
+          ),
+          const SizedBox(height: 10),
           _SelectorField(
             value: _categorySelectorValue(),
             placeholder: 'Selecciona categoría y subcategoría',
             onTap: _openCategorySelector,
           ),
           const SizedBox(height: 24),
-          _buildLabel('TIPO DE REPUESTO *'),
-          const SizedBox(height: 8),
+          const _WizardSectionHeader(
+            icon: Icons.tune_rounded,
+            title: 'Elige el tipo',
+            helper: 'Origen o nivel de rendimiento',
+            badge: 'Requerido',
+          ),
+          const SizedBox(height: 10),
           FormPartTypeSelector(
             selectedPartType: widget.selectedPartType,
             onPartTypeSelected: widget.onPartTypeChanged,
@@ -98,10 +104,6 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
         ],
       ),
     );
-  }
-
-  Widget _buildLabel(String text) {
-    return Text(text, style: AppTypography.overline);
   }
 }
 

@@ -31,7 +31,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Paso 1 de 3'), findsOneWidget);
+    expect(find.textContaining('Paso 1 de 3'), findsOneWidget);
     expect(find.text('Audi 4000'), findsOneWidget);
     expect(find.byIcon(Icons.check_rounded), findsOneWidget);
     expect(find.text('Selecciona la categoría'), findsNothing);
@@ -70,7 +70,17 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Paso 2 de 3'), findsOneWidget);
+    expect(find.textContaining('Paso 2 de 3'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Image &&
+            widget.image is NetworkImage &&
+            (widget.image as NetworkImage).url ==
+                temporaryCar.computedBrandLogoUrl,
+      ),
+      findsOneWidget,
+    );
     final state = tester.state(find.byType(SparePartWizardPage)) as dynamic;
     expect(state.debugTemporaryVariantId, 'variant-1');
   });

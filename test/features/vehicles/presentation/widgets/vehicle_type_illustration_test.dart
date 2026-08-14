@@ -24,5 +24,11 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byType(Image), findsOneWidget);
+    final image = tester.widget<Image>(find.byType(Image));
+    final resized = image.image as ResizeImage;
+    expect(
+      (resized.imageProvider as AssetImage).assetName,
+      'assets/images/vehicles/sedan.png',
+    );
   });
 }

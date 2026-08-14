@@ -24,26 +24,26 @@ class VehicleTypeIllustration extends StatelessWidget {
     switch (t) {
       case 'SPORT':
       case 'SPORTS':
-        return 'assets/images/vehicles/v2/sport.webp';
+        return 'assets/images/vehicles/sport.png';
       case 'SUV':
       case 'UTILITY':
-        return 'assets/images/vehicles/v2/suv.webp';
+        return 'assets/images/vehicles/suv.png';
       case 'PICKUP':
       case 'TRUCK':
-        return 'assets/images/vehicles/v2/pickup.webp';
+        return 'assets/images/vehicles/pickup.png';
       case 'VAN':
       case 'MINIVAN':
-        return 'assets/images/vehicles/v2/van.webp';
+        return 'assets/images/vehicles/van.png';
       case 'MOTORCYCLE':
       case 'MOTO':
-        return 'assets/images/vehicles/v2/motorcycle.webp';
+        return 'assets/images/vehicles/motorcycle.png';
       case 'COMPACT':
       case 'HATCHBACK':
-        return 'assets/images/vehicles/v2/compact.webp';
+        return 'assets/images/vehicles/car.png';
       case 'CAR':
       case 'SEDAN':
       default:
-        return 'assets/images/vehicles/v2/sedan.webp';
+        return 'assets/images/vehicles/sedan.png';
     }
   }
 

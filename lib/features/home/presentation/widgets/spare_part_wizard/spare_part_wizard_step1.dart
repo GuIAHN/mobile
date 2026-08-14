@@ -35,16 +35,19 @@ class _SparePartWizardStep1 extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('¿Para qué vehículo es?', style: AppTypography.h1),
-          const SizedBox(height: 8),
-          Text(
-            'Elige el vehículo para mostrar repuestos compatibles.',
-            style: AppTypography.body.copyWith(
-              color: AppColors.textSecondary,
-            ),
+          const _WizardStepIntro(
+            icon: Icons.directions_car_outlined,
+            eyebrow: 'COMPATIBILIDAD',
+            title: 'Elige tu vehículo',
+            description:
+                'Usaremos este vehículo para encontrar piezas compatibles.',
           ),
           const SizedBox(height: 24),
-          Text('TUS VEHÍCULOS', style: AppTypography.overline),
+          const _WizardSectionHeader(
+            icon: Icons.garage_outlined,
+            title: 'Tus vehículos',
+            helper: 'Selecciona el vehículo para esta solicitud',
+          ),
           const SizedBox(height: 12),
           userCarsAsync.when(
             data: (cars) {
