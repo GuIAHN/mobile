@@ -81,22 +81,27 @@ class _SparePartWizardStep1 extends ConsumerWidget {
     }
 
     final textScale = MediaQuery.textScalerOf(context).scale(16) / 16;
-    final extraHeight = ((textScale - 1) * 72).clamp(0.0, 112.0);
+    final extraHeight = ((textScale - 1) * 76).clamp(0.0, 120.0);
+    final availableWidth = MediaQuery.sizeOf(context).width - 48;
+    final singleCardWidth = availableWidth.clamp(228.0, 252.0);
     final cards = cars.length == 1
-        ? SizedBox(
-            height: 164 + extraHeight,
-            child: _VehicleCard(
-              car: cars.single,
-              isSelected: _isSelected(cars.single),
-              onTap: () => onVehicleSelected(cars.single),
+        ? Center(
+            child: SizedBox(
+              width: singleCardWidth,
+              height: 300 + extraHeight,
+              child: _VehicleCard(
+                car: cars.single,
+                isSelected: _isSelected(cars.single),
+                onTap: () => onVehicleSelected(cars.single),
+              ),
             ),
           )
         : SizedBox(
-            height: 178 + extraHeight,
+            height: 312 + extraHeight,
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final cardWidth =
-                    (constraints.maxWidth * 0.84).clamp(256.0, 336.0);
+                    (constraints.maxWidth * 0.68).clamp(218.0, 252.0);
                 return ListView.separated(
                   key: const PageStorageKey('wizard-vehicle-carousel'),
                   scrollDirection: Axis.horizontal,
@@ -124,7 +129,7 @@ class _SparePartWizardStep1 extends ConsumerWidget {
         if (cars.length > 1) ...[
           const SizedBox(height: 10),
           Text(
-            'Desliza para ver ' + cars.length.toString() + ' vehículos',
+            'Desliza para comparar tus ${cars.length} vehículos',
             style: AppTypography.meta,
           ),
         ],
@@ -229,80 +234,96 @@ class _VehicleCardState extends State<_VehicleCard> {
               onHighlightChanged: (value) {
                 if (mounted) setState(() => _pressed = value);
               },
-              child: Stack(
+              child: Column(
                 children: [
-                  Positioned(
-                    right: -8,
-                    bottom: 4,
-                    width: 190,
-                    height: 128,
-                    child: RepaintBoundary(
-                      child: VehicleTypeIllustration(
-                        vehicleType: car.vehicleType,
-                        width: 190,
-                        height: 128,
-                        fit: BoxFit.contain,
-                        showBackground: false,
-                      ),
+                  Expanded(
+                    flex: 55,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(14, 28, 14, 4),
+                            child: RepaintBoundary(
+                              child: VehicleTypeIllustration(
+                                vehicleType: car.vehicleType,
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.contain,
+                                showBackground: false,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 12,
+                          left: 12,
+                          child: _BrandMark(car: car),
+                        ),
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: AnimatedSwitcher(
+                            duration: reduceMotion
+                                ? Duration.zero
+                                : const Duration(milliseconds: 180),
+                            child: widget.isSelected
+                                ? Container(
+                                    key: const ValueKey('selected'),
+                                    width: 30,
+                                    height: 30,
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.primary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.check_rounded,
+                                      color: Colors.white,
+                                      size: 19,
+                                    ),
+                                  )
+                                : const SizedBox(
+                                    key: ValueKey('not-selected'),
+                                    width: 30,
+                                    height: 30,
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Positioned.fill(
+                  Container(
+                    width: double.infinity,
+                    height: 1,
+                    color: widget.isSelected
+                        ? AppColors.primary.withValues(alpha: 0.18)
+                        : AppColors.border,
+                  ),
+                  Expanded(
+                    flex: 45,
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.fromLTRB(16, 13, 16, 14),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _BrandMark(car: car),
-                          const Spacer(),
-                          SizedBox(
-                            width: 158,
-                            child: Text(
-                              car.brand + ' ' + car.model,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTypography.title.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
+                          Text(
+                            '${car.brand} ${car.model}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.title.copyWith(
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 5),
                           Text(
-                            car.year.toString() +
-                                ' · ' +
-                                _vehicleTypeLabel(car),
+                            'Año ${car.year} · ${_vehicleTypeLabel(car)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: AppTypography.meta,
                           ),
+                          const Spacer(),
+                          _VehicleBackendDetails(car: car),
                         ],
                       ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 12,
-                    right: 12,
-                    child: AnimatedSwitcher(
-                      duration: reduceMotion
-                          ? Duration.zero
-                          : const Duration(milliseconds: 180),
-                      child: widget.isSelected
-                          ? Container(
-                              key: const ValueKey('selected'),
-                              width: 28,
-                              height: 28,
-                              decoration: const BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.check_rounded,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                            )
-                          : const SizedBox(
-                              key: ValueKey('not-selected'),
-                              width: 28,
-                              height: 28,
-                            ),
                     ),
                   ),
                 ],
@@ -335,9 +356,9 @@ class _BrandMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 36,
-      height: 36,
-      padding: const EdgeInsets.all(7),
+      width: 54,
+      height: 54,
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: AppColors.surface,
         shape: BoxShape.circle,
@@ -349,8 +370,87 @@ class _BrandMark extends StatelessWidget {
         errorBuilder: (_, __, ___) => const Icon(
           Icons.directions_car_rounded,
           color: AppColors.primary,
-          size: 18,
+          size: 25,
         ),
+      ),
+    );
+  }
+}
+
+class _VehicleBackendDetails extends StatelessWidget {
+  final UserCar car;
+
+  const _VehicleBackendDetails({required this.car});
+
+  @override
+  Widget build(BuildContext context) {
+    final model = car is UserCarModel ? car as UserCarModel : null;
+    final details = <Widget>[];
+    final plate = model?.placa?.trim();
+    final color = model?.color?.trim();
+
+    if (plate != null && plate.isNotEmpty) {
+      details.add(
+        _VehicleDetailChip(
+          icon: Icons.pin_outlined,
+          label: plate.toUpperCase(),
+        ),
+      );
+    }
+    if (color != null && color.isNotEmpty) {
+      details.add(
+        _VehicleDetailChip(
+          icon: Icons.palette_outlined,
+          label: color,
+        ),
+      );
+    }
+    if (details.isEmpty) {
+      details.add(
+        _VehicleDetailChip(
+          icon: Icons.category_outlined,
+          label: car.vehicleType.toUpperCase(),
+        ),
+      );
+    }
+
+    return Wrap(spacing: 6, runSpacing: 5, children: details);
+  }
+}
+
+class _VehicleDetailChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _VehicleDetailChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 28),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.grey100,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.textSecondary),
+          const SizedBox(width: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 112),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.meta.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -15,37 +15,17 @@ class FormPartTypeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final stack = constraints.maxWidth < 350;
-        final tiles = PartType.values
-            .map(
-              (type) => _PartTypeTile(
-                type: type,
-                isSelected: selectedPartType == type,
-                onTap: () => onPartTypeSelected(type),
-              ),
-            )
-            .toList();
-        if (stack) {
-          return Column(
-            children: [
-              for (var index = 0; index < tiles.length; index++) ...[
-                if (index > 0) const SizedBox(height: 8),
-                tiles[index],
-              ],
-            ],
-          );
-        }
-        return Row(
-          children: [
-            for (var index = 0; index < tiles.length; index++) ...[
-              if (index > 0) const SizedBox(width: 8),
-              Expanded(child: tiles[index]),
-            ],
-          ],
-        );
-      },
+    return Column(
+      children: [
+        for (var index = 0; index < PartType.values.length; index++) ...[
+          if (index > 0) const SizedBox(height: 8),
+          _PartTypeTile(
+            type: PartType.values[index],
+            isSelected: selectedPartType == PartType.values[index],
+            onTap: () => onPartTypeSelected(PartType.values[index]),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -83,7 +63,7 @@ class _PartTypeTileState extends State<_PartTypeTile> {
         child: AnimatedContainer(
           duration:
               reduceMotion ? Duration.zero : const Duration(milliseconds: 180),
-          constraints: const BoxConstraints(minHeight: 94),
+          constraints: const BoxConstraints(minHeight: 76),
           decoration: BoxDecoration(
             color: widget.isSelected ? AppColors.primaryMuted : Colors.white,
             borderRadius: BorderRadius.circular(14),
@@ -109,58 +89,82 @@ class _PartTypeTileState extends State<_PartTypeTile> {
               onTap: widget.onTap,
               onHighlightChanged: (value) => setState(() => _isPressed = value),
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                child: Stack(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 14,
+                ),
+                child: Row(
                   children: [
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          widget.type.icon,
-                          color: widget.isSelected
-                              ? AppColors.primary
-                              : AppColors.textSecondary,
-                          size: 24,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          widget.type.label,
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 13,
-                            fontWeight: widget.isSelected
-                                ? FontWeight.w800
-                                : FontWeight.w700,
-                            color: widget.isSelected
-                                ? AppColors.primary
-                                : AppColors.textPrimary,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.type.description,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 10.5,
-                            height: 1.15,
-                            color: AppColors.textSecondary,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                    if (widget.isSelected)
-                      const Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Icon(
-                          Icons.check_circle_rounded,
-                          color: AppColors.primary,
-                          size: 18,
-                        ),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: widget.isSelected
+                            ? AppColors.primary.withValues(alpha: 0.12)
+                            : AppColors.grey100,
+                        borderRadius: BorderRadius.circular(12),
                       ),
+                      child: Icon(
+                        widget.type.icon,
+                        color: widget.isSelected
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
+                        size: 23,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.type.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 14,
+                              fontWeight: widget.isSelected
+                                  ? FontWeight.w800
+                                  : FontWeight.w700,
+                              color: widget.isSelected
+                                  ? AppColors.primary
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            widget.type.description,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 12,
+                              height: 1.2,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    AnimatedSwitcher(
+                      duration: reduceMotion
+                          ? Duration.zero
+                          : const Duration(milliseconds: 180),
+                      child: widget.isSelected
+                          ? const Icon(
+                              Icons.check_circle_rounded,
+                              key: ValueKey('selected-type'),
+                              color: AppColors.primary,
+                              size: 23,
+                            )
+                          : const Icon(
+                              Icons.radio_button_unchecked_rounded,
+                              key: ValueKey('unselected-type'),
+                              color: AppColors.border,
+                              size: 23,
+                            ),
+                    ),
                   ],
                 ),
               ),

@@ -173,52 +173,62 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
           .round();
       return Semantics(
         label: 'Foto del repuesto seleccionada',
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 180),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  kIsWeb
-                      ? Image.network(
-                          path,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const _PhotoErrorView(),
-                        )
-                      : Image.file(
-                          File(path),
-                          fit: BoxFit.cover,
-                          cacheWidth: decodeWidth,
-                          errorBuilder: (_, __, ___) => const _PhotoErrorView(),
-                        ),
-                  Positioned(
-                    left: 8,
-                    right: 8,
-                    bottom: 8,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final previewWidth = constraints.maxWidth.clamp(0.0, 320.0);
+            return Align(
+              alignment: Alignment.center,
+              child: SizedBox(
+                width: previewWidth,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Stack(
+                      fit: StackFit.expand,
                       children: [
-                        _PhotoOverlayAction(
-                          icon: Icons.refresh_rounded,
-                          label: 'Cambiar',
-                          onTap: () => _showImageSourceSheet(context),
-                        ),
-                        const SizedBox(width: 8),
-                        _PhotoOverlayAction(
-                          icon: Icons.delete_outline_rounded,
-                          label: 'Eliminar',
-                          onTap: () => widget.onImagePicked(null),
+                        kIsWeb
+                            ? Image.network(
+                                path,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    const _PhotoErrorView(),
+                              )
+                            : Image.file(
+                                File(path),
+                                fit: BoxFit.cover,
+                                cacheWidth: decodeWidth,
+                                errorBuilder: (_, __, ___) =>
+                                    const _PhotoErrorView(),
+                              ),
+                        Positioned(
+                          left: 8,
+                          right: 8,
+                          bottom: 8,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              _PhotoOverlayAction(
+                                icon: Icons.refresh_rounded,
+                                label: 'Cambiar',
+                                onTap: () => _showImageSourceSheet(context),
+                              ),
+                              const SizedBox(width: 8),
+                              _PhotoOverlayAction(
+                                icon: Icons.delete_outline_rounded,
+                                label: 'Eliminar',
+                                onTap: () => widget.onImagePicked(null),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       );
     }
