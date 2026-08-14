@@ -210,17 +210,21 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
     });
   }
 
-  Future<void> _openRequestLocationPicker() async {
+  RequestLocationSeed _resolveEffectiveRequestLocation() {
     final isShared = ref.read(isLocationSharedProvider);
     final current = ref.read(userLocationProvider).valueOrNull;
     final user = ref.read(authProvider).user;
-    final seed = resolveRequestLocationSeed(
+    return resolveRequestLocationSeed(
       requestSelection: _requestLocation,
       gpsLatitude: isShared ? current?.latitude : null,
       gpsLongitude: isShared ? current?.longitude : null,
       profileLatitude: user?.latitude,
       profileLongitude: user?.longitude,
     );
+  }
+
+  Future<void> _openRequestLocationPicker() async {
+    final seed = _resolveEffectiveRequestLocation();
 
     final result = await RequestLocationPickerDialog.show(
       context,
@@ -240,7 +244,7 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
     final vehicle = _selectedVehicle;
     final subcat = _selectedSubcategory;
     final partType = _selectedPartType;
-    final requestLocation = _requestLocation;
+    final requestLocation = _resolveEffectiveRequestLocation().selection;
 
     if (vehicle == null ||
         subcat == null ||
@@ -443,7 +447,8 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
         final hasRequiredDetails =
             _selectedSubcategory?.id != kOtherSubcategoryId ||
                 _detailsController.text.trim().isNotEmpty;
-        return _requestLocation != null && hasRequiredDetails;
+        return _resolveEffectiveRequestLocation().selection != null &&
+            hasRequiredDetails;
     }
   }
 
@@ -459,6 +464,10 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(authProvider);
+    ref.watch(isLocationSharedProvider);
+    ref.watch(userLocationProvider);
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -531,6 +540,7 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
           onEditVehicle: () => _goToStep(1),
         );
       case 3:
+        final effectiveLocation = _resolveEffectiveRequestLocation().selection;
         return SparePartWizardStep3(
           key: const ValueKey('step3'),
           selectedVehicle: _selectedVehicle,
@@ -540,7 +550,7 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
           detailsController: _detailsController,
           selectedImagePath: _selectedImagePath,
           isOtroCategory: _selectedSubcategory?.id == kOtherSubcategoryId,
-          requestLocation: _requestLocation,
+          requestLocation: effectiveLocation,
           onLocationTap: _openRequestLocationPicker,
           onEditVehicle: () => _goToStep(1),
           onEditPart: () => _goToStep(2),

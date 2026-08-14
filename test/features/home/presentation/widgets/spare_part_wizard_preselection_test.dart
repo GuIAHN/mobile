@@ -1,9 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:guiautomotriz_mobile/core/storage/secure_storage.dart';
+import 'package:guiautomotriz_mobile/features/auth/domain/entities/user.dart';
+import 'package:guiautomotriz_mobile/features/auth/domain/repositories/auth_repository.dart';
+import 'package:guiautomotriz_mobile/features/auth/domain/usecases/login_usecase.dart';
+import 'package:guiautomotriz_mobile/features/auth/domain/usecases/register_usecase.dart';
+import 'package:guiautomotriz_mobile/features/auth/domain/usecases/update_profile_usecase.dart';
+import 'package:guiautomotriz_mobile/features/auth/domain/usecases/upload_avatar_usecase.dart';
+import 'package:guiautomotriz_mobile/features/auth/presentation/providers/auth_provider.dart';
+import 'package:guiautomotriz_mobile/features/auth/presentation/providers/auth_state.dart';
+import 'package:guiautomotriz_mobile/features/catalog/domain/entities/category_node.dart';
+import 'package:guiautomotriz_mobile/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/spare_part_wizard_page.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/domain/entities/user_car.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/presentation/providers/vehicle_providers.dart';
+import 'package:mocktail/mocktail.dart';
+
+class _MockAuthRepository extends Mock implements AuthRepository {}
+
+class _MockSecureStorage extends Mock implements SecureStorage {}
+
+class _TestAuthNotifier extends AuthNotifier {
+  _TestAuthNotifier(AuthState initialState)
+      : super(
+          loginUseCase: LoginUseCase(_MockAuthRepository()),
+          registerUseCase: RegisterUseCase(_MockAuthRepository()),
+          updateProfileUseCase: UpdateProfileUseCase(_MockAuthRepository()),
+          uploadAvatarUseCase: UploadAvatarUseCase(_MockAuthRepository()),
+          authRepository: _MockAuthRepository(),
+          secureStorage: _MockSecureStorage(),
+        ) {
+    state = initialState;
+  }
+
+  @override
+  Future<void> checkAuthStatus() async {}
+}
 
 void main() {
   const fixtureCar = UserCar(
@@ -264,5 +297,70 @@ void main() {
         );
       }
     }
+  });
+
+  testWidgets(
+      'shows the saved profile location in step 3 without opening the map',
+      (tester) async {
+    const user = User(
+      id: 'user-1',
+      email: 'driver@example.com',
+      name: 'Driver',
+      latitude: 14.0723,
+      longitude: -87.1921,
+    );
+    final authNotifier = _TestAuthNotifier(
+      const AuthState(status: AuthStatus.authenticated, user: user),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith((ref) => authNotifier),
+          userCarsProvider.overrideWith((ref) async => [fixtureCar]),
+          categoryTreeProvider.overrideWith(
+            (ref) async => const [
+              CategoryNode(
+                id: 'brakes',
+                name: 'Frenos',
+                children: [
+                  CategoryNode(
+                    id: 'pads',
+                    name: 'Pastillas de freno',
+                    parentId: 'brakes',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+        child: const MaterialApp(
+          home: SparePartWizardPage(initialVehicle: fixtureCar),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text('Continuar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Selecciona categoría y subcategoría'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pastillas de freno'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Original'));
+    await tester.tap(find.text('Original'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Continuar'));
+    await tester.tap(find.text('Continuar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('14.0723, -87.1921'), findsOneWidget);
+    expect(find.text('Última ubicación guardada'), findsOneWidget);
+
+    final submitButton = tester.widget<ElevatedButton>(
+      find.widgetWithText(ElevatedButton, 'Enviar solicitud'),
+    );
+    expect(submitButton.onPressed, isNotNull);
   });
 }

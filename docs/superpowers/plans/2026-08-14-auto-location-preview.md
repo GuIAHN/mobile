@@ -28,7 +28,7 @@
 - Consumes: `_requestLocation`, `isLocationSharedProvider`, `userLocationProvider`, `authProvider.user`.
 - Produces: `RequestLocationSeed _resolveEffectiveLocation()` reutilizado por preview, validación, submit y picker.
 
-- [ ] **Step 1: Escribir la prueba de regresión**
+- [x] **Step 1: Escribir la prueba de regresión**
 
 Crear un usuario autenticado con `latitude: 14.0723` y
 `longitude: -87.1921`, navegar mediante la UI hasta el paso 3 y comprobar:
@@ -42,7 +42,7 @@ expect(
 );
 ```
 
-- [ ] **Step 2: Ejecutar la prueba y confirmar el fallo correcto**
+- [x] **Step 2: Ejecutar la prueba y confirmar el fallo correcto**
 
 ```bash
 flutter test test/features/home/presentation/widgets/spare_part_wizard_preselection_test.dart \
@@ -51,7 +51,7 @@ flutter test test/features/home/presentation/widgets/spare_part_wizard_preselect
 
 Resultado esperado: falla porque el preview continúa vacío.
 
-- [ ] **Step 3: Implementar una única resolución efectiva**
+- [x] **Step 3: Implementar una única resolución efectiva**
 
 Agregar un helper sin efectos secundarios:
 
@@ -75,7 +75,7 @@ Usar `seed.selection` en `_openRequestLocationPicker`, `_submit`,
 los tres providers para que una sesión hidratada después del primer frame vuelva
 a construir el preview.
 
-- [ ] **Step 4: Ejecutar pruebas verdes y verificación**
+- [x] **Step 4: Ejecutar pruebas verdes y verificación**
 
 ```bash
 dart format lib/features/home/presentation/widgets/spare_part_wizard/spare_part_wizard_page.dart \
@@ -86,7 +86,7 @@ dart analyze lib/features/home/presentation/widgets/spare_part_wizard/spare_part
 flutter build web --debug --no-wasm-dry-run
 ```
 
-- [ ] **Step 5: Confirmar alcance y commit**
+- [x] **Step 5: Confirmar alcance y commit**
 
 ```bash
 git add lib/features/home/presentation/widgets/spare_part_wizard/spare_part_wizard_page.dart \
