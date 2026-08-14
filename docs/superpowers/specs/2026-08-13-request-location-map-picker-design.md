@@ -1,6 +1,7 @@
 # Selector de ubicación por mapa para solicitudes de repuestos
 
 Fecha: 2026-08-13
+Revisión: 2026-08-14
 Estado: diseño acordado, pendiente de revisión final del usuario
 
 ## Objetivo
@@ -14,6 +15,8 @@ El cambio también corregirá la inconsistencia actual del encabezado de inicio,
 - No se integrará Google Places ni un campo de autocompletado de direcciones.
 - No se dividirá el mapa por sectores.
 - El selector será un modal de pantalla completa.
+- El asistente conservará sus tres pasos; no se añadirá un cuarto paso.
+- El paso final mostrará una tarjeta resumen compacta en lugar de un mapa incrustado.
 - Un toque sobre el mapa moverá el marcador al punto tocado.
 - Existirá una acción visible para regresar a la ubicación GPS actual.
 - La ubicación alternativa afectará solamente a la solicitud en curso.
@@ -23,7 +26,7 @@ El cambio también corregirá la inconsistencia actual del encabezado de inicio,
 
 Incluye:
 
-- Vista previa compacta de la ubicación en el paso final del asistente.
+- Tarjeta resumen compacta de la ubicación en el paso final del asistente.
 - Modal de mapa a pantalla completa.
 - Selección del punto mediante toque.
 - Retorno al GPS actual mediante un botón.
@@ -46,14 +49,32 @@ No incluye:
 
 ### Paso final de la solicitud
 
-La sección `TU UBICACIÓN` mostrará un mapa compacto con el marcador correspondiente a la ubicación de la solicitud, no necesariamente al estado global del usuario.
+La sección `TU UBICACIÓN` mostrará una tarjeta compacta de aproximadamente 96 dp. La tarjeta contendrá un icono de ubicación, el estado o nombre aproximado del punto seleccionado y la acción `Elegir ubicación` o `Cambiar`. No se renderizará un mapa dentro del paso 3.
 
 - Si todavía no existe una selección y la ubicación global está compartida, se usará la posición ya disponible como punto inicial.
 - Si la ubicación global está desactivada, no se solicitará permiso automáticamente: la persona podrá abrir el modal, elegir manualmente o tocar `Mi ubicación` para autorizar el GPS solo para esta solicitud.
-- Si existe una selección confirmada, el mapa mostrará ese punto aunque el usuario regrese a pasos anteriores y vuelva al paso final.
-- El mapa compacto tendrá una acción clara: `Cambiar ubicación`.
+- Si existe una selección confirmada, la tarjeta mostrará su nombre aproximado o sus coordenadas aunque el usuario regrese a pasos anteriores y vuelva al paso final.
+- Tocar cualquier parte de la tarjeta abrirá el mapa de pantalla completa.
 - El botón `Enviar solicitud` se habilitará cuando exista una ubicación confirmada y los demás campos requeridos sean válidos.
 - Compartir la ubicación global dejará de ser un requisito para enviar una solicitud cuando ya exista un punto confirmado manualmente.
+- El paso seguirá siendo desplazable para que detalles, ubicación, foto y CTA sean accesibles en teléfonos pequeños y con texto ampliado.
+
+```text
+MÁS DETALLES
+[ Campo de texto                    ]
+
+TU UBICACIÓN
+┌───────────────────────────────────┐
+│ [pin] Ubicación seleccionada      │
+│       Nombre o coordenadas        │
+│                         Cambiar > │
+└───────────────────────────────────┘
+
+AGREGAR UNA FOTO
+[ Selector de foto                  ]
+
+[ ENVIAR SOLICITUD ]
+```
 
 ### Modal de pantalla completa
 
@@ -141,8 +162,8 @@ El centro predeterminado no constituye una selección: el CTA permanecerá desha
 
 ### `RequestLocationPreview`
 
-- Muestra el mapa compacto y el punto confirmado.
-- Expone la acción `Cambiar ubicación`.
+- Muestra una tarjeta resumen compacta con el punto confirmado.
+- Expone `Elegir ubicación` cuando está vacía y `Cambiar` cuando ya existe una selección.
 - Presenta carga, error recuperable o ausencia de selección.
 - No contiene lógica de permisos ni modifica providers globales.
 
@@ -154,7 +175,7 @@ El centro predeterminado no constituye una selección: el CTA permanecerá desha
 
 ### `GuiaMap`
 
-Continuará siendo el mapa compacto y de solo visualización. La interacción compleja se mantendrá en un componente separado para no cambiar el comportamiento de los otros mapas que ya lo reutilizan.
+Permanecerá sin cambios para las demás pantallas que ya lo reutilizan. El paso 3 dejará de renderizarlo y la interacción del selector vivirá en un componente separado, evitando alterar mapas ajenos a este flujo.
 
 ## Corrección del encabezado de inicio
 
@@ -257,6 +278,7 @@ Cuando el asistente envíe una selección, esas coordenadas tendrán prioridad s
 ## Criterios de aceptación
 
 - El mapa se abre como modal de pantalla completa desde la solicitud de repuesto.
+- El asistente conserva tres pasos y el paso final usa una tarjeta resumen compacta, no un mapa incrustado.
 - Tocar el mapa mueve el marcador al punto tocado.
 - `Mi ubicación` obtiene una posición reciente, mueve el marcador y centra el mapa.
 - Cancelar no modifica la ubicación previamente confirmada.
