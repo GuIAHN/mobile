@@ -58,7 +58,7 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
                 'Revisa lo elegido y agrega la información para las tiendas.',
           ),
           if (widget.selectedVehicle != null) ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             _WizardSelectionSummary(
               icon: Icons.directions_car_outlined,
               imageUrl: widget.selectedVehicle!.computedBrandLogoUrl,
@@ -72,7 +72,7 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
             ),
           ],
           if (widget.selectedSubcategory != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             _WizardSelectionSummary(
               icon: Icons.settings_outlined,
               eyebrow: 'REPUESTO',
@@ -82,14 +82,14 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
               onAction: widget.onEditPart ?? () {},
             ),
           ],
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           _WizardSectionHeader(
             icon: Icons.notes_rounded,
             title: 'Describe la pieza',
             helper: 'Agrega datos que ayuden a identificarla',
             badge: widget.isOtroCategory ? 'Requerido' : 'Opcional',
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           TextField(
             controller: widget.detailsController,
             minLines: 3,
@@ -129,7 +129,7 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 32),
           const _WizardSectionHeader(
             icon: Icons.location_on_outlined,
             title: 'Indica la ubicación',
@@ -141,7 +141,7 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
             selection: widget.requestLocation,
             onTap: widget.onLocationTap,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 32),
           const _WizardSectionHeader(
             icon: Icons.add_a_photo_outlined,
             title: 'Agrega una foto',

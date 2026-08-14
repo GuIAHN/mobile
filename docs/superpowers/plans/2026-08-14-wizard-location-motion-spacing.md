@@ -32,7 +32,7 @@
 - Consumes: selección local, coordenadas GPS, coordenadas de `authProvider.user` y fallback.
 - Produces: `RequestLocationSeed resolveRequestLocationSeed(...)` con `selection` y `center`.
 
-- [ ] **Step 1: Escribir pruebas rojas de prioridad y validación**
+- [x] **Step 1: Escribir pruebas rojas de prioridad y validación**
 
 Crear casos literales para:
 
@@ -52,13 +52,13 @@ expect(
 Agregar casos GPS sobre perfil, perfil sin GPS, fallback sin datos y rechazo de
 `NaN`, latitud 91 y longitud 181.
 
-- [ ] **Step 2: Ejecutar la prueba y confirmar fallo por API inexistente**
+- [x] **Step 2: Ejecutar la prueba y confirmar fallo por API inexistente**
 
 ```bash
 flutter test test/features/home/presentation/widgets/request_location_seed_test.dart
 ```
 
-- [ ] **Step 3: Implementar la función pura**
+- [x] **Step 3: Implementar la función pura**
 
 ```dart
 class RequestLocationSeed {
@@ -112,14 +112,14 @@ RequestLocationSeed resolveRequestLocationSeed({
 
 Añadir `profile` a `RequestLocationSource`.
 
-- [ ] **Step 4: Integrar el usuario autenticado en el picker**
+- [x] **Step 4: Integrar el usuario autenticado en el picker**
 
 En `_openRequestLocationPicker`, leer `ref.read(authProvider).user` y pasar sus
 coordenadas al resolver. Usar `seed.selection` como `initialSelection` y
 `seed.center` como `initialCenter`. No escribir en `authProvider` ni llamar
 `updateProfile`.
 
-- [ ] **Step 5: Ejecutar pruebas verdes**
+- [x] **Step 5: Ejecutar pruebas verdes**
 
 ```bash
 dart format lib/features/home/presentation/widgets/spare_part_wizard test/features/home/presentation/widgets/request_location_seed_test.dart
@@ -140,19 +140,19 @@ flutter test test/features/home/presentation/widgets/request_location_seed_test.
 - Consumes: `RequestLocationSelection(source: RequestLocationSource.profile)`.
 - Produces: etiqueta visible y semántica `Última ubicación guardada`.
 
-- [ ] **Step 1: Escribir pruebas rojas del origen profile**
+- [x] **Step 1: Escribir pruebas rojas del origen profile**
 
 Renderizar preview y picker con una selección `profile`; comprobar que muestran
 `Última ubicación guardada`, mantienen el centro recibido y permiten confirmar
 sin mover el mapa.
 
-- [ ] **Step 2: Ejecutar y confirmar el fallo por etiqueta inexistente**
+- [x] **Step 2: Ejecutar y confirmar el fallo por etiqueta inexistente**
 
 ```bash
 flutter test test/features/home/presentation/widgets/request_location_preview_test.dart test/features/home/presentation/widgets/request_location_picker_dialog_test.dart
 ```
 
-- [ ] **Step 3: Implementar un label exhaustivo por origen**
+- [x] **Step 3: Implementar un label exhaustivo por origen**
 
 ```dart
 String get requestLocationSourceLabel => switch (selection.source) {
@@ -165,7 +165,7 @@ String get requestLocationSourceLabel => switch (selection.source) {
 Reutilizarlo en preview, panel del picker y semántica. Si no hay dirección,
 mostrar coordenadas sin bloquear el CTA.
 
-- [ ] **Step 4: Ejecutar pruebas verdes**
+- [x] **Step 4: Ejecutar pruebas verdes**
 
 ```bash
 flutter test test/features/home/presentation/widgets/request_location_preview_test.dart test/features/home/presentation/widgets/request_location_picker_dialog_test.dart
@@ -184,32 +184,32 @@ flutter test test/features/home/presentation/widgets/request_location_preview_te
 - Consumes: `currentStep`, `PageController` y reduced motion.
 - Produces: navegación 360 ms y título del header con slide/fade de 180 ms.
 
-- [ ] **Step 1: Escribir pruebas rojas de motion observable**
+- [x] **Step 1: Escribir pruebas rojas de motion observable**
 
 Agregar getters `@visibleForTesting` para `debugWizardPage` y verificar que en
 modo normal, a mitad de la transición, la página está entre 0 y 1; tras
 `pumpAndSettle` está en 1. Con `disableAnimations: true`, debe saltar a 1 en el
 primer frame.
 
-- [ ] **Step 2: Ejecutar y observar que la duración/comportamiento actual falla**
+- [x] **Step 2: Ejecutar y observar que la duración/comportamiento actual falla**
 
 ```bash
 flutter test test/features/home/presentation/widgets/spare_part_wizard_preselection_test.dart
 ```
 
-- [ ] **Step 3: Ajustar PageView y header**
+- [x] **Step 3: Ajustar PageView y header**
 
 Usar 360 ms con `Curves.easeInOutCubicEmphasized`. Reemplazar únicamente el
 texto central del header por `AnimatedSwitcher` de 180 ms, transición
 `FadeTransition` + `SlideTransition(begin: Offset(0, .12))`. Reduced motion
 usa `Duration.zero`.
 
-- [ ] **Step 4: Mantener las microinteracciones existentes**
+- [x] **Step 4: Mantener las microinteracciones existentes**
 
 Conservar escala de press en cards, progreso de 240 ms y label del CTA de
 160 ms. No añadir animación a mapas, listas ni superficies completas.
 
-- [ ] **Step 5: Ejecutar pruebas verdes**
+- [x] **Step 5: Ejecutar pruebas verdes**
 
 ```bash
 flutter test test/features/home/presentation/widgets/spare_part_wizard_preselection_test.dart
@@ -229,12 +229,12 @@ flutter test test/features/home/presentation/widgets/spare_part_wizard_preselect
 - Consumes: layout actual de cada paso.
 - Produces: gaps mayores entre grupos, manteniendo controles relacionados juntos.
 
-- [ ] **Step 1: Añadir matriz responsive roja**
+- [x] **Step 1: Añadir matriz responsive roja**
 
 Renderizar el wizard en 320×667, 390×844 y 430×932 con text scale 1 y 2;
 navegar hasta los pasos disponibles y comprobar `tester.takeException()` nulo.
 
-- [ ] **Step 2: Aplicar espaciado**
+- [x] **Step 2: Aplicar espaciado**
 
 - Paso 1: introducción → garaje, 28 dp.
 - Paso 2: introducción → resumen, 24 dp; resumen → categoría, 32 dp;
@@ -244,7 +244,7 @@ navegar hasta los pasos disponibles y comprobar `tester.takeException()` nulo.
   32 dp.
 - Encabezado de sección → control: 10–12 dp.
 
-- [ ] **Step 3: Ejecutar la matriz verde**
+- [x] **Step 3: Ejecutar la matriz verde**
 
 ```bash
 flutter test test/features/home/presentation/widgets/spare_part_wizard_preselection_test.dart
@@ -261,14 +261,14 @@ flutter test test/features/home/presentation/widgets/spare_part_wizard_preselect
 - Consumes: implementación terminada.
 - Produces: evidencia técnica y commit aislado.
 
-- [ ] **Step 1: Formato y diff**
+- [x] **Step 1: Formato y diff**
 
 ```bash
 dart format lib/features/home/presentation/widgets/spare_part_wizard test/features/home/presentation/widgets
 git diff --check
 ```
 
-- [ ] **Step 2: Pruebas enfocadas**
+- [x] **Step 2: Pruebas enfocadas**
 
 ```bash
 flutter test \
@@ -278,14 +278,14 @@ flutter test \
   test/features/home/presentation/widgets/spare_part_wizard_preselection_test.dart
 ```
 
-- [ ] **Step 3: Análisis y build**
+- [x] **Step 3: Análisis y build**
 
 ```bash
 flutter analyze --no-fatal-warnings --no-fatal-infos
 flutter build web --debug
 ```
 
-- [ ] **Step 4: Confirmar alcance y commit**
+- [x] **Step 4: Confirmar alcance y commit**
 
 Verificar que backend y los tres archivos locales ajenos no estén staged.
 

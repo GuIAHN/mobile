@@ -92,7 +92,7 @@ class _SparePartWizardStep1State extends ConsumerState<_SparePartWizardStep1> {
             description:
                 'Usaremos este vehículo para encontrar piezas compatibles.',
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           const _WizardSectionHeader(
             icon: Icons.garage_outlined,
             title: 'Tus vehículos',

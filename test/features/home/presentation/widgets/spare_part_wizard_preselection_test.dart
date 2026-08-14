@@ -68,7 +68,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Continuar'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
 
     expect(find.textContaining('Paso 2 de 3'), findsOneWidget);
     expect(
@@ -143,5 +143,126 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Vehículo 2 de 2'), findsOneWidget);
+  });
+
+  testWidgets('uses a smooth 360ms transition and a restrained title change',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          userCarsProvider.overrideWith((ref) async => [fixtureCar]),
+        ],
+        child: const MaterialApp(
+          home: SparePartWizardPage(initialVehicle: fixtureCar),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text('Audi 4000'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Continuar'));
+    await tester.tap(find.text('Continuar'));
+    await tester.pump();
+
+    expect(find.byKey(const Key('wizard-step-title-1')), findsOneWidget);
+    expect(find.byKey(const Key('wizard-step-title-2')), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 320));
+    final state = tester.state(find.byType(SparePartWizardPage)) as dynamic;
+    expect(state.debugWizardPage, greaterThan(0));
+    expect(state.debugWizardPage, lessThan(1));
+
+    await tester.pumpAndSettle();
+    expect(state.debugWizardPage, 1);
+    expect(find.byKey(const Key('wizard-step-title-1')), findsNothing);
+    expect(find.byKey(const Key('wizard-step-title-2')), findsOneWidget);
+  });
+
+  testWidgets('jumps between steps when reduced motion is requested',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          userCarsProvider.overrideWith((ref) async => [fixtureCar]),
+        ],
+        child: MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: child!,
+          ),
+          home: const SparePartWizardPage(initialVehicle: fixtureCar),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text('Audi 4000'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Continuar'));
+    await tester.tap(find.text('Continuar'));
+    await tester.pump();
+
+    final state = tester.state(find.byType(SparePartWizardPage)) as dynamic;
+    expect(state.debugWizardPage, 1);
+    expect(find.byKey(const Key('wizard-step-title-1')), findsNothing);
+    expect(find.byKey(const Key('wizard-step-title-2')), findsOneWidget);
+  });
+
+  testWidgets('keeps steps 1 and 2 stable across the responsive matrix',
+      (tester) async {
+    const viewports = [
+      Size(320, 667),
+      Size(390, 844),
+      Size(430, 932),
+    ];
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    for (final viewport in viewports) {
+      for (final textScale in [1.0, 2.0]) {
+        tester.view.physicalSize = viewport;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              userCarsProvider.overrideWith((ref) async => [fixtureCar]),
+            ],
+            child: MaterialApp(
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: TextScaler.linear(textScale),
+                  disableAnimations: true,
+                ),
+                child: child!,
+              ),
+              home: const SparePartWizardPage(initialVehicle: fixtureCar),
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump();
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'Step 1 overflowed at $viewport and ${textScale}x text',
+        );
+
+        await tester.ensureVisible(find.text('Audi 4000'));
+        await tester.pump();
+        await tester.tap(find.text('Audi 4000'));
+        await tester.pump();
+        await tester.ensureVisible(find.text('Continuar'));
+        await tester.tap(find.text('Continuar'));
+        await tester.pump();
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'Step 2 overflowed at $viewport and ${textScale}x text',
+        );
+      }
+    }
   });
 }

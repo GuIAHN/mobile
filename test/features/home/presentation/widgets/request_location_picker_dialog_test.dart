@@ -181,6 +181,34 @@ void main() {
     expect(result, isNull);
   });
 
+  testWidgets('a saved profile location can be confirmed without map movement',
+      (tester) async {
+    RequestLocationSelection? result;
+    await tester.pumpWidget(
+      _testApp(
+        initialSelection: const RequestLocationSelection(
+          latitude: 14.0723,
+          longitude: -87.1921,
+          source: RequestLocationSource.profile,
+        ),
+        onResult: (value) => result = value,
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('open-location-picker')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Última ubicación guardada'), findsOneWidget);
+    final button = tester.widget<ElevatedButton>(
+      find.byKey(const Key('confirm-request-location')),
+    );
+    expect(button.onPressed, isNotNull);
+
+    await tester.tap(find.byKey(const Key('confirm-request-location')));
+    await tester.pumpAndSettle();
+    expect(result?.source, RequestLocationSource.profile);
+  });
+
   testWidgets('the current-location action returns a GPS selection',
       (tester) async {
     RequestLocationSelection? result;

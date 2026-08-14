@@ -21,54 +21,77 @@ class _WizardSelectionSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          _SummaryLeading(icon: icon, imageUrl: imageUrl),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(eyebrow, style: AppTypography.overline),
-                const SizedBox(height: 2),
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.title,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compactAction = constraints.maxWidth < 340 ||
+            MediaQuery.textScalerOf(context).scale(16) > 22;
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              _SummaryLeading(icon: icon, imageUrl: imageUrl),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      eyebrow,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.overline,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.title,
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.meta,
+                      ),
+                    ],
+                  ],
                 ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.meta,
+              ),
+              const SizedBox(width: 8),
+              if (compactAction)
+                IconButton(
+                  onPressed: onAction,
+                  tooltip: actionLabel,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 48,
+                    height: 48,
                   ),
-                ],
-              ],
-            ),
+                  icon: const Icon(Icons.edit_outlined, size: 21),
+                  color: AppColors.primaryInk,
+                )
+              else
+                TextButton(
+                  onPressed: onAction,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primaryInk,
+                    minimumSize: const Size(48, 48),
+                  ),
+                  child: Text(actionLabel),
+                ),
+            ],
           ),
-          const SizedBox(width: 8),
-          TextButton(
-            onPressed: onAction,
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.primaryInk,
-              minimumSize: const Size(48, 48),
-            ),
-            child: Text(actionLabel),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -166,41 +189,68 @@ class _WizardSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: AppColors.primaryMuted,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, size: 18, color: AppColors.primaryInk),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: AppTypography.title),
-              const SizedBox(height: 1),
-              Text(helper, style: AppTypography.meta),
-            ],
-          ),
-        ),
-        if (badge != null) ...[
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.grey100,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stackBadge = badge != null &&
+            (constraints.maxWidth < 340 ||
+                MediaQuery.textScalerOf(context).scale(16) > 22);
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: AppColors.primaryMuted,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 18, color: AppColors.primaryInk),
             ),
-            child: Text(badge!, style: AppTypography.meta),
-          ),
-        ],
-      ],
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: AppTypography.title),
+                  const SizedBox(height: 1),
+                  Text(helper, style: AppTypography.meta),
+                  if (stackBadge) ...[
+                    const SizedBox(height: 6),
+                    _SectionBadge(label: badge!),
+                  ],
+                ],
+              ),
+            ),
+            if (badge != null && !stackBadge) ...[
+              const SizedBox(width: 8),
+              _SectionBadge(label: badge!),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SectionBadge extends StatelessWidget {
+  final String label;
+
+  const _SectionBadge({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.grey100,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: AppTypography.meta,
+      ),
     );
   }
 }

@@ -65,11 +65,31 @@ void main() {
     expect(
       find.bySemanticsLabel(
         'Cambiar ubicación para esta solicitud. '
-        'Ubicación actual: Sabana Grande, Caracas',
+        'Ubicación actual: Sabana Grande, Caracas. '
+        'Punto elegido en el mapa',
       ),
       findsOneWidget,
     );
   }, semanticsEnabled: true);
+
+  testWidgets('identifies a location restored from the saved profile',
+      (tester) async {
+    await tester.pumpWidget(
+      _testApp(
+        RequestLocationPreview(
+          selection: const RequestLocationSelection(
+            latitude: 14.0723,
+            longitude: -87.1921,
+            source: RequestLocationSource.profile,
+          ),
+          onTap: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('Última ubicación guardada'), findsOneWidget);
+    expect(find.text('14.0723, -87.1921'), findsOneWidget);
+  });
 
   testWidgets('the card supports a small phone and enlarged text',
       (tester) async {

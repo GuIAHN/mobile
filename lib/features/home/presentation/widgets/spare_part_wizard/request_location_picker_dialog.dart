@@ -433,6 +433,27 @@ class _RequestLocationPickerDialogState
                                 : AppColors.textPrimary,
                           ),
                         ),
+                        if (selection != null &&
+                            !_isMapMoving &&
+                            !_isResolvingAddress) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.history_rounded,
+                                size: 15,
+                                color: AppColors.textSecondary,
+                              ),
+                              const SizedBox(width: 5),
+                              Expanded(
+                                child: Text(
+                                  selection.sourceLabel,
+                                  style: AppTypography.meta,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                         if (_locationError != null) ...[
                           const SizedBox(height: AppSpacing.sm),
                           Text(

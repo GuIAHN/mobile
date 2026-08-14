@@ -63,7 +63,7 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
             description: 'Selecciona la pieza y el tipo que prefieres recibir.',
           ),
           if (widget.selectedVehicle != null) ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             _WizardSelectionSummary(
               icon: Icons.directions_car_outlined,
               imageUrl: widget.selectedVehicle!.computedBrandLogoUrl,
@@ -76,7 +76,7 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
               onAction: widget.onEditVehicle,
             ),
           ],
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           const _WizardSectionHeader(
             icon: Icons.search_rounded,
             title: 'Busca la pieza',
@@ -89,7 +89,7 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
             placeholder: 'Selecciona categoría y subcategoría',
             onTap: _openCategorySelector,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           const _WizardSectionHeader(
             icon: Icons.tune_rounded,
             title: 'Elige el tipo',

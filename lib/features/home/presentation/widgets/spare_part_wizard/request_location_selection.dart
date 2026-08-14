@@ -1,4 +1,4 @@
-enum RequestLocationSource { gps, mapTap }
+enum RequestLocationSource { gps, profile, mapTap }
 
 class RequestLocationSelection {
   final double latitude;
@@ -16,4 +16,10 @@ class RequestLocationSelection {
   String get displayLabel =>
       label ??
       '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}';
+
+  String get sourceLabel => switch (source) {
+        RequestLocationSource.gps => 'Ubicación GPS',
+        RequestLocationSource.profile => 'Última ubicación guardada',
+        RequestLocationSource.mapTap => 'Punto elegido en el mapa',
+      };
 }

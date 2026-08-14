@@ -43,7 +43,8 @@ class _RequestLocationPreviewState extends State<RequestLocationPreview> {
     final selectedHeight = 168 + ((textScale - 1) * 44).clamp(0.0, 72.0);
     final semanticsLabel = selection == null
         ? 'Elegir ubicación para esta solicitud'
-        : 'Cambiar ubicación. Ubicación actual: ' + selection.displayLabel;
+        : 'Cambiar ubicación para esta solicitud. Ubicación actual: '
+            '${selection.displayLabel}. ${selection.sourceLabel}';
 
     return Semantics(
       button: true,
@@ -75,6 +76,8 @@ class _RequestLocationPreviewState extends State<RequestLocationPreview> {
     RequestLocationSelection selection,
   ) {
     final point = LatLng(selection.latitude, selection.longitude);
+    final compactAction = MediaQuery.sizeOf(context).width < 360 ||
+        MediaQuery.textScalerOf(context).scale(16) > 22;
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -156,22 +159,24 @@ class _RequestLocationPreviewState extends State<RequestLocationPreview> {
                         style: AppTypography.title.copyWith(fontSize: 14),
                       ),
                       Text(
-                        selection.source == RequestLocationSource.gps
-                            ? 'Ubicación GPS'
-                            : 'Punto elegido en el mapa',
+                        selection.sourceLabel,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: AppTypography.meta,
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  'Cambiar',
-                  style: AppTypography.label.copyWith(
-                    color: AppColors.primaryInk,
+                if (!compactAction) ...[
+                  Text(
+                    'Cambiar',
+                    style: AppTypography.label.copyWith(
+                      color: AppColors.primaryInk,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 4),
+                  const SizedBox(width: 4),
+                ],
                 const Icon(
                   Icons.chevron_right_rounded,
                   color: AppColors.primary,

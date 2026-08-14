@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:latlong2/latlong.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
@@ -25,6 +24,7 @@ import '../form_parts/form_part_type_selector.dart';
 import 'category_subcategory_selector_sheet.dart';
 import 'request_location_picker_dialog.dart';
 import 'request_location_preview.dart';
+import 'request_location_seed.dart';
 import 'request_location_selection.dart';
 
 // Parts
@@ -83,6 +83,10 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
   @visibleForTesting
   String? get debugTemporaryVariantId => _temporaryModelId;
 
+  @visibleForTesting
+  double? get debugWizardPage =>
+      _pageController.hasClients ? _pageController.page : null;
+
   Category? _selectedCategory;
   Category? _selectedSubcategory;
   PartType? _selectedPartType;
@@ -120,8 +124,8 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
     }
     await _pageController.animateToPage(
       nextStep - 1,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOutCubic,
+      duration: const Duration(milliseconds: 360),
+      curve: Curves.easeInOutCubicEmphasized,
     );
   }
 
@@ -209,22 +213,19 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
   Future<void> _openRequestLocationPicker() async {
     final isShared = ref.read(isLocationSharedProvider);
     final current = ref.read(userLocationProvider).valueOrNull;
-    final initialSelection = _requestLocation ??
-        (isShared && current != null
-            ? RequestLocationSelection(
-                latitude: current.latitude,
-                longitude: current.longitude,
-                source: RequestLocationSource.gps,
-              )
-            : null);
+    final user = ref.read(authProvider).user;
+    final seed = resolveRequestLocationSeed(
+      requestSelection: _requestLocation,
+      gpsLatitude: isShared ? current?.latitude : null,
+      gpsLongitude: isShared ? current?.longitude : null,
+      profileLatitude: user?.latitude,
+      profileLongitude: user?.longitude,
+    );
 
     final result = await RequestLocationPickerDialog.show(
       context,
-      initialSelection: initialSelection,
-      initialCenter: LatLng(
-        initialSelection?.latitude ?? 14.0723,
-        initialSelection?.longitude ?? -87.1921,
-      ),
+      initialSelection: seed.selection,
+      initialCenter: seed.center,
     );
     if (result != null && mounted) {
       setState(() {
@@ -380,11 +381,9 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
                         border: Border.all(color: AppColors.border),
                       ),
                       child: Text(
-                        _selectedVehicle!.brand +
-                            ' ' +
-                            _selectedVehicle!.model +
-                            ' · ' +
-                            _selectedSubcategory!.name,
+                        '${_selectedVehicle!.brand} '
+                        '${_selectedVehicle!.model} · '
+                        '${_selectedSubcategory!.name}',
                         textAlign: TextAlign.center,
                         style: AppTypography.title,
                       ),
