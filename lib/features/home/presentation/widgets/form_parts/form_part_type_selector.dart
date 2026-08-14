@@ -65,7 +65,7 @@ class _PartTypeTileState extends State<_PartTypeTile> {
               reduceMotion ? Duration.zero : const Duration(milliseconds: 180),
           constraints: const BoxConstraints(minHeight: 76),
           decoration: BoxDecoration(
-            color: widget.isSelected ? AppColors.primaryMuted : Colors.white,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: widget.isSelected ? AppColors.primary : AppColors.border,
@@ -74,7 +74,7 @@ class _PartTypeTileState extends State<_PartTypeTile> {
             boxShadow: widget.isSelected
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.12),
+                      color: AppColors.primary.withValues(alpha: 0.10),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -99,16 +99,12 @@ class _PartTypeTileState extends State<_PartTypeTile> {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: widget.isSelected
-                            ? AppColors.primary.withValues(alpha: 0.12)
-                            : AppColors.grey100,
+                        color: AppColors.grey100,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
                         widget.type.icon,
-                        color: widget.isSelected
-                            ? AppColors.primary
-                            : AppColors.textSecondary,
+                        color: AppColors.textPrimary,
                         size: 23,
                       ),
                     ),
@@ -127,9 +123,7 @@ class _PartTypeTileState extends State<_PartTypeTile> {
                               fontWeight: widget.isSelected
                                   ? FontWeight.w800
                                   : FontWeight.w700,
-                              color: widget.isSelected
-                                  ? AppColors.primary
-                                  : AppColors.textPrimary,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 2),

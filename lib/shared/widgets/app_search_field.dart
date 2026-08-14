@@ -85,12 +85,12 @@ class _AppSearchFieldState extends State<AppSearchField> {
                     height: 32,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryMuted,
+                      color: AppColors.grey100,
                       borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                     ),
                     child: const Icon(
                       Icons.search_rounded,
-                      color: AppColors.primaryInk,
+                      color: AppColors.textPrimary,
                       size: 18,
                     ),
                   ),

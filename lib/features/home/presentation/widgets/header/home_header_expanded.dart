@@ -7,7 +7,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../../core/services/location_service.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
+import '../../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../auth/presentation/providers/auth_state.dart';
 
 class HomeHeaderExpanded extends ConsumerStatefulWidget {
   /// Contenido opcional integrado dentro del bloque de color
@@ -194,7 +196,10 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
   Widget build(BuildContext context) {
     final isLocationShared = ref.watch(isLocationSharedProvider);
     final locationAsync = ref.watch(userLocationProvider);
-    final userName = ref.watch(authProvider).user?.name.trim();
+    final authState = ref.watch(authProvider);
+    final userName = authState.user?.name.trim();
+    final isLoadingAuth = authState.status == AuthStatus.loading ||
+        authState.status == AuthStatus.initial;
 
     final locationText = !isLocationShared
         ? 'Ubicación desactivada'
@@ -380,6 +385,32 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
                               color: Colors.white.withValues(alpha: 0.85),
                               letterSpacing: -0.1,
                             ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else if (isLoadingAuth) ...[
+                    const SizedBox(height: 20),
+                    Padding(
+                      padding:
+                          const EdgeInsets.only(left: 24, right: AppSpacing.lg),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SkeletonBox(
+                            width: 170,
+                            height: 26,
+                            borderRadius: 6,
+                            baseColor: Colors.white.withValues(alpha: 0.22),
+                            highlightColor: Colors.white.withValues(alpha: 0.40),
+                          ),
+                          const SizedBox(height: 8),
+                          SkeletonBox(
+                            width: 210,
+                            height: 14,
+                            borderRadius: 4,
+                            baseColor: Colors.white.withValues(alpha: 0.16),
+                            highlightColor: Colors.white.withValues(alpha: 0.30),
                           ),
                         ],
                       ),

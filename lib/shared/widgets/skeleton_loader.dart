@@ -8,12 +8,16 @@ class SkeletonBox extends StatefulWidget {
   final double width;
   final double height;
   final double borderRadius;
+  final Color? baseColor;
+  final Color? highlightColor;
 
   const SkeletonBox({
     super.key,
     this.width = double.infinity,
     required this.height,
     this.borderRadius = 8,
+    this.baseColor,
+    this.highlightColor,
   });
 
   @override
@@ -41,6 +45,9 @@ class _SkeletonBoxState extends State<SkeletonBox>
 
   @override
   Widget build(BuildContext context) {
+    final base = widget.baseColor ?? AppColors.grey200;
+    final highlight = widget.highlightColor ?? AppColors.grey100;
+
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
@@ -52,10 +59,10 @@ class _SkeletonBoxState extends State<SkeletonBox>
               return LinearGradient(
                 begin: Alignment(-1 - dx, 0),
                 end: Alignment(1 - dx, 0),
-                colors: const [
-                  AppColors.grey200,
-                  AppColors.grey100,
-                  AppColors.grey200,
+                colors: [
+                  base,
+                  highlight,
+                  base,
                 ],
                 stops: const [0.35, 0.5, 0.65],
               ).createShader(rect);
@@ -63,7 +70,7 @@ class _SkeletonBoxState extends State<SkeletonBox>
             child: Container(
               width: widget.width,
               height: widget.height,
-              color: AppColors.grey200,
+              color: base,
             ),
           ),
         );

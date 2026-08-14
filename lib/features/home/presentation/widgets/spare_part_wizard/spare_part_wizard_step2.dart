@@ -68,10 +68,9 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
               icon: Icons.directions_car_outlined,
               imageUrl: widget.selectedVehicle!.computedBrandLogoUrl,
               eyebrow: 'VEHÍCULO',
-              title: widget.selectedVehicle!.brand +
-                  ' ' +
-                  widget.selectedVehicle!.model,
-              subtitle: 'Año ' + widget.selectedVehicle!.year.toString(),
+              title:
+                  '${widget.selectedVehicle!.brand} ${widget.selectedVehicle!.model}',
+              subtitle: 'Año ${widget.selectedVehicle!.year}',
               actionLabel: 'Cambiar',
               onAction: widget.onEditVehicle,
             ),
@@ -139,21 +138,17 @@ class _SelectorField extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           child: Row(
             children: [
-              // Ícono de "buscar en el catálogo" — este campo abre un
-              // selector explorable, no despliega una lista en el lugar
-              // (por eso no usa unfold_more, que sugiere lo segundo).
               Container(
                 width: 36,
                 height: 36,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: hasValue ? AppColors.primaryMuted : AppColors.grey100,
+                  color: AppColors.grey100,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.search_rounded,
-                  color:
-                      hasValue ? AppColors.primaryInk : AppColors.textSecondary,
+                  color: AppColors.textPrimary,
                   size: 19,
                 ),
               ),

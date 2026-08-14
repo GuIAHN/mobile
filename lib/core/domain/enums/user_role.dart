@@ -26,7 +26,7 @@ enum UserRole {
       this == UserRole.workshop ||
       this == UserRole.store;
 
-  bool get isConsumer => this == UserRole.consumer;
+  bool get isConsumer => this == UserRole.consumer || this == UserRole.unknown;
 
   bool get isAdmin => this == UserRole.admin;
 

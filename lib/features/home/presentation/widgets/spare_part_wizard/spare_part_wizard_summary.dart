@@ -104,7 +104,7 @@ class _SummaryLeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fallback = Icon(icon, color: AppColors.primary, size: 23);
+    final fallback = Icon(icon, color: AppColors.textPrimary, size: 23);
     if (imageUrl != null) {
       return SizedBox(
         key: const Key('wizard-summary-brand-logo'),
@@ -124,7 +124,7 @@ class _SummaryLeading extends StatelessWidget {
       width: 48,
       height: 48,
       decoration: const BoxDecoration(
-        color: AppColors.primaryMuted,
+        color: AppColors.grey100,
         shape: BoxShape.circle,
       ),
       child: fallback,
@@ -152,12 +152,12 @@ class _WizardStepIntro extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(icon, size: 17, color: AppColors.primary),
+            Icon(icon, size: 17, color: AppColors.textSecondary),
             const SizedBox(width: 7),
             Text(
               eyebrow,
               style: AppTypography.overline.copyWith(
-                color: AppColors.primaryInk,
+                color: AppColors.textSecondary,
               ),
             ),
           ],
@@ -201,10 +201,10 @@ class _WizardSectionHeader extends StatelessWidget {
               width: 34,
               height: 34,
               decoration: BoxDecoration(
-                color: AppColors.primaryMuted,
+                color: AppColors.grey100,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, size: 18, color: AppColors.primaryInk),
+              child: Icon(icon, size: 18, color: AppColors.textPrimary),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -254,3 +254,4 @@ class _SectionBadge extends StatelessWidget {
     );
   }
 }
+

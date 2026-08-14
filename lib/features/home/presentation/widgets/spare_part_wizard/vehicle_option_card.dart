@@ -40,9 +40,7 @@ class _VehicleOptionCardState extends State<_VehicleOptionCard> {
               reduceMotion ? Duration.zero : const Duration(milliseconds: 180),
           curve: Curves.easeOut,
           decoration: BoxDecoration(
-            color: widget.isSelected
-                ? AppColors.primaryMuted.withValues(alpha: 0.58)
-                : AppColors.surface,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
             border: Border.all(
               color: widget.isSelected ? AppColors.primary : AppColors.border,
@@ -51,7 +49,7 @@ class _VehicleOptionCardState extends State<_VehicleOptionCard> {
             boxShadow: [
               BoxShadow(
                 color: widget.isSelected
-                    ? AppColors.primary.withValues(alpha: 0.12)
+                    ? AppColors.primary.withValues(alpha: 0.10)
                     : Colors.black.withValues(alpha: 0.04),
                 blurRadius: widget.isSelected ? 18 : 12,
                 offset: const Offset(0, 6),

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -91,9 +93,8 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
     }
   }
 
-  String get _title => widget.serviceType == ServiceType.workshops
-      ? 'Talleres'
-      : 'Mecánicos';
+  String get _title =>
+      widget.serviceType == ServiceType.workshops ? 'Talleres' : 'Mecánicos';
 
   @override
   Widget build(BuildContext context) {
@@ -103,6 +104,7 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
     final user = ref.watch(authProvider).user;
     final isConsumer = user == null || user.role.isConsumer;
     final topInset = MediaQuery.of(context).padding.top;
+    final titleRowHeight = _titleRowHeight(context);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -118,9 +120,10 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
             SliverPersistentHeader(
               pinned: true,
               delegate: _StickyHeaderDelegate(
-                extent: topInset + _kTitleRowHeight + _kSearchRowHeight,
+                extent: topInset + titleRowHeight + _kSearchRowHeight,
                 child: _StickyHeaderContent(
                   title: _title,
+                  titleRowHeight: titleRowHeight,
                   searchController: _searchController,
                   hintText: widget.serviceType.hint,
                   activeFilters: filters.activeCount,
@@ -134,7 +137,7 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
               const SliverToBoxAdapter(child: VehicleCompatibilityBar()),
             SliverToBoxAdapter(
               child: HomeListHeader(
-                itemCount: filteredItemsAsync.value?.length ?? 0,
+                itemCount: filteredItemsAsync.valueOrNull?.length ?? 0,
                 hasActiveFilters: filters.activeCount > 0,
               ),
             ),
@@ -194,16 +197,35 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
       ),
     );
   }
+
+  double _titleRowHeight(BuildContext context) {
+    final style = AppTypography.h1;
+    final scaledLineHeight = MediaQuery.textScalerOf(context).scale(
+          style.fontSize ?? 22,
+        ) *
+        (style.height ?? 1);
+
+    return math.max(
+      _kTitleRowHeight,
+      _kTitleTopPadding + math.max(_kBackButtonSize, scaledLineHeight),
+    );
+  }
 }
 
-const double _kTitleRowHeight = 52;
-const double _kSearchRowHeight = 72;
+const double _kTitleRowHeight = 56;
+const double _kTitleTopPadding = 8;
+const double _kBackButtonSize = 48;
+// AppSearchField mide 68 dp: 12 dp de padding superior, 52 dp del control
+// y 4 dp de padding inferior. El extent del sliver debe coincidir exactamente
+// con la altura pintada por su hijo o Flutter invalida la geometría.
+const double _kSearchRowHeight = 68;
 
 /// Header fijo: fila de título + botón de regreso, y buscador con filtros.
 /// Permanece visible mientras se hace scroll por los resultados para que la
 /// búsqueda siga siendo alcanzable.
 class _StickyHeaderContent extends StatelessWidget {
   final String title;
+  final double titleRowHeight;
   final TextEditingController searchController;
   final String hintText;
   final int activeFilters;
@@ -212,6 +234,7 @@ class _StickyHeaderContent extends StatelessWidget {
 
   const _StickyHeaderContent({
     required this.title,
+    required this.titleRowHeight,
     required this.searchController,
     required this.hintText,
     required this.activeFilters,
@@ -229,9 +252,14 @@ class _StickyHeaderContent extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              height: _kTitleRowHeight,
+              height: titleRowHeight,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 20, 0),
+                padding: const EdgeInsets.fromLTRB(
+                  12,
+                  _kTitleTopPadding,
+                  20,
+                  0,
+                ),
                 child: Row(
                   children: [
                     IconButton(
@@ -242,7 +270,14 @@ class _StickyHeaderContent extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    Text(title, style: AppTypography.h1),
+                    Expanded(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.h1,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -353,8 +388,8 @@ class _EmptyResultsState extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text('Restablecer filtros', style: AppTypography.label
-                  .copyWith(color: Colors.white)),
+              child: Text('Restablecer filtros',
+                  style: AppTypography.label.copyWith(color: Colors.white)),
             ),
           ),
         ),
@@ -365,7 +400,8 @@ class _EmptyResultsState extends StatelessWidget {
       padding: EdgeInsets.only(top: 24),
       child: EmptyState(
         title: 'Aún no hay resultados en tu zona',
-        subtitle: 'Vuelve a intentarlo más tarde o amplía el radio de búsqueda.',
+        subtitle:
+            'Vuelve a intentarlo más tarde o amplía el radio de búsqueda.',
         icon: Icons.explore_off_rounded,
       ),
     );

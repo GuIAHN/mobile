@@ -63,10 +63,9 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
               icon: Icons.directions_car_outlined,
               imageUrl: widget.selectedVehicle!.computedBrandLogoUrl,
               eyebrow: 'VEHÍCULO',
-              title: widget.selectedVehicle!.brand +
-                  ' ' +
-                  widget.selectedVehicle!.model,
-              subtitle: 'Año ' + widget.selectedVehicle!.year.toString(),
+              title:
+                  '${widget.selectedVehicle!.brand} ${widget.selectedVehicle!.model}',
+              subtitle: 'Año ${widget.selectedVehicle!.year}',
               actionLabel: 'Cambiar',
               onAction: widget.onEditVehicle ?? () {},
             ),
@@ -103,7 +102,7 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
               maxLength,
             }) {
               return Text(
-                currentLength.toString() + '/240',
+                '$currentLength/240',
                 style: AppTypography.meta,
               );
             },
@@ -172,7 +171,7 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
     final subcategory = widget.selectedSubcategory?.name;
     if (category == null) return subcategory ?? 'Repuesto';
     if (subcategory == null || category == subcategory) return category;
-    return category + ' › ' + subcategory;
+    return '$category › $subcategory';
   }
 
   Widget _buildPhotoArea(BuildContext context) {
