@@ -55,7 +55,7 @@ class ErrorView extends StatelessWidget {
                 label: retryLabel,
                 onPressed: onRetry,
                 leadingIcon: Icons.refresh_rounded,
-                width: 200,
+                width: 248,
               ),
             ],
           ],

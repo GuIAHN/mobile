@@ -213,12 +213,7 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
 }
 
 const double _kTitleRowHeight = 56;
-const double _kTitleTopPadding = 8;
-const double _kBackButtonSize = 48;
-// AppSearchField mide 68 dp: 12 dp de padding superior, 52 dp del control
-// y 4 dp de padding inferior. El extent del sliver debe coincidir exactamente
-// con la altura pintada por su hijo o Flutter invalida la geometría.
-const double _kSearchRowHeight = 68;
+const double _kSearchRowHeight = 72;
 
 /// Header fijo: fila de título + botón de regreso, y buscador con filtros.
 /// Permanece visible mientras se hace scroll por los resultados para que la
@@ -314,7 +309,10 @@ class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    return child;
+    // Persistent headers receive loose box constraints. Expand the visual
+    // child to the same extent advertised by this delegate so Flutter never
+    // computes a larger layoutExtent than paintExtent.
+    return SizedBox.expand(child: child);
   }
 
   @override

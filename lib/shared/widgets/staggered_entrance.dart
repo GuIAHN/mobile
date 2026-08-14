@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 /// Anima la entrada de un ítem de lista con fade+slide corto, escalonado
@@ -38,18 +40,35 @@ class _StaggeredEntranceState extends State<StaggeredEntrance>
     begin: const Offset(0, 0.06),
     end: Offset.zero,
   ).animate(_fade);
+  Timer? _delayTimer;
+  bool _hasStarted = false;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _delayTimer?.cancel();
+      _controller.value = 1;
+      _hasStarted = true;
+      return;
+    }
+    if (_hasStarted) return;
+
+    _hasStarted = true;
     final delayMs = (widget.index * widget.staggerMs).clamp(0, 240);
-    Future.delayed(Duration(milliseconds: delayMs), () {
+    if (delayMs == 0) {
+      _controller.forward();
+      return;
+    }
+    _delayTimer = Timer(Duration(milliseconds: delayMs), () {
       if (mounted) _controller.forward();
     });
   }
 
   @override
   void dispose() {
+    _delayTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
