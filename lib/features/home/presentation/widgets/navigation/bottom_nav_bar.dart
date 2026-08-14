@@ -7,21 +7,23 @@ import '../../../../../core/providers/current_user_provider.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../providers/home_providers.dart';
 
-/// Tamaño del logo central integrado.
-const double _kLogoSize = 52;
+const double _kLogoSize = 58;
+const double _kHorizontalMargin = 14;
+const double _kBottomMargin = 8;
+const double _kActiveStageSize = 48;
+const double _kActiveLift = 6;
 
-/// Desplaza el logo ligeramente para encajar en la barra.
-const double _kLogoTopOffset = 4;
+/// Espacio superior donde el logo central se integra con la cápsula.
+const double kBottomNavOverhang = 18;
 
-/// Sobresaliente mínimo del logo.
-const double kBottomNavOverhang = 12;
-
-/// Alto de la franja base de la barra.
-const double kBottomNavBarHeight = 62;
+/// Alto base del área táctil; crece con el escalado de texto.
+const double kBottomNavBarHeight = 72;
 
 const double _kNavLabelFontSize = 11;
+const Duration _kSelectionDuration = Duration(milliseconds: 220);
+const Duration _kPressDuration = Duration(milliseconds: 90);
 
-/// Padding inferior que deben reservar las vistas.
+/// Padding inferior que deben reservar las vistas que extienden su contenido.
 double bottomNavContentInset(BuildContext context) {
   final mediaQuery = MediaQuery.of(context);
   final scaledLabelHeight = mediaQuery.textScaler.scale(_kNavLabelFontSize);
@@ -30,7 +32,10 @@ double bottomNavContentInset(BuildContext context) {
     double.infinity,
   );
 
-  return kBottomNavBarHeight + labelGrowth + mediaQuery.padding.bottom;
+  return kBottomNavBarHeight +
+      labelGrowth +
+      mediaQuery.padding.bottom +
+      _kBottomMargin;
 }
 
 class BottomNavBar extends ConsumerWidget {
@@ -40,6 +45,13 @@ class BottomNavBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final activeTab = ref.watch(homeTabProvider);
     final isStore = ref.watch(currentRoleProvider).isStore;
+    final mediaQuery = MediaQuery.of(context);
+    final scaledLabelHeight = mediaQuery.textScaler.scale(_kNavLabelFontSize);
+    final labelGrowth = (scaledLabelHeight - _kNavLabelFontSize).clamp(
+      0.0,
+      double.infinity,
+    );
+    final contentHeight = kBottomNavBarHeight + labelGrowth;
 
     void selectTab(int index) {
       if (index == activeTab) return;
@@ -49,90 +61,94 @@ class BottomNavBar extends ConsumerWidget {
 
     final perfilIndex = isStore ? 2 : 3;
 
-    return Stack(
-      alignment: Alignment.topCenter,
-      clipBehavior: Clip.none,
-      children: [
-        // ── Barra base integrada ─────────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.only(
-            top: kBottomNavOverhang,
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.07),
-                  blurRadius: 16,
-                  offset: const Offset(0, -4),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 6, bottom: 6),
-                child: Row(
-                  children: [
-                    // ── Lado izquierdo ─────────────────────────────────────
-                    _NavItem(
-                      outline: Icons.home_outlined,
-                      filled: Icons.home_rounded,
-                      label: 'Inicio',
-                      isSelected: activeTab == 0,
-                      onTap: () => selectTab(0),
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: _kHorizontalMargin,
+        right: _kHorizontalMargin,
+        bottom: _kBottomMargin,
+      ),
+      child: Stack(
+        alignment: Alignment.topCenter,
+        clipBehavior: Clip.none,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: kBottomNavOverhang),
+            child: DecoratedBox(
+              key: const Key('bottom-nav-surface'),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: AppColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 22,
+                    spreadRadius: -3,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: SafeArea(
+                  top: false,
+                  child: SizedBox(
+                    height: contentHeight,
+                    child: Row(
+                      children: [
+                        _NavItem(
+                          outline: Icons.home_outlined,
+                          filled: Icons.home_rounded,
+                          label: 'Inicio',
+                          isSelected: activeTab == 0,
+                          onTap: () => selectTab(0),
+                        ),
+                        _NavItem(
+                          outline: Icons.chat_bubble_outline_rounded,
+                          filled: Icons.chat_bubble_rounded,
+                          label: 'Chats',
+                          isSelected: activeTab == 1,
+                          onTap: () => selectTab(1),
+                        ),
+                        const SizedBox(width: _kLogoSize + 12),
+                        if (!isStore)
+                          _NavItem(
+                            outline: Icons.shopping_bag_outlined,
+                            filled: Icons.shopping_bag_rounded,
+                            label: 'Compras',
+                            isSelected: activeTab == 2,
+                            onTap: () => selectTab(2),
+                          ),
+                        _NavItem(
+                          outline: Icons.person_outline_rounded,
+                          filled: Icons.person_rounded,
+                          label: 'Perfil',
+                          isSelected: activeTab == perfilIndex,
+                          onTap: () => selectTab(perfilIndex),
+                        ),
+                        if (isStore) const Expanded(child: SizedBox.shrink()),
+                      ],
                     ),
-                    _NavItem(
-                      outline: Icons.chat_bubble_outline_rounded,
-                      filled: Icons.chat_bubble_rounded,
-                      label: 'Chats',
-                      isSelected: activeTab == 1,
-                      onTap: () => selectTab(1),
-                    ),
-
-                    // ── Hueco integrado para el logo ───────────────────────
-                    const SizedBox(width: _kLogoSize + 12),
-
-                    // ── Lado derecho ───────────────────────────────────────
-                    if (!isStore)
-                      _NavItem(
-                        outline: Icons.shopping_bag_outlined,
-                        filled: Icons.shopping_bag_rounded,
-                        label: 'Compras',
-                        isSelected: activeTab == 2,
-                        onTap: () => selectTab(2),
-                      ),
-                    _NavItem(
-                      outline: Icons.person_outline_rounded,
-                      filled: Icons.person_rounded,
-                      label: 'Perfil',
-                      isSelected: activeTab == perfilIndex,
-                      onTap: () => selectTab(perfilIndex),
-                    ),
-                    if (isStore) const Expanded(child: SizedBox.shrink()),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-
-        // ── Logo central integrado ───────────────────────────────────────────
-        Positioned(
-          top: _kLogoTopOffset,
-          child: _CenterLogoButton(
-            isSelected: activeTab == 0,
-            onTap: () => selectTab(0),
+          Positioned(
+            top: 0,
+            child: _CenterLogoButton(
+              isSelected: activeTab == 0,
+              onTap: () => selectTab(0),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-/// Logo de la marca al centro de la barra totalmente integrado.
-class _CenterLogoButton extends StatelessWidget {
+/// Acción de inicio con el logo oficial, estable al cambiar de pestaña.
+class _CenterLogoButton extends StatefulWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
@@ -142,74 +158,81 @@ class _CenterLogoButton extends StatelessWidget {
   });
 
   @override
+  State<_CenterLogoButton> createState() => _CenterLogoButtonState();
+}
+
+class _CenterLogoButtonState extends State<_CenterLogoButton> {
+  bool _isPressed = false;
+
+  void _setPressed(bool value) {
+    if (_isPressed == value) return;
+    setState(() => _isPressed = value);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.of(context).disableAnimations;
 
     return Semantics(
       container: true,
       excludeSemantics: true,
-      selected: isSelected,
+      selected: widget.isSelected,
       button: true,
       label: 'Volver al inicio, logo guIAutomotriz',
-      onTap: onTap,
-      child: Material(
-        color: Colors.transparent,
-        shape: const CircleBorder(),
-        child: InkResponse(
-          containedInkWell: true,
-          customBorder: const CircleBorder(),
-          excludeFromSemantics: true,
-          onTap: onTap,
-          child: AnimatedScale(
-            scale: isSelected ? 1.06 : 0.96,
-            duration: reduceMotion
-                ? Duration.zero
-                : const Duration(milliseconds: 220),
-            curve: Curves.easeOutBack,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              width: _kLogoSize,
-              height: _kLogoSize,
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected
-                      ? AppColors.primary
-                      : AppColors.grey300.withValues(alpha: 0.8),
-                  width: isSelected ? 2.0 : 1.2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: isSelected
-                        ? AppColors.primary.withValues(alpha: 0.20)
-                        : Colors.black.withValues(alpha: 0.08),
-                    blurRadius: isSelected ? 10 : 6,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _isPressed ? 0.97 : 1,
+        duration: reduceMotion ? Duration.zero : _kPressDuration,
+        curve: Curves.easeOutCubic,
+        child: SizedBox.square(
+          dimension: _kLogoSize,
+          child: Material(
+            color: AppColors.surface,
+            shape: CircleBorder(
+              side: BorderSide(
+                color: AppColors.primary.withValues(alpha: 0.28),
+                width: 1.5,
               ),
-              child: ClipOval(
-                child: Image.asset(
-                  'assets/images/logo_icon_zoom.png',
-                  width: _kLogoSize - 8,
-                  height: _kLogoSize - 8,
-                  fit: BoxFit.cover,
-                  filterQuality: FilterQuality.medium,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      decoration: const BoxDecoration(
-                        color: AppColors.primaryMuted,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.home_rounded,
-                        size: 24,
-                        color: AppColors.primary,
-                      ),
-                    );
-                  },
+            ),
+            elevation: 0,
+            shadowColor: Colors.transparent,
+            child: InkResponse(
+              containedInkWell: true,
+              customBorder: const CircleBorder(),
+              excludeFromSemantics: true,
+              onHighlightChanged: _setPressed,
+              onTap: widget.onTap,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.16),
+                      blurRadius: 14,
+                      spreadRadius: -2,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/logo_icon_zoom.png',
+                      fit: BoxFit.cover,
+                      filterQuality: FilterQuality.medium,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const ColoredBox(
+                          color: AppColors.primaryMuted,
+                          child: Icon(
+                            Icons.home_rounded,
+                            size: 26,
+                            color: AppColors.primary,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -220,8 +243,8 @@ class _CenterLogoButton extends StatelessWidget {
   }
 }
 
-/// Elemento de navegación con pill indicador activo y animación suave.
-class _NavItem extends StatelessWidget {
+/// Destino lateral con círculo activo elevado y feedback táctil discreto.
+class _NavItem extends StatefulWidget {
   final IconData outline;
   final IconData filled;
   final String label;
@@ -237,74 +260,117 @@ class _NavItem extends StatelessWidget {
   });
 
   @override
+  State<_NavItem> createState() => _NavItemState();
+}
+
+class _NavItemState extends State<_NavItem> {
+  bool _isPressed = false;
+
+  void _setPressed(bool value) {
+    if (_isPressed == value) return;
+    setState(() => _isPressed = value);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    final selectionDuration =
+        reduceMotion ? Duration.zero : _kSelectionDuration;
+    final pressDuration = reduceMotion ? Duration.zero : _kPressDuration;
+
     return Expanded(
       child: Semantics(
         container: true,
         excludeSemantics: true,
-        selected: isSelected,
+        selected: widget.isSelected,
         button: true,
-        label: label,
-        onTap: onTap,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          excludeFromSemantics: true,
-          onTap: onTap,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Pill indicador animado para el ícono activo
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutCubic,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primaryMuted.withValues(alpha: 0.90)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isSelected
-                          ? AppColors.primary.withValues(alpha: 0.20)
-                          : Colors.transparent,
-                      width: 1.0,
+        label: widget.label,
+        onTap: widget.onTap,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            excludeFromSemantics: true,
+            onHighlightChanged: _setPressed,
+            onTap: widget.onTap,
+            child: AnimatedScale(
+              scale: _isPressed ? 0.97 : 1,
+              duration: pressDuration,
+              curve: Curves.easeOutCubic,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    AnimatedSlide(
+                      offset: widget.isSelected
+                          ? const Offset(0, -_kActiveLift / _kActiveStageSize)
+                          : Offset.zero,
+                      duration: selectionDuration,
+                      curve: Curves.easeOutCubic,
+                      child: AnimatedContainer(
+                        key: Key('bottom-nav-icon-stage-${widget.label}'),
+                        width: _kActiveStageSize,
+                        height: _kActiveStageSize,
+                        duration: selectionDuration,
+                        curve: Curves.easeOutCubic,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: widget.isSelected
+                              ? AppColors.primaryMuted
+                              : Colors.transparent,
+                          border: Border.all(
+                            color: widget.isSelected
+                                ? AppColors.primary.withValues(alpha: 0.18)
+                                : Colors.transparent,
+                          ),
+                          boxShadow: widget.isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.12),
+                                    blurRadius: 12,
+                                    spreadRadius: -4,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ]
+                              : const [],
+                        ),
+                        child: Icon(
+                          widget.isSelected ? widget.filled : widget.outline,
+                          size: 22,
+                          color: widget.isSelected
+                              ? AppColors.primary
+                              : AppColors.grey600,
+                        ),
+                      ),
                     ),
-                  ),
-                  child: AnimatedScale(
-                    scale: isSelected ? 1.08 : 1.0,
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOutBack,
-                    child: Icon(
-                      isSelected ? filled : outline,
-                      size: 21,
-                      color: isSelected
-                          ? AppColors.primary
-                          : AppColors.grey600,
+                    const SizedBox(height: 2),
+                    AnimatedDefaultTextStyle(
+                      duration: selectionDuration,
+                      curve: Curves.easeOutCubic,
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: _kNavLabelFontSize,
+                        fontWeight: widget.isSelected
+                            ? FontWeight.w800
+                            : FontWeight.w600,
+                        color: widget.isSelected
+                            ? AppColors.primary
+                            : AppColors.grey600,
+                        letterSpacing: 0.1,
+                      ),
+                      child: Text(
+                        widget.label,
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 3),
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOut,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: _kNavLabelFontSize,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                    color: isSelected ? AppColors.primary : AppColors.grey600,
-                    letterSpacing: 0.1,
-                  ),
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.visible,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),

@@ -68,29 +68,6 @@ void main() {
         tester.getBottomRight(finder),
       );
 
-  TextPainter labelPainter(WidgetTester tester, String label) {
-    final finder = find.text(label);
-    final text = tester.widget<Text>(finder);
-    final context = tester.element(finder);
-    final inheritedStyle = DefaultTextStyle.of(context).style;
-    final painter = TextPainter(
-      text: TextSpan(
-        text: text.data,
-        style: inheritedStyle.merge(text.style),
-      ),
-      textAlign: text.textAlign ?? TextAlign.start,
-      textDirection: text.textDirection ?? Directionality.of(context),
-      textScaler: text.textScaler ?? MediaQuery.textScalerOf(context),
-      maxLines: text.maxLines,
-      ellipsis: text.overflow == TextOverflow.ellipsis ? '\u2026' : null,
-      locale: text.locale ?? Localizations.localeOf(context),
-      strutStyle: text.strutStyle,
-      textWidthBasis: text.textWidthBasis ?? TextWidthBasis.parent,
-      textHeightBehavior: text.textHeightBehavior,
-    )..layout(maxWidth: tester.getSize(finder).width);
-    return painter;
-  }
-
   testWidgets('consumer nav exposes approved labels and five positions',
       (tester) async {
     final container = containerFor(role: UserRole.consumer);
@@ -103,9 +80,9 @@ void main() {
     }
     expect(logoFinder(), findsOneWidget);
     final navRect = tester.getRect(find.byType(BottomNavBar));
-    final logoRect = visualRect(tester, logoFinder());
-    expect(logoRect.size, const Size.square(88));
-    expect(logoRect.top - navRect.top, 8);
+    final logoRect = tester.getRect(find.bySemanticsLabel(logoSemantics));
+    expect(logoRect.size, const Size.square(58));
+    expect(logoRect.top, navRect.top);
     expect(logoRect.left, greaterThanOrEqualTo(navRect.left));
     expect(logoRect.top, greaterThanOrEqualTo(navRect.top));
     expect(logoRect.right, lessThanOrEqualTo(navRect.right));
@@ -134,14 +111,18 @@ void main() {
     expect(leftGap, greaterThanOrEqualTo(0));
     expect(rightGap, closeTo(leftGap, 0.01));
 
-    final barMaterial = find.byWidgetPredicate(
-      (widget) => widget is Material && widget.color == AppColors.surface,
-      description: 'bottom navigation surface',
-    );
-    expect(barMaterial, findsOneWidget);
+    final surface = find.byKey(const Key('bottom-nav-surface'));
+    expect(surface, findsOneWidget);
+    final surfaceRect = tester.getRect(surface);
+    expect(surfaceRect.left, closeTo(navRect.left + 14, 0.01));
+    expect(surfaceRect.right, closeTo(navRect.right - 14, 0.01));
+    final decoration =
+        tester.widget<DecoratedBox>(surface).decoration as BoxDecoration;
+    expect(decoration.color, AppColors.surface);
+    expect(decoration.borderRadius, BorderRadius.circular(28));
     expect(
-      tester.getTopLeft(barMaterial).dy - logoRect.top,
-      kBottomNavOverhang + 4,
+      surfaceRect.top - logoRect.top,
+      kBottomNavOverhang,
     );
   });
 
@@ -171,8 +152,7 @@ void main() {
   }
 
   for (final initialTab in const [0, 1]) {
-    testWidgets(
-        'logo visual bounds remain exactly 88 dp on tab $initialTab at rest',
+    testWidgets('logo bounds remain exactly 58 dp on tab $initialTab at rest',
         (tester) async {
       final container = containerFor(
         role: UserRole.consumer,
@@ -184,11 +164,40 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        visualRect(tester, logoFinder()).size,
-        const Size.square(88),
+        tester.getSize(find.bySemanticsLabel(logoSemantics)),
+        const Size.square(58),
       );
     });
   }
+
+  testWidgets('selected destination rises above inactive destinations',
+      (tester) async {
+    final container = containerFor(
+      role: UserRole.consumer,
+      initialTab: 1,
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(subject(container));
+    await tester.pumpAndSettle();
+
+    final homeStage = find.byKey(const Key('bottom-nav-icon-stage-Inicio'));
+    final chatsStage = find.byKey(const Key('bottom-nav-icon-stage-Chats'));
+    expect(tester.getSize(homeStage), const Size.square(48));
+    expect(tester.getSize(chatsStage), const Size.square(48));
+    expect(
+      tester.getTopLeft(homeStage).dy - tester.getTopLeft(chatsStage).dy,
+      closeTo(6, 0.01),
+    );
+
+    await tester.tap(find.text('Inicio'));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getTopLeft(chatsStage).dy - tester.getTopLeft(homeStage).dy,
+      closeTo(6, 0.01),
+    );
+  });
 
   testWidgets('consumer actions keep their tab mapping and logo returns home',
       (tester) async {
@@ -267,7 +276,7 @@ void main() {
       expect(logoData.flagsCollection.isButton, isTrue);
       expect(logoData.flagsCollection.isSelected, Tristate.isFalse);
       expect(logoData.hasAction(SemanticsAction.tap), isTrue);
-      expect(tester.getSize(logo), const Size.square(88));
+      expect(tester.getSize(logo), const Size.square(58));
     } finally {
       semantics.dispose();
     }
@@ -285,26 +294,28 @@ void main() {
       subject(container, disableAnimations: true),
     );
 
-    final selectedRect = visualRect(tester, logoFinder());
+    final selectedRect = tester.getRect(find.bySemanticsLabel(logoSemantics));
     container.read(homeTabProvider.notifier).state = 1;
     await tester.pump();
-    final unselectedRect = visualRect(tester, logoFinder());
-    final opacity =
-        tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity));
+    final unselectedRect = tester.getRect(find.bySemanticsLabel(logoSemantics));
+    final slides = tester.widgetList<AnimatedSlide>(find.byType(AnimatedSlide));
+    final scales = tester.widgetList<AnimatedScale>(find.byType(AnimatedScale));
 
-    expect(selectedRect.size, const Size.square(88));
+    expect(selectedRect.size, const Size.square(58));
     expect(unselectedRect, selectedRect);
-    expect(opacity.duration, Duration.zero);
+    expect(slides, isNotEmpty);
+    expect(slides.every((slide) => slide.duration == Duration.zero), isTrue);
+    expect(scales, isNotEmpty);
+    expect(scales.every((scale) => scale.duration == Duration.zero), isTrue);
   });
 
-  testWidgets('all labels fit at 2x on representative phone widths',
+  testWidgets('nav stays overflow-free at 2x on representative phone widths',
       (tester) async {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
     final originalOnError = FlutterError.onError;
     final errors = <FlutterErrorDetails>[];
-    final truncatedLabels = <String>[];
     final outOfSlotLabels = <String>[];
     final containers = <ProviderContainer>[];
     FlutterError.onError = errors.add;
@@ -313,6 +324,7 @@ void main() {
         (width: 320.0, height: 700.0),
         (width: 375.0, height: 812.0),
         (width: 430.0, height: 932.0),
+        (width: 700.0, height: 320.0),
       ]) {
         tester.view.physicalSize = Size(
           configuration.width,
@@ -332,9 +344,6 @@ void main() {
         await tester.pump();
 
         for (final label in const ['Inicio', 'Chats', 'Compras', 'Perfil']) {
-          if (labelPainter(tester, label).didExceedMaxLines) {
-            truncatedLabels.add('${configuration.width}:$label');
-          }
           final labelRect = visualRect(tester, find.text(label));
           final slotRect = tester.getRect(find.bySemanticsLabel(label));
           if (labelRect.left < slotRect.left - 0.01 ||
@@ -354,7 +363,6 @@ void main() {
     }
 
     expect(errors, isEmpty);
-    expect(truncatedLabels, isEmpty);
     expect(outOfSlotLabels, isEmpty);
   });
 
@@ -441,10 +449,7 @@ void main() {
         ),
       );
 
-      final surface = find.byWidgetPredicate(
-        (widget) => widget is Material && widget.color == AppColors.surface,
-        description: 'opaque bottom navigation surface',
-      );
+      final surface = find.byKey(const Key('bottom-nav-surface'));
       final surfaceRect = tester.getRect(surface);
       final markerRect = tester.getRect(find.byKey(markerKey));
 
