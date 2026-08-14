@@ -412,6 +412,8 @@ class _NavItemSlotState extends State<_NavItemSlot> {
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
           excludeFromSemantics: true,
+          overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+          splashFactory: NoSplash.splashFactory,
           onHighlightChanged: _setPressed,
           onTap: widget.onTap,
           child: AnimatedScale(
@@ -515,6 +517,8 @@ class _CenterLogoButtonState extends State<_CenterLogoButton> {
               containedInkWell: true,
               customBorder: const CircleBorder(),
               excludeFromSemantics: true,
+              overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+              splashFactory: NoSplash.splashFactory,
               onHighlightChanged: _setPressed,
               onTap: widget.onTap,
               child: DecoratedBox(
