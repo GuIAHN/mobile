@@ -21,6 +21,7 @@ import '../../features/chat/presentation/pages/chat_inbox_page.dart';
 import '../../features/chat/presentation/pages/chat_thread_detail_page.dart';
 import '../../features/chat/presentation/pages/chat_conversation_page.dart';
 import '../../features/reviews/presentation/pages/provider_reviews_page.dart';
+import '../../features/notifications/presentation/pages/notifications_page.dart';
 import 'route_names.dart';
 
 class RouterNotifier extends ChangeNotifier {
@@ -124,6 +125,11 @@ class AppRouter {
             builder: (context, state) => const HomePage(),
           ),
           GoRoute(
+            path: RouteNames.notifications,
+            name: 'notifications',
+            builder: (context, state) => const NotificationsPage(),
+          ),
+          GoRoute(
             path: RouteNames.workshops,
             name: 'workshops',
             builder: (context, state) =>
@@ -156,7 +162,8 @@ class AppRouter {
             name: 'providerReviews',
             builder: (context, state) {
               final id = state.pathParameters['targetId']!;
-              final conversationId = state.uri.queryParameters['conversationId'];
+              final conversationId =
+                  state.uri.queryParameters['conversationId'];
               return ProviderReviewsPage(
                 targetId: id,
                 conversationId: conversationId,
@@ -200,7 +207,8 @@ class AppRouter {
                     path: ':conversationId',
                     name: 'chatConversation',
                     builder: (context, state) {
-                      final conversationId = state.pathParameters['conversationId']!;
+                      final conversationId =
+                          state.pathParameters['conversationId']!;
                       return ChatConversationPage(
                         conversationId: conversationId,
                       );

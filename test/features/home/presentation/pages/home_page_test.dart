@@ -168,6 +168,10 @@ void main() {
           path: RouteNames.mechanics,
           builder: (_, __) => const Scaffold(body: Text('mechanics-route')),
         ),
+        GoRoute(
+          path: RouteNames.notifications,
+          builder: (_, __) => const Scaffold(body: Text('notifications-route')),
+        ),
       ],
     );
 
@@ -246,6 +250,26 @@ void main() {
     expect(header.hasUnreadNotifications, isFalse);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('notification bell opens the unread notifications route',
+      (tester) async {
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      loadUnreadNotifications: (ref) async => 2,
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+    await tester.tap(
+      find.bySemanticsLabel(
+        'Notificaciones, tienes notificaciones sin leer',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('notifications-route'), findsOneWidget);
+  }, semanticsEnabled: true);
 
   testWidgets('consumer Home places provider groups in keyed surfaces',
       (tester) async {

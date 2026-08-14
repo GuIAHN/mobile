@@ -20,6 +20,9 @@ abstract class RouteNames {
   static const String workshops = '/workshops';
   static const String mechanics = '/mechanics-list';
 
+  // ── Notificaciones ───────────────────────────────────────────────────────
+  static const String notifications = '/notifications';
+
   // ── Proveedores: Mecánicos y Talleres ─────────────────────────────────────
   static const String mechanicDetail = '/mechanics/:id';
   static String mechanicDetailPath(String id) => '/mechanics/$id';
