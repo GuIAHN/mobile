@@ -25,10 +25,12 @@ import 'package:guiautomotriz_mobile/features/home/presentation/pages/home_page.
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/promo_carousel.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/sections/top_providers_section.dart';
+import 'package:guiautomotriz_mobile/features/home/presentation/widgets/header/home_header_expanded.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/spare_part_wizard_page.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/store_dashboard/store_dashboard_view.dart';
 import 'package:guiautomotriz_mobile/features/reports/domain/entities/store_dashboard.dart';
 import 'package:guiautomotriz_mobile/features/reports/presentation/providers/reports_provider.dart';
+import 'package:guiautomotriz_mobile/features/notifications/presentation/providers/notifications_providers.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/domain/entities/user_car.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/presentation/providers/vehicle_providers.dart';
 import 'package:guiautomotriz_mobile/shared/widgets/skeleton_loader.dart';
@@ -116,6 +118,7 @@ void main() {
     _TestAuthNotifier? authNotifier,
     ServiceType? initialServiceType,
     Future<List<Promo>> Function(Ref ref, ServiceType type)? loadPromos,
+    Future<int> Function(Ref ref)? loadUnreadNotifications,
   }) {
     final notifier = authNotifier ??
         _TestAuthNotifier(
@@ -132,6 +135,9 @@ void main() {
         locationServiceProvider.overrideWithValue(_FakeLocationService()),
         adsAsPromosProvider.overrideWith(
           loadPromos ?? (ref, type) async => const [],
+        ),
+        unreadNotificationsCountProvider.overrideWith(
+          loadUnreadNotifications ?? (ref) async => 0,
         ),
         topProvidersProvider.overrideWith((ref, type) {
           return type == ServiceType.workshops ? workshops : mechanics;
@@ -205,6 +211,41 @@ void main() {
             widget is ListView && widget.scrollDirection == Axis.vertical,
         description: 'Home vertical ListView',
       );
+
+  testWidgets('notification count activates the Home bell indicator',
+      (tester) async {
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      loadUnreadNotifications: (ref) async => 7,
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+
+    final header = tester.widget<HomeHeaderExpanded>(
+      find.byType(HomeHeaderExpanded),
+    );
+    expect(header.hasUnreadNotifications, isTrue);
+  });
+
+  testWidgets('notification count errors leave Home usable without a dot',
+      (tester) async {
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      loadUnreadNotifications: (ref) => Future<int>.error('offline'),
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+
+    final header = tester.widget<HomeHeaderExpanded>(
+      find.byType(HomeHeaderExpanded),
+    );
+    expect(header.hasUnreadNotifications, isFalse);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('consumer Home places provider groups in keyed surfaces',
       (tester) async {

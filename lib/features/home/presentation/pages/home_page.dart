@@ -15,7 +15,7 @@ import '../widgets/unapproved_overlay.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../chat/presentation/pages/chat_inbox_page.dart';
 import '../../../chat/presentation/pages/mis_compras_page.dart';
-import '../../../chat/presentation/providers/chat_providers.dart';
+import '../../../notifications/presentation/providers/notifications_providers.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/section_header.dart';
 
@@ -105,7 +105,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     final isConsumer = currentRole.isConsumer;
     final promosAsync = ref.watch(adsAsPromosProvider(selectedType));
     final allowedTypes = currentRole.allowedServiceTypes;
-    final hasUnreadChats = ref.watch(hasUnreadChatThreadsProvider);
+    final unreadNotifications = ref.watch(unreadNotificationsCountProvider);
+    final hasUnreadNotifications = (unreadNotifications.valueOrNull ?? 0) > 0;
     // La tienda no tiene garage: aunque isDashboardSelected quede desactualizado
     // (ej. al volver de la lista de mecánicos/talleres), el rol manda.
     final showGarage =
@@ -141,7 +142,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         // ── Header expandido: color sólido hasta la barra de estado
         //    y recorte inferior redondeado ──────────────────────────────
         HomeHeaderExpanded(
-          hasUnreadNotifications: hasUnreadChats,
+          hasUnreadNotifications: hasUnreadNotifications,
           onNotificationsTap: () =>
               ref.read(homeTabProvider.notifier).state = 1,
         ),
