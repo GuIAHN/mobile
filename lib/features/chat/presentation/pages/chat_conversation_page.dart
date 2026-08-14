@@ -141,6 +141,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
           ref.invalidate(
               chatConversationDetailsProvider(widget.conversationId));
           ref.invalidate(myConversationsProvider);
+          ref.invalidate(storeSalesRequestsProvider);
         },
       );
     } finally {
@@ -320,6 +321,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                       ref.invalidate(chatConversationDetailsProvider(
                           widget.conversationId));
                       ref.invalidate(myConversationsProvider);
+                      ref.invalidate(consumerRequestsProvider);
 
                       // Direct fetch for fresh details without awaiting Riverpod future rebuild loop
                       final repo = ref.read(chatRepositoryProvider);
@@ -351,6 +353,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                       ref.invalidate(chatConversationDetailsProvider(
                           widget.conversationId));
                       ref.invalidate(myConversationsProvider);
+                      ref.invalidate(storeSalesRequestsProvider);
                     },
                   );
                 },
@@ -366,8 +369,8 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                     ),
                   );
                   if (res == true && mounted) {
-                    ref.invalidate(chatConversationDetailsProvider(
-                        widget.conversationId));
+                    ref.invalidate(
+                        chatConversationDetailsProvider(widget.conversationId));
                   }
                 },
                 onViewStoreReviewsPressed: () {
@@ -386,8 +389,8 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
               child: messagesAsync.when(
                 loading: () => ListView(
                   reverse: true,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 18, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                   children: const [
                     MessageBubbleSkeleton(),
                     MessageBubbleSkeleton(alignRight: true),
@@ -397,8 +400,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                 error: (err, _) => Center(
                   child: Text(
                     'Error al cargar mensajes: $err',
-                    style:
-                        GoogleFonts.hankenGrotesk(color: AppColors.error),
+                    style: GoogleFonts.hankenGrotesk(color: AppColors.error),
                   ),
                 ),
                 data: (messages) {
@@ -429,8 +431,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
 
             // ── Compose box ───────────────────────────────────────────────
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: Colors.white,
                 border: Border(top: BorderSide(color: AppColors.border)),
@@ -477,9 +478,8 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                         button: true,
                         label: 'Enviar mensaje',
                         child: GestureDetector(
-                          onTap: (_canSend && !_isSending)
-                              ? _sendMessage
-                              : null,
+                          onTap:
+                              (_canSend && !_isSending) ? _sendMessage : null,
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 150),
                             padding: const EdgeInsets.all(12),

@@ -17,9 +17,11 @@ import '../../features/home/presentation/pages/providers_list_page.dart';
 import '../../core/domain/enums/service_type.dart';
 import '../../features/home/presentation/pages/mechanic_detail_page.dart';
 import '../../features/home/presentation/pages/store_detail_page.dart';
-import '../../features/chat/presentation/pages/chat_inbox_page.dart';
+import '../../features/chat/presentation/pages/conversations_inbox_page.dart';
 import '../../features/chat/presentation/pages/chat_thread_detail_page.dart';
 import '../../features/chat/presentation/pages/chat_conversation_page.dart';
+import '../../features/chat/presentation/pages/mis_compras_page.dart';
+import '../../features/chat/presentation/pages/store_sales_page.dart';
 import '../../features/reviews/presentation/pages/provider_reviews_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import 'route_names.dart';
@@ -190,31 +192,63 @@ class AppRouter {
           ),
 
           // ── Chats ────────────────────────────────────────────────────────
+          // Compatibilidad temporal con enlaces antiguos:
+          // /chats/:requestId/:conversationId.
+          GoRoute(
+            path: '/chats/:legacyRequestId/:legacyConversationId',
+            builder: (context, state) {
+              final conversationId =
+                  state.pathParameters['legacyConversationId']!;
+              return ChatConversationPage(conversationId: conversationId);
+            },
+          ),
           GoRoute(
             path: RouteNames.chatInbox,
             name: 'chatInbox',
-            builder: (context, state) => const ChatInboxPage(),
+            builder: (context, state) => const ConversationsInboxPage(),
             routes: [
               GoRoute(
-                path: ':threadId',
-                name: 'chatThread',
+                path: ':conversationId',
+                name: 'chatConversation',
                 builder: (context, state) {
-                  final threadId = state.pathParameters['threadId']!;
-                  return ChatThreadDetailPage(threadId: threadId);
+                  final conversationId =
+                      state.pathParameters['conversationId']!;
+                  return ChatConversationPage(
+                    conversationId: conversationId,
+                  );
                 },
-                routes: [
-                  GoRoute(
-                    path: ':conversationId',
-                    name: 'chatConversation',
-                    builder: (context, state) {
-                      final conversationId =
-                          state.pathParameters['conversationId']!;
-                      return ChatConversationPage(
-                        conversationId: conversationId,
-                      );
-                    },
-                  ),
-                ],
+              ),
+            ],
+          ),
+
+          // ── Operación comercial ──────────────────────────────────────────
+          GoRoute(
+            path: RouteNames.purchases,
+            name: 'purchases',
+            builder: (context, state) => const ConsumerPurchasesPage(),
+            routes: [
+              GoRoute(
+                path: ':requestId',
+                name: 'purchaseDetail',
+                builder: (context, state) {
+                  final requestId = state.pathParameters['requestId']!;
+                  return ChatThreadDetailPage(threadId: requestId);
+                },
+              ),
+            ],
+          ),
+          GoRoute(
+            path: RouteNames.sales,
+            name: 'sales',
+            builder: (context, state) => const StoreSalesPage(),
+            routes: [
+              GoRoute(
+                path: ':requestId',
+                name: 'saleDetail',
+                builder: (context, state) {
+                  final requestId = state.pathParameters['requestId']!;
+                  return ChatThreadDetailPage(threadId: requestId);
+                },
               ),
             ],
           ),

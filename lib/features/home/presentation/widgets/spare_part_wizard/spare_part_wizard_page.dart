@@ -404,7 +404,7 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
                         ref
                             .read(searchRequestNotifierProvider.notifier)
                             .reset();
-                        ref.invalidate(chatThreadsProvider);
+                        ref.invalidate(consumerRequestsProvider);
                         widget.onSubmitted?.call();
                       },
                       style: ElevatedButton.styleFrom(

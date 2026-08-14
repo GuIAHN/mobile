@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/domain/enums/user_role.dart';
+import '../../../../core/router/route_names.dart';
 import '../providers/chat_providers.dart';
 import '../widgets/chat_conversation_card.dart';
 import '../../domain/entities/chat_thread.dart';
@@ -23,7 +24,8 @@ class ChatThreadDetailPage extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<ChatThreadDetailPage> createState() => _ChatThreadDetailPageState();
+  ConsumerState<ChatThreadDetailPage> createState() =>
+      _ChatThreadDetailPageState();
 }
 
 class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
@@ -39,10 +41,13 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final threadsAsync = ref.watch(chatThreadsProvider);
-    final conversationsAsync = ref.watch(chatConversationsProvider(widget.threadId));
     final currentRole = ref.watch(currentRoleProvider);
     final isStore = currentRole == UserRole.store;
+    final threadsAsync = ref.watch(
+      isStore ? storeSalesRequestsProvider : consumerRequestsProvider,
+    );
+    final conversationsAsync =
+        ref.watch(chatConversationsProvider(widget.threadId));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -65,7 +70,9 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(chatThreadsProvider);
+          ref.invalidate(
+            isStore ? storeSalesRequestsProvider : consumerRequestsProvider,
+          );
           ref.invalidate(chatConversationsProvider(widget.threadId));
         },
         color: AppColors.primary,
@@ -85,7 +92,8 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
                   final threads = result.threads;
                   if (threads.isEmpty) return const SizedBox.shrink();
                   final matches = threads.where((t) => t.id == widget.threadId);
-                  final thread = matches.isNotEmpty ? matches.first : threads.first;
+                  final thread =
+                      matches.isNotEmpty ? matches.first : threads.first;
                   return Padding(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -175,7 +183,8 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
                 });
 
                 if (sortedConversations.isEmpty) {
-                  if (isStore) return const SliverToBoxAdapter(child: SizedBox.shrink());
+                  if (isStore)
+                    return const SliverToBoxAdapter(child: SizedBox.shrink());
 
                   return SliverToBoxAdapter(
                     child: Padding(
@@ -231,7 +240,9 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
                             conversation: conv,
                             onTap: () async {
                               if (isStore) {
-                                context.push('/chats/${widget.threadId}/${conv.id}');
+                                context.push(
+                                  RouteNames.chatConversationPath(conv.id),
+                                );
                               } else {
                                 showDialog(
                                   context: context,
@@ -260,7 +271,10 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
                                   (realConversationId) {
                                     if (context.mounted) {
                                       context.push(
-                                          '/chats/${widget.threadId}/$realConversationId');
+                                        RouteNames.chatConversationPath(
+                                          realConversationId,
+                                        ),
+                                      );
                                     }
                                   },
                                 );
@@ -328,7 +342,8 @@ class _RequestSummaryCard extends StatelessWidget {
                       ? Image.network(
                           thread.fotoUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => _buildFallbackBackground(),
+                          errorBuilder: (context, error, stackTrace) =>
+                              _buildFallbackBackground(),
                         )
                       : _buildFallbackBackground(),
                 ),
@@ -363,11 +378,13 @@ class _RequestSummaryCard extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(99),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                              border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.3)),
                             ),
                             child: Text(
                               'DATOS DE LA SOLICITUD',
@@ -381,7 +398,8 @@ class _RequestSummaryCard extends StatelessWidget {
                           ),
                           if (!thread.isOpen)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
                                 color: AppColors.error,
                                 borderRadius: BorderRadius.circular(99),
@@ -422,7 +440,8 @@ class _RequestSummaryCard extends StatelessWidget {
                           const SizedBox(height: 6),
                           Row(
                             children: [
-                              const Icon(Icons.directions_car_rounded, color: Colors.white70, size: 18),
+                              const Icon(Icons.directions_car_rounded,
+                                  color: Colors.white70, size: 18),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -463,7 +482,8 @@ class _RequestSummaryCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+              border:
+                  Border.all(color: AppColors.border.withValues(alpha: 0.5)),
               boxShadow: [
                 BoxShadow(
                   color: AppColors.primary.withValues(alpha: 0.03),
@@ -477,7 +497,8 @@ class _RequestSummaryCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 18),
+                    const Icon(Icons.info_outline_rounded,
+                        color: AppColors.primary, size: 18),
                     const SizedBox(width: 8),
                     Text(
                       'Detalles adicionales',
@@ -553,9 +574,11 @@ class _RequestSummaryCard extends StatelessWidget {
                   },
                   (newConv) {
                     ref.invalidate(chatConversationsProvider(thread.id));
-                    ref.invalidate(chatThreadsProvider);
+                    ref.invalidate(storeSalesRequestsProvider);
                     ref.invalidate(myConversationsProvider);
-                    context.pushReplacement('/chats/${thread.id}/${newConv.id}');
+                    context.pushReplacement(
+                      RouteNames.chatConversationPath(newConv.id),
+                    );
                   },
                 );
               },
@@ -603,7 +626,8 @@ class _RequestSummaryCard extends StatelessWidget {
         ),
       ),
       child: Center(
-        child: Icon(Icons.inventory_2_rounded, size: 80, color: Colors.white.withValues(alpha: 0.2)),
+        child: Icon(Icons.inventory_2_rounded,
+            size: 80, color: Colors.white.withValues(alpha: 0.2)),
       ),
     );
   }
@@ -686,7 +710,8 @@ class _OffersCountHeader extends StatelessWidget {
                 if (!isStore) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: AppColors.primaryMuted,
                       borderRadius: BorderRadius.circular(99),
@@ -758,31 +783,43 @@ class _OffersCountHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 6),
-            const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: AppColors.textSecondary),
+            const Icon(Icons.keyboard_arrow_down_rounded,
+                size: 20, color: AppColors.textSecondary),
           ],
         ),
       ),
       itemBuilder: (context) => [
-        _buildPopupItem(_SortOption.recent, 'Más recientes', Icons.access_time_rounded),
-        _buildPopupItem(_SortOption.priceAsc, 'Menor precio', Icons.attach_money_rounded),
-        _buildPopupItem(_SortOption.distanceAsc, 'Más cercanos', Icons.place_outlined),
+        _buildPopupItem(
+            _SortOption.recent, 'Más recientes', Icons.access_time_rounded),
+        _buildPopupItem(
+            _SortOption.priceAsc, 'Menor precio', Icons.attach_money_rounded),
+        _buildPopupItem(
+            _SortOption.distanceAsc, 'Más cercanos', Icons.place_outlined),
       ],
     );
   }
 
-  PopupMenuItem<_SortOption> _buildPopupItem(_SortOption value, String text, IconData icon) {
+  PopupMenuItem<_SortOption> _buildPopupItem(
+      _SortOption value, String text, IconData icon) {
     return PopupMenuItem(
       value: value,
       child: Row(
         children: [
-          Icon(icon, size: 18, color: currentSort == value ? AppColors.primary : AppColors.textSecondary),
+          Icon(icon,
+              size: 18,
+              color: currentSort == value
+                  ? AppColors.primary
+                  : AppColors.textSecondary),
           const SizedBox(width: 10),
           Text(
             text,
             style: GoogleFonts.hankenGrotesk(
               fontSize: 14,
-              fontWeight: currentSort == value ? FontWeight.bold : FontWeight.w600,
-              color: currentSort == value ? AppColors.primary : AppColors.textPrimary,
+              fontWeight:
+                  currentSort == value ? FontWeight.bold : FontWeight.w600,
+              color: currentSort == value
+                  ? AppColors.primary
+                  : AppColors.textPrimary,
             ),
           ),
         ],

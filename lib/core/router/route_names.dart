@@ -36,8 +36,17 @@ abstract class RouteNames {
 
   // ── Chats ─────────────────────────────────────────────────────────────────
   static const String chatInbox = '/chats';
-  static const String chatThread = '/chats/:threadId';
-  static const String chatConversation = '/chats/:threadId/:conversationId';
+  static const String chatConversation = '/chats/:conversationId';
+  static String chatConversationPath(String conversationId) =>
+      '/chats/$conversationId';
+
+  // ── Compras / Ventas ─────────────────────────────────────────────────────
+  static const String purchases = '/purchases';
+  static const String purchaseDetail = '/purchases/:requestId';
+  static String purchaseDetailPath(String requestId) => '/purchases/$requestId';
+  static const String sales = '/sales';
+  static const String saleDetail = '/sales/:requestId';
+  static String saleDetailPath(String requestId) => '/sales/$requestId';
 
   // ── Reseñas ───────────────────────────────────────────────────────────────
   static const String providerReviews = '/reviews/:targetId';

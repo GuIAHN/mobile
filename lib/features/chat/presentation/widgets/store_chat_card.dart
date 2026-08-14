@@ -9,20 +9,22 @@ import '_atoms/card_tokens.dart';
 import '_atoms/status_badge.dart';
 import '_atoms/price_text.dart';
 
-/// Card de chat/oferta enviada — vista tienda, tab "Mis Chats".
+/// Card compacta de conversación para la bandeja de Chats.
 ///
-/// Fila compacta: es una bandeja de conversaciones, no una lista de
-/// comparación, así que no lleva divisor ni footer. Densidad alta pero con
-/// jerarquía clara: nombre → estado → mensaje, y el precio alineado a la
-/// derecha para que se pueda escanear la columna verticalmente.
+/// La jerarquía replica una bandeja de mensajería: identidad y hora, último
+/// mensaje y, como cierre, un único resumen comercial que agrupa estado y
+/// precio. Ningún dato comercial compite con el nombre o queda flotando en
+/// otro extremo de la card.
 class StoreChatCard extends StatelessWidget {
   final ChatConversation conversation;
   final VoidCallback onTap;
+  final bool consumerPerspective;
 
   const StoreChatCard({
     super.key,
     required this.conversation,
     required this.onTap,
+    this.consumerPerspective = false,
   });
 
   /// A diferencia de [OfferStatusX.fromApi] (pensado para `ChatThread`, donde
@@ -58,16 +60,21 @@ class StoreChatCard extends StatelessWidget {
         : (conv.note?.trim().isNotEmpty == true ? conv.note! : '');
 
     final semanticLabel = StringBuffer(
-      'Chat con ${conv.participantName}, ${status.label.toLowerCase()}',
+      'Chat con ${conv.participantName}, '
+      '${(consumerPerspective ? status.consumerLabel : status.label).toLowerCase()}',
     );
     if (conv.hasQuote) semanticLabel.write(', ${conv.formattedPrice}');
     if (hasUnread) {
-      semanticLabel.write(', ${conv.unreadCount} mensaje${conv.unreadCount > 1 ? 's' : ''} sin leer');
+      semanticLabel.write(
+          ', ${conv.unreadCount} mensaje${conv.unreadCount > 1 ? 's' : ''} sin leer');
+    }
+    if (message.isNotEmpty) {
+      semanticLabel.write(', último mensaje: $message');
     }
 
     return CardShell(
       onTap: onTap,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(CardTokens.pad),
       semanticLabel: semanticLabel.toString(),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -83,64 +90,184 @@ class StoreChatCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Nombre + hora
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        conv.participantName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: CardTokens.title.copyWith(fontSize: 16),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(timeStr, style: CardTokens.meta),
-                  ],
+                _ConversationHeader(
+                  participantName: conv.participantName,
+                  timeLabel: timeStr,
                 ),
-                const SizedBox(height: CardTokens.gap),
+                const SizedBox(height: CardTokens.tight),
 
-                // Estado + precio
-                Row(
-                  children: [
-                    Flexible(child: StatusBadge(status: status)),
-                    const Spacer(),
-                    if (conv.hasQuote)
-                      PriceText(amount: conv.price),
-                  ],
+                // El mensaje es el segundo nivel de lectura, inmediatamente
+                // después de la identidad como en una bandeja convencional.
+                Text(
+                  message.isNotEmpty ? message : 'Sin mensajes todavía',
+                  key: const Key('chat-card-latest-message'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: message.isEmpty
+                      ? CardTokens.meta
+                      : hasUnread
+                          ? CardTokens.bodyUnread
+                          : CardTokens.body,
                 ),
 
-                // Último mensaje
-                if (message.isNotEmpty) ...[
-                  const SizedBox(height: CardTokens.gap),
-                  Row(
-                    children: [
-                      if (hasUnread) ...[
-                        Container(
-                          width: 7,
-                          height: 7,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      Expanded(
-                        child: Text(
-                          message,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: hasUnread ? CardTokens.bodyUnread : CardTokens.body,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                const SizedBox(height: 10),
+                const Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: AppColors.border,
+                ),
+                const SizedBox(height: 10),
+
+                // Estado y precio constituyen una sola unidad transaccional.
+                _CommercialSummary(
+                  status: status,
+                  labelOverride:
+                      consumerPerspective ? status.consumerLabel : null,
+                  hasQuote: conv.hasQuote,
+                  price: conv.price,
+                ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ConversationHeader extends StatelessWidget {
+  final String participantName;
+  final String timeLabel;
+
+  const _ConversationHeader({
+    required this.participantName,
+    required this.timeLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final name = Text(
+      participantName,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: CardTokens.title.copyWith(fontSize: 16),
+    );
+    final time = Text(
+      timeLabel,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: CardTokens.meta,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scaledBody = MediaQuery.textScalerOf(context).scale(14);
+        final shouldStack = constraints.maxWidth < 200 || scaledBody > 19;
+
+        if (shouldStack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              name,
+              const SizedBox(height: 2),
+              time,
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: name),
+            const SizedBox(width: 8),
+            Flexible(child: time),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _CommercialSummary extends StatelessWidget {
+  final OfferStatus status;
+  final String? labelOverride;
+  final bool hasQuote;
+  final double? price;
+
+  const _CommercialSummary({
+    required this.status,
+    required this.labelOverride,
+    required this.hasQuote,
+    required this.price,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final statusBadge = StatusBadge(
+      key: const Key('chat-card-status-badge'),
+      status: status,
+      labelOverride: labelOverride,
+    );
+    final priceBlock = _OfferPrice(price: price);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scaledBody = MediaQuery.textScalerOf(context).scale(14);
+        final shouldStack = constraints.maxWidth < 230 || scaledBody > 19;
+
+        return Semantics(
+          container: true,
+          child: Container(
+            key: const Key('chat-card-commercial-summary'),
+            child: shouldStack
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      statusBadge,
+                      if (hasQuote) ...[
+                        const SizedBox(height: CardTokens.gap),
+                        priceBlock,
+                      ],
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Flexible(child: statusBadge),
+                      if (hasQuote) ...[
+                        const SizedBox(width: 12),
+                        Container(
+                          width: 1,
+                          height: 32,
+                          color: AppColors.border,
+                        ),
+                        const SizedBox(width: 12),
+                        priceBlock,
+                      ],
+                    ],
+                  ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _OfferPrice extends StatelessWidget {
+  final double? price;
+
+  const _OfferPrice({required this.price});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const Key('chat-card-price'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('OFERTA', style: CardTokens.overline),
+        const SizedBox(height: 2),
+        PriceText(amount: price),
+      ],
     );
   }
 }

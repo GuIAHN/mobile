@@ -107,7 +107,7 @@ class SearchRequestNotifier extends StateNotifier<SearchRequestState> {
         );
       },
       (data) {
-        _ref?.invalidate(chatThreadsProvider);
+        _ref?.invalidate(consumerRequestsProvider);
         state = SearchRequestState(
           status: SearchRequestStatus.success,
           data: data,
@@ -204,9 +204,15 @@ final searchVehicleVariantIdProvider = StateProvider<String?>((ref) {
 @Deprecated('Use searchVehicleVariantIdProvider instead')
 final searchVehicleModelIdProvider = searchVehicleVariantIdProvider;
 
-/// Índice de la pestaña activa en la barra de navegación (0: Home, 1: Chats, 2: Perfil)
-final homeTabProvider = StateProvider<int>((ref) {
-  return 0;
+/// Destinos estables de la navegación principal.
+///
+/// [commerce] se presenta como "Compras" para quien solicita repuestos y
+/// como "Ventas" para la tienda. Mantener un valor semántico evita que el
+/// índice de Perfil cambie según el rol, como ocurría con los enteros.
+enum MainNavigationTab { home, chats, commerce, profile }
+
+final homeTabProvider = StateProvider<MainNavigationTab>((ref) {
+  return MainNavigationTab.home;
 });
 
 // ── Async Data Providers ──────────────────────────────────────────────────────

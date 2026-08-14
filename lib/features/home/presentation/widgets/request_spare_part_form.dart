@@ -67,7 +67,6 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
     _detailsController.addListener(_handleDetailsChange);
   }
 
-
   void _nextStep() {
     setState(() {
       if (_currentStep < 2) {
@@ -149,7 +148,8 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
       selectedCar: ref.read(searchVehicleProvider),
     );
     if (result != null) {
-      ref.read(searchVehicleVariantIdProvider.notifier).state = result.variantId;
+      ref.read(searchVehicleVariantIdProvider.notifier).state =
+          result.variantId;
       ref.read(searchVehicleProvider.notifier).state = result.car;
     }
   }
@@ -226,7 +226,6 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
           lon: lon,
         );
     _hideLoadingOverlay();
-
 
     if (!mounted) return;
     final searchState = ref.read(searchRequestNotifierProvider);
@@ -323,9 +322,10 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                     _selectedImagePath = null;
                   });
                   ref.read(searchVehicleProvider.notifier).state = null;
-                  ref.read(searchVehicleVariantIdProvider.notifier).state = null;
+                  ref.read(searchVehicleVariantIdProvider.notifier).state =
+                      null;
                   ref.read(searchRequestNotifierProvider.notifier).reset();
-                  ref.invalidate(chatThreadsProvider);
+                  ref.invalidate(consumerRequestsProvider);
                   widget.onSubmitted?.call();
                 },
                 style: ElevatedButton.styleFrom(
@@ -408,7 +408,8 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
         border: Border.all(color: AppColors.grey200.withValues(alpha: 0.5)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.04), // Tinted soft shadow
+            color:
+                AppColors.primary.withValues(alpha: 0.04), // Tinted soft shadow
             blurRadius: 24,
             spreadRadius: 2,
             offset: const Offset(0, 8),
@@ -420,102 +421,102 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Builder(
-            builder: (context) {
-              final (icon, iconColor, bgColor, borderColor, title, subtitle) = switch (_currentStep) {
-                0 => (
-                    Icons.settings_rounded, // Tuerca (Nut)
-                    AppColors.primary,
-                    AppColors.primary.withValues(alpha: 0.1),
-                    AppColors.primary.withValues(alpha: 0.25),
-                    'Cotiza tu Repuesto',
-                    '¿Para qué vehículo es?',
-                  ),
-                1 => (
-                    Icons.build_circle_rounded, // Ensamblando (Building)
-                    AppColors.secondary,
-                    AppColors.secondary.withValues(alpha: 0.1),
-                    AppColors.secondary.withValues(alpha: 0.25),
-                    'Encuentra la Pieza',
-                    'Selecciona la categoría',
-                  ),
-                _ => (
-                    Icons.directions_car_rounded, // Carro Armado (Car)
-                    AppColors.tertiary,
-                    AppColors.tertiary.withValues(alpha: 0.1),
-                    AppColors.tertiary.withValues(alpha: 0.25),
-                    'Detalles de la Solicitud',
-                    'Envía a las tiendas',
-                  ),
-              };
+          Builder(builder: (context) {
+            final (icon, iconColor, bgColor, borderColor, title, subtitle) =
+                switch (_currentStep) {
+              0 => (
+                  Icons.settings_rounded, // Tuerca (Nut)
+                  AppColors.primary,
+                  AppColors.primary.withValues(alpha: 0.1),
+                  AppColors.primary.withValues(alpha: 0.25),
+                  'Cotiza tu Repuesto',
+                  '¿Para qué vehículo es?',
+                ),
+              1 => (
+                  Icons.build_circle_rounded, // Ensamblando (Building)
+                  AppColors.secondary,
+                  AppColors.secondary.withValues(alpha: 0.1),
+                  AppColors.secondary.withValues(alpha: 0.25),
+                  'Encuentra la Pieza',
+                  'Selecciona la categoría',
+                ),
+              _ => (
+                  Icons.directions_car_rounded, // Carro Armado (Car)
+                  AppColors.tertiary,
+                  AppColors.tertiary.withValues(alpha: 0.1),
+                  AppColors.tertiary.withValues(alpha: 0.25),
+                  'Detalles de la Solicitud',
+                  'Envía a las tiendas',
+                ),
+            };
 
-              return Row(
-                children: [
-                  AnimatedContainer(
+            return Row(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeInOutCubic,
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: borderColor, width: 1.5),
+                  ),
+                  child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 400),
-                    curve: Curves.easeInOutCubic,
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: bgColor,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: borderColor, width: 1.5),
+                    transitionBuilder: (child, anim) => ScaleTransition(
+                      scale: anim,
+                      child: FadeTransition(opacity: anim, child: child),
                     ),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 400),
-                      transitionBuilder: (child, anim) => ScaleTransition(
-                        scale: anim,
-                        child: FadeTransition(opacity: anim, child: child),
-                      ),
-                      child: Icon(
-                        icon,
-                        key: ValueKey(icon.codePoint),
-                        color: iconColor,
-                        size: 24, // un poquito mas grande
-                      ),
+                    child: Icon(
+                      icon,
+                      key: ValueKey(icon.codePoint),
+                      color: iconColor,
+                      size: 24, // un poquito mas grande
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 400),
-                      layoutBuilder: (currentChild, previousChildren) => Stack(
-                        alignment: Alignment.centerLeft,
-                        children: <Widget>[
-                          ...previousChildren,
-                          if (currentChild != null) currentChild,
-                        ],
-                      ),
-                      child: Column(
-                        key: ValueKey(_currentStep),
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: GoogleFonts.hankenGrotesk(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: iconColor, // <- USAMOS EL COLOR DEL ICONO, CERO NEGRO
-                              letterSpacing: -0.2,
-                            ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 400),
+                    layoutBuilder: (currentChild, previousChildren) => Stack(
+                      alignment: Alignment.centerLeft,
+                      children: <Widget>[
+                        ...previousChildren,
+                        if (currentChild != null) currentChild,
+                      ],
+                    ),
+                    child: Column(
+                      key: ValueKey(_currentStep),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color:
+                                iconColor, // <- USAMOS EL COLOR DEL ICONO, CERO NEGRO
+                            letterSpacing: -0.2,
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            subtitle,
-                            style: GoogleFonts.hankenGrotesk(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w500,
-                            ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              );
-            }
-          ),
+                ),
+              ],
+            );
+          }),
           const SizedBox(height: 20),
           _AnimatedStepIndicator(currentStep: _currentStep),
           const SizedBox(height: 24),
@@ -538,19 +539,22 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
               },
               transitionBuilder: (child, animation) {
                 final key = child.key as ValueKey<String>?;
-                final step = int.tryParse(key?.value.replaceAll('step', '') ?? '0') ?? 0;
+                final step =
+                    int.tryParse(key?.value.replaceAll('step', '') ?? '0') ?? 0;
                 final isForward = _currentStep >= _previousStep;
-                
+
                 double dx = 0;
                 if (step == _currentStep) {
                   dx = isForward ? 1.0 : -1.0;
                 } else {
                   dx = step < _currentStep ? -1.0 : 1.0;
                 }
-                
+
                 return SlideTransition(
-                  position: Tween<Offset>(begin: Offset(dx, 0.0), end: Offset.zero)
-                      .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+                  position:
+                      Tween<Offset>(begin: Offset(dx, 0.0), end: Offset.zero)
+                          .animate(CurvedAnimation(
+                              parent: animation, curve: Curves.easeOutCubic)),
                   child: FadeTransition(opacity: animation, child: child),
                 );
               },
@@ -566,7 +570,8 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
     );
   }
 
-  Widget _buildStep1(bool isConsumer, dynamic globalVehicle, AsyncValue<List<dynamic>> userCarsAsync) {
+  Widget _buildStep1(bool isConsumer, dynamic globalVehicle,
+      AsyncValue<List<dynamic>> userCarsAsync) {
     final hasVehicle = globalVehicle != null;
     return Column(
       key: const ValueKey('step1'),
@@ -580,9 +585,11 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
               final String valorMostrado;
               if (globalVehicle != null) {
                 if (globalVehicle.id.startsWith('temp-')) {
-                  valorMostrado = 'Otro: ${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})';
+                  valorMostrado =
+                      'Otro: ${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})';
                 } else {
-                  valorMostrado = '${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})';
+                  valorMostrado =
+                      '${globalVehicle.brand} ${globalVehicle.model} (${globalVehicle.year})';
                 }
               } else {
                 valorMostrado = 'Selecciona de tu garaje u otro';
@@ -650,7 +657,8 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
   }
 
   Widget _buildStep2() {
-    final hasCategory = _selectedCategory != null && _selectedSubcategory != null;
+    final hasCategory =
+        _selectedCategory != null && _selectedSubcategory != null;
     final hasPartType = _selectedPartType != null;
     final canProceed = hasCategory && hasPartType;
 
@@ -696,7 +704,8 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
               onPressed: _prevStep,
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(32),
                   side: const BorderSide(color: AppColors.primary, width: 1.5),
@@ -724,7 +733,8 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                   shape: const StadiumBorder(),
                   elevation: canProceed ? 4 : 0,
                   minimumSize: Size.zero,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -751,7 +761,8 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
 
   Widget _buildStep3() {
     final needsDetails = _isOtroCategory;
-    final hasRequiredDetails = !needsDetails || _detailsController.text.trim().isNotEmpty;
+    final hasRequiredDetails =
+        !needsDetails || _detailsController.text.trim().isNotEmpty;
 
     return Column(
       key: const ValueKey('step3'),
@@ -891,7 +902,8 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
               onPressed: _prevStep,
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(32),
                   side: const BorderSide(color: AppColors.primary, width: 1.5),
@@ -919,7 +931,8 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
                   shape: const StadiumBorder(),
                   elevation: hasRequiredDetails ? 4 : 0,
                   minimumSize: Size.zero,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1050,7 +1063,6 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
   }
 }
 
-
 class _SelectorField extends StatelessWidget {
   final String? value;
   final String placeholder;
@@ -1088,8 +1100,8 @@ class _SelectorField extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  value != null && value!.contains('▸') 
-                      ? Icons.category_outlined 
+                  value != null && value!.contains('▸')
+                      ? Icons.category_outlined
                       : Icons.directions_car_rounded,
                   size: 20,
                   color: AppColors.textSecondary,
@@ -1177,7 +1189,9 @@ class _AnimatedStepIndicator extends StatelessWidget {
                   color: bgColor,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isActive ? borderColor.withValues(alpha: 0.5) : borderColor,
+                    color: isActive
+                        ? borderColor.withValues(alpha: 0.5)
+                        : borderColor,
                     width: isActive ? 4 : 1,
                   ),
                   boxShadow: isActive

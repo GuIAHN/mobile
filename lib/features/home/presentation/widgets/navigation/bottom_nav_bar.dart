@@ -49,12 +49,11 @@ class BottomNavBar extends ConsumerWidget {
       double.infinity,
     );
     final contentHeight = kBottomNavBarHeight + labelGrowth;
-    final perfilIndex = isStore ? 2 : 3;
 
-    void selectTab(int index) {
-      if (index == activeTab) return;
+    void selectTab(MainNavigationTab tab) {
+      if (tab == activeTab) return;
       HapticFeedback.selectionClick();
-      ref.read(homeTabProvider.notifier).state = index;
+      ref.read(homeTabProvider.notifier).state = tab;
     }
 
     return Padding(
@@ -74,29 +73,34 @@ class BottomNavBar extends ConsumerWidget {
               final slotWidth = totalWidth / totalSlots;
 
               // Coordenada X del centro del tab activo
-              double getTabCenterX(int tab) {
-                if (tab == 0) return slotWidth * 0.5; // Slot 0: Inicio
-                if (tab == 1) return slotWidth * 1.5; // Slot 1: Chats
-                if (!isStore && tab == 2) return slotWidth * 3.5; // Slot 3: Compras
-                if (tab == perfilIndex) return slotWidth * 4.5; // Slot 4: Perfil
-                return slotWidth * 0.5;
+              double getTabCenterX(MainNavigationTab tab) {
+                switch (tab) {
+                  case MainNavigationTab.home:
+                    return slotWidth * 0.5;
+                  case MainNavigationTab.chats:
+                    return slotWidth * 1.5;
+                  case MainNavigationTab.commerce:
+                    return slotWidth * 3.5;
+                  case MainNavigationTab.profile:
+                    return slotWidth * 4.5;
+                }
               }
 
               final targetX = getTabCenterX(activeTab);
 
               // Ícono para la etapa activa según tab seleccionado
-              IconData getActiveIcon(int tab) {
+              IconData getActiveIcon(MainNavigationTab tab) {
                 switch (tab) {
-                  case 0:
+                  case MainNavigationTab.home:
                     return Icons.home_rounded;
-                  case 1:
+                  case MainNavigationTab.chats:
                     return Icons.chat_bubble_rounded;
-                  case 2:
-                    return isStore ? Icons.person_rounded : Icons.shopping_bag_rounded;
-                  case 3:
+                  case MainNavigationTab.commerce:
+                    return isStore
+                        ? Icons.point_of_sale_rounded
+                        : Icons.shopping_bag_rounded;
+                  case MainNavigationTab.profile:
                     return Icons.person_rounded;
-                  default:
-                    return Icons.home_rounded;
                 }
               }
 
@@ -142,8 +146,8 @@ class BottomNavBar extends ConsumerWidget {
                               child: _NavItemSlot(
                                 outline: Icons.home_outlined,
                                 label: 'Inicio',
-                                isSelected: activeTab == 0,
-                                onTap: () => selectTab(0),
+                                isSelected: activeTab == MainNavigationTab.home,
+                                onTap: () => selectTab(MainNavigationTab.home),
                               ),
                             ),
                             // Slot 1: Chats
@@ -152,23 +156,26 @@ class BottomNavBar extends ConsumerWidget {
                               child: _NavItemSlot(
                                 outline: Icons.chat_bubble_outline_rounded,
                                 label: 'Chats',
-                                isSelected: activeTab == 1,
-                                onTap: () => selectTab(1),
+                                isSelected:
+                                    activeTab == MainNavigationTab.chats,
+                                onTap: () => selectTab(MainNavigationTab.chats),
                               ),
                             ),
                             // Slot 2: Espacio del Logo Central
                             SizedBox(width: slotWidth),
-                            // Slot 3: Compras (si es consumidor)
+                            // Slot 3: operación comercial según rol
                             SizedBox(
                               width: slotWidth,
-                              child: !isStore
-                                  ? _NavItemSlot(
-                                      outline: Icons.shopping_bag_outlined,
-                                      label: 'Compras',
-                                      isSelected: activeTab == 2,
-                                      onTap: () => selectTab(2),
-                                    )
-                                  : const SizedBox.shrink(),
+                              child: _NavItemSlot(
+                                outline: isStore
+                                    ? Icons.point_of_sale_outlined
+                                    : Icons.shopping_bag_outlined,
+                                label: isStore ? 'Ventas' : 'Compras',
+                                isSelected:
+                                    activeTab == MainNavigationTab.commerce,
+                                onTap: () =>
+                                    selectTab(MainNavigationTab.commerce),
+                              ),
                             ),
                             // Slot 4: Perfil
                             SizedBox(
@@ -176,8 +183,10 @@ class BottomNavBar extends ConsumerWidget {
                               child: _NavItemSlot(
                                 outline: Icons.person_outline_rounded,
                                 label: 'Perfil',
-                                isSelected: activeTab == perfilIndex,
-                                onTap: () => selectTab(perfilIndex),
+                                isSelected:
+                                    activeTab == MainNavigationTab.profile,
+                                onTap: () =>
+                                    selectTab(MainNavigationTab.profile),
                               ),
                             ),
                           ],
@@ -198,8 +207,8 @@ class BottomNavBar extends ConsumerWidget {
                         top: 0,
                         left: (totalWidth / 2) - (_kLogoSize / 2),
                         child: _CenterLogoButton(
-                          isSelected: activeTab == 0,
-                          onTap: () => selectTab(0),
+                          isSelected: activeTab == MainNavigationTab.home,
+                          onTap: () => selectTab(MainNavigationTab.home),
                         ),
                       ),
                     ],
@@ -245,8 +254,10 @@ class _NotchCapsulePainter extends CustomPainter {
     );
 
     // Borde superior izquierdo hasta el inicio de la muesca
-    final notchLeft = (activeX - notchHalfWidth).clamp(cornerRadius, size.width - cornerRadius);
-    final notchRight = (activeX + notchHalfWidth).clamp(cornerRadius, size.width - cornerRadius);
+    final notchLeft = (activeX - notchHalfWidth)
+        .clamp(cornerRadius, size.width - cornerRadius);
+    final notchRight = (activeX + notchHalfWidth)
+        .clamp(cornerRadius, size.width - cornerRadius);
 
     if (notchLeft > cornerRadius) {
       path.lineTo(notchLeft, topY);
@@ -254,14 +265,20 @@ class _NotchCapsulePainter extends CustomPainter {
 
     // Curva Bézier continua y suave de la muesca activa
     path.cubicTo(
-      activeX - 26, topY,
-      activeX - 18, notchPeakY,
-      activeX, notchPeakY,
+      activeX - 26,
+      topY,
+      activeX - 18,
+      notchPeakY,
+      activeX,
+      notchPeakY,
     );
     path.cubicTo(
-      activeX + 18, notchPeakY,
-      activeX + 26, topY,
-      notchRight, topY,
+      activeX + 18,
+      notchPeakY,
+      activeX + 26,
+      topY,
+      notchRight,
+      topY,
     );
 
     // Borde superior derecho desde el final de la muesca
@@ -333,6 +350,7 @@ class _ActiveIndicatorStage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      key: const Key('bottom-nav-active-indicator'),
       width: _kActiveStageSize,
       height: _kActiveStageSize,
       decoration: BoxDecoration(
@@ -439,9 +457,8 @@ class _NavItemSlotState extends State<_NavItemSlot> {
                   curve: Curves.easeOutCubic,
                   style: GoogleFonts.hankenGrotesk(
                     fontSize: _kNavLabelFontSize,
-                    fontWeight: widget.isSelected
-                        ? FontWeight.w800
-                        : FontWeight.w600,
+                    fontWeight:
+                        widget.isSelected ? FontWeight.w800 : FontWeight.w600,
                     color: widget.isSelected
                         ? AppColors.primary
                         : AppColors.grey600,
@@ -499,7 +516,8 @@ class _CenterLogoButtonState extends State<_CenterLogoButton> {
       onTap: widget.onTap,
       child: AnimatedScale(
         scale: _isPressed ? 0.94 : 1.0,
-        duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 90),
+        duration:
+            reduceMotion ? Duration.zero : const Duration(milliseconds: 90),
         curve: Curves.easeOutCubic,
         child: SizedBox.square(
           dimension: _kLogoSize,
@@ -561,4 +579,3 @@ class _CenterLogoButtonState extends State<_CenterLogoButton> {
     );
   }
 }
-

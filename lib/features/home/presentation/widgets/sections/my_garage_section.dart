@@ -33,7 +33,8 @@ class MyGarageSection extends ConsumerWidget {
             label: 'Gestionar',
             onTap: () {
               HapticFeedback.selectionClick();
-              ref.read(homeTabProvider.notifier).state = 3;
+              ref.read(homeTabProvider.notifier).state =
+                  MainNavigationTab.profile;
             },
           ),
         ),
@@ -112,7 +113,8 @@ class _GarageCard extends StatelessWidget {
                   height: 90,
                   width: double.infinity,
                   color: AppColors.primaryMuted.withValues(alpha: 0.35),
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
                   child: VehicleTypeIllustration(
                     vehicleType: car.vehicleType,
                     height: 74,
@@ -131,7 +133,8 @@ class _GarageCard extends StatelessWidget {
                     },
                     behavior: HitTestBehavior.opaque,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(99),
@@ -230,7 +233,8 @@ class _AddVehicleCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary, size: 22),
+            const Icon(Icons.add_circle_outline_rounded,
+                color: AppColors.primary, size: 22),
             const SizedBox(width: 10),
             Expanded(
               child: Text(

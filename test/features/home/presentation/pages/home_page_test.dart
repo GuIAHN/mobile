@@ -152,7 +152,7 @@ void main() {
           loadUnreadNotifications ?? (ref) async => 0,
         ),
         if (chatThreads != null)
-          chatThreadsProvider.overrideWith((ref) async => chatThreads),
+          consumerRequestsProvider.overrideWith((ref) async => chatThreads),
         topProvidersProvider.overrideWith((ref, type) {
           return type == ServiceType.workshops ? workshops : mechanics;
         }),
@@ -784,12 +784,16 @@ void main() {
     await pumpHome(tester, container, disableAnimations: true);
 
     expect(
-      tester.widget<AnimatedSwitcher>(find.byType(AnimatedSwitcher)).duration,
+      tester
+          .widget<AnimatedSwitcher>(
+            find.byType(AnimatedSwitcher).first,
+          )
+          .duration,
       Duration.zero,
     );
   });
 
-  testWidgets('chat list reaches the bottom navigation without a blank band',
+  testWidgets('purchases list reaches navigation without a blank band',
       (tester) async {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final threads = List.generate(
@@ -813,7 +817,7 @@ void main() {
       ),
     );
     addTearDown(container.dispose);
-    container.read(homeTabProvider.notifier).state = 1;
+    container.read(homeTabProvider.notifier).state = MainNavigationTab.commerce;
 
     for (final configuration in const [
       (size: Size(375, 812), textScale: 1.0),

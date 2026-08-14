@@ -14,8 +14,9 @@ import '../widgets/promo_carousel.dart';
 import '../../../auth/presentation/pages/profile_tab.dart';
 import '../widgets/unapproved_overlay.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../chat/presentation/pages/chat_inbox_page.dart';
+import '../../../chat/presentation/pages/conversations_inbox_page.dart';
 import '../../../chat/presentation/pages/mis_compras_page.dart';
+import '../../../chat/presentation/pages/store_sales_page.dart';
 import '../../../notifications/presentation/providers/notifications_providers.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 
@@ -70,26 +71,11 @@ class _HomePageState extends ConsumerState<HomePage> {
             duration: MediaQuery.disableAnimationsOf(context)
                 ? Duration.zero
                 : const Duration(milliseconds: 250),
-            child: activeTab == 0
-                ? _buildHomeHub()
-                : SafeArea(
-                    bottom: false,
-                    child: activeTab == 1
-                        // ChatInboxPage ya aplica el inset que Scaffold expone
-                        // para la barra inferior mediante su propio SafeArea.
-                        ? const ChatInboxPage()
-                        : Padding(
-                            // Compras y Perfil gestionan su contenido sin un
-                            // SafeArea inferior propio, así que conservan este
-                            // espacio explícito para no quedar bajo la barra.
-                            padding: EdgeInsets.only(
-                              bottom: bottomNavContentInset(context),
-                            ),
-                            child: activeTab == 2 && !isStore
-                                ? const MisComprasPage()
-                                : const ProfileTab(),
-                          ),
-                  ),
+            child: _buildSelectedTab(
+              context,
+              activeTab: activeTab,
+              isStore: isStore,
+            ),
           ),
           if (user != null && !user.approved)
             const Positioned.fill(
@@ -97,6 +83,37 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSelectedTab(
+    BuildContext context, {
+    required MainNavigationTab activeTab,
+    required bool isStore,
+  }) {
+    if (activeTab == MainNavigationTab.home) {
+      return _buildHomeHub();
+    }
+
+    final Widget page = switch (activeTab) {
+      MainNavigationTab.home => _buildHomeHub(),
+      MainNavigationTab.chats => const ConversationsInboxPage(),
+      MainNavigationTab.commerce =>
+        isStore ? const StoreSalesPage() : const ConsumerPurchasesPage(),
+      MainNavigationTab.profile => const ProfileTab(),
+    };
+
+    if (activeTab == MainNavigationTab.profile) {
+      return Padding(
+        key: ValueKey<MainNavigationTab>(activeTab),
+        padding: EdgeInsets.only(bottom: bottomNavContentInset(context)),
+        child: page,
+      );
+    }
+
+    return KeyedSubtree(
+      key: ValueKey<MainNavigationTab>(activeTab),
+      child: page,
     );
   }
 

@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/providers/current_user_provider.dart';
 import '../providers/chat_providers.dart';
 import '../../domain/entities/chat_thread.dart';
 import '../widgets/chat_thread_card.dart';
 import '../widgets/consumer_thread_card.dart';
-import '../widgets/store_chat_card.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/staggered_entrance.dart';
@@ -16,14 +15,22 @@ import '../../../../shared/widgets/staggered_entrance.dart';
 /// Filtro por estado de la solicitud/oferta.
 enum _StatusFilter { all, active, closed, unquoted, quoted, bought, delivered }
 
-class ChatInboxPage extends ConsumerStatefulWidget {
-  const ChatInboxPage({super.key});
+/// Bandeja comercial reutilizada por Compras (consumidor) y Ventas (tienda).
+/// Las conversaciones reales viven en [ConversationsInboxPage].
+class RequestManagementPage extends ConsumerStatefulWidget {
+  final bool isStore;
+
+  const RequestManagementPage({
+    super.key,
+    required this.isStore,
+  });
 
   @override
-  ConsumerState<ChatInboxPage> createState() => _ChatInboxPageState();
+  ConsumerState<RequestManagementPage> createState() =>
+      _RequestManagementPageState();
 }
 
-class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
+class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
   final _searchController = TextEditingController();
   String _query = '';
   _StatusFilter _statusFilter = _StatusFilter.all;
@@ -48,25 +55,35 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
   }
 
   /// Filtro por estado.
-  List<ChatThread> _applyStatus(List<ChatThread> threads, bool isProvider) {
+  List<ChatThread> _applyStatus(List<ChatThread> threads, bool isStore) {
     switch (_statusFilter) {
       case _StatusFilter.all:
         return threads;
       case _StatusFilter.active:
-        return threads.where((t) => t.isOpen).toList();
+        return threads.where((t) => t.isOpen && !t.isExpired).toList();
       case _StatusFilter.closed:
-        return threads.where((t) => !t.isOpen).toList();
+        return threads.where((t) => !t.isOpen || t.isExpired).toList();
       case _StatusFilter.unquoted:
         return threads.where((t) => !t.hasOffer).toList();
       case _StatusFilter.quoted:
-        return threads
-            .where((t) =>
-                t.hasOffer &&
-                t.offerStatus != 'BOUGHT' &&
-                t.offerStatus != 'DELIVERED')
-            .toList();
+        return isStore
+            ? threads
+                .where((t) =>
+                    t.hasOffer &&
+                    t.offerStatus != 'BOUGHT' &&
+                    t.offerStatus != 'DELIVERED')
+                .toList()
+            : threads
+                .where(
+                    (t) => t.totalOffersCount > 0 || t.bestOfferPrice != null)
+                .toList();
       case _StatusFilter.bought:
-        return threads.where((t) => t.offerStatus == 'BOUGHT').toList();
+        return threads
+            .where((t) => isStore
+                ? t.offerStatus == 'BOUGHT'
+                : t.bestOfferStatus == 'BOUGHT' ||
+                    t.bestOfferStatus == 'DELIVERED')
+            .toList();
       case _StatusFilter.delivered:
         return threads.where((t) => t.offerStatus == 'DELIVERED').toList();
     }
@@ -106,64 +123,33 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
 
   @override
   Widget build(BuildContext context) {
-    final threadsAsync = ref.watch(chatThreadsProvider);
-    final currentRole = ref.watch(currentRoleProvider);
-    final isProvider = currentRole.isProvider;
+    final isStore = widget.isStore;
+    final threadsAsync = ref.watch(
+      isStore ? storeSalesRequestsProvider : consumerRequestsProvider,
+    );
 
-    if (isProvider && !_initializedProviderFilter) {
+    if (isStore && !_initializedProviderFilter) {
       _statusFilter = _StatusFilter.unquoted;
       _initializedProviderFilter = true;
     }
 
-    if (!isProvider) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        body: SafeArea(
-          child: threadsAsync.when(
-            loading: () => _buildLoadingState(isProvider),
-            error: (err, _) => _buildErrorState(err.toString(), isProvider),
-            data: (res) => _buildThreadsList(res.threads, isProvider, res.counts),
-          ),
-        ),
-      );
-    }
-
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          elevation: 0,
-          toolbarHeight: 0,
-          bottom: TabBar(
-            labelColor: AppColors.primary,
-            unselectedLabelColor: AppColors.textSecondary,
-            indicatorColor: AppColors.primary,
-            labelStyle: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.bold),
-            unselectedLabelStyle:
-                GoogleFonts.hankenGrotesk(fontWeight: FontWeight.w600),
-            tabs: const [
-              Tab(text: 'Solicitudes'),
-              Tab(text: 'Mis Chats'),
-            ],
-          ),
-        ),
-        body: SafeArea(
-          child: TabBarView(
-            children: [
-              // Tab 1: Solicitudes (Search Requests)
-              threadsAsync.when(
-                loading: () => _buildLoadingState(isProvider),
-                error: (err, _) => _buildErrorState(err.toString(), isProvider),
-                data: (res) => _buildThreadsList(res.threads, isProvider, res.counts),
-              ),
-              // Tab 2: Mis Chats (Conversations) — Carga diferida (Lazy)
-              _MyConversationsTab(query: _query),
-            ],
-          ),
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: threadsAsync.when(
+          loading: () => _buildLoadingState(isStore),
+          error: (err, _) => _buildErrorState(err.toString(), isStore),
+          data: (res) => _buildThreadsList(res.threads, isStore, res.counts),
         ),
       ),
+    );
+  }
+
+  Future<void> _refreshRequests() {
+    return ref.refresh(
+      widget.isStore
+          ? storeSalesRequestsProvider.future
+          : consumerRequestsProvider.future,
     );
   }
 
@@ -205,7 +191,7 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
         Expanded(
           child: Center(
             child: Text(
-              'Error al cargar ofertas: $err',
+              'Error al cargar solicitudes: $err',
               style: GoogleFonts.hankenGrotesk(color: AppColors.error),
             ),
           ),
@@ -221,12 +207,28 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
   ) {
     final searchFiltered = _applySearch(threads);
     final allCount = counts['all'] ?? searchFiltered.length;
-    final activeCount = counts['open'] ?? searchFiltered.where((t) => t.isOpen).length;
-    final closedCount = counts['closed'] ?? (searchFiltered.length - activeCount);
-    final unquotedCount = counts['unquoted'] ?? searchFiltered.where((t) => !t.hasOffer).length;
-    final quotedCount = counts['quoted'] ?? counts['withOffer'] ?? searchFiltered.where((t) => t.hasOffer).length;
-    final boughtCount = counts['bought'] ?? searchFiltered.where((t) => t.offerStatus == 'BOUGHT').length;
-    final deliveredCount = counts['delivered'] ?? searchFiltered.where((t) => t.offerStatus == 'DELIVERED').length;
+    final activeCount = counts['open'] ??
+        searchFiltered.where((t) => t.isOpen && !t.isExpired).length;
+    final closedCount =
+        counts['closed'] ?? (searchFiltered.length - activeCount);
+    final unquotedCount =
+        counts['unquoted'] ?? searchFiltered.where((t) => !t.hasOffer).length;
+    final quotedCount = counts['quoted'] ??
+        counts['withOffer'] ??
+        searchFiltered
+            .where((t) => isProvider
+                ? t.hasOffer
+                : t.totalOffersCount > 0 || t.bestOfferPrice != null)
+            .length;
+    final boughtCount = counts['bought'] ??
+        searchFiltered
+            .where((t) => isProvider
+                ? t.offerStatus == 'BOUGHT'
+                : t.bestOfferStatus == 'BOUGHT' ||
+                    t.bestOfferStatus == 'DELIVERED')
+            .length;
+    final deliveredCount = counts['delivered'] ??
+        searchFiltered.where((t) => t.offerStatus == 'DELIVERED').length;
     final visible = _applyStatus(searchFiltered, isProvider);
 
     return Column(
@@ -260,10 +262,12 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
     // Sin ninguna solicitud/oferta en absoluto.
     if (threads.isEmpty) {
       emptyWidget = EmptyState(
-        title: isProvider ? 'Sin solicitudes' : 'Aún no tienes ofertas',
+        title: isProvider
+            ? 'Sin solicitudes de venta'
+            : 'Aún no tienes solicitudes',
         subtitle: isProvider
             ? 'No hay solicitudes activas para cotizar en este momento.'
-            : 'Cuando solicites un repuesto o servicio, las ofertas de las tiendas aparecerán aquí.',
+            : 'Cuando solicites un repuesto, podrás darle seguimiento desde aquí.',
         icon: isProvider ? Icons.inbox_outlined : Icons.local_offer_outlined,
       );
     } else if (searchFiltered.isEmpty) {
@@ -284,7 +288,7 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
 
     if (emptyWidget != null) {
       return RefreshIndicator(
-        onRefresh: () => ref.refresh(chatThreadsProvider.future),
+        onRefresh: _refreshRequests,
         color: AppColors.primary,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(
@@ -298,7 +302,7 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
     }
 
     return RefreshIndicator(
-      onRefresh: () => ref.refresh(chatThreadsProvider.future),
+      onRefresh: _refreshRequests,
       color: AppColors.primary,
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(
@@ -315,16 +319,20 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
                     onTap: () {
                       if (thread.conversationId != null &&
                           thread.conversationId!.isNotEmpty) {
-                        context.push('/chats/${thread.id}/${thread.conversationId}');
+                        context.push(
+                          RouteNames.chatConversationPath(
+                            thread.conversationId!,
+                          ),
+                        );
                       } else {
-                        context.push('/chats/${thread.id}');
+                        context.push(RouteNames.saleDetailPath(thread.id));
                       }
                     },
                   )
                 : ConsumerThreadCard(
                     thread: thread,
                     onTap: () {
-                      context.push('/chats/${thread.id}');
+                      context.push(RouteNames.purchaseDetailPath(thread.id));
                     },
                   ),
           );
@@ -355,29 +363,28 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Identidad de la sección (solo consumer; el proveedor ya tiene TabBar).
-          if (!isProvider) ...[
-            Text(
-              'Solicitudes de Búsqueda',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 26,
-                fontWeight: FontWeight.w900,
-                color: AppColors.textPrimary,
-                letterSpacing: -0.3,
-              ),
+          Text(
+            isProvider ? 'Ventas' : 'Compras',
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
+              letterSpacing: -0.3,
             ),
-            const SizedBox(height: 2),
-            Text(
-              'Compara las ofertas que recibes de las tiendas',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textSecondary,
-                height: 1.35,
-              ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            isProvider
+                ? 'Cotiza solicitudes y da seguimiento a tus ventas'
+                : 'Administra tus solicitudes y compara ofertas',
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+              height: 1.35,
             ),
-            const SizedBox(height: 16),
-          ],
+          ),
+          const SizedBox(height: 16),
 
           // Barra de búsqueda
           _buildSearchBar(isLoading, isProvider),
@@ -402,7 +409,8 @@ class _ChatInboxPageState extends ConsumerState<ChatInboxPage> {
                   if (isProvider) {
                     ref.read(storeStatusFilterProvider.notifier).state = param;
                   } else {
-                    ref.read(consumerStatusFilterProvider.notifier).state = param;
+                    ref.read(consumerStatusFilterProvider.notifier).state =
+                        param;
                   }
                 },
               ),
@@ -564,6 +572,20 @@ class _StatusFilterChips extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         _StatusChip(
+          label: 'Con ofertas',
+          count: quotedCount,
+          isSelected: selected == _StatusFilter.quoted,
+          onTap: () => onChanged(_StatusFilter.quoted),
+        ),
+        const SizedBox(width: 8),
+        _StatusChip(
+          label: 'Compradas',
+          count: boughtCount,
+          isSelected: selected == _StatusFilter.bought,
+          onTap: () => onChanged(_StatusFilter.bought),
+        ),
+        const SizedBox(width: 8),
+        _StatusChip(
           label: 'Cerradas',
           count: closedCount,
           isSelected: selected == _StatusFilter.closed,
@@ -640,81 +662,6 @@ class _StatusChip extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _MyConversationsTab extends ConsumerWidget {
-  final String query;
-
-  const _MyConversationsTab({required this.query});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final myConversationsAsync = ref.watch(myConversationsProvider);
-
-    return myConversationsAsync.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      ),
-      error: (err, _) => Center(
-        child: Text(
-          'Error al cargar conversaciones: $err',
-          style: GoogleFonts.hankenGrotesk(color: AppColors.error),
-        ),
-      ),
-      data: (conversations) {
-        final filtered = conversations.where((c) {
-          if (query.trim().isEmpty) return true;
-          final q = query.trim().toLowerCase();
-          return c.participantName.toLowerCase().contains(q) ||
-              (c.spareBrand?.toLowerCase().contains(q) ?? false);
-        }).toList();
-
-        if (filtered.isEmpty) {
-          return RefreshIndicator(
-            onRefresh: () => ref.refresh(myConversationsProvider.future),
-            color: AppColors.primary,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-                const SizedBox(height: 80),
-                EmptyState(
-                  title: query.isNotEmpty ? 'Sin resultados' : 'Sin chats activos',
-                  subtitle: query.isNotEmpty
-                      ? 'No encontramos chats para "$query".'
-                      : 'Aún no tienes conversaciones iniciadas.',
-                  icon: Icons.chat_bubble_outline_rounded,
-                ),
-              ],
-            ),
-          );
-        }
-
-        return RefreshIndicator(
-          onRefresh: () => ref.refresh(myConversationsProvider.future),
-          color: AppColors.primary,
-          child: ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            itemCount: filtered.length,
-            itemBuilder: (context, index) {
-              final conv = filtered[index];
-              return StaggeredEntrance(
-                index: index,
-                child: StoreChatCard(
-                  conversation: conv,
-                  onTap: () {
-                    context.push('/chats/${conv.threadId}/${conv.id}');
-                  },
-                ),
-              );
-            },
-          ),
-        );
-      },
     );
   }
 }

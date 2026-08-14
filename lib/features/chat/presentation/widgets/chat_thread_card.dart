@@ -68,7 +68,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                 backgroundColor: AppColors.success,
               ),
             );
-            ref.invalidate(chatThreadsProvider);
+            ref.invalidate(storeSalesRequestsProvider);
           }
         },
       );
@@ -105,7 +105,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                 backgroundColor: AppColors.success,
               ),
             );
-            ref.invalidate(chatThreadsProvider);
+            ref.invalidate(storeSalesRequestsProvider);
           }
         },
       );
@@ -130,16 +130,20 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
   @override
   Widget build(BuildContext context) {
     final thread = widget.thread;
-    final expStr = expirationLabel(thread.expiresAt, isExpired: thread.isExpired);
-    
+    final expStr =
+        expirationLabel(thread.expiresAt, isExpired: thread.isExpired);
+
     // Validaciones estrictas de estado y pertenencia
     final bool hasStoreOffer = thread.hasOffer;
     final bool isBought = hasStoreOffer && thread.offerStatus == 'BOUGHT';
     final bool isDelivered = hasStoreOffer && thread.offerStatus == 'DELIVERED';
     final bool isDiscarded = hasStoreOffer && thread.offerStatus == 'DISCARDED';
-    final bool isQuoted = hasStoreOffer && !isBought && !isDelivered && !isDiscarded;
-    final bool canQuoteNow = !hasStoreOffer && thread.isOpen && !thread.isExpired;
-    final bool isClosedWithoutQuote = !hasStoreOffer && (!thread.isOpen || thread.isExpired);
+    final bool isQuoted =
+        hasStoreOffer && !isBought && !isDelivered && !isDiscarded;
+    final bool canQuoteNow =
+        !hasStoreOffer && thread.isOpen && !thread.isExpired;
+    final bool isClosedWithoutQuote =
+        !hasStoreOffer && (!thread.isOpen || thread.isExpired);
 
     final OfferStatus status;
     String? labelOverride;
@@ -163,10 +167,12 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
     final semanticLabel = StringBuffer(
       'Solicitud de ${thread.clientName ?? "cliente"}, ${thread.title}',
     );
-    if (thread.subcategory != null) semanticLabel.write(', ${thread.subcategory}');
+    if (thread.subcategory != null)
+      semanticLabel.write(', ${thread.subcategory}');
     semanticLabel.write(', ${(labelOverride ?? status.label).toLowerCase()}');
     if (thread.distance != null) {
-      semanticLabel.write(', a ${thread.distance!.toStringAsFixed(1)} kilómetros');
+      semanticLabel
+          .write(', a ${thread.distance!.toStringAsFixed(1)} kilómetros');
     }
 
     return CardShell(
@@ -177,7 +183,8 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
           ? Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: thread.isExpired ? AppColors.errorLight : AppColors.grey50,
+                color:
+                    thread.isExpired ? AppColors.errorLight : AppColors.grey50,
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(14),
                 ),
@@ -188,14 +195,19 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                   Icon(
                     Icons.schedule_rounded,
                     size: 14,
-                    color: thread.isExpired ? AppColors.errorInk : AppColors.textMeta,
+                    color: thread.isExpired
+                        ? AppColors.errorInk
+                        : AppColors.textMeta,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     expStr,
                     style: CardTokens.meta.copyWith(
-                      color: thread.isExpired ? AppColors.errorInk : AppColors.textMeta,
-                      fontWeight: thread.isExpired ? FontWeight.w700 : FontWeight.w500,
+                      color: thread.isExpired
+                          ? AppColors.errorInk
+                          : AppColors.textMeta,
+                      fontWeight:
+                          thread.isExpired ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
                 ],
@@ -209,7 +221,8 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
           Row(
             children: [
               Flexible(
-                child: StatusBadge(status: status, labelOverride: labelOverride),
+                child:
+                    StatusBadge(status: status, labelOverride: labelOverride),
               ),
             ],
           ),
@@ -237,11 +250,14 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                     const SizedBox(height: CardTokens.tight),
                     MetaLine(
                       items: [
-                        if (thread.subcategory != null) MetaItem(thread.subcategory!),
-                        if (thread.partType != null) MetaItem(_partTypeLabel(thread.partType!)),
+                        if (thread.subcategory != null)
+                          MetaItem(thread.subcategory!),
+                        if (thread.partType != null)
+                          MetaItem(_partTypeLabel(thread.partType!)),
                       ],
                     ),
-                    if (thread.details != null && thread.details!.isNotEmpty) ...[
+                    if (thread.details != null &&
+                        thread.details!.isNotEmpty) ...[
                       const SizedBox(height: CardTokens.gap),
                       Text(
                         thread.details!,
@@ -261,7 +277,8 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
           // ── Zona 3: contexto del cliente ─────────────────────────────────
           MetaLine(
             items: [
-              MetaItem(thread.clientName ?? 'Cliente', icon: Icons.person_outline_rounded),
+              MetaItem(thread.clientName ?? 'Cliente',
+                  icon: Icons.person_outline_rounded),
               if (thread.distance != null)
                 MetaItem(
                   '${thread.distance!.toStringAsFixed(1)} km',
@@ -274,7 +291,8 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                       ? '${thread.totalOffersCount} cotización${thread.totalOffersCount > 1 ? 'es' : ''}'
                       : 'Sé el primero',
                   icon: Icons.storefront_outlined,
-                  color: thread.totalOffersCount > 0 ? null : AppColors.primaryInk,
+                  color:
+                      thread.totalOffersCount > 0 ? null : AppColors.primaryInk,
                 ),
             ],
           ),
@@ -288,7 +306,8 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                 child: SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: AppColors.primary),
                 ),
               ),
             )
@@ -304,7 +323,8 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                   backgroundColor: AppColors.primaryDark,
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
                 ),
               ),
             )
@@ -312,19 +332,22 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
             Column(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: AppColors.successLight,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.verified_rounded, size: 16, color: AppColors.successInk),
+                      const Icon(Icons.verified_rounded,
+                          size: 16, color: AppColors.successInk),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           '¡El cliente aceptó y compró tu oferta!',
-                          style: CardTokens.metaStrong.copyWith(color: AppColors.successInk),
+                          style: CardTokens.metaStrong
+                              .copyWith(color: AppColors.successInk),
                         ),
                       ),
                     ],
@@ -337,12 +360,14 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                   child: ElevatedButton.icon(
                     onPressed: _markDelivered,
                     icon: const Icon(Icons.local_shipping_rounded, size: 18),
-                    label: Text('Marcar como entregado', style: CardTokens.button),
+                    label:
+                        Text('Marcar como entregado', style: CardTokens.button),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.success,
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
                     ),
                   ),
                 ),
@@ -354,12 +379,14 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                 Expanded(
                   child: Row(
                     children: [
-                      const Icon(Icons.check_circle_rounded, color: AppColors.successInk, size: 18),
+                      const Icon(Icons.check_circle_rounded,
+                          color: AppColors.successInk, size: 18),
                       const SizedBox(width: 6),
                       Flexible(
                         child: Text(
                           'Entregado con éxito',
-                          style: CardTokens.metaStrong.copyWith(color: AppColors.successInk),
+                          style: CardTokens.metaStrong
+                              .copyWith(color: AppColors.successInk),
                         ),
                       ),
                     ],
@@ -375,7 +402,8 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                       foregroundColor: AppColors.textPrimary,
                       side: const BorderSide(color: AppColors.border),
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     child: Text('Ver chat', style: CardTokens.button),
                   ),
@@ -401,7 +429,8 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                       foregroundColor: AppColors.textSecondary,
                       side: const BorderSide(color: AppColors.border),
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     child: Text('Ver chat', style: CardTokens.button),
                   ),
@@ -427,7 +456,8 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                       foregroundColor: AppColors.textSecondary,
                       side: const BorderSide(color: AppColors.border),
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     child: Text('Ver chat', style: CardTokens.button),
                   ),
@@ -446,7 +476,8 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                       const SizedBox(height: 2),
                       PriceText(
                         amount: thread.offerPrice,
-                        style: CardTokens.price.copyWith(color: AppColors.primary),
+                        style:
+                            CardTokens.price.copyWith(color: AppColors.primary),
                         fallback: 'Enviada',
                       ),
                     ],
@@ -462,7 +493,8 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                       foregroundColor: AppColors.primary,
                       side: const BorderSide(color: AppColors.border),
                       padding: const EdgeInsets.symmetric(horizontal: 18),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     child: Text('Ver chat', style: CardTokens.button),
                   ),

@@ -19,14 +19,15 @@ class ChatRepositoryImpl implements ChatRepository {
 
   @override
   Future<Either<Failure, ChatThreadsResult>> getChatThreads({
+    UserRole? role,
     String? statusFilter,
     int page = 1,
     int pageSize = 20,
   }) async {
     try {
-      final role = getCurrentRole();
+      final resolvedRole = role ?? getCurrentRole();
       final result = await remoteDataSource.getChatThreads(
-        role,
+        resolvedRole,
         statusFilter: statusFilter,
         page: page,
         pageSize: pageSize,
@@ -38,10 +39,12 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, List<ChatConversation>>> getConversations(String threadId) async {
+  Future<Either<Failure, List<ChatConversation>>> getConversations(
+      String threadId) async {
     try {
       final role = getCurrentRole();
-      final conversations = await remoteDataSource.getConversations(threadId, role);
+      final conversations =
+          await remoteDataSource.getConversations(threadId, role);
       return Right(conversations);
     } catch (e) {
       return Left(ErrorMapper.map(e));
@@ -49,7 +52,8 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, List<ChatMessage>>> getMessages(String conversationId) async {
+  Future<Either<Failure, List<ChatMessage>>> getMessages(
+      String conversationId) async {
     try {
       final role = getCurrentRole();
       final messages = await remoteDataSource.getMessages(conversationId, role);
@@ -60,10 +64,12 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, ChatMessage>> sendMessage(String conversationId, String content) async {
+  Future<Either<Failure, ChatMessage>> sendMessage(
+      String conversationId, String content) async {
     try {
       final role = getCurrentRole();
-      final message = await remoteDataSource.sendMessage(conversationId, content, role);
+      final message =
+          await remoteDataSource.sendMessage(conversationId, content, role);
       return Right(message);
     } catch (e) {
       return Left(ErrorMapper.map(e));
@@ -131,9 +137,11 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, ChatConversation>> getConversationDetails(String conversationId) async {
+  Future<Either<Failure, ChatConversation>> getConversationDetails(
+      String conversationId) async {
     try {
-      final conversation = await remoteDataSource.getConversationDetails(conversationId);
+      final conversation =
+          await remoteDataSource.getConversationDetails(conversationId);
       return Right(conversation);
     } catch (e) {
       return Left(ErrorMapper.map(e));

@@ -16,6 +16,7 @@ import '../../domain/usecases/buy_offer_usecase.dart';
 import '../../domain/usecases/deliver_offer_usecase.dart';
 import '../../domain/usecases/mark_as_read_usecase.dart';
 import '../../../../core/providers/current_user_provider.dart';
+import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/services/socket_service.dart';
 
 // ── Dependency Providers ─────────────────────────────────────────────────────
@@ -42,7 +43,8 @@ final getChatThreadsUseCaseProvider = Provider<GetChatThreadsUseCase>((ref) {
   return GetChatThreadsUseCase(ref.watch(chatRepositoryProvider));
 });
 
-final getConversationsUseCaseProvider = Provider<GetConversationsUseCase>((ref) {
+final getConversationsUseCaseProvider =
+    Provider<GetConversationsUseCase>((ref) {
   return GetConversationsUseCase(ref.watch(chatRepositoryProvider));
 });
 
@@ -82,58 +84,85 @@ final storeStatusFilterProvider = StateProvider<String>((ref) => 'UNQUOTED');
 /// Filtro activo para consultas de consumidores (ALL, OPEN, WITH_OFFER, BOUGHT, CLOSED).
 final consumerStatusFilterProvider = StateProvider<String>((ref) => 'ALL');
 
-/// Hilos o carpetas activas.
-final chatThreadsProvider = FutureProvider<ChatThreadsResult>((ref) async {
+/// Solicitudes creadas por el consumidor. Viven en Compras, no en Chats.
+final consumerRequestsProvider = FutureProvider<ChatThreadsResult>((ref) async {
   final useCase = ref.watch(getChatThreadsUseCaseProvider);
-  final role = ref.watch(currentRoleProvider);
   final socketService = ref.watch(socketServiceProvider);
 
-  final sub1 = socketService.onSearchMatched.listen((_) {
+  final offerSub = socketService.onOfferUpdated.listen((_) {
     ref.invalidateSelf();
   });
-  final sub2 = socketService.onMessage.listen((_) {
-    ref.invalidateSelf();
-  });
-  final sub3 = socketService.onOfferUpdated.listen((_) {
+  final messageSub = socketService.onMessage.listen((_) {
     ref.invalidateSelf();
   });
   ref.onDispose(() {
-    sub1.cancel();
-    sub2.cancel();
-    sub3.cancel();
+    offerSub.cancel();
+    messageSub.cancel();
   });
 
-  String? filterParam;
-  if (role.isProvider) {
-    filterParam = ref.watch(storeStatusFilterProvider);
-  } else {
-    filterParam = ref.watch(consumerStatusFilterProvider);
-  }
-
-  final result = await useCase(statusFilter: filterParam);
+  final result = await useCase(
+    role: UserRole.consumer,
+    statusFilter: ref.watch(consumerStatusFilterProvider),
+  );
   return result.fold(
     (failure) => throw Exception(failure.message),
-    (chatThreadsResult) => chatThreadsResult,
+    (requests) => requests,
   );
 });
 
-/// Indica si hay algún hilo de chat con mensajes sin leer.
-/// Usado para el punto indicador de la campana de notificaciones del home.
-final hasUnreadChatThreadsProvider = Provider<bool>((ref) {
-  final threadsAsync = ref.watch(chatThreadsProvider);
-  return threadsAsync.valueOrNull?.threads
-          .any((thread) => thread.unreadCount > 0) ??
-      false;
-});
-
-final myConversationsProvider = FutureProvider<List<ChatConversation>>((ref) async {
-  final repository = ref.watch(chatRepositoryProvider);
+/// Solicitudes visibles para la tienda. Constituyen su bandeja de Ventas.
+final storeSalesRequestsProvider =
+    FutureProvider<ChatThreadsResult>((ref) async {
+  final useCase = ref.watch(getChatThreadsUseCaseProvider);
   final socketService = ref.watch(socketServiceProvider);
-  
-  final sub = socketService.onMessage.listen((_) {
+
+  final matchSub = socketService.onSearchMatched.listen((_) {
     ref.invalidateSelf();
   });
-  ref.onDispose(() => sub.cancel());
+  final offerSub = socketService.onOfferUpdated.listen((_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(() {
+    matchSub.cancel();
+    offerSub.cancel();
+  });
+
+  final result = await useCase(
+    role: UserRole.store,
+    statusFilter: ref.watch(storeStatusFilterProvider),
+  );
+  return result.fold(
+    (failure) => throw Exception(failure.message),
+    (requests) => requests,
+  );
+});
+
+/// Alias transitorio para detalles existentes. La selección se basa solo en
+/// STORE, no en `isProvider`, porque el endpoint de ventas pertenece a tiendas.
+final chatThreadsProvider = FutureProvider<ChatThreadsResult>((ref) {
+  final role = ref.watch(currentRoleProvider);
+  return ref.watch(
+    role.isStore
+        ? storeSalesRequestsProvider.future
+        : consumerRequestsProvider.future,
+  );
+});
+
+final myConversationsProvider =
+    FutureProvider<List<ChatConversation>>((ref) async {
+  final repository = ref.watch(chatRepositoryProvider);
+  final socketService = ref.watch(socketServiceProvider);
+
+  final messageSub = socketService.onMessage.listen((_) {
+    ref.invalidateSelf();
+  });
+  final offerSub = socketService.onOfferUpdated.listen((_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(() {
+    messageSub.cancel();
+    offerSub.cancel();
+  });
 
   final result = await repository.getMyConversations();
   return result.fold(
@@ -142,7 +171,17 @@ final myConversationsProvider = FutureProvider<List<ChatConversation>>((ref) asy
   );
 });
 
-final chatConversationDetailsProvider = FutureProvider.autoDispose.family<ChatConversation, String>((ref, conversationId) async {
+/// El indicador de chats se calcula desde conversaciones reales, no desde
+/// solicitudes que casualmente tengan ofertas.
+final hasUnreadChatThreadsProvider = Provider<bool>((ref) {
+  final conversations = ref.watch(myConversationsProvider);
+  return conversations.valueOrNull
+          ?.any((conversation) => conversation.unreadCount > 0) ??
+      false;
+});
+
+final chatConversationDetailsProvider = FutureProvider.autoDispose
+    .family<ChatConversation, String>((ref, conversationId) async {
   final repository = ref.watch(chatRepositoryProvider);
   final socketService = ref.watch(socketServiceProvider);
 
@@ -165,7 +204,8 @@ final chatConversationDetailsProvider = FutureProvider.autoDispose.family<ChatCo
 });
 
 /// Conversaciones/ofertas dentro de una carpeta específica.
-final chatConversationsProvider = FutureProvider.autoDispose.family<List<ChatConversation>, String>((ref, threadId) async {
+final chatConversationsProvider = FutureProvider.autoDispose
+    .family<List<ChatConversation>, String>((ref, threadId) async {
   final useCase = ref.watch(getConversationsUseCaseProvider);
   final socketService = ref.watch(socketServiceProvider);
 
@@ -193,7 +233,8 @@ final chatConversationsProvider = FutureProvider.autoDispose.family<List<ChatCon
 
 // ── Messages Notifier ────────────────────────────────────────────────────────
 
-class ChatMessagesNotifier extends StateNotifier<AsyncValue<List<ChatMessage>>> {
+class ChatMessagesNotifier
+    extends StateNotifier<AsyncValue<List<ChatMessage>>> {
   final GetMessagesUseCase _getMessagesUseCase;
   final SocketService _socketService;
   final String _conversationId;
@@ -210,10 +251,11 @@ class ChatMessagesNotifier extends StateNotifier<AsyncValue<List<ChatMessage>>> 
         super(const AsyncValue.loading()) {
     loadMessages();
     _socketService.joinConversation(_conversationId);
-    
+
     // Escuchar nuevos mensajes y actualizaciones de oferta
     _msgSub = _socketService.onMessage.listen((data) {
-      if (data['conversationId'] == _conversationId || data['conversationId'] == null) {
+      if (data['conversationId'] == _conversationId ||
+          data['conversationId'] == null) {
         loadMessages();
       }
     });
@@ -243,9 +285,11 @@ class ChatMessagesNotifier extends StateNotifier<AsyncValue<List<ChatMessage>>> 
   Future<void> sendMessage(String content) async {
     if (content.trim().isEmpty) return;
     try {
-      final success = await _socketService.sendMessage(_conversationId, content);
+      final success =
+          await _socketService.sendMessage(_conversationId, content);
       if (!success) {
-        throw Exception('Sin conexión al servidor de chat. Verifica tu red o recarga la app.');
+        throw Exception(
+            'Sin conexión al servidor de chat. Verifica tu red o recarga la app.');
       }
     } catch (e) {
       throw Exception(e.toString());
@@ -260,8 +304,9 @@ class ChatMessagesNotifier extends StateNotifier<AsyncValue<List<ChatMessage>>> 
   }
 }
 
-final chatMessagesProvider = StateNotifierProvider.family.autoDispose<
-    ChatMessagesNotifier, AsyncValue<List<ChatMessage>>, String>((ref, conversationId) {
+final chatMessagesProvider = StateNotifierProvider.family
+    .autoDispose<ChatMessagesNotifier, AsyncValue<List<ChatMessage>>, String>(
+        (ref, conversationId) {
   return ChatMessagesNotifier(
     getMessagesUseCase: ref.watch(getMessagesUseCaseProvider),
     socketService: ref.watch(socketServiceProvider),

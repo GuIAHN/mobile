@@ -15,7 +15,7 @@ void main() {
 
   ProviderContainer containerFor({
     required UserRole role,
-    int initialTab = 0,
+    MainNavigationTab initialTab = MainNavigationTab.home,
   }) {
     return ProviderContainer(
       overrides: [
@@ -115,9 +115,7 @@ void main() {
     final surfaceRect = tester.getRect(surface);
     expect(surfaceRect.left, closeTo(navRect.left + 14, 0.01));
     expect(surfaceRect.right, closeTo(navRect.right - 14, 0.01));
-    final decoration = tester.widget<DecoratedBox>(surface).decoration;
-    expect(decoration, isA<BoxDecoration>());
-    expect((decoration as BoxDecoration).borderRadius, isNotNull);
+    expect(tester.widget<CustomPaint>(surface).painter, isNotNull);
     expect(surfaceRect.height, kBottomNavBarHeight);
     expect(
       surfaceRect.top - logoRect.top,
@@ -129,7 +127,7 @@ void main() {
     testWidgets('center logo responds at its $edge edge', (tester) async {
       final container = containerFor(
         role: UserRole.consumer,
-        initialTab: 1,
+        initialTab: MainNavigationTab.chats,
       );
       addTearDown(container.dispose);
 
@@ -146,11 +144,14 @@ void main() {
 
       await tester.tapAt(point);
       await tester.pump();
-      expect(container.read(homeTabProvider), 0);
+      expect(container.read(homeTabProvider), MainNavigationTab.home);
     });
   }
 
-  for (final initialTab in const [0, 1]) {
+  for (final initialTab in const [
+    MainNavigationTab.home,
+    MainNavigationTab.chats,
+  ]) {
     testWidgets('logo bounds remain exactly 56 dp on tab $initialTab at rest',
         (tester) async {
       final container = containerFor(
@@ -173,36 +174,26 @@ void main() {
       (tester) async {
     final container = containerFor(
       role: UserRole.consumer,
-      initialTab: 1,
+      initialTab: MainNavigationTab.chats,
     );
     addTearDown(container.dispose);
 
     await tester.pumpWidget(subject(container));
     await tester.pumpAndSettle();
 
-    final stage = find.byKey(const Key('bottom-nav-active-pill'));
+    final stage = find.byKey(const Key('bottom-nav-active-indicator'));
     final surface = find.byKey(const Key('bottom-nav-surface'));
     final chatsRect = tester.getRect(stage);
     final surfaceRect = tester.getRect(surface);
-    expect(chatsRect.size, const Size(52, 30));
-    expect(chatsRect.top, greaterThanOrEqualTo(surfaceRect.top));
-    expect(chatsRect.bottom, lessThanOrEqualTo(surfaceRect.bottom));
-
-    final pillDecoration = tester
-        .widget<DecoratedBox>(
-          find.descendant(
-            of: stage,
-            matching: find.byType(DecoratedBox),
-          ),
-        )
-        .decoration as BoxDecoration;
-    expect(pillDecoration.boxShadow, isNull);
+    expect(chatsRect.size, const Size.square(48));
+    expect(chatsRect.top, lessThan(surfaceRect.top));
+    expect(chatsRect.bottom, greaterThan(surfaceRect.top));
 
     await tester.tap(find.text('Inicio'));
     await tester.pumpAndSettle();
 
     final homeRect = tester.getRect(stage);
-    expect(homeRect.size, const Size(52, 30));
+    expect(homeRect.size, const Size.square(48));
     expect(homeRect.center.dx, lessThan(chatsRect.center.dx));
     expect(homeRect.center.dy, closeTo(chatsRect.center.dy, 0.01));
   });
@@ -211,7 +202,7 @@ void main() {
       (tester) async {
     final container = containerFor(
       role: UserRole.consumer,
-      initialTab: 1,
+      initialTab: MainNavigationTab.chats,
     );
     addTearDown(container.dispose);
 
@@ -219,59 +210,68 @@ void main() {
 
     await tester.tap(find.text('Compras'));
     await tester.pump();
-    expect(container.read(homeTabProvider), 2);
+    expect(container.read(homeTabProvider), MainNavigationTab.commerce);
 
     await tester.tap(find.text('Perfil'));
     await tester.pump();
-    expect(container.read(homeTabProvider), 3);
+    expect(container.read(homeTabProvider), MainNavigationTab.profile);
 
     await tester.tap(find.bySemanticsLabel(logoSemantics));
     await tester.pump();
-    expect(container.read(homeTabProvider), 0);
+    expect(container.read(homeTabProvider), MainNavigationTab.home);
   });
 
-  testWidgets('store shows three equal actions and preserves its index mapping',
+  testWidgets('store exposes Ventas and preserves semantic tab mapping',
       (tester) async {
-    final container = containerFor(role: UserRole.store, initialTab: 1);
+    final container = containerFor(
+      role: UserRole.store,
+      initialTab: MainNavigationTab.chats,
+    );
     addTearDown(container.dispose);
 
     await tester.pumpWidget(subject(container));
 
     expect(find.text('Compras'), findsNothing);
     expect(find.text('Mis Compras'), findsNothing);
-    expect(find.bySemanticsLabel(logoSemantics), findsNothing);
-    expect(logoFinder(), findsNothing);
+    expect(find.text('Ventas'), findsOneWidget);
+    expect(find.bySemanticsLabel(logoSemantics), findsOneWidget);
+    expect(logoFinder(), findsOneWidget);
 
     final surfaceRect = tester.getRect(
       find.byKey(const Key('bottom-nav-surface')),
     );
     final actionRects = [
-      for (final label in const ['Inicio', 'Chats', 'Perfil'])
+      for (final label in const ['Inicio', 'Chats', 'Ventas', 'Perfil'])
         tester.getRect(find.bySemanticsLabel(label)),
     ];
     for (final rect in actionRects) {
-      expect(rect.width, closeTo(surfaceRect.width / 3, 0.01));
+      expect(rect.width, closeTo(surfaceRect.width / 5, 0.01));
       expect(rect.height, greaterThanOrEqualTo(48));
     }
-    expect(actionRects.first.left, closeTo(surfaceRect.left, 0.01));
-    expect(actionRects.last.right, closeTo(surfaceRect.right, 0.01));
+
+    await tester.tap(find.text('Ventas'));
+    await tester.pump();
+    expect(container.read(homeTabProvider), MainNavigationTab.commerce);
 
     await tester.tap(find.text('Perfil'));
     await tester.pump();
-    expect(container.read(homeTabProvider), 2);
+    expect(container.read(homeTabProvider), MainNavigationTab.profile);
 
     await tester.tap(find.text('Chats'));
     await tester.pump();
-    expect(container.read(homeTabProvider), 1);
+    expect(container.read(homeTabProvider), MainNavigationTab.chats);
 
     await tester.tap(find.text('Inicio'));
     await tester.pump();
-    expect(container.read(homeTabProvider), 0);
+    expect(container.read(homeTabProvider), MainNavigationTab.home);
   });
 
   testWidgets('store labels fit with safe area and enlarged text',
       (tester) async {
-    final container = containerFor(role: UserRole.store, initialTab: 2);
+    final container = containerFor(
+      role: UserRole.store,
+      initialTab: MainNavigationTab.commerce,
+    );
     addTearDown(container.dispose);
 
     await tester.pumpWidget(
@@ -288,10 +288,10 @@ void main() {
     final surfaceRect = tester.getRect(
       find.byKey(const Key('bottom-nav-surface')),
     );
-    for (final label in const ['Inicio', 'Chats', 'Perfil']) {
+    for (final label in const ['Inicio', 'Chats', 'Ventas', 'Perfil']) {
       final actionRect = tester.getRect(find.bySemanticsLabel(label));
       final labelRect = visualRect(tester, find.text(label));
-      expect(actionRect.width, closeTo(surfaceRect.width / 3, 0.01));
+      expect(actionRect.width, closeTo(surfaceRect.width / 5, 0.01));
       expect(actionRect.bottom, lessThanOrEqualTo(812 - 34));
       expect(labelRect.left, greaterThanOrEqualTo(actionRect.left));
       expect(labelRect.right, lessThanOrEqualTo(actionRect.right));
@@ -303,7 +303,7 @@ void main() {
       (tester) async {
     final container = containerFor(
       role: UserRole.consumer,
-      initialTab: 1,
+      initialTab: MainNavigationTab.chats,
     );
     addTearDown(container.dispose);
 
@@ -338,12 +338,12 @@ void main() {
 
   testWidgets('press feedback does not paint a rectangular Material overlay',
       (tester) async {
-    final container = containerFor(role: UserRole.store, initialTab: 0);
+    final container = containerFor(role: UserRole.store);
     addTearDown(container.dispose);
 
     await tester.pumpWidget(subject(container));
 
-    for (final label in const ['Inicio', 'Chats', 'Perfil']) {
+    for (final label in const ['Inicio', 'Chats', 'Ventas', 'Perfil']) {
       final inkWell = tester.widget<InkWell>(
         find.descendant(
           of: find.bySemanticsLabel(label),
@@ -362,7 +362,7 @@ void main() {
       (tester) async {
     final container = containerFor(
       role: UserRole.consumer,
-      initialTab: 0,
+      initialTab: MainNavigationTab.home,
     );
     addTearDown(container.dispose);
 
@@ -371,7 +371,7 @@ void main() {
     );
 
     final selectedRect = tester.getRect(find.bySemanticsLabel(logoSemantics));
-    container.read(homeTabProvider.notifier).state = 1;
+    container.read(homeTabProvider.notifier).state = MainNavigationTab.chats;
     await tester.pump();
     final unselectedRect = tester.getRect(find.bySemanticsLabel(logoSemantics));
     final positionTween = tester.widget<TweenAnimationBuilder<double>>(
@@ -379,13 +379,10 @@ void main() {
         (widget) => widget is TweenAnimationBuilder<double>,
       ),
     );
-    final scales = tester.widgetList<AnimatedScale>(find.byType(AnimatedScale));
 
     expect(selectedRect.size, const Size.square(56));
     expect(unselectedRect, selectedRect);
     expect(positionTween.duration, Duration.zero);
-    expect(scales, isNotEmpty);
-    expect(scales.every((scale) => scale.duration == Duration.zero), isTrue);
   });
 
   testWidgets('nav stays overflow-free at 2x on representative phone widths',
