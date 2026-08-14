@@ -212,6 +212,8 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
   }
 }
 
+const double _kTitleTopPadding = 8;
+const double _kBackButtonSize = 48;
 const double _kTitleRowHeight = 56;
 const double _kSearchRowHeight = 72;
 

@@ -14,6 +14,15 @@ class DashboardResponse extends Equatable {
   @override
   List<Object?> get props => [scope, computedAt, groups];
 
+  MetricResult? metricById(String id) {
+    for (final group in groups) {
+      for (final panel in group.panels) {
+        if (panel.id == id && panel.metric != null) return panel.metric;
+      }
+    }
+    return null;
+  }
+
   factory DashboardResponse.fromJson(Map<String, dynamic> json) {
     return DashboardResponse(
       scope: json['scope'] as String? ?? '',

@@ -22,7 +22,8 @@ class StoreFunnelChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // El máximo define el 100% de la barra
-    final maxCount = steps.fold<int>(0, (max, s) => s.count > max ? s.count : max);
+    final maxCount =
+        steps.fold<int>(0, (max, s) => s.count > max ? s.count : max);
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -81,15 +82,19 @@ class _FunnelRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Text(
-              step.name,
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppTokens.textSecondary,
+            Expanded(
+              child: Text(
+                step.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppTokens.textSecondary,
+                ),
               ),
             ),
-            const Spacer(),
+            const SizedBox(width: 8),
             Text(
               '${step.count}',
               style: GoogleFonts.hankenGrotesk(
@@ -134,5 +139,3 @@ class _FunnelRow extends StatelessWidget {
     );
   }
 }
-
-

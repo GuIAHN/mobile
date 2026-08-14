@@ -287,13 +287,28 @@ void main() {
   });
 
   testWidgets(
-      'provider restrictions and store dashboard behavior remain intact',
+      'each business role can select statistics without unrelated actions',
       (tester) async {
     await tester.pumpWidget(subject(role: UserRole.mechanic));
 
+    expect(find.text('Estadísticas'), findsOneWidget);
     expect(find.text('Pedir repuesto'), findsOneWidget);
     expect(find.text('Buscar taller'), findsOneWidget);
     expect(find.text('Buscar mecánico'), findsNothing);
+
+    await tester.tap(find.text('Estadísticas'));
+    await tester.pump();
+    var context = tester.element(find.byType(CategoryGrid));
+    expect(
+      ProviderScope.containerOf(context).read(selectedServiceTypeProvider),
+      ServiceType.storeDashboard,
+    );
+
+    await tester.pumpWidget(subject(role: UserRole.workshop));
+    expect(find.text('Estadísticas'), findsOneWidget);
+    expect(find.text('Pedir repuesto'), findsOneWidget);
+    expect(find.text('Buscar taller'), findsNothing);
+    expect(find.text('Buscar mecánico'), findsOneWidget);
 
     await tester.pumpWidget(subject(role: UserRole.store));
     expect(find.text('Estadísticas'), findsOneWidget);
@@ -304,7 +319,7 @@ void main() {
     await tester.tap(find.text('Estadísticas'));
     await tester.pump();
 
-    final context = tester.element(find.byType(CategoryGrid));
+    context = tester.element(find.byType(CategoryGrid));
     expect(
       ProviderScope.containerOf(context).read(selectedServiceTypeProvider),
       ServiceType.storeDashboard,

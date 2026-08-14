@@ -34,4 +34,35 @@ void main() {
     },
     semanticsEnabled: true,
   );
+
+  testWidgets('stacks its action on narrow layouts with large text',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(335, 800),
+              textScaler: TextScaler.linear(2),
+            ),
+            child: SizedBox(
+              width: 335,
+              child: SectionHeader(
+                title: 'Mecánicos mejor valorados',
+                icon: Icons.engineering_rounded,
+                action: SectionHeaderAction(
+                  label: 'Ver todos',
+                  onTap: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Mecánicos mejor valorados'), findsOneWidget);
+    expect(find.text('Ver todos'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

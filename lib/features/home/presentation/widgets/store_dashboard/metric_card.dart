@@ -11,6 +11,7 @@ class MetricCard extends StatelessWidget {
   final Color themeColor;
   final Color iconColor;
   final Color iconBgColor;
+  final String? helperText;
 
   const MetricCard({
     super.key,
@@ -21,6 +22,7 @@ class MetricCard extends StatelessWidget {
     required this.iconColor,
     required this.iconBgColor,
     this.deltaPct,
+    this.helperText,
   });
 
   @override
@@ -28,7 +30,6 @@ class MetricCard extends StatelessWidget {
     final hasDelta = deltaPct != null;
     final deltaVal = deltaPct ?? 0.0;
     final isPositive = deltaVal > 0;
-    final isNegative = deltaVal < 0;
 
     // Detectar si el valor de la métrica es cero
     final cleanVal = value.replaceAll(RegExp(r'[^0-9.]'), '');
@@ -100,9 +101,8 @@ class MetricCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: isPositive
-                    ? AppColors.successLight
-                    : AppColors.errorLight,
+                color:
+                    isPositive ? AppColors.successLight : AppColors.errorLight,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -111,7 +111,8 @@ class MetricCard extends StatelessWidget {
                   Icon(
                     isPositive ? Icons.trending_up : Icons.trending_down,
                     size: 11,
-                    color: isPositive ? AppColors.successInk : AppColors.errorInk,
+                    color:
+                        isPositive ? AppColors.successInk : AppColors.errorInk,
                   ),
                   const SizedBox(width: 3),
                   Text(
@@ -119,7 +120,9 @@ class MetricCard extends StatelessWidget {
                     style: GoogleFonts.hankenGrotesk(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: isPositive ? AppColors.successInk : AppColors.errorInk,
+                      color: isPositive
+                          ? AppColors.successInk
+                          : AppColors.errorInk,
                     ),
                   ),
                 ],
@@ -129,7 +132,8 @@ class MetricCard extends StatelessWidget {
             Text(
               deltaVal == 0 && hasDelta
                   ? 'Sin cambios'
-                  : (isZero ? 'Sin datos este período' : 'Sin datos previos'),
+                  : helperText ??
+                      (isZero ? 'Sin datos este período' : 'Sin datos previos'),
               style: GoogleFonts.hankenGrotesk(
                 fontSize: 11,
                 fontWeight: FontWeight.w400,
@@ -141,6 +145,3 @@ class MetricCard extends StatelessWidget {
     );
   }
 }
-
-
-

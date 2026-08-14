@@ -18,14 +18,13 @@ import '../../../chat/presentation/pages/chat_inbox_page.dart';
 import '../../../chat/presentation/pages/mis_compras_page.dart';
 import '../../../notifications/presentation/providers/notifications_providers.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
-import '../../../../shared/widgets/section_header.dart';
 
 // Componentes del Home (hub de navegación)
 import '../widgets/header/home_header_expanded.dart';
 import '../widgets/home_section_surface.dart';
 import '../widgets/sections/top_providers_section.dart';
-import '../widgets/sections/my_garage_section.dart';
 import '../widgets/store_dashboard/store_dashboard_view.dart';
+import '../widgets/provider_dashboard/provider_dashboard_view.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/providers/current_user_provider.dart';
 
@@ -75,17 +74,21 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ? _buildHomeHub()
                 : SafeArea(
                     bottom: false,
-                    child: Padding(
-                      // Las demás vistas no deben quedar tapadas por la barra.
-                      padding: EdgeInsets.only(
-                        bottom: bottomNavContentInset(context),
-                      ),
-                      child: activeTab == 1
-                          ? const ChatInboxPage()
-                          : activeTab == 2 && !isStore
-                              ? const MisComprasPage()
-                              : const ProfileTab(),
-                    ),
+                    child: activeTab == 1
+                        // ChatInboxPage ya aplica el inset que Scaffold expone
+                        // para la barra inferior mediante su propio SafeArea.
+                        ? const ChatInboxPage()
+                        : Padding(
+                            // Compras y Perfil gestionan su contenido sin un
+                            // SafeArea inferior propio, así que conservan este
+                            // espacio explícito para no quedar bajo la barra.
+                            padding: EdgeInsets.only(
+                              bottom: bottomNavContentInset(context),
+                            ),
+                            child: activeTab == 2 && !isStore
+                                ? const MisComprasPage()
+                                : const ProfileTab(),
+                          ),
                   ),
           ),
           if (user != null && !user.approved)
@@ -108,12 +111,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     final allowedTypes = currentRole.allowedServiceTypes;
     final unreadNotifications = ref.watch(unreadNotificationsCountProvider);
     final hasUnreadNotifications = (unreadNotifications.valueOrNull ?? 0) > 0;
-    // La tienda no tiene garage: aunque isDashboardSelected quede desactualizado
-    // (ej. al volver de la lista de mecánicos/talleres), el rol manda.
-    final showGarage =
-        !isConsumer && !isDashboardSelected && !currentRole.isStore;
     final promoSection = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 260),
         switchInCurve: Curves.easeOut,
@@ -147,33 +146,15 @@ class _HomePageState extends ConsumerState<HomePage> {
           onNotificationsTap: () => context.push(RouteNames.notifications),
         ),
 
-        if (showGarage) ...[
-          // ── Mi garage: vehículos del usuario con acceso rápido ─────────
-          const SizedBox(height: _kSectionGap),
-          const MyGarageSection(),
-
-          // ── Publicidad ──────────────────────────────────────────────
-          const SizedBox(height: _kSectionGap),
-          promoSection,
-        ],
-
-        if (isConsumer) ...[
-          const SizedBox(height: _kSectionGap),
-          const SectionHeader(
-            title: '¿Qué necesitas buscar hoy?',
-            icon: Icons.search_rounded,
-          ),
-        ],
-
         // ── Tarjetas de acción principales ──────────────────────────────────
-        Padding(
+        const Padding(
           padding: EdgeInsets.fromLTRB(
-            20,
-            isConsumer ? 12 : _kSectionGap,
-            20,
+            AppSpacing.xl,
+            _kSectionGap,
+            AppSpacing.xl,
             16,
           ),
-          child: const CategoryGrid(),
+          child: CategoryGrid(),
         ),
 
         if (isConsumer) promoSection,
@@ -181,6 +162,10 @@ class _HomePageState extends ConsumerState<HomePage> {
         if (isDashboardSelected && currentRole.isStore)
           // Dashboard para usuarios tipo tienda
           const StoreDashboardView()
+        else if (isDashboardSelected &&
+            (currentRole.isMechanic || currentRole.isWorkshop))
+          // Dashboard operativo compartido por mecánicos y talleres.
+          const ProviderDashboardView()
         else if (isConsumer) ...[
           if (allowedTypes.contains(ServiceType.workshops)) ...[
             const SizedBox(height: _kSectionGap),
@@ -208,20 +193,26 @@ class _HomePageState extends ConsumerState<HomePage> {
           // ── Top mecánicos cercanos ────────────────────────────────
           if (allowedTypes.contains(ServiceType.mechanic)) ...[
             const SizedBox(height: _kSectionGap),
-            const TopProvidersSection(
-              serviceType: ServiceType.mechanic,
-              title: 'Mecánicos cerca de ti',
-              routePath: RouteNames.mechanics,
+            const HomeSectionSurface(
+              key: Key('home-provider-section-mechanics'),
+              child: TopProvidersSection(
+                serviceType: ServiceType.mechanic,
+                title: 'Mecánicos cerca de ti',
+                routePath: RouteNames.mechanics,
+              ),
             ),
           ],
 
           // ── Top talleres cercanos ─────────────────────────────────
           if (allowedTypes.contains(ServiceType.workshops)) ...[
             const SizedBox(height: _kSectionGap),
-            const TopProvidersSection(
-              serviceType: ServiceType.workshops,
-              title: 'Talleres cerca de ti',
-              routePath: RouteNames.workshops,
+            const HomeSectionSurface(
+              key: Key('home-provider-section-workshops'),
+              child: TopProvidersSection(
+                serviceType: ServiceType.workshops,
+                title: 'Talleres cerca de ti',
+                routePath: RouteNames.workshops,
+              ),
             ),
           ],
         ],

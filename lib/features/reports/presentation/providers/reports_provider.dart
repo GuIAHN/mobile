@@ -9,7 +9,8 @@ import '../../domain/entities/store_dashboard.dart';
 import '../../domain/repositories/reports_repository.dart';
 
 // --- Data Source & Repository Providers ---
-final reportsRemoteDataSourceProvider = Provider<ReportsRemoteDataSource>((ref) {
+final reportsRemoteDataSourceProvider =
+    Provider<ReportsRemoteDataSource>((ref) {
   final dioClient = ref.watch(dioClientProvider);
   return ReportsRemoteDataSourceImpl(dioClient);
 });
@@ -41,12 +42,13 @@ class DashboardFilter {
 }
 
 class DashboardFilterNotifier extends StateNotifier<DashboardFilter> {
-  DashboardFilterNotifier() : super(
-    DashboardFilter(
-      from: DateTime.now().subtract(const Duration(days: 30)),
-      to: DateTime.now(),
-    )
-  );
+  DashboardFilterNotifier()
+      : super(
+          DashboardFilter(
+            from: DateTime.now().subtract(const Duration(days: 30)),
+            to: DateTime.now(),
+          ),
+        );
 
   void updateDays(int days) {
     state = DashboardFilter(
@@ -54,47 +56,73 @@ class DashboardFilterNotifier extends StateNotifier<DashboardFilter> {
       to: DateTime.now(),
     );
   }
-  
+
   int get currentDays {
     if (state.from == null || state.to == null) return 30;
     return state.to!.difference(state.from!).inDays;
   }
 }
 
-final storeDashboardFilterProvider = StateNotifierProvider<DashboardFilterNotifier, DashboardFilter>((ref) {
+final dashboardFilterProvider =
+    StateNotifierProvider<DashboardFilterNotifier, DashboardFilter>((ref) {
   return DashboardFilterNotifier();
 });
 
+/// Alias temporal para los consumidores existentes del dashboard de tienda.
+final storeDashboardFilterProvider = dashboardFilterProvider;
 
+String? _formatDate(DateTime? date) {
+  if (date == null) return null;
+  return '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
+}
 
-final storeDashboardProvider = FutureProvider.autoDispose<DashboardResponse>((ref) async {
-  final repository = ref.watch(reportsRepositoryProvider);
-  final filter = ref.watch(storeDashboardFilterProvider);
-  final user = ref.watch(authProvider).user;
-  
-  if (user == null) throw Exception('Usuario no autenticado');
-
-  final isProvider = user.role.isMechanic || user.role.isWorkshop;
-
-  // Listen to real-time events to update the dashboard automatically
+void _listenForDashboardRefresh(Ref ref) {
   final socketService = ref.watch(socketServiceProvider);
-  
   final offerSub = socketService.onOfferUpdated.listen((_) {
     ref.invalidateSelf();
   });
-  
   final searchSub = socketService.onSearchMatched.listen((_) {
     ref.invalidateSelf();
   });
-  
+
   ref.onDispose(() {
     offerSub.cancel();
     searchSub.cancel();
   });
+}
+
+final storeDashboardProvider =
+    FutureProvider.autoDispose<DashboardResponse>((ref) async {
+  final repository = ref.watch(reportsRepositoryProvider);
+  final filter = ref.watch(dashboardFilterProvider);
+  final user = ref.watch(authProvider).user;
+  if (user == null || !user.role.isStore) {
+    throw Exception('Dashboard de tienda no autorizado');
+  }
+
+  _listenForDashboardRefresh(ref);
 
   return repository.getStoreDashboard(
-    from: filter.from != null ? "${filter.from!.year.toString().padLeft(4, '0')}-${filter.from!.month.toString().padLeft(2, '0')}-${filter.from!.day.toString().padLeft(2, '0')}" : null,
-    to: filter.to != null ? "${filter.to!.year.toString().padLeft(4, '0')}-${filter.to!.month.toString().padLeft(2, '0')}-${filter.to!.day.toString().padLeft(2, '0')}" : null,
-    isProvider: isProvider,
+    from: _formatDate(filter.from),
+    to: _formatDate(filter.to),
+  );
+});
+
+final providerDashboardProvider =
+    FutureProvider.autoDispose<DashboardResponse>((ref) async {
+  final repository = ref.watch(reportsRepositoryProvider);
+  final filter = ref.watch(dashboardFilterProvider);
+  final user = ref.watch(authProvider).user;
+  if (user == null || (!user.role.isMechanic && !user.role.isWorkshop)) {
+    throw Exception('Dashboard de proveedor no autorizado');
+  }
+
+  _listenForDashboardRefresh(ref);
+
+  return repository.getProviderDashboard(
+    from: _formatDate(filter.from),
+    to: _formatDate(filter.to),
   );
 });

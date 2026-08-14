@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:guiautomotriz_mobile/core/theme/app_colors.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/home_section_surface.dart';
 
 void main() {
-  testWidgets('renders a full-width padded surface with border separators',
+  testWidgets('groups section content without adding a background or inset',
       (tester) async {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.binding.setSurfaceSize(const Size(390, 200));
@@ -12,7 +11,6 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          backgroundColor: AppColors.background,
           body: Column(
             children: [
               SizedBox(height: 4),
@@ -29,29 +27,25 @@ void main() {
 
     const surfaceKey = Key('home-section-surface');
     final surface = find.byKey(surfaceKey);
+    final contentSurface = find.byKey(const Key('home-section-content'));
     final content = find.text('Contenido');
-    final surfaceContainer = find.descendant(
-      of: surface,
-      matching: find.byType(Container),
-    );
-    final container = tester.widget<Container>(surfaceContainer);
-    final border =
-        (container.foregroundDecoration! as BoxDecoration).border! as Border;
 
     expect(tester.getSize(surface).width, 390);
-    expect(container.color, AppColors.surface);
-    expect(border.top.color, AppColors.border);
-    expect(border.bottom.color, AppColors.border);
-    expect(border.top.width, 1);
-    expect(border.bottom.width, 1);
-    expect(content, findsOneWidget);
+    expect(tester.getSize(contentSurface).width, 390);
+    expect(tester.getTopLeft(contentSurface).dx, 0);
+    expect(tester.getBottomRight(contentSurface).dx, 390);
     expect(
-      tester.getTopLeft(content).dy - tester.getTopLeft(surface).dy,
-      20,
+      find.descendant(
+        of: contentSurface,
+        matching: find.byType(DecoratedBox),
+      ),
+      findsNothing,
     );
+    expect(content, findsOneWidget);
+    expect(tester.getTopLeft(content).dy, tester.getTopLeft(contentSurface).dy);
     expect(
-      tester.getBottomLeft(surface).dy - tester.getBottomLeft(content).dy,
-      20,
+      tester.getBottomLeft(contentSurface).dy,
+      tester.getBottomLeft(content).dy,
     );
   });
 }

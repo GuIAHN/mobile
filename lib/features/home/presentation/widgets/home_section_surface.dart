@@ -1,24 +1,18 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
-
-/// Separates featured home content from the neutral page canvas.
+/// Agrupa una sección destacada del Home sin añadir una segunda superficie.
+///
+/// El contenido hijo conserva sus propios márgenes y cards, evitando el doble
+/// fondo alrededor de los carruseles y manteniendo el mismo patrón por rol.
 class HomeSectionSurface extends StatelessWidget {
   const HomeSectionSurface({super.key, required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => SizedBox(
+        key: const Key('home-section-content'),
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
-        color: AppColors.surface,
-        foregroundDecoration: const BoxDecoration(
-          border: Border.symmetric(
-            horizontal: BorderSide(color: AppColors.border),
-          ),
-        ),
         child: child,
       );
 }

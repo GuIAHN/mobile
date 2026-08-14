@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../core/domain/enums/service_type.dart';
+import '../../../../../core/domain/enums/user_role.dart';
 import '../../../../../core/providers/current_user_provider.dart';
 import '../../../../../core/router/route_names.dart';
 import '../../../../../core/theme/app_colors.dart';
@@ -60,7 +61,7 @@ class CategoryGrid extends ConsumerWidget {
     }
   }
 
-  _CategoryConfig _configFor(ServiceType type) {
+  _CategoryConfig _configFor(ServiceType type, UserRole role) {
     switch (type) {
       case ServiceType.spareParts:
         return _CategoryConfig(
@@ -87,7 +88,13 @@ class CategoryGrid extends ConsumerWidget {
         return _CategoryConfig(
           icon: Icons.dashboard_rounded,
           label: type.label,
-          subtitle: 'Gestión completa de tienda y cotizaciones',
+          subtitle: switch (role) {
+            UserRole.store => 'Ventas, cotizaciones y cobros de tu tienda',
+            UserRole.workshop => 'Contactos, reputación y alcance de tu taller',
+            UserRole.mechanic =>
+              'Contactos, reputación y alcance de tu servicio',
+            _ => 'Revisa el rendimiento de tu actividad',
+          },
           iconBgColor: AppColors.primaryMuted.withValues(alpha: 0.85),
         );
     }
@@ -112,7 +119,7 @@ class CategoryGrid extends ConsumerWidget {
               if (i > 0) const SizedBox(width: 10),
               Expanded(
                 child: _CategoryCard(
-                  config: _configFor(availableTypes[i]),
+                  config: _configFor(availableTypes[i], currentRole),
                   isCompact: constraints.maxWidth < 400,
                   onTap: () =>
                       _handleCategoryTap(context, ref, availableTypes[i]),
@@ -218,7 +225,8 @@ class _CategoryCardState extends State<_CategoryCard> {
                             width: 26,
                             height: 26,
                             decoration: BoxDecoration(
-                              color: AppColors.primaryMuted.withValues(alpha: 0.80),
+                              color: AppColors.primaryMuted
+                                  .withValues(alpha: 0.80),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(

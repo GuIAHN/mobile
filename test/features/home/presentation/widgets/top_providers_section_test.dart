@@ -38,6 +38,7 @@ void main() {
     required List<Override> overrides,
     ServiceType type = serviceType,
     double textScale = 1,
+    bool disableAnimations = false,
   }) {
     final routePath = type == ServiceType.mechanic
         ? RouteNames.mechanics
@@ -76,6 +77,7 @@ void main() {
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context).copyWith(
             textScaler: TextScaler.linear(textScale),
+            disableAnimations: disableAnimations,
           ),
           child: child!,
         ),
@@ -87,10 +89,12 @@ void main() {
     AsyncValue<List<HomeItem>> state, {
     ServiceType type = serviceType,
     double textScale = 1,
+    bool disableAnimations = false,
   }) =>
       app(
         type: type,
         textScale: textScale,
+        disableAnimations: disableAnimations,
         overrides: [
           topProvidersProvider.overrideWith((ref, providerType) => state),
         ],
@@ -112,6 +116,12 @@ void main() {
 
     final firstSkeleton = find.byKey(const Key('top-provider-skeleton-1'));
     expect(firstSkeleton, findsOneWidget);
+
+    final skeletonList =
+        find.byKey(const Key('top-providers-skeleton-horizontal-list'));
+    final skeletonListRect = tester.getRect(skeletonList);
+    expect(skeletonListRect.left, 20);
+    expect(skeletonListRect.right, 355);
 
     final media =
         find.byKey(const Key('top-provider-skeleton-media-workshops-1'));
@@ -226,6 +236,8 @@ void main() {
 
   testWidgets('lays multiple providers in a horizontal sequence',
       (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(430, 800));
     await tester.pumpWidget(
       subject(
         AsyncValue.data([
@@ -238,15 +250,87 @@ void main() {
 
     final first = find.bySemanticsLabel('Ver detalles de Taller Norte');
     final second = find.bySemanticsLabel('Ver detalles de Taller Este');
+    final horizontalList =
+        find.byKey(const Key('top-providers-horizontal-list'));
+    final listRect = tester.getRect(horizontalList);
+    expect(listRect.left, 20);
+    expect(listRect.right, 410);
+    expect(tester.widget<ListView>(horizontalList).clipBehavior, Clip.hardEdge);
+    expect(tester.getTopLeft(first).dx, listRect.left);
     expect(
         tester.getTopLeft(second).dx, greaterThan(tester.getTopLeft(first).dx));
     expect(tester.getTopLeft(second).dy,
         closeTo(tester.getTopLeft(first).dy, 0.1));
     expect(
-      find.byKey(const Key('top-providers-horizontal-list')),
+      horizontalList,
       findsOneWidget,
     );
   }, semanticsEnabled: true);
+
+  for (final type in const [ServiceType.workshops, ServiceType.mechanic]) {
+    testWidgets(
+        'gently reveals more ${type.name} providers and returns to the start',
+        (tester) async {
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.binding.setSurfaceSize(const Size(430, 800));
+      await tester.pumpWidget(
+        subject(
+          AsyncValue.data([
+            fixture(
+              id: '${type.name}-1',
+              type: type,
+            ),
+            fixture(
+              id: '${type.name}-2',
+              name: 'Segundo proveedor',
+              type: type,
+            ),
+          ]),
+          type: type,
+        ),
+      );
+
+      final list = find.byKey(const Key('top-providers-horizontal-list'));
+      final scrollable = find.descendant(
+        of: list,
+        matching: find.byType(Scrollable),
+      );
+      final position = tester.state<ScrollableState>(scrollable).position;
+
+      expect(position.pixels, 0);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 325));
+      expect(position.pixels, greaterThan(0));
+
+      await tester.pumpAndSettle();
+      expect(position.pixels, closeTo(0, 0.1));
+    });
+  }
+
+  testWidgets('does not animate the provider hint when motion is reduced',
+      (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(430, 800));
+    await tester.pumpWidget(
+      subject(
+        AsyncValue.data([
+          fixture(),
+          fixture(id: 'workshop-2', name: 'Taller Este'),
+        ]),
+        disableAnimations: true,
+      ),
+    );
+
+    final list = find.byKey(const Key('top-providers-horizontal-list'));
+    final scrollable = find.descendant(
+      of: list,
+      matching: find.byType(Scrollable),
+    );
+    final position = tester.state<ScrollableState>(scrollable).position;
+
+    await tester.pump(const Duration(seconds: 2));
+    expect(position.pixels, 0);
+  });
 
   testWidgets('uses 16:9 workshop media and a compact mechanic portrait',
       (tester) async {
@@ -301,8 +385,20 @@ void main() {
     final mechanicCard = find.bySemanticsLabel('Ver detalles de Pedro Pérez');
     final mechanicHeight = tester.getSize(mechanicCard).height;
 
+    final decoration = tester.widget<DecoratedBox>(
+      find.byKey(const Key('top-provider-card-decoration-mechanic-1')),
+    );
+    final boxDecoration = decoration.decoration as BoxDecoration;
+    final material = tester.widget<Material>(
+      find.byKey(const Key('top-provider-card-surface-mechanic-1')),
+    );
+    final shape = material.shape! as RoundedRectangleBorder;
+
     expect(mechanicHeight, 164);
     expect(mechanicHeight, lessThan(workshopHeight));
+    expect(boxDecoration.boxShadow, isNotEmpty);
+    expect(shape.side.width, greaterThan(0));
+    expect(shape.side.color, isNot(Colors.transparent));
   });
 
   testWidgets('keeps each missing provider photo in its intended shape',
@@ -423,7 +519,7 @@ void main() {
       ),
     ];
 
-    for (final width in const [375.0, 430.0]) {
+    for (final width in const [335.0, 375.0, 430.0]) {
       for (final scale in const [1.0, 1.3, 2.0]) {
         for (final providerCase in cases) {
           await tester.binding.setSurfaceSize(Size(width, 900));

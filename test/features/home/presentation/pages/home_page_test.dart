@@ -19,15 +19,20 @@ import 'package:guiautomotriz_mobile/features/auth/domain/usecases/update_profil
 import 'package:guiautomotriz_mobile/features/auth/domain/usecases/upload_avatar_usecase.dart';
 import 'package:guiautomotriz_mobile/features/auth/presentation/providers/auth_provider.dart';
 import 'package:guiautomotriz_mobile/features/auth/presentation/providers/auth_state.dart';
+import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_thread.dart';
+import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_threads_result.dart';
+import 'package:guiautomotriz_mobile/features/chat/presentation/providers/chat_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/domain/entities/home_item.dart';
 import 'package:guiautomotriz_mobile/features/home/domain/entities/promo.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/pages/home_page.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
+import 'package:guiautomotriz_mobile/features/home/presentation/widgets/navigation/bottom_nav_bar.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/promo_carousel.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/sections/top_providers_section.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/header/home_header_expanded.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/spare_part_wizard_page.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/store_dashboard/store_dashboard_view.dart';
+import 'package:guiautomotriz_mobile/features/home/presentation/widgets/provider_dashboard/provider_dashboard_view.dart';
 import 'package:guiautomotriz_mobile/features/reports/domain/entities/store_dashboard.dart';
 import 'package:guiautomotriz_mobile/features/reports/presentation/providers/reports_provider.dart';
 import 'package:guiautomotriz_mobile/features/notifications/presentation/providers/notifications_providers.dart';
@@ -86,6 +91,12 @@ void main() {
     name: 'Mecánico Norte',
     role: UserRole.mechanic,
   );
+  const workshop = User(
+    id: 'workshop-1',
+    email: 'workshop@example.com',
+    name: 'Taller Norte',
+    role: UserRole.workshop,
+  );
   const car = UserCar(
     id: 'car-1',
     brand: 'Toyota',
@@ -119,6 +130,7 @@ void main() {
     ServiceType? initialServiceType,
     Future<List<Promo>> Function(Ref ref, ServiceType type)? loadPromos,
     Future<int> Function(Ref ref)? loadUnreadNotifications,
+    ChatThreadsResult? chatThreads,
   }) {
     final notifier = authNotifier ??
         _TestAuthNotifier(
@@ -139,10 +151,15 @@ void main() {
         unreadNotificationsCountProvider.overrideWith(
           loadUnreadNotifications ?? (ref) async => 0,
         ),
+        if (chatThreads != null)
+          chatThreadsProvider.overrideWith((ref) async => chatThreads),
         topProvidersProvider.overrideWith((ref, type) {
           return type == ServiceType.workshops ? workshops : mechanics;
         }),
         storeDashboardProvider.overrideWith(
+          (ref) => Completer<DashboardResponse>().future,
+        ),
+        providerDashboardProvider.overrideWith(
           (ref) => Completer<DashboardResponse>().future,
         ),
       ],
@@ -271,7 +288,7 @@ void main() {
     expect(find.text('notifications-route'), findsOneWidget);
   }, semanticsEnabled: true);
 
-  testWidgets('consumer Home places provider groups in keyed surfaces',
+  testWidgets('consumer Home uses transparent provider section wrappers',
       (tester) async {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.binding.setSurfaceSize(const Size(430, 1800));
@@ -295,6 +312,15 @@ void main() {
         find.byKey(const Key('home-provider-section-mechanics'));
     expect(workshopsSurface, findsOneWidget);
     expect(mechanicsSurface, findsOneWidget);
+    for (final surface in [workshopsSurface, mechanicsSurface]) {
+      final contentSurface = find.descendant(
+        of: surface,
+        matching: find.byKey(const Key('home-section-content')),
+      );
+      final rect = tester.getRect(contentSurface);
+      expect(rect.left, 0);
+      expect(rect.right, 430);
+    }
     expect(
       tester.getTopLeft(promoFinder).dy,
       lessThan(tester.getTopLeft(workshopsSurface).dy),
@@ -334,7 +360,7 @@ void main() {
     await pumpHome(tester, container, height: 1800);
 
     const orderedLabels = [
-      '¿Qué necesitas hoy?',
+      '¿En qué podemos ayudarte hoy?',
       'Pedir repuesto',
       'Talleres mejor valorados',
       'Mecánicos mejor valorados',
@@ -443,7 +469,7 @@ void main() {
     await pumpHome(tester, container);
 
     expect(find.byType(StoreDashboardView), findsNothing);
-    expect(find.text('¿Qué necesitas hoy?'), findsOneWidget);
+    expect(find.text('¿En qué podemos ayudarte hoy?'), findsOneWidget);
     expect(find.text('Talleres mejor valorados'), findsOneWidget);
   });
 
@@ -462,14 +488,14 @@ void main() {
 
     await pumpHome(tester, container);
     expect(find.byType(StoreDashboardView), findsOneWidget);
-    expect(find.text('¿Qué necesitas hoy?'), findsNothing);
+    expect(find.text('¿En qué podemos ayudarte hoy?'), findsOneWidget);
 
     authNotifier.authenticateAs(consumer);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.byType(StoreDashboardView), findsNothing);
-    expect(find.text('¿Qué necesitas hoy?'), findsOneWidget);
+    expect(find.text('¿En qué podemos ayudarte hoy?'), findsOneWidget);
     expect(find.text('Talleres mejor valorados'), findsOneWidget);
   });
 
@@ -489,9 +515,58 @@ void main() {
 
     expect(find.text('Talleres cerca de ti'), findsOneWidget);
     expect(find.text('Mecánicos cerca de ti'), findsNothing);
+    expect(find.text('Estadísticas'), findsOneWidget);
     expect(find.text('Pedir repuesto'), findsOneWidget);
     expect(find.text('Buscar mecánico'), findsNothing);
+    expect(find.text('Mi garage'), findsNothing);
+    expect(
+      find.byKey(const Key('home-provider-section-workshops')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('home-provider-section-workshops')),
+        matching: find.byType(TopProvidersSection),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('home-selected-vehicle-control')),
+      findsNothing,
+    );
   });
+
+  for (final providerCase in const [
+    ('mechanic', mechanic),
+    ('workshop', workshop),
+  ]) {
+    testWidgets('${providerCase.$1} can select its provider dashboard',
+        (tester) async {
+      final container = containerFor(
+        workshops: const AsyncValue.data([]),
+        mechanics: const AsyncValue.data([]),
+        user: providerCase.$2,
+        initialServiceType: ServiceType.spareParts,
+      );
+      addTearDown(container.dispose);
+
+      await pumpHome(tester, container);
+      expect(find.text('Estadísticas'), findsOneWidget);
+      expect(
+        find.byKey(const Key('home-selected-vehicle-control')),
+        findsNothing,
+      );
+      expect(find.text('Mi garage'), findsNothing);
+
+      await tester.tap(find.text('Estadísticas'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump(const Duration(milliseconds: 1));
+
+      expect(find.byType(ProviderDashboardView), findsOneWidget);
+      expect(find.byType(StoreDashboardView), findsNothing);
+    });
+  }
 
   testWidgets('consumer Home shows an ad skeleton while promos load',
       (tester) async {
@@ -712,5 +787,67 @@ void main() {
       tester.widget<AnimatedSwitcher>(find.byType(AnimatedSwitcher)).duration,
       Duration.zero,
     );
+  });
+
+  testWidgets('chat list reaches the bottom navigation without a blank band',
+      (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final threads = List.generate(
+      4,
+      (index) => ChatThread(
+        id: 'request-$index',
+        title: 'Solicitud $index',
+        requestType: ServiceType.spareParts,
+        unreadCount: 0,
+        conversationCount: 0,
+        lastActivityAt: DateTime.utc(2026, 8, 14),
+      ),
+    );
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      chatThreads: ChatThreadsResult(
+        threads: threads,
+        counts: const {'all': 4, 'open': 4, 'closed': 0},
+        total: 4,
+      ),
+    );
+    addTearDown(container.dispose);
+    container.read(homeTabProvider.notifier).state = 1;
+
+    for (final configuration in const [
+      (size: Size(375, 812), textScale: 1.0),
+      (size: Size(430, 932), textScale: 1.0),
+      (size: Size(375, 812), textScale: 2.0),
+      (size: Size(430, 932), textScale: 2.0),
+    ]) {
+      await tester.binding.setSurfaceSize(configuration.size);
+      await pumpHome(
+        tester,
+        container,
+        width: configuration.size.width,
+        height: configuration.size.height,
+        textScale: configuration.textScale,
+        disableAnimations: true,
+      );
+
+      final chatList = find.byWidgetPredicate(
+        (widget) =>
+            widget is ListView &&
+            widget.childrenDelegate is SliverChildBuilderDelegate,
+        description: 'chat requests list',
+      );
+      final listRect = tester.getRect(chatList);
+      final navigationRect = tester.getRect(find.byType(BottomNavBar));
+
+      expect(
+        listRect.bottom,
+        closeTo(navigationRect.top, 1),
+        reason: 'The requests viewport must finish where the menu begins at '
+            '${configuration.size} and ${configuration.textScale}x text; '
+            'list=$listRect navigation=$navigationRect',
+      );
+      expect(tester.takeException(), isNull);
+    }
   });
 }

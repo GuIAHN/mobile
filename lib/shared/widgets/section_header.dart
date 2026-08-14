@@ -22,7 +22,49 @@ class SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: padding,
-      child: Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final textScale = MediaQuery.textScalerOf(context).scale(13) / 13;
+          final stackAction =
+              action != null && constraints.maxWidth < 340 && textScale > 1.3;
+
+          if (!stackAction) {
+            return _TitleRow(
+              title: title,
+              icon: icon,
+              action: action,
+            );
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _TitleRow(title: title, icon: icon, maxTitleLines: 2),
+              const SizedBox(height: 4),
+              Align(alignment: Alignment.centerRight, child: action!),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _TitleRow extends StatelessWidget {
+  const _TitleRow({
+    required this.title,
+    required this.icon,
+    this.action,
+    this.maxTitleLines = 1,
+  });
+
+  final String title;
+  final IconData? icon;
+  final Widget? action;
+  final int maxTitleLines;
+
+  @override
+  Widget build(BuildContext context) => Row(
         children: [
           Container(
             width: 3,
@@ -34,17 +76,13 @@ class SectionHeader extends StatelessWidget {
           ),
           if (icon != null) ...[
             const SizedBox(width: 8),
-            Icon(
-              icon,
-              size: 20,
-              color: AppColors.primary,
-            ),
+            Icon(icon, size: 20, color: AppColors.primary),
           ],
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               title,
-              maxLines: 1,
+              maxLines: maxTitleLines,
               overflow: TextOverflow.ellipsis,
               style: AppTypography.h2,
             ),
@@ -54,9 +92,7 @@ class SectionHeader extends StatelessWidget {
             action!,
           ],
         ],
-      ),
-    );
-  }
+      );
 }
 
 /// Botón de acción limpio ("Ver todos ›" / "Gestionar ›").
@@ -91,32 +127,36 @@ class _SectionHeaderActionState extends State<SectionHeaderAction> {
         onTapUp: (_) => setState(() => _isPressed = false),
         onTap: widget.onTap,
         behavior: HitTestBehavior.opaque,
-        child: AnimatedOpacity(
-          opacity: _isPressed ? 0.5 : 1.0,
-          duration: const Duration(milliseconds: 120),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  widget.label,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: AppColors.primary,
-                    letterSpacing: -0.1,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          child: AnimatedOpacity(
+            opacity: _isPressed ? 0.5 : 1.0,
+            duration: const Duration(milliseconds: 120),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    widget.label,
+                    style: GoogleFonts.hankenGrotesk(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: AppColors.primary,
+                      letterSpacing: -0.1,
+                    ),
                   ),
-                ),
-                if (widget.icon != null) ...[
-                  const SizedBox(width: 1),
-                  Icon(
-                    widget.icon,
-                    size: 18,
-                    color: AppColors.primary,
-                  ),
+                  if (widget.icon != null) ...[
+                    const SizedBox(width: 1),
+                    Icon(
+                      widget.icon,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

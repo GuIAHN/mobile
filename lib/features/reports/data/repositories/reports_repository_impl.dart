@@ -8,7 +8,10 @@ class ReportsRepositoryImpl implements ReportsRepository {
   ReportsRepositoryImpl(this._remoteDataSource);
 
   @override
-  Future<DashboardResponse> getStoreDashboard({String? from, String? to, required bool isProvider}) async {
-    return _remoteDataSource.getStoreDashboard(from: from, to: to, isProvider: isProvider);
-  }
+  Future<DashboardResponse> getStoreDashboard({String? from, String? to}) =>
+      _remoteDataSource.getStoreDashboard(from: from, to: to);
+
+  @override
+  Future<DashboardResponse> getProviderDashboard({String? from, String? to}) =>
+      _remoteDataSource.getProviderDashboard(from: from, to: to);
 }

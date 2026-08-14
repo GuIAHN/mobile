@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,10 +17,15 @@ import '../../../../../shared/widgets/section_header.dart';
 import '../../../../chat/presentation/widgets/_atoms/card_tokens.dart';
 
 const double _providerCardRadius = AppSpacing.radiusLg;
+const double _sectionHorizontalInset = AppSpacing.xl;
+const double _nextCardPeek = AppSpacing.sm;
 const double _workshopCardBaseHeight = 244;
 const double _mechanicCardBaseHeight = 164;
 const double _workshopDetailsBaseHeight = 116;
 const double _mechanicMediaWidth = 104;
+const double _providerDiscoveryOffset = 28;
+const Duration _providerDiscoveryForwardDuration = Duration(milliseconds: 650);
+const Duration _providerDiscoveryReturnDuration = Duration(milliseconds: 450);
 
 double _providerCardHeight(
   BuildContext context,
@@ -30,7 +37,7 @@ double _providerCardHeight(
   final normalizedScale = (scale - 1).clamp(0.0, 1.0);
 
   return switch (serviceType) {
-    ServiceType.mechanic => _mechanicCardBaseHeight + normalizedScale * 120,
+    ServiceType.mechanic => _mechanicCardBaseHeight + normalizedScale * 140,
     ServiceType.workshops =>
       cardWidth * 9 / 16 + _workshopDetailsBaseHeight + normalizedScale * 100,
     ServiceType.spareParts ||
@@ -39,8 +46,12 @@ double _providerCardHeight(
   };
 }
 
+double _providerCardWidth(double viewportWidth) {
+  return (viewportWidth - _nextCardPeek).clamp(0.0, 340.0).toDouble();
+}
+
 /// Sección destacada del home con los mejores proveedores cercanos
-/// (talleres o mecánicos) en una lista vertical de ancho completo.
+/// (talleres o mecánicos) en una secuencia horizontal.
 /// "Ver todos" navega a la pantalla completa del tipo correspondiente.
 class TopProvidersSection extends ConsumerWidget {
   final ServiceType serviceType;
@@ -83,7 +94,9 @@ class TopProvidersSection extends ConsumerWidget {
             child: itemsAsync.when(
               data: (items) => items.isEmpty
                   ? Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: _sectionHorizontalInset,
+                      ),
                       child: _SectionStateCard(
                         message: 'Todavía no hay $providerNoun valorados',
                       ),
@@ -95,7 +108,9 @@ class TopProvidersSection extends ConsumerWidget {
               loading: () =>
                   _ProviderSkeletonSequence(serviceType: serviceType),
               error: (_, __) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _sectionHorizontalInset,
+                ),
                 child: _SectionStateCard(
                   message: 'No pudimos cargar los $providerNoun',
                   action: TextButton.icon(
@@ -116,7 +131,7 @@ class TopProvidersSection extends ConsumerWidget {
   }
 }
 
-class _ProviderSequence extends StatelessWidget {
+class _ProviderSequence extends StatefulWidget {
   final List<HomeItem> items;
   final ServiceType serviceType;
 
@@ -126,28 +141,109 @@ class _ProviderSequence extends StatelessWidget {
   });
 
   @override
+  State<_ProviderSequence> createState() => _ProviderSequenceState();
+}
+
+class _ProviderSequenceState extends State<_ProviderSequence> {
+  final ScrollController _scrollController = ScrollController();
+  bool _hintScheduled = false;
+  bool _userInteracted = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scheduleDiscoveryHint();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ProviderSequence oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _scheduleDiscoveryHint();
+  }
+
+  void _scheduleDiscoveryHint() {
+    if (_hintScheduled ||
+        widget.items.length < 2 ||
+        MediaQuery.disableAnimationsOf(context)) {
+      return;
+    }
+
+    _hintScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_showDiscoveryHint());
+    });
+  }
+
+  Future<void> _showDiscoveryHint() async {
+    if (!mounted || _userInteracted || !_scrollController.hasClients) return;
+
+    final maxExtent = _scrollController.position.maxScrollExtent;
+    if (maxExtent <= 0) return;
+
+    final target = _providerDiscoveryOffset.clamp(0.0, maxExtent).toDouble();
+    await _scrollController.animateTo(
+      target,
+      duration: _providerDiscoveryForwardDuration,
+      curve: Curves.easeInOutCubic,
+    );
+
+    if (!mounted || _userInteracted || !_scrollController.hasClients) return;
+
+    await _scrollController.animateTo(
+      0,
+      duration: _providerDiscoveryReturnDuration,
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  bool _handleScrollNotification(ScrollNotification notification) {
+    if (notification is ScrollStartNotification &&
+        notification.dragDetails != null) {
+      _userInteracted = true;
+    }
+    return false;
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final cardWidth =
-            (constraints.maxWidth - 48).clamp(300.0, 340.0).toDouble();
-        final cardHeight = _providerCardHeight(context, serviceType, cardWidth);
-        return SizedBox(
-          height: cardHeight,
-          child: ListView.separated(
-            key: const Key('top-providers-horizontal-list'),
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            physics: const BouncingScrollPhysics(),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (_, index) => SizedBox(
-              width: cardWidth,
-              child: _ProviderCard(item: items[index], height: cardHeight),
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: _sectionHorizontalInset,
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cardWidth = _providerCardWidth(constraints.maxWidth);
+          final cardHeight =
+              _providerCardHeight(context, widget.serviceType, cardWidth);
+          return SizedBox(
+            height: cardHeight,
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _handleScrollNotification,
+              child: ListView.separated(
+                key: const Key('top-providers-horizontal-list'),
+                controller: _scrollController,
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                itemCount: widget.items.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (_, index) => SizedBox(
+                  width: cardWidth,
+                  child: _ProviderCard(
+                    item: widget.items[index],
+                    height: cardHeight,
+                  ),
+                ),
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
@@ -186,6 +282,8 @@ class _ProviderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final onTap = item.id == null ? null : () => _onTap(context);
     final radius = BorderRadius.circular(_providerCardRadius);
+    final id = item.id ?? item.name;
+    final isMechanic = item.type == ServiceType.mechanic;
 
     return Semantics(
       container: true,
@@ -195,13 +293,20 @@ class _ProviderCard extends StatelessWidget {
       excludeSemantics: true,
       onTap: onTap,
       child: DecoratedBox(
+        key: Key('top-provider-card-decoration-$id'),
         decoration: BoxDecoration(
           borderRadius: radius,
           boxShadow: CardTokens.shadow,
         ),
         child: Material(
+          key: Key('top-provider-card-surface-$id'),
           color: Colors.white,
-          borderRadius: radius,
+          shape: RoundedRectangleBorder(
+            borderRadius: radius,
+            side: isMechanic
+                ? const BorderSide(color: AppColors.border)
+                : BorderSide.none,
+          ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,
@@ -659,10 +764,6 @@ class _ProviderCardSkeleton extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(_providerCardRadius),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.10),
-          width: 1.0,
-        ),
         boxShadow: AppDecorations.soft,
       ),
       child: serviceType == ServiceType.workshops
@@ -744,30 +845,35 @@ class _ProviderSkeletonSequence extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final cardWidth =
-            (constraints.maxWidth - 48).clamp(300.0, 340.0).toDouble();
-        final cardHeight = _providerCardHeight(context, serviceType, cardWidth);
-        return SizedBox(
-          height: cardHeight,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: 3,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (_, index) => SizedBox(
-              width: cardWidth,
-              child: _ProviderCardSkeleton(
-                key: Key('top-provider-skeleton-${index + 1}'),
-                serviceType: serviceType,
-                index: index + 1,
-                height: cardHeight,
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: _sectionHorizontalInset,
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cardWidth = _providerCardWidth(constraints.maxWidth);
+          final cardHeight =
+              _providerCardHeight(context, serviceType, cardWidth);
+          return SizedBox(
+            height: cardHeight,
+            child: ListView.separated(
+              key: const Key('top-providers-skeleton-horizontal-list'),
+              scrollDirection: Axis.horizontal,
+              itemCount: 3,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, index) => SizedBox(
+                width: cardWidth,
+                child: _ProviderCardSkeleton(
+                  key: Key('top-provider-skeleton-${index + 1}'),
+                  serviceType: serviceType,
+                  index: index + 1,
+                  height: cardHeight,
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

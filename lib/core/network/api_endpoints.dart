@@ -58,4 +58,5 @@ abstract class ApiEndpoints {
 
   // ── Reports / Dashboard ───────────────────────────────────────────────────
   static const String storeDashboard = 'reports/store/dashboard';
+  static const String providerDashboard = 'reports/provider/dashboard';
 }
