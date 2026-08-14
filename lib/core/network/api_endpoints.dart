@@ -29,6 +29,11 @@ abstract class ApiEndpoints {
 
   // ── Home / Dashboard ──────────────────────────────────────────────────────
   static const String dashboard = 'dashboard';
+  static const String homeTopProviders = 'home/top-providers';
+
+  // ── Notificaciones ────────────────────────────────────────────────────────
+  static const String notificationsUnreadCount =
+      'me/notifications/unread-count';
 
   // ── Búsqueda de Repuestos ─────────────────────────────────────────────────
   static const String search = 'search';

@@ -35,14 +35,17 @@ class ProviderModel extends HomeItem {
   });
 
   factory ProviderModel.fromJson(Map<String, dynamic> json, ServiceType type) {
-    final especialidades = (json['especialidades'] as List<dynamic>? ?? [])
+    final rawSpecialties = json['especialidades'] ?? json['specialties'];
+    final especialidades = (rawSpecialties as List<dynamic>? ?? [])
         .map((e) => e.toString())
         .toList();
 
     // El detalle muestra las especialidades o una descripción genérica
     final String detail = especialidades.isNotEmpty
         ? especialidades.take(3).join(' · ')
-        : (json['descripcion'] as String? ?? '');
+        : (json['descripcion'] as String? ??
+            json['description'] as String? ??
+            '');
 
     final String iconName =
         type == ServiceType.workshops ? 'warehouse_outlined' : 'build_outlined';
@@ -62,11 +65,13 @@ class ProviderModel extends HomeItem {
 
     return ProviderModel(
       id: json['id'] as String,
-      name: json['nombre'] as String? ?? 'Sin nombre',
+      name:
+          json['nombre'] as String? ?? json['name'] as String? ?? 'Sin nombre',
       detail: detail,
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       reviews: reviews,
-      distanceKm: (json['distancia_km'] as num?)?.toDouble(),
+      distanceKm: (json['distancia_km'] as num? ?? json['distanceKm'] as num?)
+          ?.toDouble(),
       isOpen: isOpen,
       iconName: iconName,
       type: type,

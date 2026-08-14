@@ -90,4 +90,33 @@ void main() {
 
     expect(provider.isOpen, isFalse);
   });
+
+  test('parses the grouped Home endpoint contract without a second model', () {
+    final provider = ProviderModel.fromJson(
+      const {
+        'id': 'mechanic-1',
+        'name': 'Ana Mecánica',
+        'photo': 'https://example.com/ana.jpg',
+        'isWorkshop': false,
+        'description': 'Especialista certificada',
+        'rating': 4.9,
+        'ratingCount': 42,
+        'verified': true,
+        'distanceKm': 3.25,
+        'specialties': ['Motor', 'Inyección'],
+        'source': 'nearby',
+      },
+      ServiceType.mechanic,
+    );
+
+    expect(provider.id, 'mechanic-1');
+    expect(provider.name, 'Ana Mecánica');
+    expect(provider.detail, 'Motor · Inyección');
+    expect(provider.rating, 4.9);
+    expect(provider.reviews, 42);
+    expect(provider.distanceKm, 3.25);
+    expect(provider.especialidades, ['Motor', 'Inyección']);
+    expect(provider.photo, 'https://example.com/ana.jpg');
+    expect(provider.type, ServiceType.mechanic);
+  });
 }
