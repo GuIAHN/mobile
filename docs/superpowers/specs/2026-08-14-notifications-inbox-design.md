@@ -62,7 +62,7 @@ Home
 
 La campana usará `context.push(RouteNames.notifications)`. La pantalla será completa, conservará el back del sistema y no ocupará una pestaña del `BottomNavBar`.
 
-En esta primera entrega, tocar una tarjeta significa “marcar como leída”. La tarjeta se retirará del filtro de no leídas después de que el backend confirme la operación. No se intentará navegar a ofertas o conversaciones porque el campo `data` todavía no ofrece un identificador de ruta uniforme para todos los tipos.
+En esta primera entrega, tocar una tarjeta abre un bottom sheet con el detalle completo y comienza el marcado como leído en segundo plano. La tarjeta se retirará del filtro de no leídas al cerrar el detalle sólo cuando el backend haya confirmado la operación. No se intentará navegar a ofertas o conversaciones porque el campo `data` todavía no ofrece un identificador de ruta uniforme para todos los tipos.
 
 ## Dirección visual
 
@@ -96,9 +96,36 @@ La firma visual será una línea naranja vertical en el borde izquierdo de cada 
   - `user.*`: cuenta.
   - `settlement.*`: pagos.
   - fallback: campana.
-- Título, cuerpo y hora relativa; el cuerpo puede ocupar varias líneas con text scaling.
-- Ripple y semántica de botón: “Marcar como leída: {título}”.
+- Título, vista previa del cuerpo y hora relativa; la tarjeta crece con text scaling sin usar una altura fija.
+- En la lista, el cuerpo se limita a una vista previa de tres líneas con elipsis; el contenido completo siempre está disponible en el detalle.
+- Ripple y semántica de botón: “Abrir y marcar como leída: {título}”.
 - Durante el marcado individual, sólo esa tarjeta se deshabilita y muestra progreso sin bloquear el resto.
+
+### Detalle
+
+- Bottom sheet modal con radio superior de 28 px y handle gris de 40 × 4.
+- Altura adaptable al contenido, con un máximo aproximado de 88% de la pantalla.
+- Scroll interno para mensajes extensos y soporte de text scaling sin truncar título ni cuerpo.
+- Encabezado con icono semántico, título completo, categoría legible y fecha/hora completa.
+- Sección “Mensaje” con el cuerpo completo y line-height amplio.
+- Acción “Cerrar” con área táctil de 48 dp; también admite gesto estándar hacia abajo y back del sistema.
+- Scrim suficiente para separar el detalle del listado y semántica modal para lectores de pantalla.
+
+```text
+┌──────────────────────────────────────────┐
+│               ─────                      │
+│                                          │
+│ [icono]  Nueva oferta                    │
+│          OFERTA · Hoy, 10:42 a. m.       │
+│                                          │
+│ MENSAJE                                  │
+│ Texto completo de la notificación, sin   │
+│ recortes y con desplazamiento cuando sea │
+│ necesario.                               │
+│                                          │
+│                                  Cerrar  │
+└──────────────────────────────────────────┘
+```
 
 ### Esquema
 
@@ -125,7 +152,7 @@ El feature de notificaciones crecerá conservando las capas del proyecto y evita
 
 ```text
 presentation
-  NotificationsPage + widgets
+  NotificationsPage + NotificationDetailSheet + widgets
   NotificationsNotifier / state
            │
            v
@@ -168,12 +195,14 @@ La primera página usará 20 elementos. Al acercarse al final se cargará la sig
 ### Marcado individual
 
 1. El usuario toca una tarjeta.
-2. La tarjeta muestra progreso y queda temporalmente deshabilitada.
-3. Se ejecuta `PATCH :id/read`.
-4. Si funciona, se invalida el contador y se recarga el rango visible desde la primera página.
-5. Si falla, la tarjeta permanece y se muestra un mensaje recuperable.
+2. El bottom sheet se abre inmediatamente con el contenido que ya está cargado; la lectura no espera la red.
+3. La tarjeta muestra progreso y queda temporalmente deshabilitada en el listado de fondo.
+4. En paralelo se ejecuta `PATCH :id/read`.
+5. Si funciona, se invalida el contador. Cuando el detalle esté cerrado, se recarga el rango visible desde la primera página y la tarjeta desaparece.
+6. Si el usuario cierra antes de terminar la petición, la tarjeta conserva su progreso hasta recibir la respuesta; luego se retira en éxito o permanece en error.
+7. Si falla, el detalle sigue siendo legible mientras esté abierto, la tarjeta permanece y se muestra un mensaje recuperable.
 
-No se aplica una eliminación optimista para evitar perder visualmente una notificación que el servidor no haya podido actualizar.
+No se aplica una eliminación optimista para evitar perder visualmente una notificación que el servidor no haya podido actualizar. El bottom sheet opera sólo sobre los datos ya recibidos, por lo que no requiere un endpoint adicional de detalle.
 
 ### Marcado masivo
 
@@ -223,13 +252,14 @@ Toast global con una explicación breve y la posibilidad de volver a tocar la ta
 - Provider: carga inicial, página adicional, marcado individual, marcado masivo, invalidación del contador y recuperación de errores.
 - Router: `/notifications` construye la pantalla y la campana navega a ella.
 - Widget: carga, datos, vacío, error, progreso individual y masivo.
+- Detalle: contenido largo completo, scroll, fecha legible, cierre por botón/back y permanencia de la tarjeta si falla el marcado.
 - Accesibilidad: labels, áreas táctiles y text scaling representativo.
 - Layout sin overflow en anchos pequeños y grandes.
 
 ## Fuera de alcance
 
 - Mostrar notificaciones ya leídas o añadir filtros adicionales.
-- Pantalla de detalle para una notificación.
+- Ruta o pantalla independiente de detalle; el detalle se resuelve mediante bottom sheet.
 - Navegación contextual a chat, oferta, solicitud o pago.
 - Recepción en tiempo real mediante WebSocket.
 - Modificar la ubicación habitual o cualquier flujo del Home ajeno a la campana.
