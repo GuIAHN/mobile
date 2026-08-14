@@ -1,36 +1,36 @@
 part of 'spare_part_wizard_page.dart';
 
-class _SparePartWizardStep3 extends ConsumerWidget {
+class SparePartWizardStep3 extends StatelessWidget {
   final TextEditingController detailsController;
   final String? selectedImagePath;
   final bool isOtroCategory;
+  final RequestLocationSelection? requestLocation;
+  final VoidCallback onLocationTap;
   final void Function(String?) onImagePicked;
   final VoidCallback onSubmit;
 
-  const _SparePartWizardStep3({
+  const SparePartWizardStep3({
     super.key,
     required this.detailsController,
     required this.selectedImagePath,
     required this.isOtroCategory,
+    required this.requestLocation,
+    required this.onLocationTap,
     required this.onImagePicked,
     required this.onSubmit,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isLocationShared = ref.watch(isLocationSharedProvider);
-    final userLocationAsync = ref.watch(userLocationProvider);
-    final userLocation = userLocationAsync.valueOrNull;
-
+  Widget build(BuildContext context) {
     final needsDetails = isOtroCategory;
-    final hasDetailsIfRequired = !needsDetails || detailsController.text.trim().isNotEmpty;
-    final hasLocation = isLocationShared && userLocation != null;
-    // canSubmit requires location shared, location obtained, and details if required
+    final hasDetailsIfRequired =
+        !needsDetails || detailsController.text.trim().isNotEmpty;
+    final hasLocation = requestLocation != null;
     final canSubmit = hasDetailsIfRequired && hasLocation;
     final blockedReason = !hasDetailsIfRequired
         ? 'Agrega un detalle para continuar.'
         : !hasLocation
-            ? 'Comparte tu ubicación para continuar.'
+            ? 'Elige una ubicación para continuar.'
             : null;
 
     return SingleChildScrollView(
@@ -46,8 +46,9 @@ class _SparePartWizardStep3 extends ConsumerWidget {
             style: AppTypography.body.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 32),
-
-          _buildLabel(needsDetails ? 'MÁS DETALLES (REQUERIDO) *' : 'MÁS DETALLES (OPCIONAL)'),
+          _buildLabel(needsDetails
+              ? 'MÁS DETALLES (REQUERIDO) *'
+              : 'MÁS DETALLES (OPCIONAL)'),
           const SizedBox(height: 6),
           _buildTextField(
             controller: detailsController,
@@ -56,17 +57,17 @@ class _SparePartWizardStep3 extends ConsumerWidget {
             maxLines: 5,
           ),
           const SizedBox(height: 24),
-
           _buildLabel('TU UBICACIÓN (REQUERIDA) *'),
           const SizedBox(height: 8),
-          _buildLocationMap(context, ref, isLocationShared, userLocation, userLocationAsync.isLoading),
+          RequestLocationPreview(
+            selection: requestLocation,
+            onTap: onLocationTap,
+          ),
           const SizedBox(height: 24),
-
           _buildLabel('AGREGAR UNA FOTO (OPCIONAL)'),
           const SizedBox(height: 8),
           _buildPhotoSelector(context),
           const SizedBox(height: 48),
-
           SizedBox(
             width: double.infinity,
             height: 54,
@@ -107,53 +108,6 @@ class _SparePartWizardStep3 extends ConsumerWidget {
     );
   }
 
-  Widget _buildLocationMap(BuildContext context, WidgetRef ref, bool isLocationShared, Position? userLocation, bool isLoading) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        GuiaMap(
-          mapKey: ValueKey(userLocation),
-          point: userLocation != null
-              ? LatLng(userLocation.latitude, userLocation.longitude)
-              : const LatLng(14.0723, -87.1921),
-          isApproximate: !isLocationShared || userLocation == null,
-        ),
-        if (!isLocationShared || userLocation == null) ...[
-          const SizedBox(height: 14),
-          Align(
-            alignment: Alignment.center,
-            child: isLoading
-                ? const CircularProgressIndicator(color: AppColors.primary)
-                : ElevatedButton.icon(
-                    onPressed: () async {
-                      final success = await ref.read(userLocationProvider.notifier).updateLocation();
-                      if (success) {
-                        ref.read(isLocationSharedProvider.notifier).state = true;
-                      } else {
-                        if (context.mounted) {
-                          context.showSnackBar('No se pudo obtener la ubicación', isError: true);
-                        }
-                      }
-                    },
-                    icon: const Icon(Icons.share_location, size: 18),
-                    label: Text(
-                      'Compartir ubicación',
-                      style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.w700),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
-                      elevation: 0,
-                    ),
-                  ),
-          ),
-        ],
-      ],
-    );
-  }
-
   Widget _buildLabel(String text) {
     return Text(
       text,
@@ -188,7 +142,8 @@ class _SparePartWizardStep3 extends ConsumerWidget {
         ),
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: AppColors.border),

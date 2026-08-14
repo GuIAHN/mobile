@@ -4,9 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:geolocator/geolocator.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
@@ -18,19 +16,17 @@ import '../../../../../core/utils/extensions.dart';
 import '../../../../../core/services/location_service.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../vehicles/domain/entities/user_car.dart';
-import '../../../../vehicles/domain/entities/brand.dart';
 import '../../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../../../../vehicles/presentation/widgets/vehicle_selection_modal.dart';
 import '../../../../vehicles/presentation/widgets/_atoms/vehicle_type_illustration.dart';
 import '../../../../catalog/domain/entities/category.dart';
-import '../../../../catalog/domain/entities/category_node.dart';
-import '../../../../catalog/presentation/providers/catalog_providers.dart';
 import '../../../../chat/presentation/providers/chat_providers.dart';
-import '../../../domain/entities/home_filters.dart';
 import '../../providers/home_providers.dart';
 import '../form_parts/form_part_type_selector.dart';
 import 'category_subcategory_selector_sheet.dart';
-import '../../../../../shared/widgets/guia_map.dart';
+import 'request_location_picker_dialog.dart';
+import 'request_location_preview.dart';
+import 'request_location_selection.dart';
 
 // Parts
 part 'spare_part_wizard_step1.dart';
@@ -89,6 +85,7 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
 
   final _detailsController = TextEditingController();
   String? _selectedImagePath;
+  RequestLocationSelection? _requestLocation;
 
   @override
   void initState() {
@@ -196,6 +193,31 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
     });
   }
 
+  Future<void> _openRequestLocationPicker() async {
+    final isShared = ref.read(isLocationSharedProvider);
+    final current = ref.read(userLocationProvider).valueOrNull;
+    final initialSelection = _requestLocation ??
+        (isShared && current != null
+            ? RequestLocationSelection(
+                latitude: current.latitude,
+                longitude: current.longitude,
+                source: RequestLocationSource.gps,
+              )
+            : null);
+
+    final result = await RequestLocationPickerDialog.show(
+      context,
+      initialSelection: initialSelection,
+      initialCenter: LatLng(
+        initialSelection?.latitude ?? 14.0723,
+        initialSelection?.longitude ?? -87.1921,
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() => _requestLocation = result);
+    }
+  }
+
   void _showLoadingOverlay() {
     showDialog(
       context: context,
@@ -216,8 +238,14 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
     final vehicle = _selectedVehicle;
     final subcat = _selectedSubcategory;
     final partType = _selectedPartType;
+    final requestLocation = _requestLocation;
 
-    if (vehicle == null || subcat == null || partType == null) return;
+    if (vehicle == null ||
+        subcat == null ||
+        partType == null ||
+        requestLocation == null) {
+      return;
+    }
 
     String userCarId = vehicle.id;
 
@@ -244,16 +272,6 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
       userCarId = registeredCar.id;
     }
 
-    double? lat;
-    double? lon;
-    if (ref.read(isLocationSharedProvider)) {
-      final location = ref.read(userLocationProvider).valueOrNull;
-      if (location != null) {
-        lat = location.latitude;
-        lon = location.longitude;
-      }
-    }
-
     _showLoadingOverlay();
     await ref.read(searchRequestNotifierProvider.notifier).submitSearch(
           userCarId: userCarId,
@@ -261,8 +279,8 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
           details: _detailsController.text,
           partType: partType,
           fotoUrl: _selectedImagePath,
-          lat: lat,
-          lon: lon,
+          lat: requestLocation.latitude,
+          lon: requestLocation.longitude,
         );
     _hideLoadingOverlay();
 
@@ -415,8 +433,9 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
               child: Builder(builder: (context) {
                 final reduceMotion = MediaQuery.disableAnimationsOf(context);
                 return AnimatedSwitcher(
-                  duration:
-                      reduceMotion ? Duration.zero : const Duration(milliseconds: 300),
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 300),
                   transitionBuilder: (child, animation) {
                     final offset = Tween<Offset>(
                       begin: Offset(_direction * 0.05, 0),
@@ -496,11 +515,13 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
           onNext: _nextStep,
         );
       case 3:
-        return _SparePartWizardStep3(
+        return SparePartWizardStep3(
           key: const ValueKey('step3'),
           detailsController: _detailsController,
           selectedImagePath: _selectedImagePath,
           isOtroCategory: _selectedSubcategory?.id == kOtherSubcategoryId,
+          requestLocation: _requestLocation,
+          onLocationTap: _openRequestLocationPicker,
           onImagePicked: (path) => setState(() => _selectedImagePath = path),
           onSubmit: _submit,
         );
