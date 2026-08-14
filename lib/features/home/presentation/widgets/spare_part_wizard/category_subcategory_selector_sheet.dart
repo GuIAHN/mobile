@@ -359,6 +359,7 @@ class _CategorySubcategorySelectorSheetState
         return ListTile(
           minTileHeight: 64,
           contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+          leading: _CategoryIconBadge(name: result.node.name, size: 40),
           title: Text(result.node.name, style: AppTypography.title),
           subtitle: Text(
             result.breadcrumb,
@@ -673,14 +674,12 @@ class _RootAccordion extends StatelessWidget {
                         padding: const EdgeInsets.fromLTRB(20, 8, 16, 8),
                         child: Row(
                           children: [
-                            Icon(
-                              _categoryIcon(root.name),
-                              size: 28,
-                              color: isExpanded
-                                  ? AppColors.primaryInk
-                                  : AppColors.textSecondary,
+                            _CategoryIconBadge(
+                              name: root.name,
+                              size: 42,
+                              emphasized: isExpanded,
                             ),
-                            const SizedBox(width: 18),
+                            const SizedBox(width: 14),
                             Expanded(
                               child: Text(
                                 root.name,
@@ -759,7 +758,7 @@ class _CategoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final leftInset = 64.0 + ((depth - 1) * 20);
+    final leftInset = 22.0 + ((depth - 1) * 18);
     return Semantics(
       button: true,
       selected: isSelected,
@@ -777,6 +776,12 @@ class _CategoryRow extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(leftInset, 10, 16, 10),
               child: Row(
                 children: [
+                  _CategoryIconBadge(
+                    name: node.name,
+                    size: 34,
+                    emphasized: isSelected,
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       node.name,
@@ -808,6 +813,39 @@ class _CategoryRow extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryIconBadge extends StatelessWidget {
+  final String name;
+  final double size;
+  final bool emphasized;
+
+  const _CategoryIconBadge({
+    required this.name,
+    required this.size,
+    this.emphasized = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: emphasized
+              ? AppColors.primary.withValues(alpha: 0.14)
+              : AppColors.grey100,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          _categoryIcon(name),
+          size: size * 0.54,
+          color: emphasized ? AppColors.primaryInk : AppColors.textSecondary,
         ),
       ),
     );
@@ -870,20 +908,90 @@ IconData _categoryIcon(String name) {
       .replaceAll('é', 'e')
       .replaceAll('í', 'i')
       .replaceAll('ó', 'o')
-      .replaceAll('ú', 'u');
+      .replaceAll('ú', 'u')
+      .replaceAll('ü', 'u')
+      .replaceAll('ñ', 'n');
 
-  if (normalized.contains('freno')) return Icons.album_outlined;
-  if (normalized.contains('motor')) return Icons.settings_outlined;
-  if (normalized.contains('suspension')) return Icons.linear_scale_rounded;
-  if (normalized.contains('transmision')) {
-    return Icons.precision_manufacturing_outlined;
+  if (normalized.contains('filtro')) return Icons.filter_alt_outlined;
+  if (normalized.contains('pastilla') ||
+      normalized.contains('disco') ||
+      normalized.contains('freno')) {
+    return Icons.disc_full_outlined;
   }
-  if (normalized.contains('calefaccion') || normalized.contains('a/c')) {
+  if (normalized.contains('bateria')) {
+    return Icons.battery_charging_full_rounded;
+  }
+  if (normalized.contains('sensor')) return Icons.sensors_rounded;
+  if (normalized.contains('modulo') || normalized.contains('electronico')) {
+    return Icons.memory_rounded;
+  }
+  if (normalized.contains('arranque')) return Icons.power_settings_new_rounded;
+  if (normalized.contains('inyeccion')) {
+    return Icons.local_gas_station_outlined;
+  }
+  if (normalized.contains('cable') || normalized.contains('conexion')) {
+    return Icons.cable_rounded;
+  }
+  if (normalized.contains('iluminacion')) {
+    return Icons.lightbulb_outline_rounded;
+  }
+  if (normalized.contains('caucho') || normalized.contains('neumatic')) {
+    return Icons.tire_repair_outlined;
+  }
+  if (normalized.contains('rin')) return Icons.circle_outlined;
+  if (normalized.contains('altavoz') || normalized.contains('transductor')) {
+    return Icons.speaker_outlined;
+  }
+  if (normalized.contains('amplificacion') ||
+      normalized.contains('procesamiento')) {
+    return Icons.graphic_eq_rounded;
+  }
+  if (normalized.contains('multimedia') ||
+      normalized.contains('conectividad') ||
+      normalized.contains('unidad central')) {
+    return Icons.connected_tv_outlined;
+  }
+  if (normalized.contains('audio')) return Icons.speaker_group_outlined;
+  if (normalized.contains('volante')) {
+    return Icons.sports_motorsports_outlined;
+  }
+  if (normalized.contains('bomba') || normalized.contains('hidraulic')) {
+    return Icons.water_drop_outlined;
+  }
+  if (normalized.contains('ventilacion')) return Icons.air_rounded;
+  if (normalized.contains('compresion')) return Icons.compress_rounded;
+  if (normalized.contains('aire') || normalized.contains('climatizacion')) {
     return Icons.ac_unit_rounded;
   }
-  if (normalized.contains('lubric')) return Icons.oil_barrel_outlined;
-  if (normalized.contains('electric')) return Icons.bolt_outlined;
-  if (normalized.contains('direccion')) return Icons.adjust_rounded;
+  if (normalized.contains('columna') ||
+      normalized.contains('cardan') ||
+      normalized.contains('barra') ||
+      normalized.contains('terminal')) {
+    return Icons.linear_scale_rounded;
+  }
+  if (normalized.contains('direccion')) return Icons.alt_route_rounded;
+  if (normalized.contains('tren') ||
+      normalized.contains('amortigu') ||
+      normalized.contains('suspension')) {
+    return Icons.swap_vert_circle_outlined;
+  }
+  if (normalized.contains('caja') || normalized.contains('transmision')) {
+    return Icons.settings_suggest_outlined;
+  }
+  if (normalized.contains('motor') || normalized.contains('interno')) {
+    return Icons.precision_manufacturing_outlined;
+  }
+  if (normalized.contains('carroceria') ||
+      normalized == 'externa' ||
+      normalized == 'interna') {
+    return Icons.directions_car_outlined;
+  }
+  if (normalized.contains('electric') || normalized.contains('encendido')) {
+    return Icons.electric_bolt_outlined;
+  }
+  if (normalized.contains('lubric') || normalized.contains('aceite')) {
+    return Icons.oil_barrel_outlined;
+  }
   if (normalized.contains('escape')) return Icons.air_rounded;
-  return Icons.build_outlined;
+  return Icons.category_outlined;
 }

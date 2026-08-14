@@ -114,6 +114,45 @@ void main() {
     expect(find.text('Filtro de aceite'), findsOneWidget);
   });
 
+  testWidgets('uses a specific icon for every selectable category level',
+      (tester) async {
+    await tester.pumpWidget(buildSubject());
+    await tester.pump(const Duration(milliseconds: 360));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('category-root-frenos')),
+        matching: find.byIcon(Icons.disc_full_outlined),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('category-node-pastillas')),
+        matching: find.byIcon(Icons.disc_full_outlined),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('category-root-motor')));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('category-root-motor')),
+        matching: find.byIcon(Icons.precision_manufacturing_outlined),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('category-node-filtro-aceite')),
+        matching: find.byIcon(Icons.filter_alt_outlined),
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('keeps the selector usable on small and large phones',
       (tester) async {
     for (final size in const [Size(375, 667), Size(430, 932)]) {

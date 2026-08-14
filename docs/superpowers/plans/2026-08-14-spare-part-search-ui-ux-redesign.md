@@ -8,6 +8,25 @@
 
 **Tech Stack:** Flutter/Dart, Material, Riverpod 2.5, flutter_map 7.0.2, latlong2, geolocator, geocoding, image_picker y Hanken Grotesk.
 
+## Estado de implementación · 2026-08-14
+
+- [x] Tasks 1–7 implementadas en `codex/spare-part-ui`.
+- [x] Siete ilustraciones generadas de forma independiente, normalizadas a
+  512×320 con alpha y exportadas en PNG de compatibilidad y WebP v2.
+- [x] Cards verticales, carrusel paginado, indicador `Vehículo N de total` y
+  precarga limitada a los tipos presentes.
+- [x] Iconografía semántica para raíces, subcategorías y resultados de búsqueda.
+- [x] Logo de marca libre de marco en los resúmenes de los pasos 2 y 3.
+- [x] Build Web y acceso HTTP 200 verificados para los catorce assets declarados.
+- [ ] Matriz completa de capturas de Task 8 y saneamiento de la suite global:
+  se mantienen diferidos porque existen fallos ajenos en Home/header/skeleton y
+  esos tres archivos contienen cambios locales que este plan debe preservar.
+
+**Decisión de compatibilidad Web:** el runtime mantiene los alias PNG históricos
+en `assets/images/vehicles/` para evitar la regresión 404 observada durante hot
+reload. Los WebP v2 también se declaran y empaquetan, y quedan disponibles para
+una migración posterior con reinicio completo del bundle.
+
 ## Global Constraints
 
 - Mantener exactamente tres pasos: Vehículo, Repuesto y Detalles.

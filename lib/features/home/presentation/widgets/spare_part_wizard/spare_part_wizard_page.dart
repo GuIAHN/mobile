@@ -33,6 +33,7 @@ part 'spare_part_wizard_step2.dart';
 part 'spare_part_wizard_step3.dart';
 part 'spare_part_wizard_chrome.dart';
 part 'spare_part_wizard_summary.dart';
+part 'vehicle_option_card.dart';
 
 class SparePartWizardPage extends ConsumerStatefulWidget {
   final UserCar? initialVehicle;

@@ -1,6 +1,6 @@
 part of 'spare_part_wizard_page.dart';
 
-class _SparePartWizardStep1 extends ConsumerWidget {
+class _SparePartWizardStep1 extends ConsumerStatefulWidget {
   final UserCar? selectedCar;
   final void Function(UserCar car, [String? modelId]) onVehicleSelected;
 
@@ -10,12 +10,35 @@ class _SparePartWizardStep1 extends ConsumerWidget {
     required this.onVehicleSelected,
   });
 
+  @override
+  ConsumerState<_SparePartWizardStep1> createState() =>
+      _SparePartWizardStep1State();
+}
+
+class _SparePartWizardStep1State extends ConsumerState<_SparePartWizardStep1> {
+  late final PageController _vehiclePageController;
+  final Set<String> _precachedAssets = <String>{};
+  int _visibleVehicleIndex = 0;
+  String? _garageSignature;
+
+  @override
+  void initState() {
+    super.initState();
+    _vehiclePageController = PageController(viewportFraction: 0.74);
+  }
+
+  @override
+  void dispose() {
+    _vehiclePageController.dispose();
+    super.dispose();
+  }
+
   Future<void> _handleManualVehicleAdd(BuildContext context) async {
     final result = await VehicleSelectionModal.show(context);
     if (result == null) return;
-    onVehicleSelected(
+    widget.onVehicleSelected(
       UserCar(
-        id: 'temp-' + DateTime.now().millisecondsSinceEpoch.toString(),
+        id: 'temp-${DateTime.now().millisecondsSinceEpoch}',
         brand: result.brand.name,
         model: result.modelName,
         year: result.year,
@@ -24,8 +47,35 @@ class _SparePartWizardStep1 extends ConsumerWidget {
     );
   }
 
+  void _prepareGarage(List<UserCar> cars) {
+    final signature = cars.map((car) => car.id).join('|');
+    if (_garageSignature == signature) return;
+    _garageSignature = signature;
+
+    final selectedIndex = cars.indexWhere(_isSelected);
+    final initialIndex = selectedIndex < 0 ? 0 : selectedIndex;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_visibleVehicleIndex != initialIndex) {
+        setState(() => _visibleVehicleIndex = initialIndex);
+      }
+      if (_vehiclePageController.hasClients && cars.length > 1) {
+        _vehiclePageController.jumpToPage(initialIndex);
+      }
+      _precacheVehicleTypes(cars);
+    });
+  }
+
+  void _precacheVehicleTypes(List<UserCar> cars) {
+    for (final car in cars) {
+      final path = VehicleTypeIllustration.getAssetPath(car.vehicleType);
+      if (!_precachedAssets.add(path)) continue;
+      precacheImage(AssetImage(path), context).catchError((_) {});
+    }
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final userCarsAsync = ref.watch(userCarsProvider);
 
     return SingleChildScrollView(
@@ -52,10 +102,13 @@ class _SparePartWizardStep1 extends ConsumerWidget {
           userCarsAsync.when(
             data: (cars) {
               final displayCars = <UserCar>[...cars];
-              if (selectedCar != null &&
-                  !displayCars.any((car) => car.id == selectedCar!.id)) {
-                displayCars.insert(0, selectedCar!);
+              if (widget.selectedCar != null &&
+                  !displayCars.any(
+                    (car) => car.id == widget.selectedCar!.id,
+                  )) {
+                displayCars.insert(0, widget.selectedCar!);
               }
+              _prepareGarage(displayCars);
               return _buildGarage(context, displayCars, cars.isEmpty);
             },
             loading: () => const SkeletonBox(
@@ -78,62 +131,60 @@ class _SparePartWizardStep1 extends ConsumerWidget {
     bool garageWasEmpty,
   ) {
     if (cars.isEmpty) {
-      return _EmptyGarage(
-        onAdd: () => _handleManualVehicleAdd(context),
-      );
+      return _EmptyGarage(onAdd: () => _handleManualVehicleAdd(context));
     }
 
     final textScale = MediaQuery.textScalerOf(context).scale(16) / 16;
     final extraHeight = ((textScale - 1) * 76).clamp(0.0, 120.0);
     final availableWidth = MediaQuery.sizeOf(context).width - 48;
     final singleCardWidth = availableWidth.clamp(228.0, 252.0);
-    final cards = cars.length == 1
-        ? Center(
-            child: SizedBox(
-              width: singleCardWidth,
-              height: 300 + extraHeight,
-              child: _VehicleCard(
-                car: cars.single,
-                isSelected: _isSelected(cars.single),
-                onTap: () => onVehicleSelected(cars.single),
-              ),
-            ),
-          )
-        : SizedBox(
-            height: 312 + extraHeight,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final cardWidth =
-                    (constraints.maxWidth * 0.68).clamp(218.0, 252.0);
-                return ListView.separated(
-                  key: const PageStorageKey('wizard-vehicle-carousel'),
-                  scrollDirection: Axis.horizontal,
-                  clipBehavior: Clip.none,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: cars.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (context, index) => SizedBox(
-                    width: cardWidth,
-                    child: _VehicleCard(
-                      car: cars[index],
-                      isSelected: _isSelected(cars[index]),
-                      onTap: () => onVehicleSelected(cars[index]),
-                    ),
-                  ),
-                );
-              },
-            ),
-          );
+    final visibleIndex = _visibleVehicleIndex.clamp(0, cars.length - 1);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        cards,
-        if (cars.length > 1) ...[
-          const SizedBox(height: 10),
-          Text(
-            'Desliza para comparar tus ${cars.length} vehículos',
-            style: AppTypography.meta,
+        if (cars.length == 1)
+          Center(
+            child: SizedBox(
+              width: singleCardWidth,
+              height: 300 + extraHeight,
+              child: _VehicleOptionCard(
+                car: cars.single,
+                isSelected: _isSelected(cars.single),
+                onTap: () => widget.onVehicleSelected(cars.single),
+              ),
+            ),
+          )
+        else ...[
+          SizedBox(
+            height: 312 + extraHeight,
+            child: PageView.builder(
+              key: const PageStorageKey('wizard-vehicle-carousel'),
+              controller: _vehiclePageController,
+              clipBehavior: Clip.none,
+              physics: const PageScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              itemCount: cars.length,
+              onPageChanged: (index) {
+                if (_visibleVehicleIndex != index) {
+                  setState(() => _visibleVehicleIndex = index);
+                }
+              },
+              itemBuilder: (context, index) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: _VehicleOptionCard(
+                  car: cars[index],
+                  isSelected: _isSelected(cars[index]),
+                  onTap: () => widget.onVehicleSelected(cars[index]),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _VehicleCarouselIndicator(
+            currentIndex: visibleIndex,
+            total: cars.length,
           ),
         ],
         const SizedBox(height: 16),
@@ -159,222 +210,61 @@ class _SparePartWizardStep1 extends ConsumerWidget {
   }
 
   bool _isSelected(UserCar car) {
-    return selectedCar?.id == car.id ||
-        (selectedCar?.brand == car.brand &&
-            selectedCar?.model == car.model &&
-            selectedCar?.year == car.year);
+    return widget.selectedCar?.id == car.id ||
+        (widget.selectedCar?.brand == car.brand &&
+            widget.selectedCar?.model == car.model &&
+            widget.selectedCar?.year == car.year);
   }
 }
 
-class _VehicleCard extends StatefulWidget {
-  final UserCar car;
-  final bool isSelected;
-  final VoidCallback onTap;
+class _VehicleCarouselIndicator extends StatelessWidget {
+  final int currentIndex;
+  final int total;
 
-  const _VehicleCard({
-    required this.car,
-    required this.isSelected,
-    required this.onTap,
+  const _VehicleCarouselIndicator({
+    required this.currentIndex,
+    required this.total,
   });
-
-  @override
-  State<_VehicleCard> createState() => _VehicleCardState();
-}
-
-class _VehicleCardState extends State<_VehicleCard> {
-  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final car = widget.car;
-    final semantics = car.brand +
-        ' ' +
-        car.model +
-        ', año ' +
-        car.year.toString() +
-        (widget.isSelected ? ', seleccionado' : '');
-
-    return Semantics(
-      button: true,
-      selected: widget.isSelected,
-      label: semantics,
-      excludeSemantics: true,
-      child: AnimatedScale(
-        scale: _pressed ? 0.98 : 1,
-        duration:
-            reduceMotion ? Duration.zero : const Duration(milliseconds: 90),
-        curve: Curves.easeOut,
-        child: AnimatedContainer(
-          duration:
-              reduceMotion ? Duration.zero : const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          decoration: BoxDecoration(
-            color: widget.isSelected
-                ? AppColors.primaryMuted.withValues(alpha: 0.58)
-                : AppColors.surface,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-            border: Border.all(
-              color: widget.isSelected ? AppColors.primary : AppColors.border,
-              width: widget.isSelected ? 2 : 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: widget.isSelected
-                    ? AppColors.primary.withValues(alpha: 0.12)
-                    : Colors.black.withValues(alpha: 0.04),
-                blurRadius: widget.isSelected ? 18 : 12,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: widget.onTap,
-              onHighlightChanged: (value) {
-                if (mounted) setState(() => _pressed = value);
-              },
-              child: Column(
-                children: [
-                  Expanded(
-                    flex: 55,
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(14, 28, 14, 4),
-                            child: RepaintBoundary(
-                              child: VehicleTypeIllustration(
-                                vehicleType: car.vehicleType,
-                                width: double.infinity,
-                                height: double.infinity,
-                                fit: BoxFit.contain,
-                                showBackground: false,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 12,
-                          left: 12,
-                          child: _BrandMark(car: car),
-                        ),
-                        Positioned(
-                          top: 12,
-                          right: 12,
-                          child: AnimatedSwitcher(
-                            duration: reduceMotion
-                                ? Duration.zero
-                                : const Duration(milliseconds: 180),
-                            child: widget.isSelected
-                                ? Container(
-                                    key: const ValueKey('selected'),
-                                    width: 30,
-                                    height: 30,
-                                    decoration: const BoxDecoration(
-                                      color: AppColors.primary,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.check_rounded,
-                                      color: Colors.white,
-                                      size: 19,
-                                    ),
-                                  )
-                                : const SizedBox(
-                                    key: ValueKey('not-selected'),
-                                    width: 30,
-                                    height: 30,
-                                  ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    width: double.infinity,
-                    height: 1,
-                    color: widget.isSelected
-                        ? AppColors.primary.withValues(alpha: 0.18)
-                        : AppColors.border,
-                  ),
-                  Expanded(
-                    flex: 45,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 13, 16, 14),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${car.brand} ${car.model}',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTypography.title.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            'Año ${car.year} · ${_vehicleTypeLabel(car)}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTypography.meta,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+    return Row(
+      children: [
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
+            child: Text(
+              'Vehículo ${currentIndex + 1} de $total',
+              key: ValueKey(currentIndex),
+              style: AppTypography.meta.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  String _vehicleTypeLabel(UserCar car) {
-    return switch (car.vehicleType.toUpperCase()) {
-      'SUV' || 'UTILITY' => 'SUV',
-      'PICKUP' || 'TRUCK' => 'Pickup',
-      'VAN' || 'MINIVAN' => 'Van',
-      'MOTORCYCLE' || 'MOTO' => 'Moto',
-      'SPORT' || 'SPORTS' => 'Deportivo',
-      'COMPACT' => 'Compacto',
-      'HATCHBACK' => 'Hatchback',
-      _ => 'Sedán',
-    };
-  }
-}
-
-class _BrandMark extends StatelessWidget {
-  final UserCar car;
-  const _BrandMark({required this.car});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 54,
-      height: 54,
-      padding: const EdgeInsets.all(5),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        shape: BoxShape.circle,
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Image.network(
-        car.computedBrandLogoUrl,
-        fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => const Icon(
-          Icons.directions_car_rounded,
-          color: AppColors.primary,
-          size: 25,
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(total, (index) {
+            final active = index == currentIndex;
+            return AnimatedContainer(
+              duration: reduceMotion
+                  ? Duration.zero
+                  : const Duration(milliseconds: 180),
+              width: active ? 18 : 6,
+              height: 6,
+              margin: EdgeInsets.only(left: index == 0 ? 0 : 5),
+              decoration: BoxDecoration(
+                color: active ? AppColors.primary : AppColors.grey300,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            );
+          }),
         ),
-      ),
+      ],
     );
   }
 }

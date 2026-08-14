@@ -80,4 +80,5 @@ flutter:
     - assets/images/logo_icon.png
     - assets/images/logo_icon_zoom.png
     - assets/images/vehicles/
+    - assets/images/vehicles/v2/
     - assets/images/categories/

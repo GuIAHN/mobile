@@ -82,22 +82,29 @@ class _SummaryLeading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fallback = Icon(icon, color: AppColors.primary, size: 23);
+    if (imageUrl != null) {
+      return SizedBox(
+        key: const Key('wizard-summary-brand-logo'),
+        width: 56,
+        height: 42,
+        child: ExcludeSemantics(
+          child: Image.network(
+            imageUrl!,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => fallback,
+          ),
+        ),
+      );
+    }
+
     return Container(
       width: 48,
       height: 48,
-      padding: imageUrl == null ? EdgeInsets.zero : const EdgeInsets.all(5),
-      decoration: BoxDecoration(
-        color: imageUrl == null ? AppColors.primaryMuted : AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: imageUrl == null ? null : Border.all(color: AppColors.border),
+      decoration: const BoxDecoration(
+        color: AppColors.primaryMuted,
+        shape: BoxShape.circle,
       ),
-      child: imageUrl == null
-          ? fallback
-          : Image.network(
-              imageUrl!,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => fallback,
-            ),
+      child: fallback,
     );
   }
 }
