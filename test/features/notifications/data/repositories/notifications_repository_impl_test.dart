@@ -17,7 +17,7 @@ void main() {
     type: 'offer.new',
     title: 'Nueva oferta',
     body: 'Tienes una oferta',
-    data: {},
+    data: const {},
     isRead: false,
     createdAt: DateTime.utc(2026, 8, 14, 12),
   );

@@ -47,7 +47,7 @@ void main() {
       'tipo': 'message.new',
       'titulo': 'Mensaje',
       'cuerpo': 'Contenido',
-      'data': <Object?, Object?>{'conversationId': 7},
+      'data': const <Object?, Object?>{'conversationId': 7},
       'leido': true,
       'createdAt': DateTime.utc(2026, 8, 14),
     });
