@@ -3,8 +3,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/request_location_preview.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/request_location_selection.dart';
 
-Widget _testApp(Widget child) {
+Widget _testApp(Widget child, {double textScale = 1}) {
   return MaterialApp(
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaler: TextScaler.linear(textScale),
+      ),
+      child: child!,
+    ),
     home: Scaffold(
       body: Center(
         child: SizedBox(width: 380, child: child),
@@ -64,4 +70,33 @@ void main() {
       findsOneWidget,
     );
   }, semanticsEnabled: true);
+
+  testWidgets('the card supports a small phone and enlarged text',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      _testApp(
+        RequestLocationPreview(
+          selection: const RequestLocationSelection(
+            latitude: 10.4806,
+            longitude: -66.9036,
+            label: 'Sabana Grande, Caracas, Distrito Capital',
+            source: RequestLocationSource.mapTap,
+          ),
+          onTap: () {},
+        ),
+        textScale: 2,
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(
+      tester.getSize(find.byKey(const Key('request-location-preview'))).height,
+      greaterThanOrEqualTo(96),
+    );
+  });
 }

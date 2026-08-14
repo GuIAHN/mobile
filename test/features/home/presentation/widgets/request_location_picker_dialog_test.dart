@@ -45,10 +45,25 @@ class _FakeLocationService extends LocationService {
       address;
 }
 
+class _DeniedLocationService extends LocationService {
+  @override
+  Future<bool> isLocationServiceEnabled() async => true;
+
+  @override
+  Future<LocationPermission> checkPermission() async =>
+      LocationPermission.denied;
+
+  @override
+  Future<LocationPermission> requestPermission() async =>
+      LocationPermission.denied;
+}
+
 Widget _testApp({
   required ValueChanged<RequestLocationSelection?> onResult,
   RequestLocationSelection? initialSelection,
   LocationService? locationService,
+  double textScale = 1,
+  bool disableAnimations = false,
 }) {
   return ProviderScope(
     overrides: [
@@ -57,6 +72,13 @@ Widget _testApp({
       ),
     ],
     child: MaterialApp(
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: TextScaler.linear(textScale),
+          disableAnimations: disableAnimations,
+        ),
+        child: child!,
+      ),
       home: Builder(
         builder: (context) => Scaffold(
           body: Center(
@@ -165,5 +187,96 @@ void main() {
     expect(result?.source, RequestLocationSource.gps);
     expect(result?.latitude, 10.4806);
     expect(result?.longitude, -66.9036);
+  });
+
+  testWidgets('GPS denial keeps manual map selection available',
+      (tester) async {
+    RequestLocationSelection? result;
+    await tester.pumpWidget(
+      _testApp(
+        locationService: _DeniedLocationService(),
+        onResult: (value) => result = value,
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('open-location-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('use-current-request-location')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+          'No pudimos acceder al GPS. Puedes elegir un punto en el mapa.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('fake-location-map')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('confirm-request-location')));
+    await tester.pumpAndSettle();
+
+    expect(result?.source, RequestLocationSource.mapTap);
+  });
+
+  testWidgets('fits a small phone with enlarged text and 48dp actions',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      _testApp(
+        textScale: 2,
+        disableAnimations: true,
+        initialSelection: const RequestLocationSelection(
+          latitude: 10.4806,
+          longitude: -66.9036,
+          label: 'Sabana Grande, Caracas, Distrito Capital',
+          source: RequestLocationSource.mapTap,
+        ),
+        onResult: (_) {},
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('open-location-picker')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      tester
+          .getSize(find.byKey(const Key('use-current-request-location')))
+          .shortestSide,
+      greaterThanOrEqualTo(48),
+    );
+    expect(
+      tester.getSize(find.byKey(const Key('confirm-request-location'))).height,
+      greaterThanOrEqualTo(48),
+    );
+  });
+
+  testWidgets('fits a large phone viewport', (tester) async {
+    tester.view.physicalSize = const Size(430, 932);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      _testApp(
+        initialSelection: const RequestLocationSelection(
+          latitude: 10.4806,
+          longitude: -66.9036,
+          source: RequestLocationSource.mapTap,
+        ),
+        onResult: (_) {},
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('open-location-picker')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Elegir ubicación'), findsOneWidget);
+    expect(find.text('Usar esta ubicación'), findsOneWidget);
   });
 }
