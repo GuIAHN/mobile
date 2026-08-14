@@ -28,7 +28,34 @@ void main() {
     final resized = image.image as ResizeImage;
     expect(
       (resized.imageProvider as AssetImage).assetName,
-      'assets/images/vehicles/sedan.png',
+      'assets/images/vehicles/v3/sedan.webp',
+    );
+  });
+
+  test('maps every vehicle family to a versioned generated asset', () {
+    expect(
+      VehicleTypeIllustration.getAssetPath('COMPACT'),
+      'assets/images/vehicles/v3/compact.webp',
+    );
+    expect(
+      VehicleTypeIllustration.getAssetPath('SPORT'),
+      'assets/images/vehicles/v3/sport.webp',
+    );
+    expect(
+      VehicleTypeIllustration.getAssetPath('SUV'),
+      'assets/images/vehicles/v3/suv.webp',
+    );
+    expect(
+      VehicleTypeIllustration.getAssetPath('PICKUP'),
+      'assets/images/vehicles/v3/pickup.webp',
+    );
+    expect(
+      VehicleTypeIllustration.getAssetPath('VAN'),
+      'assets/images/vehicles/v3/van.webp',
+    );
+    expect(
+      VehicleTypeIllustration.getAssetPath('MOTORCYCLE'),
+      'assets/images/vehicles/v3/motorcycle.webp',
     );
   });
 }

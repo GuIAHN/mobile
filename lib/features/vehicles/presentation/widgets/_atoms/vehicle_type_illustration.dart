@@ -20,30 +20,31 @@ class VehicleTypeIllustration extends StatelessWidget {
   });
 
   static String getAssetPath(String type) {
-    final t = type.toUpperCase();
+    const assetRoot = 'assets/images/vehicles/v3';
+    final t = type.trim().toUpperCase();
     switch (t) {
       case 'SPORT':
       case 'SPORTS':
-        return 'assets/images/vehicles/sport.png';
+        return '$assetRoot/sport.webp';
       case 'SUV':
       case 'UTILITY':
-        return 'assets/images/vehicles/suv.png';
+        return '$assetRoot/suv.webp';
       case 'PICKUP':
       case 'TRUCK':
-        return 'assets/images/vehicles/pickup.png';
+        return '$assetRoot/pickup.webp';
       case 'VAN':
       case 'MINIVAN':
-        return 'assets/images/vehicles/van.png';
+        return '$assetRoot/van.webp';
       case 'MOTORCYCLE':
       case 'MOTO':
-        return 'assets/images/vehicles/motorcycle.png';
+        return '$assetRoot/motorcycle.webp';
       case 'COMPACT':
       case 'HATCHBACK':
-        return 'assets/images/vehicles/car.png';
+        return '$assetRoot/compact.webp';
       case 'CAR':
       case 'SEDAN':
       default:
-        return 'assets/images/vehicles/sedan.png';
+        return '$assetRoot/sedan.webp';
     }
   }
 
