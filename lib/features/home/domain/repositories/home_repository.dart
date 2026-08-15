@@ -17,7 +17,8 @@ abstract class HomeRepository {
   /// Promos/banners por tipo de servicio (datos locales por ahora).
   Future<Either<Failure, List<Promo>>> getPromos(ServiceType type);
 
-  /// Items mock para spareParts (talleres/mecánicos usan [searchProviders]).
+  /// En producción todos los tipos usan backend; fuera de producción las
+  /// tiendas de repuestos conservan datos locales de apoyo.
   Future<Either<Failure, List<HomeItem>>> getHomeItems(ServiceType type);
 
   /// Búsqueda real de mecánicos o talleres contra el backend.

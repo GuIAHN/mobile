@@ -7,6 +7,7 @@ import '../../../../core/domain/enums/part_type.dart';
 abstract class SearchRemoteDatasource {
   Future<Map<String, dynamic>> searchMechanics(Map<String, dynamic> params);
   Future<Map<String, dynamic>> searchWorkshops(Map<String, dynamic> params);
+  Future<Map<String, dynamic>> searchStores(Map<String, dynamic> params);
   Future<Map<String, dynamic>> getMechanicDetail(String id);
   Future<Map<String, dynamic>> getStoreDetail(String id);
 
@@ -51,6 +52,20 @@ class SearchRemoteDatasourceImpl implements SearchRemoteDatasource {
   }
 
   @override
+  Future<Map<String, dynamic>> searchStores(Map<String, dynamic> params) async {
+    final queryParameters = <String, dynamic>{
+      'page': params['page'],
+      'limit': params['pageSize'],
+      if (params['search'] != null) 'search': params['search'],
+    };
+    final response = await _client.get<Map<String, dynamic>>(
+      ApiEndpoints.stores,
+      queryParameters: queryParameters,
+    );
+    return response.data ?? {};
+  }
+
+  @override
   Future<Map<String, dynamic>> getMechanicDetail(String id) async {
     final response = await _client.get<Map<String, dynamic>>(
       ApiEndpoints.mechanicDetail(id),
@@ -83,14 +98,16 @@ class SearchRemoteDatasourceImpl implements SearchRemoteDatasource {
           fotoUrl.isNotEmpty &&
           !fotoUrl.startsWith('http://') &&
           !fotoUrl.startsWith('https://')) {
-        uploadedPhotoUrl = await _client.uploadImage(fotoUrl, folder: 'requests');
+        uploadedPhotoUrl =
+            await _client.uploadImage(fotoUrl, folder: 'requests');
       }
 
       final payload = {
         'userCarId': userCarId,
         'subcategoryId': subcategoryId,
         if (details != null && details.isNotEmpty) 'details': details,
-        if (uploadedPhotoUrl != null && uploadedPhotoUrl.isNotEmpty) 'photoUrl': uploadedPhotoUrl,
+        if (uploadedPhotoUrl != null && uploadedPhotoUrl.isNotEmpty)
+          'photoUrl': uploadedPhotoUrl,
         if (partType != null) 'partType': partType.apiValue,
         if (radioKm != null) 'radiusKm': radioKm,
         if (lat != null) 'lat': lat,
@@ -111,5 +128,4 @@ class SearchRemoteDatasourceImpl implements SearchRemoteDatasource {
       rethrow;
     }
   }
-
 }

@@ -38,7 +38,7 @@ class _ItemCardState extends State<ItemCard> {
       case ServiceType.storeDashboard:
         break;
       case ServiceType.spareParts:
-        // TODO: navegación al detalle de tienda de repuestos
+        context.push('${RouteNames.storeDetailPath(item.id!)}?type=spareParts');
         break;
     }
   }
@@ -135,7 +135,6 @@ class _ItemCardState extends State<ItemCard> {
                       runSpacing: 6,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-
                         // Rating Tag
                         _Tag(
                           backgroundColor: AppColors.warningLight,

@@ -10,20 +10,27 @@ import '../widgets/provider_detail_widgets.dart';
 
 class StoreDetailPage extends ConsumerWidget {
   final String storeId;
+  final ServiceType serviceType;
 
-  const StoreDetailPage({super.key, required this.storeId});
+  const StoreDetailPage({
+    super.key,
+    required this.storeId,
+    this.serviceType = ServiceType.workshops,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final args = (id: storeId, type: ServiceType.workshops);
+    final args = (id: storeId, type: serviceType);
     final detailAsync = ref.watch(providerDetailProvider(args));
+    final isStore = serviceType == ServiceType.spareParts;
+    final providerLabel = isStore ? 'tienda' : 'taller';
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: detailAsync.when(
         loading: () => const DetailSkeleton(),
         error: (e, _) => DetailErrorView(
-          title: 'No se pudo cargar el taller',
+          title: 'No se pudo cargar la $providerLabel',
           message: e.toString(),
           onRetry: () => ref.invalidate(providerDetailProvider(args)),
         ),
@@ -47,8 +54,11 @@ class StoreDetailPage extends ConsumerWidget {
                   background: DetailHeaderBackground(
                     heroTag: 'provider-avatar-$storeId',
                     nombre: detail.nombre,
-                    tipoLabel: 'Taller Mecánico',
-                    icono: Icons.warehouse_rounded,
+                    tipoLabel:
+                        isStore ? 'Tienda de repuestos' : 'Taller Mecánico',
+                    icono: isStore
+                        ? Icons.storefront_rounded
+                        : Icons.warehouse_rounded,
                     verified: detail.verified,
                     photoUrl: detail.photo,
                   ),
@@ -66,12 +76,10 @@ class StoreDetailPage extends ConsumerWidget {
                       tarifa: detail.tarifa,
                     ),
                     const SizedBox(height: 24),
-
                     if (detail.hasDelivery) ...[
                       const _DeliveryBadge(),
                       const SizedBox(height: 24),
                     ],
-
                     if (detail.especialidades.isNotEmpty) ...[
                       const DetailSectionTitle(title: 'Servicios que ofrece'),
                       const SizedBox(height: 14),
@@ -84,7 +92,6 @@ class StoreDetailPage extends ConsumerWidget {
                       ),
                       const SizedBox(height: 28),
                     ],
-
                     if (detail.categorias.isNotEmpty) ...[
                       const DetailSectionTitle(title: 'Catálogo de repuestos'),
                       const SizedBox(height: 14),
@@ -92,17 +99,19 @@ class StoreDetailPage extends ConsumerWidget {
                           .map((c) => _CategoryCard(category: c)),
                       const SizedBox(height: 16),
                     ],
-
-                    const DetailSectionTitle(title: 'Sobre el taller'),
+                    DetailSectionTitle(title: 'Sobre la $providerLabel'),
                     const SizedBox(height: 14),
                     DetailDescriptionCard(
                       text: detail.descripcion ?? '',
-                      title: 'PRESENTACIÓN DEL TALLER',
+                      title: isStore
+                          ? 'PRESENTACIÓN DE LA TIENDA'
+                          : 'PRESENTACIÓN DEL TALLER',
                     ),
                     const SizedBox(height: 28),
-
                     if (hasLocation) ...[
-                      const DetailSectionTitle(title: 'Ubicación del taller'),
+                      DetailSectionTitle(
+                        title: 'Ubicación de la $providerLabel',
+                      ),
                       const SizedBox(height: 14),
                       DetailLocationCard(
                         direccion: detail.direccion,
@@ -111,7 +120,6 @@ class StoreDetailPage extends ConsumerWidget {
                       ),
                       const SizedBox(height: 28),
                     ],
-
                     if (hasContact) ...[
                       const DetailSectionTitle(title: 'Contacto'),
                       const SizedBox(height: 14),

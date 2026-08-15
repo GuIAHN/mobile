@@ -228,8 +228,8 @@ final promosProvider = FutureProvider.family
   );
 });
 
-/// Proveedores (mecánicos / talleres) filtrados desde el backend.
-/// spareParts usa mock local.
+/// Proveedores filtrados desde el backend. Fuera de producción, spareParts
+/// conserva el mock local configurado por el repositorio.
 final homeItemsProvider = FutureProvider.family
     .autoDispose<List<HomeItem>, ServiceType>((ref, type) async {
   if (type == ServiceType.spareParts) {

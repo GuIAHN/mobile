@@ -25,29 +25,38 @@ class ProfileTab extends ConsumerWidget {
       );
     }
 
-    final isConsumer = user.role == UserRole.consumer || user.role == UserRole.unknown;
+    final isConsumer =
+        user.role == UserRole.consumer || user.role == UserRole.unknown;
 
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.only(left: 20, right: 20, top: 24, bottom: 120),
-      children: [
-        // 1. Tarjeta Encabezado del Perfil (Avatar + Info)
-        ProfileHeader(user: user),
-        const SizedBox(height: 20),
+    return SafeArea(
+      bottom: false,
+      child: ListView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 24,
+          bottom: 120,
+        ),
+        children: [
+          // 1. Tarjeta Encabezado del Perfil (Avatar + Info)
+          ProfileHeader(user: user),
+          const SizedBox(height: 20),
 
-        // 2. Tarjeta de Datos Básicos
-        ProfileBasicData(user: user),
-        const SizedBox(height: 20),
+          // 2. Tarjeta de Datos Básicos
+          ProfileBasicData(user: user),
+          const SizedBox(height: 20),
 
-        // 3. Sección "Mi Garage" (Solo para consumidores)
-        if (isConsumer) ...[
-          const ProfileGarage(),
-          const SizedBox(height: 24),
+          // 3. Sección "Mi Garage" (Solo para consumidores)
+          if (isConsumer) ...[
+            const ProfileGarage(),
+            const SizedBox(height: 24),
+          ],
+
+          // 4. Botón de Cerrar Sesión
+          _buildLogoutButton(context, ref),
         ],
-
-        // 4. Botón de Cerrar Sesión
-        _buildLogoutButton(context, ref),
-      ],
+      ),
     );
   }
 

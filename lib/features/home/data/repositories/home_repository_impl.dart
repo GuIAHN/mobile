@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
+import '../../../../core/config/env.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../domain/entities/home_filters.dart';
@@ -18,11 +19,13 @@ import '../models/provider_detail_model.dart';
 class HomeRepositoryImpl implements HomeRepository {
   final SearchRemoteDatasource _searchRemoteDatasource;
   final HomeRemoteDatasource _homeRemoteDatasource;
+  final bool _useLiveStores;
 
   HomeRepositoryImpl(
     this._searchRemoteDatasource,
-    this._homeRemoteDatasource,
-  );
+    this._homeRemoteDatasource, {
+    bool? useLiveStores,
+  }) : _useLiveStores = useLiveStores ?? Env.isProd;
 
   // ── Promos (datos locales) ────────────────────────────────────────────────
 
@@ -91,7 +94,7 @@ class HomeRepositoryImpl implements HomeRepository {
     ],
   };
 
-  // ── Mocks de spareParts (sin backend por ahora) ───────────────────────────
+  // ── Mocks de spareParts (solo fuera de producción) ───────────────────
 
   static const List<HomeItemModel> _mockSpareParts = [
     HomeItemModel(
@@ -169,8 +172,10 @@ class HomeRepositoryImpl implements HomeRepository {
 
   @override
   Future<Either<Failure, List<HomeItem>>> getHomeItems(ServiceType type) async {
-    // spareParts usa mocks; mechanics y workshops usan backend vía searchProviders
     if (type == ServiceType.spareParts) {
+      if (_useLiveStores) {
+        return searchProviders(type: type, filters: const HomeFilters());
+      }
       try {
         await Future.delayed(const Duration(milliseconds: 200));
         return const Right(_mockSpareParts);
@@ -196,12 +201,16 @@ class HomeRepositoryImpl implements HomeRepository {
         'pageSize': 20,
       };
 
-      final Map<String, dynamic> response;
-      if (type == ServiceType.mechanic) {
-        response = await _searchRemoteDatasource.searchMechanics(params);
-      } else {
-        response = await _searchRemoteDatasource.searchWorkshops(params);
-      }
+      final Map<String, dynamic> response = switch (type) {
+        ServiceType.mechanic =>
+          await _searchRemoteDatasource.searchMechanics(params),
+        ServiceType.workshops =>
+          await _searchRemoteDatasource.searchWorkshops(params),
+        ServiceType.spareParts =>
+          await _searchRemoteDatasource.searchStores(params),
+        ServiceType.storeDashboard =>
+          throw StateError('El dashboard no admite búsqueda de proveedores'),
+      };
 
       final List<dynamic> data = response['data'] as List<dynamic>? ?? [];
       final providers = ProviderModel.fromJsonList(data, type);

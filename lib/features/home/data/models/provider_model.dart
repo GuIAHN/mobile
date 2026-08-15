@@ -47,8 +47,12 @@ class ProviderModel extends HomeItem {
             json['description'] as String? ??
             '');
 
-    final String iconName =
-        type == ServiceType.workshops ? 'warehouse_outlined' : 'build_outlined';
+    final String iconName = switch (type) {
+      ServiceType.workshops => 'warehouse_outlined',
+      ServiceType.spareParts => 'storefront_outlined',
+      ServiceType.mechanic => 'build_outlined',
+      ServiceType.storeDashboard => 'dashboard_outlined',
+    };
     final rawReviews =
         json['ratingCount'] ?? json['rating_count'] ?? json['reviews'];
     final reviews = rawReviews is num

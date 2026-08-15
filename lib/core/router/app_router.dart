@@ -156,7 +156,14 @@ class AppRouter {
             name: 'storeDetail',
             builder: (context, state) {
               final id = state.pathParameters['id']!;
-              return StoreDetailPage(storeId: id);
+              final isSpareParts =
+                  state.uri.queryParameters['type'] == 'spareParts';
+              return StoreDetailPage(
+                storeId: id,
+                serviceType: isSpareParts
+                    ? ServiceType.spareParts
+                    : ServiceType.workshops,
+              );
             },
           ),
           GoRoute(

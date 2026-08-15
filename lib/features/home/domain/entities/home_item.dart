@@ -2,7 +2,7 @@ import 'package:equatable/equatable.dart';
 import '../../../../core/domain/enums/service_type.dart';
 
 class HomeItem extends Equatable {
-  /// ID del proveedor en el backend (null en mocks de spareParts)
+  /// ID del proveedor en el backend (null en mocks no productivos).
   final String? id;
   final String name;
   final String detail;

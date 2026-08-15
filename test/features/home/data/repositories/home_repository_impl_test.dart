@@ -61,4 +61,54 @@ void main() {
     expect(result.mechanics.single.id, 'mechanic-1');
     expect(result.mechanics.single.type, ServiceType.mechanic);
   });
+
+  test('uses the stores endpoint when live stores are enabled', () async {
+    final searchDatasource = _MockSearchRemoteDatasource();
+    final homeDatasource = _MockHomeRemoteDatasource();
+    when(() => searchDatasource.searchStores(any())).thenAnswer(
+      (_) async => {
+        'data': [
+          {
+            'id': 'store-1',
+            'nombre': 'Repuestos Central',
+            'descripcion': 'Caracas',
+            'rating': 4.8,
+            'ratingCount': 12,
+            'hasDelivery': true,
+            'especialidades': ['Motor'],
+          },
+        ],
+      },
+    );
+    final repository = HomeRepositoryImpl(
+      searchDatasource,
+      homeDatasource,
+      useLiveStores: true,
+    );
+
+    final either = await repository.getHomeItems(ServiceType.spareParts);
+    final stores = either.getOrElse(() => throw StateError('unexpected left'));
+
+    expect(stores.single.id, 'store-1');
+    expect(stores.single.name, 'Repuestos Central');
+    expect(stores.single.type, ServiceType.spareParts);
+    verify(() => searchDatasource.searchStores(any())).called(1);
+  });
+
+  test('keeps local spare-parts data when live stores are disabled', () async {
+    final searchDatasource = _MockSearchRemoteDatasource();
+    final homeDatasource = _MockHomeRemoteDatasource();
+    final repository = HomeRepositoryImpl(
+      searchDatasource,
+      homeDatasource,
+      useLiveStores: false,
+    );
+
+    final either = await repository.getHomeItems(ServiceType.spareParts);
+    final stores = either.getOrElse(() => throw StateError('unexpected left'));
+
+    expect(stores, isNotEmpty);
+    expect(stores.every((store) => store.id == null), isTrue);
+    verifyNever(() => searchDatasource.searchStores(any()));
+  });
 }
