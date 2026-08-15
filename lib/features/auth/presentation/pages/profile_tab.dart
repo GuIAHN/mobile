@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../provider_profile/presentation/widgets/provider_specialties_card.dart';
 import '../../../vehicles/presentation/widgets/profile_garage.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/profile_basic_data.dart';
@@ -27,6 +28,8 @@ class ProfileTab extends ConsumerWidget {
 
     final isConsumer =
         user.role == UserRole.consumer || user.role == UserRole.unknown;
+    final isProfessionalProvider =
+        user.role == UserRole.mechanic || user.role == UserRole.workshop;
 
     return SafeArea(
       bottom: false,
@@ -53,7 +56,13 @@ class ProfileTab extends ConsumerWidget {
             const SizedBox(height: 24),
           ],
 
-          // 4. Botón de Cerrar Sesión
+          // 4. Especialidades configurables (mecánicos y talleres)
+          if (isProfessionalProvider) ...[
+            const ProviderSpecialtiesCard(),
+            const SizedBox(height: 24),
+          ],
+
+          // 5. Botón de Cerrar Sesión
           _buildLogoutButton(context, ref),
         ],
       ),

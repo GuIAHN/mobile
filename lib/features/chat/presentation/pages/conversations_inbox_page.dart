@@ -236,8 +236,14 @@ class _ConversationsHeader extends StatelessWidget {
                     ),
                     decoration: InputDecoration(
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      focusedErrorBorder: InputBorder.none,
                       filled: false,
                       isCollapsed: true,
+                      contentPadding: EdgeInsets.zero,
                       hintText: 'Buscar una conversación...',
                       hintStyle: GoogleFonts.hankenGrotesk(
                         fontSize: 14,

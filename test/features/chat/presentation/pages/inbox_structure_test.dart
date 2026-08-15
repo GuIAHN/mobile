@@ -137,6 +137,25 @@ void main() {
     expect(find.text('Sin cotizar'), findsAtLeastNWidgets(1));
   });
 
+  testWidgets('Ventas search field does not draw an inner border',
+      (tester) async {
+    await pumpPage(
+      tester,
+      role: UserRole.store,
+      page: const StoreSalesPage(),
+    );
+
+    final field = tester.widget<TextField>(find.byType(TextField));
+    final decoration = field.decoration!;
+
+    expect(decoration.border, InputBorder.none);
+    expect(decoration.enabledBorder, InputBorder.none);
+    expect(decoration.focusedBorder, InputBorder.none);
+    expect(decoration.disabledBorder, InputBorder.none);
+    expect(decoration.errorBorder, InputBorder.none);
+    expect(decoration.focusedErrorBorder, InputBorder.none);
+  });
+
   testWidgets('Chats search filters only the conversation list',
       (tester) async {
     await pumpPage(

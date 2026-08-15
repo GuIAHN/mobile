@@ -24,6 +24,8 @@ abstract class ApiEndpoints {
 
   // ── Perfiles Públicos ─────────────────────────────────────────────────────
   static String mechanicDetail(String id) => 'mechanics/$id';
+  static const String mechanicProfile = 'mechanics/me';
+  static const String mechanicSpecialties = 'mechanics/me/specialties';
   static const String stores = 'stores';
   static String storeDetail(String id) => 'stores/$id';
   static const String storeSearchRequests = 'stores/me/search-requests';

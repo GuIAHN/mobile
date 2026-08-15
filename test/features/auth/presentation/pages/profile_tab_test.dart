@@ -13,6 +13,9 @@ import 'package:guiautomotriz_mobile/features/auth/presentation/pages/profile_ta
 import 'package:guiautomotriz_mobile/features/auth/presentation/providers/auth_provider.dart';
 import 'package:guiautomotriz_mobile/features/auth/presentation/providers/auth_state.dart';
 import 'package:guiautomotriz_mobile/features/auth/presentation/widgets/profile_header.dart';
+import 'package:guiautomotriz_mobile/features/catalog/domain/entities/specialty.dart';
+import 'package:guiautomotriz_mobile/features/provider_profile/presentation/providers/provider_profile_providers.dart';
+import 'package:guiautomotriz_mobile/features/provider_profile/presentation/widgets/provider_specialties_card.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/presentation/providers/vehicle_providers.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -71,5 +74,75 @@ void main() {
     final headerTop = tester.getTopLeft(find.byType(ProfileHeader)).dy;
     expect(headerTop, greaterThanOrEqualTo(topSafeArea + 24));
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('shows configurable specialties only to mechanics and workshops',
+      (tester) async {
+    const mechanic = User(
+      id: 'mechanic-1',
+      email: 'mechanic@gmail.com',
+      name: 'Mecánico',
+      role: UserRole.mechanic,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith((ref) => _TestAuthNotifier(mechanic)),
+          providerSpecialtiesProvider.overrideWith(
+            (ref) async => const [
+              Specialty(id: 'brakes', name: 'Frenos'),
+            ],
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ProfileTab())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ProviderSpecialtiesCard), findsOneWidget);
+    expect(find.text('Frenos'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    const store = User(
+      id: 'store-1',
+      email: 'store@gmail.com',
+      name: 'Tienda',
+      role: UserRole.store,
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith((ref) => _TestAuthNotifier(store)),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ProfileTab())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ProviderSpecialtiesCard), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    const workshop = User(
+      id: 'workshop-1',
+      email: 'workshop@gmail.com',
+      name: 'Taller',
+      role: UserRole.workshop,
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith((ref) => _TestAuthNotifier(workshop)),
+          providerSpecialtiesProvider.overrideWith(
+            (ref) async => const <Specialty>[],
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ProfileTab())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ProviderSpecialtiesCard), findsOneWidget);
+    expect(find.text('Aún no has agregado especialidades.'), findsOneWidget);
   });
 }

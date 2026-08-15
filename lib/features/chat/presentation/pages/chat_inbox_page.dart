@@ -454,7 +454,14 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
               ),
               decoration: InputDecoration(
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                filled: false,
                 isCollapsed: true,
+                contentPadding: EdgeInsets.zero,
                 hintText: isProvider
                     ? 'Buscar por cliente o solicitud...'
                     : 'Buscar por tienda o solicitud...',
