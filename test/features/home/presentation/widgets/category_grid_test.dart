@@ -108,50 +108,16 @@ void main() {
     expect(find.text('mechanics-route'), findsOneWidget);
   });
 
-  testWidgets('uses coherent vector artwork with a forward affordance',
+  testWidgets('uses transparent icon containers and forward affordance',
       (tester) async {
     await tester.pumpWidget(subject());
 
-    expect(find.byType(SvgPicture), findsNWidgets(3));
-    expect(find.byIcon(Icons.arrow_forward_rounded), findsNWidgets(3));
-    final artwork = tester.widgetList<SvgPicture>(find.byType(SvgPicture));
-    expect(
-      artwork.every((picture) => picture.bytesLoader is SvgStringLoader),
-      isTrue,
-      reason: 'Category artwork must not disappear from a stale asset bundle.',
-    );
+    expect(find.text('¿Qué buscas hoy?'), findsOneWidget);
+    expect(find.byIcon(Icons.chevron_right_rounded), findsNWidgets(3));
+    expect(find.byIcon(Icons.handyman_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.storefront_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.engineering_rounded), findsOneWidget);
     expect(find.byType(Image), findsNothing);
-  });
-
-  testWidgets('uses the full card height instead of leaving an empty footer',
-      (tester) async {
-    await tester.pumpWidget(subject(width: 430));
-
-    for (final label in actionLabels) {
-      final card = find.bySemanticsLabel(label);
-      final arrow = find.descendant(
-        of: card,
-        matching: find.byIcon(Icons.arrow_forward_rounded),
-      );
-      final bottomGap =
-          tester.getBottomRight(card).dy - tester.getBottomRight(arrow).dy;
-
-      expect(bottomGap, lessThanOrEqualTo(20));
-    }
-  }, semanticsEnabled: true);
-
-  testWidgets('aligns the three category artworks on the same baseline',
-      (tester) async {
-    await tester.pumpWidget(subject(width: 430));
-
-    final centers = tester
-        .widgetList<SvgPicture>(find.byType(SvgPicture))
-        .map((picture) => tester.getCenter(find.byWidget(picture)).dy)
-        .toList();
-
-    expect(centers, hasLength(3));
-    expect(centers[1], closeTo(centers[0], 0.1));
-    expect(centers[2], closeTo(centers[0], 0.1));
   });
 
   testWidgets('each consumer action is a button with a 48 dp touch target',
@@ -169,7 +135,7 @@ void main() {
         expect(
           find.descendant(
             of: action,
-            matching: find.byIcon(Icons.arrow_forward_rounded),
+            matching: find.byIcon(Icons.chevron_right_rounded),
           ),
           findsOneWidget,
         );

@@ -75,10 +75,12 @@ flutter_native_splash:
 flutter:
   uses-material-design: true
   assets:
+    - assets/images/
     - assets/images/onboarding/
     - assets/images/logo.png
     - assets/images/logo_icon.png
     - assets/images/logo_icon_zoom.png
+    - assets/images/header_car.png
     - assets/images/vehicles/
     - assets/images/vehicles/v2/
     - assets/images/vehicles/v3/

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../../shared/widgets/section_header.dart';
 import '../../../../../core/domain/enums/service_type.dart';
 import '../../../../../core/domain/enums/user_role.dart';
 import '../../../../../core/providers/current_user_provider.dart';
@@ -64,25 +65,25 @@ class CategoryGrid extends ConsumerWidget {
   _CategoryConfig _configFor(ServiceType type, UserRole role) {
     switch (type) {
       case ServiceType.spareParts:
-        return _CategoryConfig(
+        return const _CategoryConfig(
           icon: Icons.handyman_rounded,
           label: 'Pedir repuesto',
           subtitle: 'Cotiza piezas y repuestos para tu vehículo',
-          iconBgColor: AppColors.primaryMuted.withValues(alpha: 0.85),
+          iconBgColor: Colors.transparent,
         );
       case ServiceType.workshops:
-        return _CategoryConfig(
+        return const _CategoryConfig(
           icon: Icons.storefront_rounded,
           label: 'Buscar taller',
           subtitle: 'Encuentra talleres mecánicos y diagnóstico',
-          iconBgColor: AppColors.primaryMuted.withValues(alpha: 0.85),
+          iconBgColor: Colors.transparent,
         );
       case ServiceType.mechanic:
-        return _CategoryConfig(
+        return const _CategoryConfig(
           icon: Icons.engineering_rounded,
           label: 'Buscar mecánico',
           subtitle: 'Mecánicos calificados con servicio a domicilio',
-          iconBgColor: AppColors.primaryMuted.withValues(alpha: 0.85),
+          iconBgColor: Colors.transparent,
         );
       case ServiceType.storeDashboard:
         return _CategoryConfig(
@@ -95,7 +96,7 @@ class CategoryGrid extends ConsumerWidget {
               'Contactos, reputación y alcance de tu servicio',
             _ => 'Revisa el rendimiento de tu actividad',
           },
-          iconBgColor: AppColors.primaryMuted.withValues(alpha: 0.85),
+          iconBgColor: Colors.transparent,
         );
     }
   }
@@ -110,25 +111,35 @@ class CategoryGrid extends ConsumerWidget {
 
     if (availableTypes.isEmpty) return const SizedBox.shrink();
 
-    return LayoutBuilder(
-      builder: (context, constraints) => IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var i = 0; i < availableTypes.length; i++) ...[
-              if (i > 0) const SizedBox(width: 10),
-              Expanded(
-                child: _CategoryCard(
-                  config: _configFor(availableTypes[i], currentRole),
-                  isCompact: constraints.maxWidth < 400,
-                  onTap: () =>
-                      _handleCategoryTap(context, ref, availableTypes[i]),
-                ),
-              ),
-            ],
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(
+          title: '¿Qué buscas hoy?',
+          padding: EdgeInsets.zero,
         ),
-      ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) => IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < availableTypes.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 10),
+                  Expanded(
+                    child: _CategoryCard(
+                      config: _configFor(availableTypes[i], currentRole),
+                      isCompact: constraints.maxWidth < 400,
+                      onTap: () =>
+                          _handleCategoryTap(context, ref, availableTypes[i]),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -206,32 +217,33 @@ class _CategoryCardState extends State<_CategoryCard> {
                       // ── Fila superior: ícono + flecha indicador ────────
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Container(
                             width: widget.isCompact ? 46 : 52,
                             height: widget.isCompact ? 46 : 52,
+                            margin: const EdgeInsets.only(left: 4),
+                            alignment: Alignment.center,
                             decoration: BoxDecoration(
                               color: widget.config.iconBgColor,
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: Icon(
                               widget.config.icon,
-                              size: widget.isCompact ? 24 : 28,
+                              size: widget.isCompact ? 28 : 40,
                               color: AppColors.primary,
                             ),
                           ),
                           Container(
-                            width: 26,
-                            height: 26,
+                            width: 24,
+                            height: 24,
                             decoration: BoxDecoration(
-                              color: AppColors.primaryMuted
-                                  .withValues(alpha: 0.80),
+                              color: AppColors.primary.withValues(alpha: 0.10),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
-                              Icons.arrow_forward_rounded,
-                              size: 14,
+                              Icons.chevron_right_rounded,
+                              size: 16,
                               color: AppColors.primary,
                             ),
                           ),

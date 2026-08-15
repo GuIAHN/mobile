@@ -217,8 +217,8 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
         clipBehavior: Clip.antiAlias,
         decoration: const BoxDecoration(
           color: AppColors.primary,
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(28),
+          borderRadius: BorderRadius.only(
+            bottomRight: Radius.circular(28),
           ),
         ),
         child: Stack(
@@ -257,6 +257,20 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white.withValues(alpha: 0.11),
+                ),
+              ),
+            ),
+
+            // ── Ilustración del vehículo en el lado derecho del header ───────
+            Positioned(
+              right: -30,
+              bottom: -40,
+              child: IgnorePointer(
+                child: Image.asset(
+                  'assets/images/header_car.png',
+                  height: 180,
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.medium,
                 ),
               ),
             ),
@@ -357,57 +371,66 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
 
                   // ── Saludo + tagline ─────────────────────────────────────────
                   if (userName != null && userName.isNotEmpty) ...[
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 18),
                     Padding(
-                      padding:
-                          const EdgeInsets.only(left: 24, right: AppSpacing.lg),
+                      padding: const EdgeInsets.only(
+                        left: 24,
+                        right: 135,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Hola, $userName',
-                            maxLines: 1,
+                            maxLines: 2,
+                            softWrap: true,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.hankenGrotesk(
-                              fontSize: 27,
+                              fontSize: 22,
                               fontWeight: FontWeight.w900,
                               color: Colors.white,
-                              letterSpacing: -0.5,
-                              height: 1.1,
+                              letterSpacing: -0.4,
+                              height: 1.15,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '¿En qué podemos ayudarte hoy?',
+                            maxLines: 2,
+                            softWrap: true,
+                            overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.hankenGrotesk(
-                              fontSize: 13.5,
+                              fontSize: 13,
                               fontWeight: FontWeight.w500,
                               color: Colors.white.withValues(alpha: 0.85),
                               letterSpacing: -0.1,
+                              height: 1.2,
                             ),
                           ),
                         ],
                       ),
                     ),
                   ] else if (isLoadingAuth) ...[
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 18),
                     Padding(
-                      padding:
-                          const EdgeInsets.only(left: 24, right: AppSpacing.lg),
+                      padding: const EdgeInsets.only(
+                        left: 24,
+                        right: 135,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SkeletonBox(
-                            width: 170,
-                            height: 26,
+                            width: 130,
+                            height: 22,
                             borderRadius: 6,
                             baseColor: Colors.white.withValues(alpha: 0.22),
                             highlightColor: Colors.white.withValues(alpha: 0.40),
                           ),
                           const SizedBox(height: 8),
                           SkeletonBox(
-                            width: 210,
-                            height: 14,
+                            width: 150,
+                            height: 13,
                             borderRadius: 4,
                             baseColor: Colors.white.withValues(alpha: 0.16),
                             highlightColor: Colors.white.withValues(alpha: 0.30),
