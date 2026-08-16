@@ -451,7 +451,7 @@ class _BrandCard extends StatelessWidget {
           children: [
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(25),
                 child: logoWidget,
               ),
             ),
