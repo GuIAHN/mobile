@@ -40,14 +40,14 @@ class Env {
           } else {
             // iOS Simulator / macOS / Windows / Linux
             // Using Mac's local IP for physical iPhone testing
-            url = 'http://192.168.0.240:3000/api';
+            url = 'http://192.168.0.239:3000/api';
           }
           break;
         case AppEnvironment.staging:
           url = 'https://staging-api.guiautomotriz.com/api';
           break;
         case AppEnvironment.production:
-          url = 'https://api.guiautomotriz.com/api';
+          url = 'https://guia-api-test.onrender.com';
           break;
       }
     }
