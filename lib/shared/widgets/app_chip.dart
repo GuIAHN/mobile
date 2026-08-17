@@ -31,6 +31,8 @@ class AppChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final foreground = selected ? Colors.white : AppColors.textPrimary;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
     return Semantics(
       button: onTap != null,
@@ -45,9 +47,12 @@ class AppChip extends StatelessWidget {
                 onTap!();
               },
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
+          duration:
+              reduceMotion ? Duration.zero : const Duration(milliseconds: 160),
           curve: Curves.easeOut,
-          constraints: const BoxConstraints(minHeight: 44),
+          constraints: const BoxConstraints(
+            minHeight: AppSpacing.buttonHeightMd,
+          ),
           padding: EdgeInsets.only(
             left: 14,
             right: onRemove != null ? 8 : 14,
@@ -67,11 +72,14 @@ class AppChip extends StatelessWidget {
                 Icon(icon, size: 16, color: foreground),
                 const SizedBox(width: 6),
               ],
-              Text(
-                label,
-                style: AppTypography.meta.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: foreground,
+              Flexible(
+                child: Text(
+                  label,
+                  softWrap: true,
+                  style: AppTypography.meta.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: foreground,
+                  ),
                 ),
               ),
               if (onRemove != null) ...[

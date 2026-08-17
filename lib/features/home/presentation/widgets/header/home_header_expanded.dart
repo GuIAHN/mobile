@@ -267,7 +267,7 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
               bottom: -40,
               child: IgnorePointer(
                 child: Image.asset(
-                  'assets/images/header_car.png',
+                  'assets/images/header_car_blue_black.png',
                   height: 180,
                   fit: BoxFit.contain,
                   filterQuality: FilterQuality.medium,

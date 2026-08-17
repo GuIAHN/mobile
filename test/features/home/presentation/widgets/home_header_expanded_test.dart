@@ -193,6 +193,24 @@ void main() {
     );
   }, semanticsEnabled: true);
 
+  testWidgets('uses the blue and black header car asset', (tester) async {
+    final container = containerWithCars([audi]);
+    addTearDown(container.dispose);
+
+    await pumpHeader(tester, container);
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Image &&
+            widget.image is AssetImage &&
+            (widget.image as AssetImage).assetName ==
+                'assets/images/header_car_blue_black.png',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('shows honest empty-garage and location states', (tester) async {
     final container = containerWithCars([]);
     addTearDown(container.dispose);

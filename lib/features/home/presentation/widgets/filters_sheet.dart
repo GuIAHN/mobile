@@ -84,9 +84,9 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
+                    Expanded(
+                      child: Row(
+                        children: [
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
@@ -101,21 +101,24 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Filtros', style: AppTypography.h2),
-                            if (activeCount > 0)
-                              Text(
-                                '$activeCount filtro${activeCount > 1 ? 's' : ''} activo${activeCount > 1 ? 's' : ''}',
-                                style: AppTypography.meta.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.primaryInk,
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Filtros', style: AppTypography.h2),
+                              if (activeCount > 0)
+                                Text(
+                                  '$activeCount filtro${activeCount > 1 ? 's' : ''} activo${activeCount > 1 ? 's' : ''}',
+                                  style: AppTypography.meta.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primaryInk,
+                                  ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ],
+                        ],
+                      ),
                     ),
                     Semantics(
                       button: true,
@@ -329,11 +332,10 @@ class _FiltersSheetState extends ConsumerState<FiltersSheet> {
 
   Widget _buildLabel(String text, IconData icon) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 14, color: AppColors.textSecondary),
         const SizedBox(width: 6),
-        Text(text, style: AppTypography.overline),
+        Expanded(child: Text(text, style: AppTypography.overline)),
       ],
     );
   }
