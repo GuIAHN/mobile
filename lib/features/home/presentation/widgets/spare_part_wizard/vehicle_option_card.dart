@@ -168,8 +168,10 @@ class _VehicleOptionCardState extends State<_VehicleOptionCard> {
   String _vehicleTypeLabel(UserCar car) {
     return switch (car.vehicleType.toUpperCase()) {
       'SUV' || 'UTILITY' => 'SUV',
-      'PICKUP' || 'TRUCK' => 'Pickup',
+      'PICKUP' => 'Pickup',
+      'TRUCK' || 'LORRY' => 'Camión',
       'VAN' || 'MINIVAN' => 'Van',
+      'BUS' || 'COACH' || 'AUTOBUS' => 'Autobús',
       'MOTORCYCLE' || 'MOTO' => 'Moto',
       'SPORT' || 'SPORTS' => 'Deportivo',
       'COMPACT' => 'Compacto',

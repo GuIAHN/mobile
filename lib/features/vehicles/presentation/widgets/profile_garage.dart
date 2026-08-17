@@ -327,11 +327,17 @@ class ProfileGarage extends ConsumerWidget {
       case 'UTILITY':
         return 'Camioneta SUV';
       case 'PICKUP':
-      case 'TRUCK':
         return 'Pickup';
+      case 'TRUCK':
+      case 'LORRY':
+        return 'Camión';
       case 'VAN':
       case 'MINIVAN':
         return 'Van / Minivan';
+      case 'BUS':
+      case 'COACH':
+      case 'AUTOBUS':
+        return 'Autobús';
       case 'MOTORCYCLE':
         return 'Motocicleta';
       case 'CAR':

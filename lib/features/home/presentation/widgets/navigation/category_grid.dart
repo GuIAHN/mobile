@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../shared/widgets/section_header.dart';
 import '../../../../../core/domain/enums/service_type.dart';
-import '../../../../../core/domain/enums/user_role.dart';
 import '../../../../../core/providers/current_user_provider.dart';
 import '../../../../../core/router/route_names.dart';
 import '../../../../../core/theme/app_colors.dart';
@@ -18,12 +17,14 @@ import '../spare_part_wizard/spare_part_wizard_page.dart';
 class _CategoryConfig {
   final IconData icon;
   final String label;
+  final String semanticsLabel;
   final String subtitle;
   final Color iconBgColor;
 
   const _CategoryConfig({
     required this.icon,
     required this.label,
+    required this.semanticsLabel,
     required this.subtitle,
     required this.iconBgColor,
   });
@@ -62,40 +63,38 @@ class CategoryGrid extends ConsumerWidget {
     }
   }
 
-  _CategoryConfig _configFor(ServiceType type, UserRole role) {
+  _CategoryConfig _configFor(ServiceType type) {
     switch (type) {
       case ServiceType.spareParts:
         return const _CategoryConfig(
           icon: Icons.handyman_rounded,
           label: 'Pedir repuesto',
-          subtitle: 'Cotiza piezas y repuestos para tu vehículo',
+          semanticsLabel: 'Pedir repuesto',
+          subtitle: 'Cotiza piezas',
           iconBgColor: Colors.transparent,
         );
       case ServiceType.workshops:
         return const _CategoryConfig(
           icon: Icons.storefront_rounded,
           label: 'Buscar taller',
-          subtitle: 'Encuentra talleres mecánicos y diagnóstico',
+          semanticsLabel: 'Buscar taller',
+          subtitle: 'Opciones cercanas',
           iconBgColor: Colors.transparent,
         );
       case ServiceType.mechanic:
         return const _CategoryConfig(
           icon: Icons.engineering_rounded,
           label: 'Buscar mecánico',
-          subtitle: 'Mecánicos calificados con servicio a domicilio',
+          semanticsLabel: 'Buscar mecánico',
+          subtitle: 'Servicio a domicilio',
           iconBgColor: Colors.transparent,
         );
       case ServiceType.storeDashboard:
         return _CategoryConfig(
           icon: Icons.dashboard_rounded,
           label: type.label,
-          subtitle: switch (role) {
-            UserRole.store => 'Ventas, cotizaciones y cobros de tu tienda',
-            UserRole.workshop => 'Contactos, reputación y alcance de tu taller',
-            UserRole.mechanic =>
-              'Contactos, reputación y alcance de tu servicio',
-            _ => 'Revisa el rendimiento de tu actividad',
-          },
+          semanticsLabel: 'Ver estadísticas',
+          subtitle: 'Tu rendimiento',
           iconBgColor: Colors.transparent,
         );
     }
@@ -120,24 +119,39 @@ class CategoryGrid extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         LayoutBuilder(
-          builder: (context, constraints) => IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var i = 0; i < availableTypes.length; i++) ...[
-                  if (i > 0) const SizedBox(width: 10),
-                  Expanded(
-                    child: _CategoryCard(
-                      config: _configFor(availableTypes[i], currentRole),
-                      isCompact: constraints.maxWidth < 400,
-                      onTap: () =>
-                          _handleCategoryTap(context, ref, availableTypes[i]),
-                    ),
-                  ),
+          builder: (context, constraints) {
+            Widget cardFor(int index) => _CategoryCard(
+                  config: _configFor(availableTypes[index]),
+                  isCompact: constraints.maxWidth < 400,
+                  onTap: () =>
+                      _handleCategoryTap(context, ref, availableTypes[index]),
+                );
+
+            final usesAccessibleList =
+                MediaQuery.textScalerOf(context).scale(1) >= 1.6;
+            if (usesAccessibleList) {
+              return Column(
+                children: [
+                  for (var i = 0; i < availableTypes.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 10),
+                    SizedBox(width: double.infinity, child: cardFor(i)),
+                  ],
                 ],
-              ],
-            ),
-          ),
+              );
+            }
+
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < availableTypes.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 10),
+                    Expanded(child: cardFor(i)),
+                  ],
+                ],
+              ),
+            );
+          },
         ),
       ],
     );
@@ -169,7 +183,7 @@ class _CategoryCardState extends State<_CategoryCard> {
 
     return Semantics(
       button: true,
-      label: widget.config.label,
+      label: widget.config.semanticsLabel,
       onTap: widget.onTap,
       container: true,
       excludeSemantics: true,
@@ -183,7 +197,10 @@ class _CategoryCardState extends State<_CategoryCard> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: radius,
-            // SIN BORDE EXTERNO según requerimiento del usuario
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.22),
+              width: 1.25,
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.06),
@@ -212,42 +229,25 @@ class _CategoryCardState extends State<_CategoryCard> {
                 child: Padding(
                   padding: const EdgeInsets.all(14),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // ── Fila superior: ícono + flecha indicador ────────
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: widget.isCompact ? 46 : 52,
-                            height: widget.isCompact ? 46 : 52,
-                            margin: const EdgeInsets.only(left: 4),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: widget.config.iconBgColor,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Icon(
-                              widget.config.icon,
-                              size: widget.isCompact ? 28 : 40,
-                              color: AppColors.primary,
-                            ),
+                      // ── Ícono centrado ─────────────────────────────
+                      Align(
+                        alignment: Alignment.topCenter,
+                        child: Container(
+                          width: widget.isCompact ? 46 : 52,
+                          height: widget.isCompact ? 46 : 52,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: widget.config.iconBgColor,
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.10),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.chevron_right_rounded,
-                              size: 16,
-                              color: AppColors.primary,
-                            ),
+                          child: Icon(
+                            widget.config.icon,
+                            size: widget.isCompact ? 28 : 40,
+                            color: AppColors.primary,
                           ),
-                        ],
+                        ),
                       ),
                       const SizedBox(height: 14),
 
@@ -256,6 +256,7 @@ class _CategoryCardState extends State<_CategoryCard> {
                         widget.config.label,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
                         style: GoogleFonts.hankenGrotesk(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w800,
@@ -269,8 +270,7 @@ class _CategoryCardState extends State<_CategoryCard> {
                       // ── Subtítulo indicativo ──────────────────────────
                       Text(
                         widget.config.subtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
                         style: GoogleFonts.hankenGrotesk(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,

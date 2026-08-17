@@ -50,8 +50,16 @@ void main() {
       'assets/images/vehicles/v3/pickup.webp',
     );
     expect(
+      VehicleTypeIllustration.getAssetPath('TRUCK'),
+      'assets/images/vehicles/v3/truck.webp',
+    );
+    expect(
       VehicleTypeIllustration.getAssetPath('VAN'),
       'assets/images/vehicles/v3/van.webp',
+    );
+    expect(
+      VehicleTypeIllustration.getAssetPath('BUS'),
+      'assets/images/vehicles/v3/bus.webp',
     );
     expect(
       VehicleTypeIllustration.getAssetPath('MOTORCYCLE'),

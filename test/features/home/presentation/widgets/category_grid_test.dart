@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/service_type.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
 import 'package:guiautomotriz_mobile/core/providers/current_user_provider.dart';
 import 'package:guiautomotriz_mobile/core/router/route_names.dart';
+import 'package:guiautomotriz_mobile/core/theme/app_colors.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/navigation/category_grid.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/spare_part_wizard_page.dart';
@@ -16,6 +16,11 @@ import 'package:guiautomotriz_mobile/features/vehicles/presentation/providers/ve
 
 void main() {
   const actionLabels = <String>[
+    'Pedir repuesto',
+    'Buscar taller',
+    'Buscar mecánico',
+  ];
+  const visibleActionLabels = <String>[
     'Pedir repuesto',
     'Buscar taller',
     'Buscar mecánico',
@@ -42,13 +47,15 @@ void main() {
         GoRoute(
           path: '/',
           builder: (_, __) => Scaffold(
-            body: Align(
-              alignment: Alignment.topCenter,
-              child: SizedBox(
-                width: width,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20),
-                  child: CategoryGrid(),
+            body: SingleChildScrollView(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  width: width,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: CategoryGrid(),
+                  ),
                 ),
               ),
             ),
@@ -89,12 +96,19 @@ void main() {
     );
   }
 
-  testWidgets('consumer actions use direct labels and navigate to providers',
+  testWidgets('consumer actions keep action titles and short subtitles',
       (tester) async {
     await tester.pumpWidget(subject());
 
-    for (final label in actionLabels) {
+    for (final label in visibleActionLabels) {
       expect(find.text(label), findsOneWidget);
+    }
+    for (final subtitle in const [
+      'Cotiza piezas',
+      'Opciones cercanas',
+      'Servicio a domicilio',
+    ]) {
+      expect(find.text(subtitle), findsOneWidget);
     }
 
     await tester.tap(find.text('Buscar taller'));
@@ -108,16 +122,35 @@ void main() {
     expect(find.text('mechanics-route'), findsOneWidget);
   });
 
-  testWidgets('uses transparent icon containers and forward affordance',
+  testWidgets('uses centered icons, subtle borders and no arrow affordances',
       (tester) async {
     await tester.pumpWidget(subject());
 
     expect(find.text('¿Qué buscas hoy?'), findsOneWidget);
-    expect(find.byIcon(Icons.chevron_right_rounded), findsNWidgets(3));
+    expect(find.byIcon(Icons.chevron_right_rounded), findsNothing);
     expect(find.byIcon(Icons.handyman_rounded), findsOneWidget);
     expect(find.byIcon(Icons.storefront_rounded), findsOneWidget);
     expect(find.byIcon(Icons.engineering_rounded), findsOneWidget);
     expect(find.byType(Image), findsNothing);
+
+    for (final label in actionLabels) {
+      final action = find.bySemanticsLabel(label);
+      final decorations = tester
+          .widgetList<Container>(
+            find.descendant(of: action, matching: find.byType(Container)),
+          )
+          .map((container) => container.decoration)
+          .whereType<BoxDecoration>();
+      final cardDecoration =
+          decorations.firstWhere((decoration) => decoration.boxShadow != null);
+      final border = cardDecoration.border! as Border;
+
+      expect(border.top.width, 1.25);
+      expect(
+        border.top.color,
+        AppColors.primary.withValues(alpha: 0.22),
+      );
+    }
   });
 
   testWidgets('each consumer action is a button with a 48 dp touch target',
@@ -137,7 +170,7 @@ void main() {
             of: action,
             matching: find.byIcon(Icons.chevron_right_rounded),
           ),
-          findsOneWidget,
+          findsNothing,
         );
         expect(tester.getSize(action).width, greaterThanOrEqualTo(48));
         expect(tester.getSize(action).height, greaterThanOrEqualTo(48));
@@ -166,12 +199,13 @@ void main() {
 
           gridWidths.add(tester.getSize(find.byType(CategoryGrid)).width);
           final actionSizes = <Size>[];
-          for (final label in actionLabels) {
-            final action = find.bySemanticsLabel(label);
+          for (var i = 0; i < actionLabels.length; i++) {
+            final action = find.bySemanticsLabel(actionLabels[i]);
             if (action.evaluate().length == 1) {
               actionSizes.add(tester.getSize(action));
             }
             if (textScale == 2) {
+              final label = visibleActionLabels[i];
               final textFinder = find.text(label);
               final text = tester.widget<Text>(textFinder);
               final paragraph = tester.renderObject<RenderParagraph>(
@@ -206,10 +240,13 @@ void main() {
     );
     expect(gridWidths, <double>[335, 335, 335, 390, 390, 390]);
     expect(labelsThatExceededMaxLines, isEmpty);
-    for (final actionSizes in actionSizesByConfiguration) {
+    for (var i = 0; i < actionSizesByConfiguration.length; i++) {
+      final actionSizes = actionSizesByConfiguration[i];
       expect(actionSizes, hasLength(3));
       expect(actionSizes.map((size) => size.width).toSet(), hasLength(1));
-      expect(actionSizes.map((size) => size.height).toSet(), hasLength(1));
+      if (actionSizes.first.width < gridWidths[i]) {
+        expect(actionSizes.map((size) => size.height).toSet(), hasLength(1));
+      }
     }
   });
 

@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../../../core/theme/app_colors.dart';
 
 /// Componente para renderizar la ilustración del tipo de vehículo
-/// (Sedan, SUV, Deportivo, Pickup, Van, Motocicleta) con estilo uniforme.
+/// (Sedan, SUV, Deportivo, Pickup, Camión, Van, Autobús, Motocicleta)
+/// con estilo uniforme.
 class VehicleTypeIllustration extends StatelessWidget {
   final String vehicleType;
   final double height;
@@ -30,11 +31,17 @@ class VehicleTypeIllustration extends StatelessWidget {
       case 'UTILITY':
         return '$assetRoot/suv.webp';
       case 'PICKUP':
-      case 'TRUCK':
         return '$assetRoot/pickup.webp';
+      case 'TRUCK':
+      case 'LORRY':
+        return '$assetRoot/truck.webp';
       case 'VAN':
       case 'MINIVAN':
         return '$assetRoot/van.webp';
+      case 'BUS':
+      case 'COACH':
+      case 'AUTOBUS':
+        return '$assetRoot/bus.webp';
       case 'MOTORCYCLE':
       case 'MOTO':
         return '$assetRoot/motorcycle.webp';
