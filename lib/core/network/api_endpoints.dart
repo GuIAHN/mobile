@@ -48,6 +48,11 @@ abstract class ApiEndpoints {
   static String searchClose(String id) => 'search/$id/close';
   static String searchOffers(String id) => 'search/$id/offers';
 
+  // ── Subida de imágenes ────────────────────────────────────────────────────
+  static const String requestImageUpload = 'upload/requests';
+  static const String offerImageUpload = 'upload/offers';
+  static const String avatarImageUpload = 'upload/avatars';
+
   // ── Chat / Mensajería ──────────────────────────────────────────────────────
 
   static const String conversationsFromOffer = 'conversations/from-offer';

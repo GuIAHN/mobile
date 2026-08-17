@@ -98,8 +98,7 @@ class SearchRemoteDatasourceImpl implements SearchRemoteDatasource {
           fotoUrl.isNotEmpty &&
           !fotoUrl.startsWith('http://') &&
           !fotoUrl.startsWith('https://')) {
-        uploadedPhotoUrl =
-            await _client.uploadImage(fotoUrl, bucket: 'requests');
+        uploadedPhotoUrl = await _client.uploadRequestImage(fotoUrl);
       }
 
       final payload = {

@@ -266,7 +266,7 @@ class AuthRemoteDataSource {
   /// Uploads or replaces the current user's profile photo (avatar).
   Future<UserModel> uploadAvatar(String filePath) async {
     try {
-      final photoUrl = await _client.uploadImage(filePath, bucket: 'avatars');
+      final photoUrl = await _client.uploadAvatarImage(filePath);
       final response = await _client.patch<Map<String, dynamic>>(
         'users/me',
         data: {'photo': photoUrl},

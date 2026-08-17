@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
+import 'api_endpoints.dart';
 import 'interceptors/auth_interceptor.dart';
 import 'interceptors/logging_interceptor.dart';
 import 'interceptors/response_unwrap_interceptor.dart';
@@ -104,13 +105,34 @@ class DioClient {
     }
   }
 
-  /// Subida multipart de una imagen al endpoint fijo de su bucket.
+  Future<String> uploadRequestImage(String filePath, {Uint8List? bytes}) =>
+      _uploadImage(
+        filePath,
+        endpoint: ApiEndpoints.requestImageUpload,
+        bytes: bytes,
+      );
+
+  Future<String> uploadOfferImage(String filePath, {Uint8List? bytes}) =>
+      _uploadImage(
+        filePath,
+        endpoint: ApiEndpoints.offerImageUpload,
+        bytes: bytes,
+      );
+
+  Future<String> uploadAvatarImage(String filePath, {Uint8List? bytes}) =>
+      _uploadImage(
+        filePath,
+        endpoint: ApiEndpoints.avatarImageUpload,
+        bytes: bytes,
+      );
+
+  /// Subida multipart de una imagen a un endpoint definido por su acción.
   /// Retorna la URL pública de la imagen almacenada.
   /// Compatible tanto con Web (Chrome/Safari) como con Móvil (Android/iOS).
-  Future<String> uploadImage(
+  Future<String> _uploadImage(
     String filePath, {
     Uint8List? bytes,
-    required String bucket,
+    required String endpoint,
   }) async {
     final rawFileName = filePath.split('/').last.split('\\').last;
     final String fileName = rawFileName.isEmpty || rawFileName.startsWith('blob:')
@@ -153,7 +175,7 @@ class DioClient {
     });
 
     final response = await _dio.post(
-      'upload/$bucket',
+      endpoint,
       data: formData,
       options: Options(
         contentType: 'multipart/form-data',
@@ -167,5 +189,4 @@ class DioClient {
     throw Exception('Error al subir imagen: la respuesta no contiene la URL');
   }
 }
-
 
