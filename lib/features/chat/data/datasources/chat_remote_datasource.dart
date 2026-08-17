@@ -279,7 +279,7 @@ class ChatRemoteDataSource {
         photoPath.isNotEmpty &&
         !photoPath.startsWith('http://') &&
         !photoPath.startsWith('https://')) {
-      sparePhotoUrl = await _dioClient.uploadImage(photoPath, folder: 'offers');
+      sparePhotoUrl = await _dioClient.uploadImage(photoPath, bucket: 'offers');
     }
 
     final payload = {
@@ -334,7 +334,7 @@ class ChatRemoteDataSource {
         photoPath.isNotEmpty &&
         !photoPath.startsWith('http://') &&
         !photoPath.startsWith('https://')) {
-      sparePhotoUrl = await _dioClient.uploadImage(photoPath, folder: 'offers');
+      sparePhotoUrl = await _dioClient.uploadImage(photoPath, bucket: 'offers');
     }
 
     await _dioClient.patch('offers/$offerId', data: {

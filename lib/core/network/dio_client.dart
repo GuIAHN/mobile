@@ -104,13 +104,13 @@ class DioClient {
     }
   }
 
-  /// Subida multipart de una imagen al backend (`POST /upload/image`).
+  /// Subida multipart de una imagen al endpoint fijo de su bucket.
   /// Retorna la URL pública de la imagen almacenada.
   /// Compatible tanto con Web (Chrome/Safari) como con Móvil (Android/iOS).
   Future<String> uploadImage(
     String filePath, {
     Uint8List? bytes,
-    String folder = 'general',
+    required String bucket,
   }) async {
     final rawFileName = filePath.split('/').last.split('\\').last;
     final String fileName = rawFileName.isEmpty || rawFileName.startsWith('blob:')
@@ -153,8 +153,7 @@ class DioClient {
     });
 
     final response = await _dio.post(
-      'upload/image',
-      queryParameters: {'folder': folder},
+      'upload/$bucket',
       data: formData,
       options: Options(
         contentType: 'multipart/form-data',

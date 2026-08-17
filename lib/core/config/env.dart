@@ -47,7 +47,7 @@ class Env {
           url = 'https://staging-api.guiautomotriz.com/api';
           break;
         case AppEnvironment.production:
-          url = 'https://guia-api-test.onrender.com';
+          url = 'https://guia-api-test.onrender.com/api';
           break;
       }
     }
