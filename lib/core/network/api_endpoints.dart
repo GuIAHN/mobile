@@ -51,7 +51,7 @@ abstract class ApiEndpoints {
   // ── Subida de imágenes ────────────────────────────────────────────────────
   static const String requestImageUpload = 'upload/requests';
   static const String offerImageUpload = 'upload/offers';
-  static const String avatarImageUpload = 'upload/avatars';
+  static const String userAvatarUpload = 'users/me/avatar';
 
   // ── Chat / Mensajería ──────────────────────────────────────────────────────
 
