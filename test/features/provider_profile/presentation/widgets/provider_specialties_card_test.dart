@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:guiautomotriz_mobile/core/error/failures.dart';
 import 'package:guiautomotriz_mobile/features/catalog/domain/entities/specialty.dart';
 import 'package:guiautomotriz_mobile/features/catalog/presentation/providers/catalog_providers.dart';
+import 'package:guiautomotriz_mobile/features/provider_profile/domain/entities/store_catalog_line.dart';
 import 'package:guiautomotriz_mobile/features/provider_profile/domain/repositories/provider_profile_repository.dart';
 import 'package:guiautomotriz_mobile/features/provider_profile/domain/usecases/get_provider_specialties_usecase.dart';
 import 'package:guiautomotriz_mobile/features/provider_profile/domain/usecases/update_provider_specialties_usecase.dart';
@@ -36,6 +37,11 @@ class _FakeProviderProfileRepository implements ProviderProfileRepository {
           .map((id) => Specialty(id: id, name: id))
           .toList(growable: false),
     );
+  }
+
+  @override
+  Future<Either<Failure, List<StoreCatalogLine>>> getOwnCatalog() async {
+    return const Right([]);
   }
 }
 

@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/async_error_listener.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../shared/widgets/count_pill.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
 import '../../domain/entities/user_car.dart';
 import '../providers/vehicle_providers.dart';
 import 'vehicle_selection_modal.dart';
@@ -24,23 +26,41 @@ class ProfileGarage extends ConsumerWidget {
       children: [
         // Fila Encabezado Garage
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.directions_car_filled_outlined, color: AppColors.primary, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Mi Garage',
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Icon(Icons.directions_car_filled_outlined, color: AppColors.primary, size: 20),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Mi Garage',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                  userCarsAsync.maybeWhen(
+                    data: (cars) => cars.isEmpty
+                        ? const SizedBox.shrink()
+                        : Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: CountPill(count: cars.length),
+                          ),
+                    orElse: () => const SizedBox.shrink(),
+                  ),
+                ],
+              ),
             ),
-            _PressableScale(
+            const SizedBox(width: 8),
+            PressableScale(
               onTap: () => _abrirDialogoAgregarVehiculo(context, ref),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -82,8 +102,17 @@ class ProfileGarage extends ConsumerWidget {
                 ),
                 child: Column(
                   children: [
-                    const Icon(Icons.no_crash_outlined, size: 36, color: AppColors.textDisabled),
-                    const SizedBox(height: 10),
+                    Container(
+                      width: 56,
+                      height: 56,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primaryMuted,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.no_crash_outlined, size: 28, color: AppColors.primary),
+                    ),
+                    const SizedBox(height: 14),
                     Text(
                       'Aún no tienes vehículos en tu garage.',
                       textAlign: TextAlign.center,
@@ -91,6 +120,32 @@ class ProfileGarage extends ConsumerWidget {
                         color: AppColors.textSecondary,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    PressableScale(
+                      onTap: () => _abrirDialogoAgregarVehiculo(context, ref),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.add, size: 15, color: Colors.white),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Agregar vehículo',
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -295,7 +350,7 @@ class ProfileGarage extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _PressableScale(
+                PressableScale(
                   onTap: () => _confirmarEliminarVehiculo(context, ref, car),
                   child: Container(
                     padding: const EdgeInsets.all(8),
@@ -473,43 +528,6 @@ class ProfileGarage extends ConsumerWidget {
           ],
         );
       },
-    );
-  }
-}
-
-// ===== Botón con efecto de escalado premium =====
-class _PressableScale extends StatefulWidget {
-  final Widget child;
-  final VoidCallback? onTap;
-
-  const _PressableScale({required this.child, this.onTap});
-
-  @override
-  State<_PressableScale> createState() => _PressableScaleState();
-}
-
-class _PressableScaleState extends State<_PressableScale> {
-  bool _isPressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) {
-        if (widget.onTap != null) setState(() => _isPressed = true);
-      },
-      onTapUp: (_) {
-        if (widget.onTap != null) setState(() => _isPressed = false);
-      },
-      onTapCancel: () {
-        if (widget.onTap != null) setState(() => _isPressed = false);
-      },
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _isPressed ? 0.96 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.easeOut,
-        child: widget.child,
-      ),
     );
   }
 }

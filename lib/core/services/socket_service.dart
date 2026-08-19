@@ -31,11 +31,18 @@ class SocketService {
   final _typingStartController = StreamController<String>.broadcast();
   final _typingStopController = StreamController<String>.broadcast();
 
+  // Notificación genérica: se emite para CUALQUIER tipo de notification.new,
+  // incluso las que no tienen un stream específico (offer.inquiry,
+  // user.approved, settlement.*, etc.). Úsese para refrescar badges/listas
+  // de notificaciones en tiempo real.
+  final _notificationController = StreamController<Map<String, dynamic>>.broadcast();
+
   Stream<Map<String, dynamic>> get onSearchMatched => _searchMatchedController.stream;
   Stream<Map<String, dynamic>> get onOfferUpdated => _offerUpdatedController.stream;
   Stream<Map<String, dynamic>> get onMessage => _messageController.stream;
   Stream<String> get onTypingStart => _typingStartController.stream;
   Stream<String> get onTypingStop => _typingStopController.stream;
+  Stream<Map<String, dynamic>> get onNotification => _notificationController.stream;
 
   bool _isConnecting = false;
 
@@ -120,12 +127,17 @@ class SocketService {
             _searchMatchedController.add(Map<String, dynamic>.from(payloadData));
           } else if (tipo == 'offer.updated' ||
               tipo == 'offer.new' ||
+              tipo == 'offer.inquiry' ||
               tipo == 'offer.bought' ||
               tipo == 'offer.delivered') {
             _offerUpdatedController.add(Map<String, dynamic>.from(payloadData));
           } else if (tipo == 'message.new') {
             _messageController.add(Map<String, dynamic>.from(payloadData));
           }
+
+          // Siempre emitir en el stream genérico, independientemente del
+          // tipo, para que badges/listas de notificaciones se refresquen.
+          _notificationController.add(Map<String, dynamic>.from(data));
         }
       });
 
@@ -217,5 +229,6 @@ class SocketService {
     _messageController.close();
     _typingStartController.close();
     _typingStopController.close();
+    _notificationController.close();
   }
 }

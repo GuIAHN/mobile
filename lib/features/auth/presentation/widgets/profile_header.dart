@@ -7,9 +7,72 @@ import '../../../../core/config/env.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/image_source_selector_sheet.dart';
+import '../../../provider_profile/presentation/providers/provider_profile_providers.dart';
+import '../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../../domain/entities/user.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
+
+class _RoleStyle {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final Color bgColor;
+
+  const _RoleStyle({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.bgColor,
+  });
+
+  factory _RoleStyle.of(UserRole role) {
+    switch (role) {
+      case UserRole.consumer:
+        return const _RoleStyle(
+          label: 'Consumidor',
+          icon: Icons.person_rounded,
+          color: AppColors.primary,
+          bgColor: AppColors.primaryMuted,
+        );
+      case UserRole.mechanic:
+        return const _RoleStyle(
+          label: 'Mecánico',
+          icon: Icons.build_rounded,
+          color: AppColors.secondary,
+          bgColor: AppColors.grey200,
+        );
+      case UserRole.store:
+        return const _RoleStyle(
+          label: 'Tienda',
+          icon: Icons.storefront_rounded,
+          color: AppColors.tertiary,
+          bgColor: AppColors.tertiaryMuted,
+        );
+      case UserRole.workshop:
+        return const _RoleStyle(
+          label: 'Taller',
+          icon: Icons.warehouse_rounded,
+          color: AppColors.success,
+          bgColor: AppColors.successLight,
+        );
+      case UserRole.admin:
+        return const _RoleStyle(
+          label: 'Administrador',
+          icon: Icons.shield_rounded,
+          color: AppColors.error,
+          bgColor: AppColors.errorLight,
+        );
+      case UserRole.unknown:
+        return const _RoleStyle(
+          label: 'Usuario',
+          icon: Icons.person_outline_rounded,
+          color: AppColors.textSecondary,
+          bgColor: AppColors.grey100,
+        );
+    }
+  }
+}
 
 class ProfileHeader extends ConsumerWidget {
   final User user;
@@ -44,42 +107,7 @@ class ProfileHeader extends ConsumerWidget {
             ? nameParts[0][0].toUpperCase()
             : 'U';
 
-    // Determinar etiqueta y color de rol
-    final String roleLabel;
-    final Color roleColor;
-    final Color roleBgColor;
-
-    switch (user.role) {
-      case UserRole.consumer:
-        roleLabel = 'Consumidor';
-        roleColor = AppColors.primary;
-        roleBgColor = AppColors.primaryMuted;
-        break;
-      case UserRole.mechanic:
-        roleLabel = 'Mecánico';
-        roleColor = AppColors.secondary;
-        roleBgColor = AppColors.grey200;
-        break;
-      case UserRole.store:
-        roleLabel = 'Tienda';
-        roleColor = const Color(0xFF3B82F6);
-        roleBgColor = const Color(0xFFEFF6FF);
-        break;
-      case UserRole.workshop:
-        roleLabel = 'Taller';
-        roleColor = const Color(0xFF10B981);
-        roleBgColor = const Color(0xFFECFDF5);
-        break;
-      case UserRole.admin:
-        roleLabel = 'Administrador';
-        roleColor = const Color(0xFFEF4444);
-        roleBgColor = const Color(0xFFFEF2F2);
-        break;
-      default:
-        roleLabel = 'Usuario';
-        roleColor = AppColors.textSecondary;
-        roleBgColor = AppColors.grey100;
-    }
+    final roleStyle = _RoleStyle.of(user.role);
 
     // Resolver URL completa del avatar si existe
     final String? avatarUrl = user.avatarUrl;
@@ -100,8 +128,8 @@ class ProfileHeader extends ConsumerWidget {
         borderRadius: BorderRadius.circular(99),
         child: Image.network(
           fullAvatarUrl,
-          width: 68,
-          height: 68,
+          width: 84,
+          height: 84,
           fit: BoxFit.cover,
           loadingBuilder: (context, child, loadingProgress) {
             if (loadingProgress == null) return child;
@@ -143,7 +171,12 @@ class ProfileHeader extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        gradient: const LinearGradient(
+          colors: [AppColors.primaryMuted, Colors.white],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          stops: [0.0, 0.65],
+        ),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.border),
         boxShadow: [
@@ -154,18 +187,22 @@ class ProfileHeader extends ConsumerWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(20),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
           // Avatar con Iniciales / Foto + Carga + Botón de cámara
           Stack(
             children: [
               GestureDetector(
                 onTap: isLoading ? null : () => _mostrarOpcionesImagen(context, ref),
                 child: Container(
-                  width: 68,
-                  height: 68,
+                  width: 84,
+                  height: 84,
                   decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white, width: 3),
                     gradient: LinearGradient(
                       colors: [
                         AppColors.primary,
@@ -244,6 +281,8 @@ class ProfileHeader extends ConsumerWidget {
               children: [
                 Text(
                   user.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.hankenGrotesk(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -253,6 +292,8 @@ class ProfileHeader extends ConsumerWidget {
                 const SizedBox(height: 3),
                 Text(
                   user.email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.hankenGrotesk(
                     fontSize: 13.5,
                     color: AppColors.textSecondary,
@@ -263,24 +304,37 @@ class ProfileHeader extends ConsumerWidget {
 
                 // Pill / Tag de Rol
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: roleBgColor,
+                    color: roleStyle.bgColor,
                     borderRadius: BorderRadius.circular(99),
                   ),
-                  child: Text(
-                    roleLabel.toUpperCase(),
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1,
-                      color: roleColor,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(roleStyle.icon, size: 12, color: roleStyle.color),
+                      const SizedBox(width: 5),
+                      Text(
+                        roleStyle.label.toUpperCase(),
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                          color: roleStyle.color,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const Divider(height: 1, color: AppColors.border),
+          const SizedBox(height: 16),
+          _ProfileStatsRow(user: user),
         ],
       ),
     );
@@ -312,5 +366,135 @@ class ProfileHeader extends ConsumerWidget {
     } catch (e) {
       // Manejar error si es necesario
     }
+  }
+}
+
+/// Fila de estadísticas rápidas del perfil: una métrica contextual al rol
+/// (vehículos, especialidades o línea de venta, según corresponda) más el
+/// estado de la cuenta. Reutiliza los providers ya existentes de cada
+/// feature en vez de duplicar lógica de conteo.
+class _ProfileStatsRow extends ConsumerWidget {
+  final User user;
+
+  const _ProfileStatsRow({required this.user});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    _StatData? roleStat;
+
+    if (user.role.isMechanic || user.role.isWorkshop) {
+      final specialtiesAsync = ref.watch(providerSpecialtiesProvider);
+      roleStat = _StatData(
+        icon: Icons.build_circle_rounded,
+        value: specialtiesAsync.maybeWhen(
+          data: (s) => '${s.length}',
+          orElse: () => '—',
+        ),
+        label: 'Especialidades',
+      );
+    } else if (user.role.isStore) {
+      final catalogAsync = ref.watch(storeCatalogProvider);
+      roleStat = _StatData(
+        icon: Icons.category_rounded,
+        value: catalogAsync.maybeWhen(
+          data: (l) => '${l.length}',
+          orElse: () => '—',
+        ),
+        label: 'Líneas de venta',
+      );
+    } else if (user.role.isConsumer) {
+      final carsAsync = ref.watch(userCarsProvider);
+      roleStat = _StatData(
+        icon: Icons.directions_car_filled_rounded,
+        value: carsAsync.maybeWhen(
+          data: (c) => '${c.length}',
+          orElse: () => '—',
+        ),
+        label: 'Vehículos',
+      );
+    }
+
+    final accountStat = _StatData(
+      icon: Icons.verified_rounded,
+      value: user.approved ? 'Activa' : 'Pendiente',
+      label: 'Cuenta',
+    );
+
+    final stats = [if (roleStat != null) roleStat, accountStat];
+
+    return Row(
+      children: [
+        for (var i = 0; i < stats.length; i++) ...[
+          if (i > 0)
+            Container(
+              width: 1,
+              height: 32,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              color: AppColors.border,
+            ),
+          Expanded(child: _StatChip(stat: stats[i])),
+        ],
+      ],
+    );
+  }
+}
+
+class _StatData {
+  final IconData icon;
+  final String value;
+  final String label;
+
+  const _StatData({required this.icon, required this.value, required this.label});
+}
+
+class _StatChip extends StatelessWidget {
+  final _StatData stat;
+
+  const _StatChip({required this.stat});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.celesteMuted,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(stat.icon, size: 16, color: AppColors.celesteInk),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                stat.value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Text(
+                stat.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

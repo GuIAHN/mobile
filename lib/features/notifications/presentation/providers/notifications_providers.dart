@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/services/socket_service.dart';
 import '../../data/datasources/notifications_remote_datasource.dart';
 import '../../data/repositories/notifications_repository_impl.dart';
 import '../../domain/repositories/notifications_repository.dart';
@@ -50,6 +51,12 @@ final getUnreadNotificationsCountUseCaseProvider =
 });
 
 final unreadNotificationsCountProvider = FutureProvider.autoDispose<int>((ref) async {
+  final socketService = ref.watch(socketServiceProvider);
+  final sub = socketService.onNotification.listen((_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(sub.cancel);
+
   final result = await ref.watch(getUnreadNotificationsCountUseCaseProvider)();
   return result.fold(
     (failure) => throw Exception(failure.message),
@@ -66,6 +73,13 @@ final notificationsProvider = StateNotifierProvider.autoDispose<
     invalidateCount: () => ref.invalidate(unreadNotificationsCountProvider),
   );
   notifier.loadInitial();
+
+  final socketService = ref.watch(socketServiceProvider);
+  final sub = socketService.onNotification.listen((_) {
+    notifier.refresh();
+  });
+  ref.onDispose(sub.cancel);
+
   return notifier;
 });
 

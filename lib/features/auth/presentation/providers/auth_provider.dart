@@ -3,6 +3,7 @@ import 'auth_state.dart';
 import 'auth_notifier.dart';
 export 'auth_notifier.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/services/socket_service.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 import '../../data/repositories/auth_repository_impl.dart';
@@ -60,5 +61,6 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
     uploadAvatarUseCase: ref.watch(uploadAvatarUseCaseProvider),
     authRepository: ref.watch(authRepositoryProvider),
     secureStorage: ref.watch(secureStorageProvider),
+    socketService: ref.watch(socketServiceProvider),
   );
 });

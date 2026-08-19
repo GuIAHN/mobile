@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../shared/widgets/count_pill.dart';
 import '../../../catalog/domain/entities/specialty.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../providers/provider_profile_providers.dart';
@@ -35,10 +36,11 @@ class ProviderSpecialtiesCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Expanded(
+              Flexible(
                 child: Text(
                   'ESPECIALIDADES',
                   maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.hankenGrotesk(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -47,7 +49,16 @@ class ProviderSpecialtiesCard extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              specialtiesAsync.maybeWhen(
+                data: (specialties) => specialties.isEmpty
+                    ? const SizedBox.shrink()
+                    : Padding(
+                        padding: const EdgeInsets.only(left: 6),
+                        child: CountPill(count: specialties.length),
+                      ),
+                orElse: () => const SizedBox.shrink(),
+              ),
+              const Spacer(),
               _EditSpecialtiesButton(
                 enabled: specialtiesAsync.hasValue,
                 onPressed: () => _openEditor(

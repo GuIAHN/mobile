@@ -6,7 +6,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
+import '../../../../shared/widgets/staggered_entrance.dart';
 import '../../../provider_profile/presentation/widgets/provider_specialties_card.dart';
+import '../../../provider_profile/presentation/widgets/store_catalog_card.dart';
 import '../../../vehicles/presentation/widgets/profile_garage.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/profile_basic_data.dart';
@@ -31,6 +34,23 @@ class ProfileTab extends ConsumerWidget {
     final isProfessionalProvider =
         user.role == UserRole.mechanic || user.role == UserRole.workshop;
 
+    final sections = <Widget>[
+      // 1. Tarjeta Encabezado del Perfil (Avatar + Info + Stats)
+      ProfileHeader(user: user),
+
+      // 2. Tarjeta de Datos Básicos
+      ProfileBasicData(user: user),
+
+      // 3. Sección "Mi Garage" (Solo para consumidores)
+      if (isConsumer) const ProfileGarage(),
+
+      // 4. Especialidades configurables (mecánicos y talleres)
+      if (isProfessionalProvider) const ProviderSpecialtiesCard(),
+
+      // 4b. Línea de venta (categorías y marcas) para tiendas de repuestos
+      if (user.role.isStore) const StoreCatalogCard(),
+    ];
+
     return SafeArea(
       bottom: false,
       child: ListView(
@@ -42,27 +62,13 @@ class ProfileTab extends ConsumerWidget {
           bottom: 120,
         ),
         children: [
-          // 1. Tarjeta Encabezado del Perfil (Avatar + Info)
-          ProfileHeader(user: user),
-          const SizedBox(height: 20),
-
-          // 2. Tarjeta de Datos Básicos
-          ProfileBasicData(user: user),
-          const SizedBox(height: 20),
-
-          // 3. Sección "Mi Garage" (Solo para consumidores)
-          if (isConsumer) ...[
-            const ProfileGarage(),
-            const SizedBox(height: 24),
+          for (var i = 0; i < sections.length; i++) ...[
+            StaggeredEntrance(index: i, child: sections[i]),
+            SizedBox(height: i == 0 ? 20 : 24),
           ],
 
-          // 4. Especialidades configurables (mecánicos y talleres)
-          if (isProfessionalProvider) ...[
-            const ProviderSpecialtiesCard(),
-            const SizedBox(height: 24),
-          ],
-
-          // 5. Botón de Cerrar Sesión
+          // 5. Botón de Cerrar Sesión (separado visualmente de la navegación normal)
+          const SizedBox(height: 4),
           _buildLogoutButton(context, ref),
         ],
       ),
@@ -70,7 +76,7 @@ class ProfileTab extends ConsumerWidget {
   }
 
   Widget _buildLogoutButton(BuildContext context, WidgetRef ref) {
-    return _PressableLogout(
+    return PressableScale(
       onTap: () => _mostrarConfirmarLogout(context, ref),
       child: Container(
         width: double.infinity,
@@ -220,36 +226,6 @@ class ProfileTab extends ConsumerWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _PressableLogout extends StatefulWidget {
-  final Widget child;
-  final VoidCallback onTap;
-
-  const _PressableLogout({required this.child, required this.onTap});
-
-  @override
-  State<_PressableLogout> createState() => _PressableLogoutState();
-}
-
-class _PressableLogoutState extends State<_PressableLogout> {
-  bool _isPressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) => setState(() => _isPressed = false),
-      onTapCancel: () => setState(() => _isPressed = false),
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _isPressed ? 0.96 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.easeOut,
-        child: widget.child,
-      ),
     );
   }
 }

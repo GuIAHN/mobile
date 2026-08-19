@@ -29,6 +29,7 @@ abstract class ApiEndpoints {
   static const String stores = 'stores';
   static String storeDetail(String id) => 'stores/$id';
   static const String storeSearchRequests = 'stores/me/search-requests';
+  static const String storeOwnCategories = 'stores/me/categories';
 
   // ── Home / Dashboard ──────────────────────────────────────────────────────
   static const String dashboard = 'dashboard';

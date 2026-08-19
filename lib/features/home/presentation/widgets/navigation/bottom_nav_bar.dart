@@ -313,24 +313,12 @@ class _NotchCapsulePainter extends CustomPainter {
     // Lateral izquierdo
     path.close();
 
-    // Sombra suave inferior estilo card flotante
-    final shadowPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.08)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
-    canvas.drawPath(path.shift(const Offset(0, 6)), shadowPaint);
-
-    // Relleno de la superficie
+    // Relleno de la superficie: sin sombra ni borde para que la cápsula
+    // se sienta fluida y continua con el contenido de la app detrás.
     final fillPaint = Paint()
       ..color = color
       ..style = PaintingStyle.fill;
     canvas.drawPath(path, fillPaint);
-
-    // Borde sutil exterior
-    final borderPaint = Paint()
-      ..color = borderColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-    canvas.drawPath(path, borderPaint);
   }
 
   @override
@@ -523,12 +511,7 @@ class _CenterLogoButtonState extends State<_CenterLogoButton> {
           dimension: _kLogoSize,
           child: Material(
             color: AppColors.surface,
-            shape: CircleBorder(
-              side: BorderSide(
-                color: AppColors.primary.withValues(alpha: 0.28),
-                width: 1.5,
-              ),
-            ),
+            shape: const CircleBorder(),
             elevation: 0,
             shadowColor: Colors.transparent,
             child: InkResponse(
@@ -551,24 +534,21 @@ class _CenterLogoButtonState extends State<_CenterLogoButton> {
                     ),
                   ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: ClipOval(
-                    child: Image.asset(
-                      'assets/images/logo_icon_zoom.png',
-                      fit: BoxFit.cover,
-                      filterQuality: FilterQuality.medium,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const ColoredBox(
-                          color: AppColors.primaryMuted,
-                          child: Icon(
-                            Icons.home_rounded,
-                            size: 26,
-                            color: AppColors.primary,
-                          ),
-                        );
-                      },
-                    ),
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/images/logo_icon_zoom.png',
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.medium,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const ColoredBox(
+                        color: AppColors.primaryMuted,
+                        child: Icon(
+                          Icons.home_rounded,
+                          size: 26,
+                          color: AppColors.primary,
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),

@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/services/socket_service.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../../../features/notifications/services/push_notifications_service.dart';
 import '../../domain/entities/user.dart';
@@ -22,6 +24,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final UploadAvatarUseCase _uploadAvatarUseCase;
   final AuthRepository _authRepository;
   final SecureStorage _secureStorage;
+  final SocketService? _socketService;
+  StreamSubscription<Map<String, dynamic>>? _notificationSub;
+
+  static const _accountStatusTipos = {'user.approved', 'user.rejected'};
 
   AuthNotifier({
     required LoginUseCase loginUseCase,
@@ -30,14 +36,42 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required UploadAvatarUseCase uploadAvatarUseCase,
     required AuthRepository authRepository,
     required SecureStorage secureStorage,
+    SocketService? socketService,
   })  : _loginUseCase = loginUseCase,
         _registerUseCase = registerUseCase,
         _updateProfileUseCase = updateProfileUseCase,
         _uploadAvatarUseCase = uploadAvatarUseCase,
         _authRepository = authRepository,
         _secureStorage = secureStorage,
+        _socketService = socketService,
         super(const AuthState.initial()) {
     checkAuthStatus();
+    _notificationSub = _socketService?.onNotification.listen((data) {
+      if (_accountStatusTipos.contains(data['tipo'])) {
+        refreshUser();
+      }
+    });
+  }
+
+  /// Refetches the current user silently (no loading state) to reflect
+  /// server-side changes such as account approval/rejection in real time.
+  Future<void> refreshUser() async {
+    if (state.status != AuthStatus.authenticated) return;
+    final result = await _authRepository.getCurrentUser();
+    result.fold(
+      (failure) {
+        // Ignore transient failures; keep the cached user as-is.
+      },
+      (user) {
+        state = state.copyWith(user: user);
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _notificationSub?.cancel();
+    super.dispose();
   }
 
   /// Helper genérico para ejecutar llamadas de autenticación/registro.

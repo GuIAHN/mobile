@@ -80,6 +80,8 @@ class ProfileBasicData extends ConsumerWidget {
             icon: Icons.person_outline_rounded,
             label: 'Nombre completo',
             value: user.name,
+            accentColor: AppColors.primary,
+            accentBg: AppColors.primaryMuted,
           ),
           const SizedBox(height: 14),
 
@@ -88,6 +90,8 @@ class ProfileBasicData extends ConsumerWidget {
             icon: Icons.email_outlined,
             label: 'Correo electrónico',
             value: user.email,
+            accentColor: AppColors.celesteInk,
+            accentBg: AppColors.celesteMuted,
           ),
           const SizedBox(height: 14),
 
@@ -96,6 +100,8 @@ class ProfileBasicData extends ConsumerWidget {
             icon: Icons.phone_android_outlined,
             label: 'Número de teléfono',
             value: (user.phone != null && user.phone!.isNotEmpty) ? user.phone! : 'No especificado',
+            accentColor: AppColors.celesteInk,
+            accentBg: AppColors.celesteMuted,
           ),
         ],
       ),
@@ -106,17 +112,19 @@ class ProfileBasicData extends ConsumerWidget {
     required IconData icon,
     required String label,
     required String value,
+    required Color accentColor,
+    required Color accentBg,
   }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           padding: const EdgeInsets.all(8),
-          decoration: const BoxDecoration(
-            color: AppColors.grey50,
+          decoration: BoxDecoration(
+            color: accentBg,
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: AppColors.textSecondary, size: 18),
+          child: Icon(icon, color: accentColor, size: 18),
         ),
         const SizedBox(width: 14),
         Expanded(

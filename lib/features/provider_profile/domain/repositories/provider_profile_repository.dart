@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failures.dart';
 import '../../../catalog/domain/entities/specialty.dart';
+import '../entities/store_catalog_line.dart';
 
 abstract class ProviderProfileRepository {
   Future<Either<Failure, List<Specialty>>> getOwnSpecialties();
@@ -9,4 +10,6 @@ abstract class ProviderProfileRepository {
   Future<Either<Failure, List<Specialty>>> updateOwnSpecialties(
     List<String> specialtyIds,
   );
+
+  Future<Either<Failure, List<StoreCatalogLine>>> getOwnCatalog();
 }
