@@ -43,7 +43,8 @@ class AuthInterceptor extends Interceptor {
       if (path == ApiEndpoints.login ||
           path == ApiEndpoints.socialLogin ||
           path == ApiEndpoints.register ||
-          path == ApiEndpoints.refreshToken) {
+          path == ApiEndpoints.refreshToken ||
+          path == ApiEndpoints.changePassword) {
         return handler.next(err);
       }
 

@@ -5,6 +5,7 @@ import '../../core/storage/secure_storage.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/auth/presentation/providers/auth_state.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/auth/presentation/pages/register_type_page.dart';
 import '../../features/auth/presentation/pages/register_user_page.dart';
 import '../../features/auth/presentation/pages/register_workshop_page.dart';
@@ -116,8 +117,7 @@ class AppRouter {
           GoRoute(
             path: RouteNames.forgotPassword,
             name: 'forgotPassword',
-            builder: (context, state) =>
-                const _PlaceholderPage(title: 'Recuperar contraseña'),
+            builder: (context, state) => const ForgotPasswordPage(),
           ),
 
           // ── Home ─────────────────────────────────────────────────────────

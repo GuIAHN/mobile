@@ -9,8 +9,10 @@ import '../../data/datasources/auth_remote_datasource.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/usecases/change_password_usecase.dart';
+import '../../domain/usecases/forgot_password_usecase.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
+import '../../domain/usecases/reset_password_usecase.dart';
 import '../../domain/usecases/update_profile_usecase.dart';
 import '../../domain/usecases/upload_avatar_usecase.dart';
 
@@ -42,7 +44,6 @@ final registerUseCaseProvider = Provider<RegisterUseCase>((ref) {
   return RegisterUseCase(ref.watch(authRepositoryProvider));
 });
 
-
 /// Provider for the update profile use case.
 final updateProfileUseCaseProvider = Provider<UpdateProfileUseCase>((ref) {
   return UpdateProfileUseCase(ref.watch(authRepositoryProvider));
@@ -58,6 +59,14 @@ final changePasswordUseCaseProvider = Provider<ChangePasswordUseCase>((ref) {
   return ChangePasswordUseCase(ref.watch(authRepositoryProvider));
 });
 
+final forgotPasswordUseCaseProvider = Provider<ForgotPasswordUseCase>((ref) {
+  return ForgotPasswordUseCase(ref.watch(authRepositoryProvider));
+});
+
+final resetPasswordUseCaseProvider = Provider<ResetPasswordUseCase>((ref) {
+  return ResetPasswordUseCase(ref.watch(authRepositoryProvider));
+});
+
 /// Main auth state provider. Consumed by login and registration screens.
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier(
@@ -69,4 +78,14 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
     secureStorage: ref.watch(secureStorageProvider),
     socketService: ref.watch(socketServiceProvider),
   );
+});
+
+/// Finaliza la sesión local después de un cambio de contraseña exitoso.
+///
+/// El backend invalida todos los refresh tokens al actualizar la contraseña,
+/// por lo que mantener la app como autenticada dejaría credenciales obsoletas
+/// hasta que expire el access token actual.
+final passwordChangeSessionHandlerProvider =
+    Provider<Future<void> Function()>((ref) {
+  return () => ref.read(authProvider.notifier).logout();
 });

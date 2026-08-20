@@ -65,6 +65,16 @@ abstract class AuthRepository {
   /// Closes the current session and clears stored tokens.
   Future<Either<Failure, void>> logout();
 
+  /// Requests a six-digit password reset code for [email].
+  Future<Either<Failure, String>> forgotPassword({required String email});
+
+  /// Replaces the forgotten password after validating the emailed [code].
+  Future<Either<Failure, String>> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  });
+
   /// Returns the currently authenticated user (by stored token).
   Future<Either<Failure, User>> getCurrentUser();
 
@@ -88,9 +98,9 @@ abstract class AuthRepository {
   });
 
   /// Registers a device token for push notifications
-  Future<Either<Failure, void>> registerDeviceToken(String token, {String? deviceOs});
+  Future<Either<Failure, void>> registerDeviceToken(String token,
+      {String? deviceOs});
 
   /// Removes a device token for push notifications
   Future<Either<Failure, void>> removeDeviceToken(String token);
 }
-

@@ -1,4 +1,3 @@
-import 'dart:ui' show ImageFilter;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,7 +23,8 @@ import '../providers/social_registration_state.dart';
 const Color _bg = AppColors.background; //        #F5F6FA — fondo de pantalla
 const Color _surface = AppColors.loginSurface; // #FFFFFF — campos y superficies
 const Color _ink = AppColors.loginOnSurface; //   #1A1C1E — texto principal
-const Color _muted = AppColors.loginOnSurfaceVar; // #6C757D — labels y placeholders
+const Color _muted =
+    AppColors.loginOnSurfaceVar; // #6C757D — labels y placeholders
 const Color _line = AppColors.grey300; //         #DEE2E6 — borde de campos
 const Color _hairline = AppColors.loginOutlineVar; // #E9ECEF — divisores
 const Color _brand = AppColors.loginPrimary; //   #F25C05 — acento y CTA
@@ -67,8 +67,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _submitted = false;
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS ? '1062705330448-6nego3r9aaijmelviu38b7f5g09lb4te.apps.googleusercontent.com' : null,
-    serverClientId: '1062705330448-1n5l9ahrjltarem41a5uiim4dc81hj63.apps.googleusercontent.com',
+    clientId: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
+        ? '1062705330448-6nego3r9aaijmelviu38b7f5g09lb4te.apps.googleusercontent.com'
+        : null,
+    serverClientId:
+        '1062705330448-1n5l9ahrjltarem41a5uiim4dc81hj63.apps.googleusercontent.com',
     scopes: ['email'],
   );
 
@@ -129,7 +132,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         if (idToken == null) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No se pudo obtener el token de Google.')),
+              const SnackBar(
+                  content: Text('No se pudo obtener el token de Google.')),
             );
           }
           return;
@@ -158,7 +162,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         idToken = appleCredential.identityToken;
         email = appleCredential.email;
         name = appleCredential.givenName != null
-            ? '${appleCredential.givenName} ${appleCredential.familyName ?? ''}'.trim()
+            ? '${appleCredential.givenName} ${appleCredential.familyName ?? ''}'
+                .trim()
             : null;
       } catch (e) {
         if (mounted) {
@@ -285,13 +290,23 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const _FieldLabel('Contraseña'),
-                                GestureDetector(
-                                  onTap: () => context.push(RouteNames.forgotPassword),
-                                  behavior: HitTestBehavior.opaque,
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                                Flexible(
+                                  child: TextButton(
+                                    key: const Key('open-forgot-password'),
+                                    onPressed: () =>
+                                        context.push(RouteNames.forgotPassword),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: _brand,
+                                      minimumSize: const Size(0, 48),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: AppSpacing.xs,
+                                      ),
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.padded,
+                                    ),
                                     child: Text(
                                       '¿Olvidaste tu contraseña?',
+                                      textAlign: TextAlign.end,
                                       style: _font(12, FontWeight.w700, _brand),
                                     ),
                                   ),
@@ -338,13 +353,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               children: [
                                 Expanded(
                                   child: _SocialButton.google(
-                                    onPressed: () => _handleSocialLogin('GOOGLE'),
+                                    onPressed: () =>
+                                        _handleSocialLogin('GOOGLE'),
                                   ),
                                 ),
                                 const SizedBox(width: AppSpacing.md),
                                 Expanded(
                                   child: _SocialButton.apple(
-                                    onPressed: () => _handleSocialLogin('APPLE'),
+                                    onPressed: () =>
+                                        _handleSocialLogin('APPLE'),
                                   ),
                                 ),
                               ],
@@ -454,9 +471,8 @@ class _PressScaleState extends State<_PressScale> {
     final active = widget.enabled && _pressed && !reduceMotion;
 
     return Listener(
-      onPointerDown: widget.enabled
-          ? (_) => setState(() => _pressed = true)
-          : null,
+      onPointerDown:
+          widget.enabled ? (_) => setState(() => _pressed = true) : null,
       onPointerUp: _release,
       onPointerCancel: _release,
       child: AnimatedScale(
@@ -595,8 +611,8 @@ class _LoginField extends StatelessWidget {
         errorBorder: _border(AppColors.loginError, 1),
         focusedErrorBorder: _border(AppColors.loginError, 1.5),
         errorMaxLines: 2,
-        errorStyle: _font(12, FontWeight.w500, AppColors.loginErrorText,
-            height: 1.35),
+        errorStyle:
+            _font(12, FontWeight.w500, AppColors.loginErrorText, height: 1.35),
       ),
     );
   }
@@ -850,42 +866,6 @@ class _GoogleMarkPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// ── Link de texto con área táctil de 44px ────────────────────────────────────
-
-class _TextLink extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  final double fontSize;
-  final EdgeInsets padding;
-
-  const _TextLink({
-    required this.label,
-    required this.onTap,
-    this.fontSize = 13.5,
-    this.padding = const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 44),
-          alignment: Alignment.center,
-          padding: padding,
-          child: Text(
-            label,
-            style: _font(fontSize, FontWeight.w700, _brand),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 // ── Pie de registro ──────────────────────────────────────────────────────────

@@ -44,6 +44,37 @@ class AuthRemoteDataSource {
     }
   }
 
+  /// Requests a password reset code without revealing whether the account
+  /// exists. The backend always returns the same accepted message.
+  Future<String> forgotPassword({required String email}) async {
+    final response = await _client.post<Map<String, dynamic>>(
+      ApiEndpoints.forgotPassword,
+      data: {'email': email},
+    );
+    final message = response.data?['message'];
+    if (message is! String) throw const ParseException();
+    return message;
+  }
+
+  /// Resets a password using the six-digit code sent by email.
+  Future<String> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    final response = await _client.post<Map<String, dynamic>>(
+      ApiEndpoints.resetPassword,
+      data: {
+        'email': email,
+        'code': code,
+        'newPassword': newPassword,
+      },
+    );
+    final message = response.data?['message'];
+    if (message is! String) throw const ParseException();
+    return message;
+  }
+
   /// Calls POST /auth/social/login and returns the parsed response, or throws SocialNotRegisteredException.
   Future<LoginResponseModel> socialLogin({
     required String idToken,
@@ -72,7 +103,8 @@ class AuthRemoteDataSource {
           final data = res.data;
           if (data is Map<String, dynamic>) {
             final payload = data['data'] ?? data['message'];
-            if (payload is Map<String, dynamic> && payload['registered'] == false) {
+            if (payload is Map<String, dynamic> &&
+                payload['registered'] == false) {
               throw SocialNotRegisteredException(
                 email: payload['email'] as String? ?? '',
                 name: payload['name'] as String? ?? '',
@@ -134,7 +166,6 @@ class AuthRemoteDataSource {
 
     return UserModel.fromJson(response.data!);
   }
-
 
   /// Calls POST /mechanics/register to register a mechanic or workshop.
   Future<UserModel> registerMechanic({
@@ -214,13 +245,15 @@ class AuthRemoteDataSource {
           },
           'address': address,
           'rif': rif,
-          'categories': catalog.map((c) => {
-            'categoryId': c.categoryId,
-            'startingPrice': c.minPrice,
-            'servesAllBrands': c.servesAllBrands,
-            'brandIds': c.brandIds,
-            'sparePartsTypes': c.sparePartsTypes,
-          }).toList(),
+          'categories': catalog
+              .map((c) => {
+                    'categoryId': c.categoryId,
+                    'startingPrice': c.minPrice,
+                    'servesAllBrands': c.servesAllBrands,
+                    'brandIds': c.brandIds,
+                    'sparePartsTypes': c.sparePartsTypes,
+                  })
+              .toList(),
           if (idToken != null) 'idToken': idToken,
           if (provider != null) 'provider': provider,
         },
@@ -282,7 +315,6 @@ class AuthRemoteDataSource {
     }
   }
 
-
   /// Updates the current user's profile details.
   Future<UserModel> updateProfile({
     String? name,
@@ -316,22 +348,18 @@ class AuthRemoteDataSource {
     }
   }
 
-  /// Calls PATCH /auth/change-password to update the current user's password.
+  /// Calls POST /auth/change-password to update the current user's password.
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
   }) async {
-    try {
-      await _client.patch<Map<String, dynamic>>(
-        ApiEndpoints.changePassword,
-        data: {
-          'currentPassword': currentPassword,
-          'newPassword': newPassword,
-        },
-      );
-    } catch (e) {
-      rethrow;
-    }
+    await _client.post<Map<String, dynamic>>(
+      ApiEndpoints.changePassword,
+      data: {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      },
+    );
   }
 
   /// Calls POST /users/me/device-tokens to register a device token

@@ -257,6 +257,36 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, String>> forgotPassword({
+    required String email,
+  }) async {
+    try {
+      return Right(await remoteDataSource.forgotPassword(email: email));
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      return Right(
+        await remoteDataSource.resetPassword(
+          email: email,
+          code: code,
+          newPassword: newPassword,
+        ),
+      );
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
   Future<Either<Failure, User>> getCurrentUser() async {
     try {
       final user = await remoteDataSource.getCurrentUser();
@@ -315,7 +345,8 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, void>> registerDeviceToken(String token, {String? deviceOs}) async {
+  Future<Either<Failure, void>> registerDeviceToken(String token,
+      {String? deviceOs}) async {
     try {
       await remoteDataSource.registerDeviceToken(token, deviceOs: deviceOs);
       return const Right(null);
@@ -334,4 +365,3 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 }
-
