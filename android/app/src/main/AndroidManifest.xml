@@ -37,6 +37,14 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Le dice a FCM que use el canal de alta importancia (con sonido)
+             creado en PushNotificationsService para TODAS las notificaciones
+             que llegan con la app en background/cerrada, sin que el backend
+             tenga que especificar un channelId en cada mensaje. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="high_importance_channel" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

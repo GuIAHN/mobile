@@ -8,6 +8,7 @@ import '../../../../core/storage/secure_storage.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../domain/usecases/change_password_usecase.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
 import '../../domain/usecases/update_profile_usecase.dart';
@@ -50,6 +51,11 @@ final updateProfileUseCaseProvider = Provider<UpdateProfileUseCase>((ref) {
 /// Provider for the upload avatar use case.
 final uploadAvatarUseCaseProvider = Provider<UploadAvatarUseCase>((ref) {
   return UploadAvatarUseCase(ref.watch(authRepositoryProvider));
+});
+
+/// Provider for the change password use case.
+final changePasswordUseCaseProvider = Provider<ChangePasswordUseCase>((ref) {
+  return ChangePasswordUseCase(ref.watch(authRepositoryProvider));
 });
 
 /// Main auth state provider. Consumed by login and registration screens.

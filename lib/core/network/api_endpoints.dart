@@ -12,6 +12,7 @@ abstract class ApiEndpoints {
   static const String me = 'users/me';
   static const String forgotPassword = 'auth/forgot-password';
   static const String resetPassword = 'auth/reset-password';
+  static const String changePassword = 'auth/change-password';
 
   // ── Vehículos ─────────────────────────────────────────────────────────────
   static const String vehicles = 'vehicles';

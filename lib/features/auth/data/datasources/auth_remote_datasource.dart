@@ -316,6 +316,24 @@ class AuthRemoteDataSource {
     }
   }
 
+  /// Calls PATCH /auth/change-password to update the current user's password.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _client.patch<Map<String, dynamic>>(
+        ApiEndpoints.changePassword,
+        data: {
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        },
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   /// Calls POST /users/me/device-tokens to register a device token
   Future<void> registerDeviceToken(String token, {String? deviceOs}) async {
     try {

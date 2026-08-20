@@ -80,6 +80,13 @@ abstract class AuthRepository {
     double? longitude,
   });
 
+  /// Changes the current user's password. Requires [currentPassword] to be
+  /// verified server-side before [newPassword] is set.
+  Future<Either<Failure, void>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
   /// Registers a device token for push notifications
   Future<Either<Failure, void>> registerDeviceToken(String token, {String? deviceOs});
 

@@ -299,6 +299,22 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, void>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await remoteDataSource.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+      return const Right(null);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> registerDeviceToken(String token, {String? deviceOs}) async {
     try {
       await remoteDataSource.registerDeviceToken(token, deviceOs: deviceOs);

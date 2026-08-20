@@ -84,9 +84,16 @@ class StoreCatalogCard extends ConsumerWidget {
             data: (lines) => lines.isEmpty
                 ? const _EmptyCatalog()
                 : Column(
-                    children: lines
-                        .map((line) => _CatalogLineCard(line: line))
-                        .toList(growable: false),
+                    children: [
+                      for (var i = 0; i < lines.length; i++) ...[
+                        if (i > 0)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 14),
+                            child: Divider(height: 1),
+                          ),
+                        _CatalogLineRow(line: lines[i]),
+                      ],
+                    ],
                   ),
           ),
         ],
@@ -95,114 +102,132 @@ class StoreCatalogCard extends ConsumerWidget {
   }
 }
 
-class _CatalogLineCard extends StatelessWidget {
+/// Fila plana (sin card anidada) para una línea del catálogo: ícono +
+/// nombre de categoría, seguido de un único Wrap que combina los chips de
+/// tipo de repuesto y de marcas. Las filas se separan con un Divider desde
+/// [StoreCatalogCard], no con bordes propios, para evitar el efecto
+/// "card dentro de card".
+class _CatalogLineRow extends StatelessWidget {
   final StoreCatalogLine line;
 
-  const _CatalogLineCard({required this.line});
+  const _CatalogLineRow({required this.line});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasChips =
+        line.sparePartsTypes.isNotEmpty || line.servesAllBrands || line.brands.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.primaryMuted,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.settings_rounded,
+                color: AppColors.primary,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                line.categoryName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (hasChips) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              ...line.sparePartsTypes.map((t) => _TypeChip(type: t)),
+              if (line.servesAllBrands)
+                const _AllBrandsChip()
+              else
+                ...line.brands.map((b) => _BrandChip(name: b)),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Chip "Atiende todas las marcas", con el mismo tratamiento pill que el
+/// resto de los chips de la fila para que se lean como parte del mismo
+/// grupo en vez de un texto suelto aparte.
+class _AllBrandsChip extends StatelessWidget {
+  const _AllBrandsChip();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.celesteMuted,
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.public_rounded,
+            size: 14,
+            color: AppColors.celesteInk,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'Todas las marcas',
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.celesteInk,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BrandChip extends StatelessWidget {
+  final String name;
+
+  const _BrandChip({required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: AppColors.grey50,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(99),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryMuted,
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: const Icon(
-                  Icons.settings_rounded,
-                  color: AppColors.primary,
-                  size: 19,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  line.categoryName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (line.sparePartsTypes.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: line.sparePartsTypes
-                  .map((t) => _TypeChip(type: t))
-                  .toList(growable: false),
-            ),
-          ],
-          const SizedBox(height: 10),
-          if (line.servesAllBrands)
-            Row(
-              children: [
-                const Icon(
-                  Icons.check_circle_rounded,
-                  size: 15,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Atiende todas las marcas',
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            )
-          else if (line.brands.isNotEmpty)
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: line.brands
-                  .map(
-                    (b) => Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(99),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Text(
-                        b,
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(growable: false),
-            ),
-        ],
+      child: Text(
+        name,
+        style: GoogleFonts.hankenGrotesk(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textSecondary,
+        ),
       ),
     );
   }

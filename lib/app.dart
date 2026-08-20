@@ -8,6 +8,7 @@ import 'shared/widgets/maintenance_page.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/presentation/providers/auth_state.dart';
 import 'core/services/socket_service.dart';
+import 'core/notifications/foreground_notification_toast_provider.dart';
 
 class GuiAutomotrizApp extends ConsumerWidget {
   const GuiAutomotrizApp({super.key});
@@ -19,6 +20,10 @@ class GuiAutomotrizApp extends ConsumerWidget {
 
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(themeModeProvider);
+
+    // Mantiene viva la escucha de notificaciones en tiempo real (toast
+    // interno cuando la app está en foreground)
+    ref.watch(foregroundNotificationToastProvider);
 
     ref.listen<AuthStatus>(
       authProvider.select((s) => s.status),

@@ -12,8 +12,8 @@ import '../../../provider_profile/presentation/widgets/provider_specialties_card
 import '../../../provider_profile/presentation/widgets/store_catalog_card.dart';
 import '../../../vehicles/presentation/widgets/profile_garage.dart';
 import '../providers/auth_provider.dart';
-import '../widgets/profile_basic_data.dart';
 import '../widgets/profile_header.dart';
+import '../widgets/security_section.dart';
 
 class ProfileTab extends ConsumerWidget {
   const ProfileTab({super.key});
@@ -35,13 +35,14 @@ class ProfileTab extends ConsumerWidget {
         user.role == UserRole.mechanic || user.role == UserRole.workshop;
 
     final sections = <Widget>[
-      // 1. Tarjeta Encabezado del Perfil (Avatar + Info + Stats)
+      // 1. Tarjeta Encabezado del Perfil (Avatar + Info + Teléfono + Stats)
       ProfileHeader(user: user),
 
-      // 2. Tarjeta de Datos Básicos
-      ProfileBasicData(user: user),
+      // 1b. Seguridad de la cuenta (cambiar contraseña), separado a
+      // propósito del editor de datos básicos del header.
+      const SecuritySection(),
 
-      // 3. Sección "Mi Garage" (Solo para consumidores)
+      // 2. Sección "Mi Garage" (Solo para consumidores)
       if (isConsumer) const ProfileGarage(),
 
       // 4. Especialidades configurables (mecánicos y talleres)

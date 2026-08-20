@@ -5,7 +5,6 @@ import 'package:equatable/equatable.dart';
 class StoreCatalogLine extends Equatable {
   final String id;
   final String categoryName;
-  final double? startingPrice;
   final bool servesAllBrands;
   final List<String> brands;
   final List<String> sparePartsTypes;
@@ -13,7 +12,6 @@ class StoreCatalogLine extends Equatable {
   const StoreCatalogLine({
     required this.id,
     required this.categoryName,
-    this.startingPrice,
     required this.servesAllBrands,
     this.brands = const [],
     this.sparePartsTypes = const [],
@@ -23,7 +21,6 @@ class StoreCatalogLine extends Equatable {
   List<Object?> get props => [
         id,
         categoryName,
-        startingPrice,
         servesAllBrands,
         brands,
         sparePartsTypes,

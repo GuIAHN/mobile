@@ -126,6 +126,10 @@ class ProviderSpecialtiesCard extends ConsumerWidget {
   }
 }
 
+/// Botón "Editar" discreto: solo texto + ícono sobre fondo transparente,
+/// sin pill relleno, para no competir visualmente con los chips de
+/// especialidad y quedar en línea con [_EditProfileButton] del header de
+/// perfil.
 class _EditSpecialtiesButton extends StatelessWidget {
   final bool enabled;
   final VoidCallback onPressed;
@@ -142,33 +146,32 @@ class _EditSpecialtiesButton extends StatelessWidget {
       enabled: enabled,
       label: 'Editar especialidades',
       child: Material(
-        color: enabled ? AppColors.primaryMuted : AppColors.grey100,
-        borderRadius: BorderRadius.circular(99),
+        color: Colors.transparent,
         child: InkWell(
           key: const Key('edit-provider-specialties'),
           onTap: enabled ? onPressed : null,
           borderRadius: BorderRadius.circular(99),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48, minWidth: 88),
+            constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
                     Icons.edit_outlined,
-                    size: 17,
+                    size: 16,
                     color: enabled ? AppColors.primary : AppColors.textDisabled,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 5),
                   Text(
                     'Editar',
                     style: GoogleFonts.hankenGrotesk(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
                       color: enabled
-                          ? AppColors.textPrimary
+                          ? AppColors.primary
                           : AppColors.textDisabled,
                     ),
                   ),
