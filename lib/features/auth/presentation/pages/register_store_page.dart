@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -44,7 +45,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
   final List<LineaCatalogo> _catalogo = [];
 
   // ===== Paso 4: Ubicación =====
-  Offset _posicionPin = const Offset(0.5, 0.5);
+  LatLng _location = const LatLng(14.0818, -87.2068);
   bool _ubicacionConfirmada = false;
 
   @override
@@ -59,7 +60,14 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
         setState(() {});
       }
     });
-    for (final c in [_nombreCtrl, _emailCtrl, _telefonoCtrl, _rifCtrl, _passwordCtrl, _confirmPasswordCtrl]) {
+    for (final c in [
+      _nombreCtrl,
+      _emailCtrl,
+      _telefonoCtrl,
+      _rifCtrl,
+      _passwordCtrl,
+      _confirmPasswordCtrl
+    ]) {
       c.addListener(() => setState(() {}));
     }
   }
@@ -101,7 +109,9 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     if (resultado == null) return;
 
     setState(() {
-      if (resultado.eliminar || resultado.brands.isEmpty || resultado.sparePartsTypes.isEmpty) {
+      if (resultado.eliminar ||
+          resultado.brands.isEmpty ||
+          resultado.sparePartsTypes.isEmpty) {
         _catalogo.removeWhere((l) => l.category.id == category.id);
       } else if (existente != null) {
         existente.brands = resultado.brands;
@@ -131,8 +141,11 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
             Validators.email(_emailCtrl.text) == null &&
             Validators.phone(_telefonoCtrl.text) == null &&
             Validators.required(_rifCtrl.text) == null &&
-            (isSocial || (_passwordValida &&
-            Validators.confirmPassword(_confirmPasswordCtrl.text, _passwordCtrl.text) == null));
+            (isSocial ||
+                (_passwordValida &&
+                    Validators.confirmPassword(
+                            _confirmPasswordCtrl.text, _passwordCtrl.text) ==
+                        null));
       case 2:
       case 3:
         return _catalogo.isNotEmpty;
@@ -156,13 +169,9 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     final authState = ref.read(authProvider);
     if (authState.isLoading) return;
 
-    final latitude = 14.0818 + (_posicionPin.dy - 0.5) * 0.1;
-    final longitude = -87.2068 + (_posicionPin.dx - 0.5) * 0.1;
-
     final catalogConfigs = _catalogo.map((l) {
       return StoreCategoryConfig(
         categoryId: l.category.id,
-        minPrice: 1.0,
         servesAllBrands: false,
         brandIds: l.brands.map((b) => b.id).toList(),
         sparePartsTypes: l.sparePartsTypes.toList(),
@@ -183,19 +192,19 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     final socialData = ref.read(socialRegistrationProvider);
 
     await ref.read(authProvider.notifier).registerStore(
-      email: _emailCtrl.text.trim(),
-      password: socialData == null ? _passwordCtrl.text : null,
-      name: _nombreCtrl.text.trim(),
-      phone: sanitizedPhone,
-      latitude: latitude,
-      longitude: longitude,
-      address: 'Dirección física de la tienda.',
-      rif: 'J$rif',
-      catalog: catalogConfigs,
-      hasDelivery: _hasDelivery,
-      idToken: socialData?.idToken,
-      provider: socialData?.provider,
-    );
+          email: _emailCtrl.text.trim(),
+          password: socialData == null ? _passwordCtrl.text : null,
+          name: _nombreCtrl.text.trim(),
+          phone: sanitizedPhone,
+          latitude: _location.latitude,
+          longitude: _location.longitude,
+          address: 'Dirección física de la tienda.',
+          rif: 'J$rif',
+          catalog: catalogConfigs,
+          hasDelivery: _hasDelivery,
+          idToken: socialData?.idToken,
+          provider: socialData?.provider,
+        );
   }
 
   void _retroceder() {
@@ -230,7 +239,8 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
             child: LayoutBuilder(
               builder: (context, viewportConstraints) {
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       minHeight: viewportConstraints.maxHeight - 32,
@@ -248,14 +258,16 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                             const SizedBox(height: 16),
                             ApiErrorMessage(
                               message: authState.errorMessage,
-                              onClose: () => ref.read(authProvider.notifier).clearError(),
+                              onClose: () =>
+                                  ref.read(authProvider.notifier).clearError(),
                             ),
                           ],
                           const SizedBox(height: 8),
                           Expanded(
                             child: AnimatedSwitcher(
                               duration: const Duration(milliseconds: 350),
-                              transitionBuilder: (child, anim) => FadeTransition(
+                              transitionBuilder: (child, anim) =>
+                                  FadeTransition(
                                 opacity: anim,
                                 child: SlideTransition(
                                   position: Tween<Offset>(
@@ -269,37 +281,44 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                                 key: ValueKey(_paso),
                                 child: switch (_paso) {
                                   1 => StoreProfileStep(
-                                       nombreController: _nombreCtrl,
-                                       emailController: _emailCtrl,
-                                       telefonoController: _telefonoCtrl,
-                                       rifController: _rifCtrl,
-                                       passwordController: _passwordCtrl,
-                                       confirmPasswordController: _confirmPasswordCtrl,
-                                       hasDelivery: _hasDelivery,
-                                       onHasDeliveryChanged: (v) => setState(() => _hasDelivery = v),
-                                       isSocial: isSocial,
-                                     ),
+                                      nombreController: _nombreCtrl,
+                                      emailController: _emailCtrl,
+                                      telefonoController: _telefonoCtrl,
+                                      rifController: _rifCtrl,
+                                      passwordController: _passwordCtrl,
+                                      confirmPasswordController:
+                                          _confirmPasswordCtrl,
+                                      hasDelivery: _hasDelivery,
+                                      onHasDeliveryChanged: (v) =>
+                                          setState(() => _hasDelivery = v),
+                                      isSocial: isSocial,
+                                    ),
                                   2 => StoreCatalogStep(
-                                       catalogo: _catalogo,
-                                       categories: categories,
-                                       onAbrirSheetMarcas: _abrirSheetMarcas,
-                                     ),
+                                      catalogo: _catalogo,
+                                      categories: categories,
+                                      onAbrirSheetMarcas: _abrirSheetMarcas,
+                                    ),
                                   3 => StoreSummaryStep(
                                       catalogo: _catalogo,
                                       onAbrirSheetMarcas: _abrirSheetMarcas,
                                     ),
                                   4 => WorkshopLocationStep(
-                                      posicionPin: _posicionPin,
-                                      onPinChanged: (p) => setState(() => _posicionPin = p),
+                                      location: _location,
+                                      onLocationChanged: (location) =>
+                                          setState(() => _location = location),
                                       ubicacionConfirmada: _ubicacionConfirmada,
                                       onUbicacionConfirmadaChanged: (c) =>
-                                          setState(() => _ubicacionConfirmada = c),
-                                      searchHint: 'Buscar dirección de la tienda...',
-                                      helperText: 'Toca el mapa para ajustar la ubicación exacta de la tienda',
+                                          setState(
+                                              () => _ubicacionConfirmada = c),
+                                      searchHint:
+                                          'Buscar dirección de la tienda...',
+                                      helperText:
+                                          'Toca el mapa para ajustar la ubicación exacta de la tienda',
                                     ),
                                   _ => RegistrationCompletedStep(
                                       title: '¡Solicitud\nRecibida!',
-                                      description: 'Hemos recibido la solicitud para registrar ${_nombreCtrl.text} de forma exitosa.',
+                                      description:
+                                          'Hemos recibido la solicitud para registrar ${_nombreCtrl.text} de forma exitosa.',
                                       buttonLabel: 'Finalizar Registro',
                                       buttonIcon: Icons.check_circle_outline,
                                       cards: [
@@ -311,12 +330,16 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                                         CompletedStepCardItem(
                                           icon: Icons.storefront_outlined,
                                           label: 'Catálogo de Repuestos',
-                                          title: '${_catalogo.length} ${_catalogo.length == 1 ? 'categoría' : 'categorías'}',
+                                          title:
+                                              '${_catalogo.length} ${_catalogo.length == 1 ? 'categoría' : 'categorías'}',
                                         ),
                                       ],
                                       onFinish: () {
-                                        ref.read(authProvider.notifier).logout().then((_) {
-                                          if (!mounted) return;
+                                        ref
+                                            .read(authProvider.notifier)
+                                            .logout()
+                                            .then((_) {
+                                          if (!context.mounted) return;
                                           context.go(RouteNames.login);
                                         });
                                       },
@@ -414,11 +437,13 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
         break;
       case 2:
         titulo = 'Catálogo';
-        subtitulo = 'Selecciona las categorías de repuestos que manejas y asócialas a sus marcas.';
+        subtitulo =
+            'Selecciona las categorías de repuestos que manejas y asócialas a sus marcas.';
         break;
       case 3:
         titulo = 'Catálogo Seleccionado';
-        subtitulo = 'Paso 3 de 4: Revisa las categorías registradas. Toca una tarjeta para modificar sus marcas.';
+        subtitulo =
+            'Paso 3 de 4: Revisa las categorías registradas. Toca una tarjeta para modificar sus marcas.';
         break;
       case 4:
         titulo = 'Ubicación';
@@ -486,7 +511,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                 boxShadow: _pasoValido
                     ? [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.4),
+                          color: AppColors.primary.withValues(alpha: 0.4),
                           blurRadius: 24,
                           offset: const Offset(0, 8),
                         ),
@@ -524,7 +549,8 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                         height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
                     else

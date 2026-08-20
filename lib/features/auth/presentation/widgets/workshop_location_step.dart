@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:latlong2/latlong.dart';
+
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/guia_map.dart';
 
 class WorkshopLocationStep extends StatefulWidget {
-  final Offset posicionPin;
-  final ValueChanged<Offset> onPinChanged;
+  final LatLng location;
+  final ValueChanged<LatLng> onLocationChanged;
   final bool ubicacionConfirmada;
   final ValueChanged<bool> onUbicacionConfirmadaChanged;
   final String searchHint;
@@ -12,12 +16,13 @@ class WorkshopLocationStep extends StatefulWidget {
 
   const WorkshopLocationStep({
     super.key,
-    required this.posicionPin,
-    required this.onPinChanged,
+    required this.location,
+    required this.onLocationChanged,
     required this.ubicacionConfirmada,
     required this.onUbicacionConfirmadaChanged,
     this.searchHint = 'Buscar dirección del taller...',
-    this.helperText = 'Toca el mapa para ajustar la ubicación exacta del taller',
+    this.helperText =
+        'Toca el mapa para ajustar la ubicación exacta del taller',
   });
 
   @override
@@ -26,7 +31,9 @@ class WorkshopLocationStep extends StatefulWidget {
 
 class _WorkshopLocationStepState extends State<WorkshopLocationStep> {
   final _searchController = TextEditingController();
-  final GlobalKey _mapKey = GlobalKey();
+  bool _isSearching = false;
+  String? _searchError;
+  int _mapRevision = 0;
 
   @override
   void dispose() {
@@ -34,14 +41,76 @@ class _WorkshopLocationStepState extends State<WorkshopLocationStep> {
     super.dispose();
   }
 
+  Future<void> _searchAddress() async {
+    if (_isSearching) return;
+
+    final query = _searchController.text.trim();
+    if (query.isEmpty) {
+      setState(() => _searchError = 'Escribe una dirección para buscarla.');
+      return;
+    }
+
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      _isSearching = true;
+      _searchError = null;
+    });
+
+    try {
+      final results = await Geocoding().locationFromAddress(query);
+      if (!mounted) return;
+      if (results.isEmpty) {
+        setState(() {
+          _searchError =
+              'No encontramos esa dirección. Intenta con más detalles.';
+        });
+        return;
+      }
+
+      final result = results.first;
+      widget.onLocationChanged(LatLng(result.latitude, result.longitude));
+      widget.onUbicacionConfirmadaChanged(false);
+      setState(() => _mapRevision++);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _searchError =
+            'No pudimos buscar la dirección. Revisa tu conexión e intenta de nuevo.';
+      });
+    } finally {
+      if (mounted) setState(() => _isSearching = false);
+    }
+  }
+
+  void _selectLocation(LatLng point) {
+    widget.onLocationChanged(point);
+    widget.onUbicacionConfirmadaChanged(false);
+    if (_searchError != null) setState(() => _searchError = null);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Buscador
+        Text(
+          'DIRECCIÓN',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.5,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 8),
         TextField(
           controller: _searchController,
+          enabled: !_isSearching,
+          textInputAction: TextInputAction.search,
+          autofillHints: const [AutofillHints.fullStreetAddress],
+          onSubmitted: (_) => _searchAddress(),
           style: GoogleFonts.hankenGrotesk(
             fontSize: 15,
             color: AppColors.textPrimary,
@@ -57,6 +126,22 @@ class _WorkshopLocationStepState extends State<WorkshopLocationStep> {
               size: 20,
               color: AppColors.textSecondary,
             ),
+            suffixIcon: _isSearching
+                ? const Center(
+                    child: SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  )
+                : IconButton(
+                    tooltip: 'Buscar dirección',
+                    onPressed: _searchAddress,
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                    color: AppColors.primary,
+                  ),
             filled: true,
             fillColor: Colors.white,
             contentPadding:
@@ -65,66 +150,38 @@ class _WorkshopLocationStepState extends State<WorkshopLocationStep> {
               borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: AppColors.border),
             ),
+            disabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+              borderSide:
+                  const BorderSide(color: AppColors.primary, width: 1.5),
             ),
           ),
         ),
-        const SizedBox(height: 16),
-
-        // Mapa interactivo placeholder
-        GestureDetector(
-          key: _mapKey,
-          onTapDown: (d) {
-            final renderBox = _mapKey.currentContext?.findRenderObject() as RenderBox?;
-            if (renderBox != null) {
-              final size = renderBox.size;
-              final newPin = Offset(
-                d.localPosition.dx / size.width,
-                d.localPosition.dy / size.height,
-              );
-              widget.onPinChanged(newPin);
-              widget.onUbicacionConfirmadaChanged(false);
-            }
-          },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: SizedBox(
-              height: 300.0,
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: CustomPaint(painter: _MapaPainter()),
-                  ),
-                  Positioned.fill(
-                    child: TweenAnimationBuilder<Offset>(
-                      tween: Tween<Offset>(end: widget.posicionPin),
-                      duration: const Duration(milliseconds: 250),
-                      builder: (context, pos, child) {
-                        return CustomSingleChildLayout(
-                          delegate: _PinLayoutDelegate(pos),
-                          child: child,
-                        );
-                      },
-                      child: const Icon(
-                        Icons.location_on,
-                        size: 44,
-                        color: AppColors.primary,
-                        shadows: [
-                          BoxShadow(
-                            color: Color(0x66F25C05),
-                            blurRadius: 8,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+        if (_searchError != null) ...[
+          const SizedBox(height: 8),
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              _searchError!,
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.errorInk,
               ),
             ),
           ),
+        ],
+        const SizedBox(height: 16),
+        GuiaMap(
+          mapKey: ValueKey('registration-location-map-$_mapRevision'),
+          point: widget.location,
+          height: 300,
+          borderRadius: 24,
+          onTap: _selectLocation,
         ),
         const SizedBox(height: 10),
         Text(
@@ -136,18 +193,17 @@ class _WorkshopLocationStepState extends State<WorkshopLocationStep> {
           ),
         ),
         const SizedBox(height: 16),
-
-        // Botón confirmar ubicación
         AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
+          duration:
+              reduceMotion ? Duration.zero : const Duration(milliseconds: 300),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(32),
             boxShadow: [
               BoxShadow(
                 color: (widget.ubicacionConfirmada
                         ? AppColors.success
                         : AppColors.primary)
-                    .withOpacity(0.35),
+                    .withValues(alpha: 0.35),
                 blurRadius: 24,
                 offset: const Offset(0, 8),
               ),
@@ -155,7 +211,9 @@ class _WorkshopLocationStepState extends State<WorkshopLocationStep> {
           ),
           child: ElevatedButton(
             onPressed: () {
-              widget.onUbicacionConfirmadaChanged(!widget.ubicacionConfirmada);
+              widget.onUbicacionConfirmadaChanged(
+                !widget.ubicacionConfirmada,
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: widget.ubicacionConfirmada
@@ -163,24 +221,27 @@ class _WorkshopLocationStepState extends State<WorkshopLocationStep> {
                   : AppColors.primary,
               foregroundColor: Colors.white,
               elevation: 0,
+              minimumSize: const Size.fromHeight(48),
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(32),
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
               children: [
                 Text(
                   widget.ubicacionConfirmada
                       ? 'Ubicación Confirmada'
                       : 'Confirmar Ubicación',
+                  textAlign: TextAlign.center,
                   style: GoogleFonts.hankenGrotesk(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(width: 8),
                 const Icon(Icons.check_circle, size: 20),
               ],
             ),
@@ -190,53 +251,3 @@ class _WorkshopLocationStepState extends State<WorkshopLocationStep> {
     );
   }
 }
-
-class _MapaPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final fondo = Paint()..color = const Color(0xFFE9ECF1);
-    canvas.drawRect(Offset.zero & size, fondo);
-
-    final calles = Paint()
-      ..color = const Color(0xFFCFD5DD)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-
-    final centro = Offset(size.width / 2, size.height / 2);
-    for (final r in [40.0, 80.0, 125.0, 175.0]) {
-      canvas.drawCircle(centro, r, calles);
-    }
-    canvas.drawLine(Offset(centro.dx, -20), Offset(centro.dx, size.height + 20), calles);
-    canvas.drawLine(Offset(-20, centro.dy), Offset(size.width + 20, centro.dy), calles);
-    canvas.drawLine(const Offset(40, 20), Offset(size.width - 40, size.height - 20), calles);
-    canvas.drawLine(Offset(size.width - 40, 20), Offset(40, size.height - 20), calles);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _PinLayoutDelegate extends SingleChildLayoutDelegate {
-  final Offset posicionPin;
-
-  _PinLayoutDelegate(this.posicionPin);
-
-  @override
-  Offset getPositionForChild(Size size, Size childSize) {
-    // posicionPin.dx e dy varían de 0.0 a 1.0.
-    // Queremos que el extremo inferior central del pin (tip) esté en:
-    // x = posicionPin.dx * size.width
-    // y = posicionPin.dy * size.height
-    // Por lo tanto, desplazamos x por la mitad del ancho del hijo,
-    // y desplazamos y por el alto total del hijo.
-    final x = posicionPin.dx * size.width - childSize.width / 2;
-    final y = posicionPin.dy * size.height - childSize.height;
-    return Offset(x, y);
-  }
-
-  @override
-  bool shouldRelayout(covariant _PinLayoutDelegate oldDelegate) {
-    return oldDelegate.posicionPin != posicionPin;
-  }
-}
-

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -20,7 +21,8 @@ class RegisterWorkshopPage extends ConsumerStatefulWidget {
   const RegisterWorkshopPage({super.key});
 
   @override
-  ConsumerState<RegisterWorkshopPage> createState() => _RegisterWorkshopPageState();
+  ConsumerState<RegisterWorkshopPage> createState() =>
+      _RegisterWorkshopPageState();
 }
 
 class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
@@ -38,7 +40,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
   final Set<String> _seleccionadas = {};
 
   // ===== Paso 3: Ubicación =====
-  Offset _posicionPin = const Offset(0.5, 0.5);
+  LatLng _location = const LatLng(14.0818, -87.2068);
   bool _ubicacionConfirmada = false;
 
   @override
@@ -47,7 +49,14 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(authProvider.notifier).clearError();
     });
-    for (final c in [_nombreCtrl, _emailCtrl, _telefonoCtrl, _rifCtrl, _passwordCtrl, _confirmPasswordCtrl]) {
+    for (final c in [
+      _nombreCtrl,
+      _emailCtrl,
+      _telefonoCtrl,
+      _rifCtrl,
+      _passwordCtrl,
+      _confirmPasswordCtrl
+    ]) {
       c.addListener(() => setState(() {}));
     }
   }
@@ -76,7 +85,9 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
             Validators.phone(_telefonoCtrl.text) == null &&
             Validators.required(_rifCtrl.text) == null &&
             _passwordValida &&
-            Validators.confirmPassword(_confirmPasswordCtrl.text, _passwordCtrl.text) == null;
+            Validators.confirmPassword(
+                    _confirmPasswordCtrl.text, _passwordCtrl.text) ==
+                null;
       case 2:
         return _seleccionadas.isNotEmpty;
       case 3:
@@ -99,9 +110,6 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
     final authState = ref.read(authProvider);
     if (authState.isLoading) return;
 
-    final latitude = 14.0818 + (_posicionPin.dy - 0.5) * 0.1;
-    final longitude = -87.2068 + (_posicionPin.dx - 0.5) * 0.1;
-
     String sanitizedPhone = _telefonoCtrl.text.trim();
     if (sanitizedPhone.isNotEmpty) {
       final clean = sanitizedPhone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
@@ -114,17 +122,17 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
     }
 
     await ref.read(authProvider.notifier).registerMechanic(
-      email: _emailCtrl.text.trim(),
-      password: _passwordCtrl.text,
-      name: _nombreCtrl.text.trim(),
-      phone: sanitizedPhone,
-      latitude: latitude,
-      longitude: longitude,
-      description: 'Taller mecánico especializado.',
-      isWorkshop: true,
-      identification: 'J$rif',
-      specialtyIds: _seleccionadas.toList(),
-    );
+          email: _emailCtrl.text.trim(),
+          password: _passwordCtrl.text,
+          name: _nombreCtrl.text.trim(),
+          phone: sanitizedPhone,
+          latitude: _location.latitude,
+          longitude: _location.longitude,
+          description: 'Taller mecánico especializado.',
+          isWorkshop: true,
+          identification: 'J$rif',
+          specialtyIds: _seleccionadas.toList(),
+        );
   }
 
   void _retroceder() {
@@ -157,10 +165,12 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
             child: LayoutBuilder(
               builder: (context, viewportConstraints) {
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      minHeight: viewportConstraints.maxHeight - 32, // account for vertical padding
+                      minHeight: viewportConstraints.maxHeight -
+                          32, // account for vertical padding
                     ),
                     child: IntrinsicHeight(
                       child: Column(
@@ -173,14 +183,16 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                             const SizedBox(height: 16),
                             ApiErrorMessage(
                               message: authState.errorMessage,
-                              onClose: () => ref.read(authProvider.notifier).clearError(),
+                              onClose: () =>
+                                  ref.read(authProvider.notifier).clearError(),
                             ),
                           ],
                           const SizedBox(height: 24),
                           Expanded(
                             child: AnimatedSwitcher(
                               duration: const Duration(milliseconds: 350),
-                              transitionBuilder: (child, anim) => FadeTransition(
+                              transitionBuilder: (child, anim) =>
+                                  FadeTransition(
                                 opacity: anim,
                                 child: SlideTransition(
                                   position: Tween<Offset>(
@@ -194,36 +206,40 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                                 key: ValueKey(_paso),
                                 child: switch (_paso) {
                                   1 => WorkshopInfoStep(
-                                       nombreController: _nombreCtrl,
-                                       emailController: _emailCtrl,
-                                       telefonoController: _telefonoCtrl,
-                                       rifController: _rifCtrl,
-                                       passwordController: _passwordCtrl,
-                                       confirmPasswordController: _confirmPasswordCtrl,
-                                     ),
-                                   2 => WorkshopSpecialtiesStep(
-                                       selectedSpecialtyIds: _seleccionadas,
-                                       onSpecialtyToggled: (id) {
-                                         setState(() {
-                                           if (_seleccionadas.contains(id)) {
-                                             _seleccionadas.remove(id);
-                                           } else {
-                                             _seleccionadas.add(id);
-                                           }
-                                         });
-                                       },
-                                       specialties: specialties,
-                                     ),
+                                      nombreController: _nombreCtrl,
+                                      emailController: _emailCtrl,
+                                      telefonoController: _telefonoCtrl,
+                                      rifController: _rifCtrl,
+                                      passwordController: _passwordCtrl,
+                                      confirmPasswordController:
+                                          _confirmPasswordCtrl,
+                                    ),
+                                  2 => WorkshopSpecialtiesStep(
+                                      selectedSpecialtyIds: _seleccionadas,
+                                      onSpecialtyToggled: (id) {
+                                        setState(() {
+                                          if (_seleccionadas.contains(id)) {
+                                            _seleccionadas.remove(id);
+                                          } else {
+                                            _seleccionadas.add(id);
+                                          }
+                                        });
+                                      },
+                                      specialties: specialties,
+                                    ),
                                   3 => WorkshopLocationStep(
-                                      posicionPin: _posicionPin,
-                                      onPinChanged: (p) => setState(() => _posicionPin = p),
+                                      location: _location,
+                                      onLocationChanged: (location) =>
+                                          setState(() => _location = location),
                                       ubicacionConfirmada: _ubicacionConfirmada,
                                       onUbicacionConfirmadaChanged: (c) =>
-                                          setState(() => _ubicacionConfirmada = c),
+                                          setState(
+                                              () => _ubicacionConfirmada = c),
                                     ),
                                   _ => RegistrationCompletedStep(
                                       title: '¡REGISTRO\nCOMPLETADO!',
-                                      description: 'Tu solicitud ha sido recibida con éxito. Actualmente estamos verificando las credenciales de tu taller para garantizar la integridad de nuestra red profesional.',
+                                      description:
+                                          'Tu solicitud ha sido recibida con éxito. Actualmente estamos verificando las credenciales de tu taller para garantizar la integridad de nuestra red profesional.',
                                       buttonLabel: 'Finalizar Registro',
                                       buttonIcon: Icons.check_circle_outline,
                                       cards: const [
@@ -231,7 +247,8 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                                           icon: Icons.verified_user_outlined,
                                           label: 'ESTADO',
                                           title: 'En Verificación',
-                                          subtitle: 'Estimado: 2–4 horas hábiles',
+                                          subtitle:
+                                              'Estimado: 2–4 horas hábiles',
                                         ),
                                         CompletedStepCardItem(
                                           icon: Icons.construction_outlined,
@@ -243,12 +260,16 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                                           icon: Icons.mail_outline,
                                           label: 'NOTIFICACIÓN',
                                           title: 'Correo Enviado',
-                                          subtitle: 'Revisa tu bandeja de entrada',
+                                          subtitle:
+                                              'Revisa tu bandeja de entrada',
                                         ),
                                       ],
                                       onFinish: () {
-                                        ref.read(authProvider.notifier).logout().then((_) {
-                                          if (!mounted) return;
+                                        ref
+                                            .read(authProvider.notifier)
+                                            .logout()
+                                            .then((_) {
+                                          if (!context.mounted) return;
                                           context.go(RouteNames.login);
                                         });
                                       },
@@ -342,7 +363,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
             boxShadow: _pasoValido
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.4),
+                      color: AppColors.primary.withValues(alpha: 0.4),
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),

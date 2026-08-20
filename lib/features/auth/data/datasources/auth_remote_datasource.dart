@@ -248,12 +248,12 @@ class AuthRemoteDataSource {
           'categories': catalog
               .map((c) => {
                     'categoryId': c.categoryId,
-                    'startingPrice': c.minPrice,
                     'servesAllBrands': c.servesAllBrands,
                     'brandIds': c.brandIds,
                     'sparePartsTypes': c.sparePartsTypes,
                   })
               .toList(),
+          'hasDelivery': hasDelivery,
           if (idToken != null) 'idToken': idToken,
           if (provider != null) 'provider': provider,
         },
@@ -275,7 +275,6 @@ class AuthRemoteDataSource {
   /// Calls POST /stores/me/categories to register a store catalog line.
   Future<void> configureStoreCategory({
     required String categoryId,
-    required double minPrice,
     required bool servesAllBrands,
     required List<String> brandIds,
     required List<String> sparePartsTypes,
@@ -285,7 +284,6 @@ class AuthRemoteDataSource {
         'stores/me/categories',
         data: {
           'categoryId': categoryId,
-          'startingPrice': minPrice,
           'servesAllBrands': servesAllBrands,
           'brandIds': brandIds,
           'sparePartsTypes': sparePartsTypes,
