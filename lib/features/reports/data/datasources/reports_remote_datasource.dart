@@ -7,6 +7,12 @@ import '../../domain/entities/store_dashboard.dart';
 abstract class ReportsRemoteDataSource {
   Future<DashboardResponse> getStoreDashboard({String? from, String? to});
 
+  Future<MetricResult> getStoreMetric(
+    String metricId, {
+    String? from,
+    String? to,
+  });
+
   Future<DashboardResponse> getProviderDashboard({String? from, String? to});
 }
 
@@ -20,6 +26,28 @@ class ReportsRemoteDataSourceImpl implements ReportsRemoteDataSource {
       _getDashboard(ApiEndpoints.storeDashboard, from: from, to: to);
 
   @override
+  Future<MetricResult> getStoreMetric(
+    String metricId, {
+    String? from,
+    String? to,
+  }) async {
+    final queryParameters = _queryParameters(from: from, to: to);
+
+    try {
+      final response = await _dioClient.get<Map<String, dynamic>>(
+        ApiEndpoints.storeMetric(metricId),
+        queryParameters: queryParameters,
+      );
+
+      return MetricResult.fromJson(response.data ?? const {});
+    } on DioException catch (e) {
+      throw Exception('Failed to fetch store metric: ${e.message}');
+    } catch (e) {
+      throw Exception('Failed to fetch store metric: $e');
+    }
+  }
+
+  @override
   Future<DashboardResponse> getProviderDashboard({String? from, String? to}) =>
       _getDashboard(ApiEndpoints.providerDashboard, from: from, to: to);
 
@@ -28,9 +56,7 @@ class ReportsRemoteDataSourceImpl implements ReportsRemoteDataSource {
     String? from,
     String? to,
   }) async {
-    final queryParameters = <String, dynamic>{};
-    if (from != null) queryParameters['from'] = from;
-    if (to != null) queryParameters['to'] = to;
+    final queryParameters = _queryParameters(from: from, to: to);
 
     try {
       final response = await _dioClient.get<Map<String, dynamic>>(
@@ -45,5 +71,12 @@ class ReportsRemoteDataSourceImpl implements ReportsRemoteDataSource {
     } catch (e) {
       throw Exception('Failed to fetch dashboard: $e');
     }
+  }
+
+  Map<String, dynamic> _queryParameters({String? from, String? to}) {
+    return {
+      if (from != null) 'from': from,
+      if (to != null) 'to': to,
+    };
   }
 }

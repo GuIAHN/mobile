@@ -1,7 +1,8 @@
-import 'package:dio/dio.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../domain/repositories/reviews_repository.dart';
 import '../models/review_model.dart';
+import '../models/pending_review_model.dart';
+import '../../domain/entities/my_review_status.dart';
 
 class ReviewsRemoteDataSource {
   final DioClient _dioClient;
@@ -36,16 +37,19 @@ class ReviewsRemoteDataSource {
   }
 
   Future<ReviewModel> createReview({
-    required String conversationId,
+    String? conversationId,
+    String? targetId,
     required int rating,
     String? comentario,
   }) async {
     final response = await _dioClient.post(
       '/reviews',
       data: {
-        'conversationId': conversationId,
+        if (conversationId != null) 'conversationId': conversationId,
+        if (targetId != null) 'targetId': targetId,
         'rating': rating,
-        if (comentario != null && comentario.isNotEmpty) 'comentario': comentario,
+        if (comentario != null && comentario.isNotEmpty)
+          'comentario': comentario,
       },
     );
     final rawData = response.data;
@@ -87,5 +91,42 @@ class ReviewsRemoteDataSource {
 
   Future<void> deleteReview(String id) async {
     await _dioClient.delete('/reviews/$id');
+  }
+
+  Future<List<PendingReviewModel>> getPendingReviews() async {
+    final response = await _dioClient.get('/reviews/pending');
+    final data = response.data as Map<String, dynamic>;
+    return (data['items'] as List? ?? const [])
+        .map((item) => PendingReviewModel.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ))
+        .where((item) =>
+            item.targetId.isNotEmpty && item.conversationId.isNotEmpty)
+        .toList();
+  }
+
+  Future<MyReviewStatus> getMyReview(String targetId) async {
+    final response = await _dioClient.get('/reviews/mine/$targetId');
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final reviewData = data['review'];
+    if (data['hasReviewed'] != true || reviewData is! Map) {
+      return const MyReviewStatus(hasReviewed: false);
+    }
+    final json = Map<String, dynamic>.from(reviewData);
+    json['targetId'] = targetId;
+    return MyReviewStatus(
+      hasReviewed: true,
+      review: ReviewModel.fromJson(json),
+    );
+  }
+
+  Future<void> trackProviderContact(
+    String providerProfileId,
+    String channel,
+  ) async {
+    await _dioClient.post(
+      '/providers/$providerProfileId/contact-clicks',
+      data: {'channel': channel},
+    );
   }
 }

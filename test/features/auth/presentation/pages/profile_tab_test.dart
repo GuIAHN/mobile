@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
+import 'package:guiautomotriz_mobile/core/router/route_names.dart';
 import 'package:guiautomotriz_mobile/core/storage/secure_storage.dart';
 import 'package:guiautomotriz_mobile/features/auth/domain/entities/user.dart';
 import 'package:guiautomotriz_mobile/features/auth/domain/repositories/auth_repository.dart';
@@ -76,6 +78,40 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('pending reviews matches the change-password card height',
+      (tester) async {
+    const user = User(
+      id: 'consumer-1',
+      email: 'consumer@gmail.com',
+      name: 'Usuario Consumidor',
+      phone: '04121111111',
+      role: UserRole.consumer,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith((ref) => _TestAuthNotifier(user)),
+          userCarsProvider.overrideWith((ref) async => const []),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ProfileTab())),
+      ),
+    );
+    await tester.pump();
+
+    final securitySize = tester.getSize(find.byKey(
+      const Key('open-change-password'),
+    ));
+    final pendingSize = tester.getSize(find.byKey(
+      const Key('open-pending-reviews'),
+    ));
+
+    expect(pendingSize.height, securitySize.height);
+    expect(pendingSize.width, securitySize.width);
+    expect(find.byKey(const Key('open-received-reviews')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('shows configurable specialties only to mechanics and workshops',
       (tester) async {
     const mechanic = User(
@@ -144,5 +180,95 @@ void main() {
 
     expect(find.byType(ProviderSpecialtiesCard), findsOneWidget);
     expect(find.text('Aún no has agregado especialidades.'), findsOneWidget);
+  });
+
+  testWidgets('providers can open the reviews received by their own user id',
+      (tester) async {
+    const mechanic = User(
+      id: 'mechanic-user-1',
+      email: 'mechanic@gmail.com',
+      name: 'Mecánico',
+      role: UserRole.mechanic,
+    );
+    final router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (_, __) => const Scaffold(body: ProfileTab()),
+        ),
+        GoRoute(
+          path: RouteNames.providerReviews,
+          builder: (_, state) => Scaffold(
+            body: Text(
+              '${state.pathParameters['targetId']}-'
+              '${state.uri.queryParameters['view']}',
+            ),
+          ),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith((ref) => _TestAuthNotifier(mechanic)),
+          providerSpecialtiesProvider.overrideWith((ref) async => const []),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Reseñas de clientes'), findsOneWidget);
+    final securitySize = tester.getSize(
+      find.byKey(const Key('open-change-password')),
+    );
+    final reviewsSize = tester.getSize(
+      find.byKey(const Key('open-received-reviews')),
+    );
+    expect(reviewsSize, securitySize);
+
+    await tester.tap(find.byKey(const Key('open-received-reviews')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('mechanic-user-1-received'), findsOneWidget);
+  });
+
+  testWidgets('received reviews section is visible to every provider role',
+      (tester) async {
+    for (final role in const [
+      UserRole.store,
+      UserRole.workshop,
+      UserRole.mechanic,
+    ]) {
+      final user = User(
+        id: '${role.name}-1',
+        email: '${role.name}@gmail.com',
+        name: role.name,
+        role: role,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authProvider.overrideWith((ref) => _TestAuthNotifier(user)),
+            if (role != UserRole.store)
+              providerSpecialtiesProvider.overrideWith(
+                (ref) async => const [],
+              ),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ProfileTab())),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('open-received-reviews')),
+        findsOneWidget,
+        reason: 'El rol ${role.name} debe ver sus reseñas',
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
   });
 }

@@ -51,4 +51,9 @@ abstract class RouteNames {
   // ── Reseñas ───────────────────────────────────────────────────────────────
   static const String providerReviews = '/reviews/:targetId';
   static String providerReviewsPath(String targetId) => '/reviews/$targetId';
+  static String receivedReviewsPath(String targetId) => Uri(
+        path: '/reviews/$targetId',
+        queryParameters: const {'view': 'received'},
+      ).toString();
+  static const String pendingReviews = '/reviews-pending';
 }

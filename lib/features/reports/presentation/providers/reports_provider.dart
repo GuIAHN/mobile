@@ -104,10 +104,24 @@ final storeDashboardProvider =
 
   _listenForDashboardRefresh(ref);
 
-  return repository.getStoreDashboard(
-    from: _formatDate(filter.from),
-    to: _formatDate(filter.to),
-  );
+  final from = _formatDate(filter.from);
+  final to = _formatDate(filter.to);
+  final grossSalesFuture = repository
+      .getStoreMetric(
+        'M-T06',
+        from: from,
+        to: to,
+      )
+      .then<MetricResult?>(
+        (metric) => metric,
+        onError: (Object _, StackTrace __) => null,
+      );
+  final dashboard = await repository.getStoreDashboard(from: from, to: to);
+  final grossSalesMetric = await grossSalesFuture;
+
+  return grossSalesMetric == null
+      ? dashboard
+      : dashboard.replaceMetric(grossSalesMetric);
 });
 
 final providerDashboardProvider =

@@ -23,6 +23,31 @@ class DashboardResponse extends Equatable {
     return null;
   }
 
+  DashboardResponse replaceMetric(MetricResult replacement) {
+    var replaced = false;
+    final updatedGroups = groups.map((group) {
+      final updatedPanels = group.panels.map((panel) {
+        if (panel.id != replacement.id) return panel;
+        replaced = true;
+        return DashboardPanel(
+          id: panel.id,
+          span: panel.span,
+          metric: replacement,
+        );
+      }).toList();
+
+      return DashboardGroup(title: group.title, panels: updatedPanels);
+    }).toList();
+
+    return replaced
+        ? DashboardResponse(
+            scope: scope,
+            computedAt: computedAt,
+            groups: updatedGroups,
+          )
+        : this;
+  }
+
   factory DashboardResponse.fromJson(Map<String, dynamic> json) {
     return DashboardResponse(
       scope: json['scope'] as String? ?? '',

@@ -2,9 +2,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/app_config.dart';
 import '../storage/secure_storage.dart';
+
+typedef SocketFactory = io.Socket Function(dynamic uri, dynamic options);
 
 final socketServiceProvider = Provider<SocketService>((ref) {
   final secureStorage = ref.watch(secureStorageProvider);
@@ -19,13 +20,22 @@ class SocketService {
   io.Socket? _socket;
   String? _connectedToken;
   final SecureStorage _secureStorage;
+  final SocketFactory _socketFactory;
 
-  SocketService(this._secureStorage);
+  SocketService(
+    this._secureStorage, {
+    SocketFactory? socketFactory,
+  }) : _socketFactory =
+            socketFactory ?? ((uri, options) => io.io(uri, options));
 
   // Streams for events
-  final _searchMatchedController = StreamController<Map<String, dynamic>>.broadcast();
-  final _offerUpdatedController = StreamController<Map<String, dynamic>>.broadcast();
-  
+  final _searchMatchedController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _offerUpdatedController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _connectedController = StreamController<void>.broadcast();
+  final _authenticationRequiredController = StreamController<void>.broadcast();
+
   // Chat events
   final _messageController = StreamController<Map<String, dynamic>>.broadcast();
   final _typingStartController = StreamController<String>.broadcast();
@@ -35,34 +45,57 @@ class SocketService {
   // incluso las que no tienen un stream específico (offer.inquiry,
   // user.approved, settlement.*, etc.). Úsese para refrescar badges/listas
   // de notificaciones en tiempo real.
-  final _notificationController = StreamController<Map<String, dynamic>>.broadcast();
+  final _notificationController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
-  Stream<Map<String, dynamic>> get onSearchMatched => _searchMatchedController.stream;
-  Stream<Map<String, dynamic>> get onOfferUpdated => _offerUpdatedController.stream;
+  Stream<Map<String, dynamic>> get onSearchMatched =>
+      _searchMatchedController.stream;
+  Stream<Map<String, dynamic>> get onOfferUpdated =>
+      _offerUpdatedController.stream;
+  Stream<void> get onConnected => _connectedController.stream;
+  Stream<void> get onAuthenticationRequired =>
+      _authenticationRequiredController.stream;
   Stream<Map<String, dynamic>> get onMessage => _messageController.stream;
   Stream<String> get onTypingStart => _typingStartController.stream;
   Stream<String> get onTypingStop => _typingStopController.stream;
-  Stream<Map<String, dynamic>> get onNotification => _notificationController.stream;
+  Stream<Map<String, dynamic>> get onNotification =>
+      _notificationController.stream;
 
   bool _isConnecting = false;
+  String? _lastRejectedToken;
 
-  Future<void> connect() async {
+  bool get isConnected => _socket?.connected == true;
+
+  /// Connects with the latest access token from secure storage.
+  ///
+  /// [force] recreates the transport even if Socket.IO still reports an
+  /// active connection. This is used after the app resumes so the server
+  /// authenticates the session again and consumers can resync missed events.
+  Future<void> connect({bool force = false}) async {
     if (_isConnecting) return;
     _isConnecting = true;
 
     try {
       final token = await _secureStorage.getToken();
       if (token == null || token.isEmpty) {
-        debugPrint('[SocketService] No token found in secure storage. Disconnecting socket.');
+        debugPrint(
+            '[SocketService] No token found in secure storage. Disconnecting socket.');
         disconnect();
         return;
       }
 
-      if (_socket != null && _socket!.connected && _connectedToken == token) {
+      if (!force &&
+          _socket != null &&
+          _connectedToken == token &&
+          (_socket!.connected || _socket!.active)) {
         return;
       }
 
-      debugPrint('[SocketService] Connecting socket with token hash: ${token.hashCode}');
+      debugPrint(
+          '[SocketService] Connecting socket with token hash: ${token.hashCode}');
+      if (_connectedToken != token) {
+        _lastRejectedToken = null;
+      }
       disconnect();
       _connectedToken = token;
 
@@ -72,7 +105,7 @@ class SocketService {
         socketUrl = socketUrl.substring(0, socketUrl.length - 1);
       }
 
-      _socket = io.io(
+      _socket = _socketFactory(
         socketUrl,
         io.OptionBuilder()
             .setTransports(['websocket', 'polling'])
@@ -85,10 +118,14 @@ class SocketService {
 
       _socket?.onConnect((_) {
         debugPrint('[SocketService] Socket connected: ${_socket?.id}');
+        _connectedController.add(null);
       });
 
       _socket?.onConnectError((error) {
         debugPrint('[SocketService] Socket connect error: $error');
+        if (_looksLikeAuthenticationError(error)) {
+          _requestAuthenticationRecovery();
+        }
       });
 
       _socket?.onError((error) {
@@ -97,6 +134,12 @@ class SocketService {
 
       _socket?.onDisconnect((reason) {
         debugPrint('[SocketService] Socket disconnected: $reason');
+        // A server-side disconnect disables Socket.IO's automatic reconnect.
+        // The most common cause here is a JWT that expired while the app was
+        // backgrounded or the network was unavailable.
+        if (reason?.toString() == 'io server disconnect') {
+          _requestAuthenticationRecovery();
+        }
       });
 
       _socket?.on('search.matched', (data) {
@@ -124,7 +167,8 @@ class SocketService {
           final payloadData = data['data'] ?? data;
 
           if (tipo == 'search.matched') {
-            _searchMatchedController.add(Map<String, dynamic>.from(payloadData));
+            _searchMatchedController
+                .add(Map<String, dynamic>.from(payloadData));
           } else if (tipo == 'offer.updated' ||
               tipo == 'offer.new' ||
               tipo == 'offer.inquiry' ||
@@ -165,6 +209,23 @@ class SocketService {
     }
   }
 
+  bool _looksLikeAuthenticationError(dynamic error) {
+    final message = error?.toString().toLowerCase() ?? '';
+    return message.contains('token') ||
+        message.contains('jwt') ||
+        message.contains('auth') ||
+        message.contains('unauthorized') ||
+        message.contains('expired') ||
+        message.contains('invalid');
+  }
+
+  void _requestAuthenticationRecovery() {
+    final token = _connectedToken;
+    if (token == null || token == _lastRejectedToken) return;
+    _lastRejectedToken = token;
+    _authenticationRequiredController.add(null);
+  }
+
   void disconnect() {
     if (_socket != null) {
       debugPrint('[SocketService] Disconnecting socket...');
@@ -191,7 +252,8 @@ class SocketService {
     }
   }
 
-  Future<bool> sendMessage(String conversationId, String content, {String type = 'text'}) async {
+  Future<bool> sendMessage(String conversationId, String content,
+      {String type = 'text'}) async {
     if (_socket?.connected == true) {
       final completer = Completer<bool>();
       _socket!.emitWithAck('message.send', {
@@ -202,7 +264,8 @@ class SocketService {
         if (data != null && data['status'] == 'ok') {
           completer.complete(true);
         } else {
-          completer.completeError(data?['error'] ?? 'Error desconocido al enviar');
+          completer
+              .completeError(data?['error'] ?? 'Error desconocido al enviar');
         }
       });
       return completer.future;
@@ -226,6 +289,8 @@ class SocketService {
     disconnect();
     _searchMatchedController.close();
     _offerUpdatedController.close();
+    _connectedController.close();
+    _authenticationRequiredController.close();
     _messageController.close();
     _typingStartController.close();
     _typingStopController.close();

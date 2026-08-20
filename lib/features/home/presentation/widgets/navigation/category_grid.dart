@@ -30,13 +30,14 @@ class _CategoryConfig {
   });
 }
 
-/// Tarjetas de categorías principales del home sin borde contenedor.
+/// Tarjetas de categorías principales del home.
 class CategoryGrid extends ConsumerWidget {
   const CategoryGrid({super.key});
 
   void _handleCategoryTap(
       BuildContext context, WidgetRef ref, ServiceType type) {
     HapticFeedback.selectionClick();
+    ref.read(selectedServiceTypeProvider.notifier).state = type;
     switch (type) {
       case ServiceType.spareParts:
         final selectedVehicle = ref.read(searchVehicleProvider);
@@ -58,7 +59,6 @@ class CategoryGrid extends ConsumerWidget {
         context.push(RouteNames.mechanics);
         break;
       case ServiceType.storeDashboard:
-        ref.read(selectedServiceTypeProvider.notifier).state = type;
         break;
     }
   }
@@ -103,6 +103,7 @@ class CategoryGrid extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentRole = ref.watch(currentRoleProvider);
+    final selectedType = ref.watch(selectedServiceTypeProvider);
     final allowedTypes = currentRole.allowedServiceTypes;
     final availableTypes = ServiceType.values
         .where((type) => allowedTypes.contains(type))
@@ -122,6 +123,7 @@ class CategoryGrid extends ConsumerWidget {
           builder: (context, constraints) {
             Widget cardFor(int index) => _CategoryCard(
                   config: _configFor(availableTypes[index]),
+                  isSelected: selectedType == availableTypes[index],
                   isCompact: constraints.maxWidth < 400,
                   onTap: () =>
                       _handleCategoryTap(context, ref, availableTypes[index]),
@@ -160,11 +162,13 @@ class CategoryGrid extends ConsumerWidget {
 
 class _CategoryCard extends StatefulWidget {
   final _CategoryConfig config;
+  final bool isSelected;
   final bool isCompact;
   final VoidCallback onTap;
 
   const _CategoryCard({
     required this.config,
+    required this.isSelected,
     required this.isCompact,
     required this.onTap,
   });
@@ -183,6 +187,7 @@ class _CategoryCardState extends State<_CategoryCard> {
 
     return Semantics(
       button: true,
+      selected: widget.isSelected,
       label: widget.config.semanticsLabel,
       onTap: widget.onTap,
       container: true,
@@ -198,8 +203,10 @@ class _CategoryCardState extends State<_CategoryCard> {
             color: Colors.white,
             borderRadius: radius,
             border: Border.all(
-              color: AppColors.primary.withValues(alpha: 0.22),
-              width: 1.25,
+              color: widget.isSelected
+                  ? AppColors.primary
+                  : AppColors.primary.withValues(alpha: 0.22),
+              width: widget.isSelected ? 2 : 1.25,
             ),
             boxShadow: [
               BoxShadow(

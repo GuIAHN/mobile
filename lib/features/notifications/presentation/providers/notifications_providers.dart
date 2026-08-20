@@ -16,7 +16,8 @@ final notificationsRemoteDatasourceProvider =
   return NotificationsRemoteDatasource(ref.watch(dioClientProvider));
 });
 
-final notificationsRepositoryProvider = Provider<NotificationsRepository>((ref) {
+final notificationsRepositoryProvider =
+    Provider<NotificationsRepository>((ref) {
   return NotificationsRepositoryImpl(
     ref.watch(notificationsRemoteDatasourceProvider),
   );
@@ -50,12 +51,19 @@ final getUnreadNotificationsCountUseCaseProvider =
   );
 });
 
-final unreadNotificationsCountProvider = FutureProvider.autoDispose<int>((ref) async {
+final unreadNotificationsCountProvider =
+    FutureProvider.autoDispose<int>((ref) async {
   final socketService = ref.watch(socketServiceProvider);
   final sub = socketService.onNotification.listen((_) {
     ref.invalidateSelf();
   });
-  ref.onDispose(sub.cancel);
+  final connectedSub = socketService.onConnected.listen((_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(() {
+    sub.cancel();
+    connectedSub.cancel();
+  });
 
   final result = await ref.watch(getUnreadNotificationsCountUseCaseProvider)();
   return result.fold(
@@ -78,7 +86,13 @@ final notificationsProvider = StateNotifierProvider.autoDispose<
   final sub = socketService.onNotification.listen((_) {
     notifier.refresh();
   });
-  ref.onDispose(sub.cancel);
+  final connectedSub = socketService.onConnected.listen((_) {
+    notifier.refresh();
+  });
+  ref.onDispose(() {
+    sub.cancel();
+    connectedSub.cancel();
+  });
 
   return notifier;
 });

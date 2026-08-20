@@ -4,12 +4,38 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../../core/domain/enums/user_role.dart';
 import '../../../../../core/services/location_service.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../auth/presentation/providers/auth_state.dart';
+
+String _headerDisplayName(String rawName, UserRole role) {
+  final name = rawName.trim();
+  final roleLabels = switch (role) {
+    UserRole.store => const ['tienda', 'store'],
+    UserRole.mechanic => const ['mecánico', 'mecanico', 'mechanic'],
+    UserRole.workshop => const ['taller', 'workshop'],
+    UserRole.consumer => const ['cliente', 'consumer'],
+    UserRole.admin => const ['administrador', 'admin'],
+    UserRole.unknown => const <String>[],
+  };
+
+  if (roleLabels.isEmpty) return name;
+
+  final roleSuffix = roleLabels.map(RegExp.escape).join('|');
+  return name
+      .replaceFirst(
+        RegExp(
+          '\\s*\\((?:$roleSuffix)\\)\\s*\$',
+          caseSensitive: false,
+        ),
+        '',
+      )
+      .trim();
+}
 
 class HomeHeaderExpanded extends ConsumerStatefulWidget {
   /// Contenido opcional integrado dentro del bloque de color
@@ -197,7 +223,9 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
     final isLocationShared = ref.watch(isLocationSharedProvider);
     final locationAsync = ref.watch(userLocationProvider);
     final authState = ref.watch(authProvider);
-    final userName = authState.user?.name.trim();
+    final user = authState.user;
+    final userName =
+        user == null ? null : _headerDisplayName(user.name, user.role);
     final isLoadingAuth = authState.status == AuthStatus.loading ||
         authState.status == AuthStatus.initial;
 
@@ -425,7 +453,8 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
                             height: 22,
                             borderRadius: 6,
                             baseColor: Colors.white.withValues(alpha: 0.22),
-                            highlightColor: Colors.white.withValues(alpha: 0.40),
+                            highlightColor:
+                                Colors.white.withValues(alpha: 0.40),
                           ),
                           const SizedBox(height: 8),
                           SkeletonBox(
@@ -433,7 +462,8 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
                             height: 13,
                             borderRadius: 4,
                             baseColor: Colors.white.withValues(alpha: 0.16),
-                            highlightColor: Colors.white.withValues(alpha: 0.30),
+                            highlightColor:
+                                Colors.white.withValues(alpha: 0.30),
                           ),
                         ],
                       ),

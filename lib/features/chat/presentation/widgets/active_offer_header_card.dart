@@ -12,6 +12,8 @@ class ActiveOfferHeaderCard extends StatefulWidget {
   final VoidCallback? onDeliverPressed;
   final VoidCallback? onReviewPressed;
   final VoidCallback? onViewStoreReviewsPressed;
+  final bool reviewHandledLocally;
+  final bool reviewHandlingStatusLoading;
 
   const ActiveOfferHeaderCard({
     super.key,
@@ -21,6 +23,8 @@ class ActiveOfferHeaderCard extends StatefulWidget {
     this.onDeliverPressed,
     this.onReviewPressed,
     this.onViewStoreReviewsPressed,
+    this.reviewHandledLocally = false,
+    this.reviewHandlingStatusLoading = false,
   });
 
   @override
@@ -34,7 +38,8 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
   Widget build(BuildContext context) {
     final details = widget.details;
     final isStore = widget.isStore;
-    final hasDetails = (details.requestDetails != null && details.requestDetails!.isNotEmpty) ||
+    final hasDetails = (details.requestDetails != null &&
+            details.requestDetails!.isNotEmpty) ||
         (details.offerMessage != null && details.offerMessage!.isNotEmpty);
 
     final isBought = details.offerStatus == 'BOUGHT';
@@ -75,7 +80,8 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: details.sparePhotoUrl != null && details.sparePhotoUrl!.isNotEmpty
+                      child: details.sparePhotoUrl != null &&
+                              details.sparePhotoUrl!.isNotEmpty
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(11),
                               child: Image.network(
@@ -132,9 +138,11 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            details.spareBrand != null && details.spareBrand!.isNotEmpty
+                            details.spareBrand != null &&
+                                    details.spareBrand!.isNotEmpty
                                 ? details.spareBrand!
-                                : (details.subcategoryName ?? 'Repuesto solicitado'),
+                                : (details.subcategoryName ??
+                                    'Repuesto solicitado'),
                             style: GoogleFonts.hankenGrotesk(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
@@ -357,8 +365,8 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                                 AppColors.successLight.withValues(alpha: 0.4),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                                color: AppColors.success
-                                    .withValues(alpha: 0.3)),
+                                color:
+                                    AppColors.success.withValues(alpha: 0.3)),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -453,6 +461,18 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
 
   Widget _buildReviewSection(
       BuildContext context, ChatConversation details, bool isStore) {
+    if (widget.reviewHandlingStatusLoading && !isStore) {
+      return const SizedBox(
+        height: 48,
+        child: Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.primary,
+          ),
+        ),
+      );
+    }
+
     if (details.hasReviewed) {
       return Container(
         width: double.infinity,
@@ -509,6 +529,37 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                 ),
               ),
             ],
+          ],
+        ),
+      );
+    }
+
+    if (widget.reviewHandledLocally && !isStore) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.successLight.withValues(alpha: 0.45),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: AppColors.success.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded,
+                color: AppColors.successInk, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'VALORACIÓN ENVIADA',
+                style: GoogleFonts.hankenGrotesk(
+                  color: AppColors.successInk,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                ),
+              ),
+            ),
           ],
         ),
       );

@@ -1,0 +1,63 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../../core/router/route_names.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_typography.dart';
+
+/// Acceso público a las reseñas recibidas por un mecánico o taller.
+class ProviderReviewsButton extends StatelessWidget {
+  final String targetId;
+
+  const ProviderReviewsButton({
+    super.key,
+    required this.targetId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Ver reseñas de clientes',
+      child: OutlinedButton(
+        key: const Key('open-provider-reviews'),
+        onPressed: () => context.push(
+          RouteNames.providerReviewsPath(targetId),
+        ),
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(double.infinity, AppSpacing.buttonHeightMd),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
+          ),
+          foregroundColor: AppColors.primaryInk,
+          side: const BorderSide(
+            color: AppColors.primary,
+            width: 1.5,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+          ),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.reviews_outlined, size: 20),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(
+                'VER RESEÑAS DE CLIENTES',
+                textAlign: TextAlign.center,
+                style: AppTypography.label.copyWith(
+                  color: AppColors.primaryInk,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+}

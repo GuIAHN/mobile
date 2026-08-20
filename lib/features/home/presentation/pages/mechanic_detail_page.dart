@@ -4,6 +4,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../providers/home_providers.dart';
 import '../widgets/provider_detail_widgets.dart';
+import '../../../reviews/presentation/providers/reviews_providers.dart';
+import '../../../reviews/presentation/widgets/provider_review_action_card.dart';
+import '../../../reviews/presentation/widgets/provider_reviews_button.dart';
 
 class MechanicDetailPage extends ConsumerWidget {
   final String mechanicId;
@@ -66,8 +69,11 @@ class MechanicDetailPage extends ConsumerWidget {
                       distanciaKm: detail.distanciaKm,
                       tarifa: detail.tarifa,
                     ),
+                    if (detail.userId != null) ...[
+                      const SizedBox(height: 12),
+                      ProviderReviewsButton(targetId: detail.userId!),
+                    ],
                     const SizedBox(height: 24),
-
                     if (detail.especialidades.isNotEmpty) ...[
                       const DetailSectionTitle(title: 'Especialidades'),
                       const SizedBox(height: 14),
@@ -80,7 +86,6 @@ class MechanicDetailPage extends ConsumerWidget {
                       ),
                       const SizedBox(height: 28),
                     ],
-
                     DetailSectionTitle(
                         title: detail.esTaller
                             ? 'Sobre el taller'
@@ -93,7 +98,6 @@ class MechanicDetailPage extends ConsumerWidget {
                           : 'PRESENTACIÓN DEL MECÁNICO',
                     ),
                     const SizedBox(height: 28),
-
                     if (hasLocation) ...[
                       const DetailSectionTitle(title: 'Ubicación'),
                       const SizedBox(height: 14),
@@ -104,7 +108,6 @@ class MechanicDetailPage extends ConsumerWidget {
                       ),
                       const SizedBox(height: 28),
                     ],
-
                     if (hasContact) ...[
                       const DetailSectionTitle(title: 'Contacto'),
                       const SizedBox(height: 14),
@@ -115,8 +118,17 @@ class MechanicDetailPage extends ConsumerWidget {
                           value: detail.telefono!,
                           color: AppColors.success,
                           semanticsHint: 'Toca para llamar',
-                          onTap: () =>
-                              ContactActions.call(context, detail.telefono!),
+                          onTap: () async {
+                            await registerProviderContact(
+                              ref,
+                              providerProfileId: detail.id,
+                              channel: 'PHONE',
+                            );
+                            if (context.mounted) {
+                              await ContactActions.call(
+                                  context, detail.telefono!);
+                            }
+                          },
                         ),
                         DetailContactTile(
                           icon: Icons.chat_bubble_rounded,
@@ -124,10 +136,27 @@ class MechanicDetailPage extends ConsumerWidget {
                           value: detail.telefono!,
                           color: const Color(0xFF25D366),
                           semanticsHint: 'Toca para escribir por WhatsApp',
-                          onTap: () => ContactActions.whatsapp(
-                              context, detail.telefono!),
+                          onTap: () async {
+                            await registerProviderContact(
+                              ref,
+                              providerProfileId: detail.id,
+                              channel: 'WHATSAPP',
+                            );
+                            if (context.mounted) {
+                              await ContactActions.whatsapp(
+                                  context, detail.telefono!);
+                            }
+                          },
                         ),
                       ],
+                      const SizedBox(height: 24),
+                    ],
+                    if (detail.userId != null) ...[
+                      ProviderReviewActionCard(
+                        targetId: detail.userId!,
+                        providerProfileId: detail.id,
+                        providerName: detail.nombre,
+                      ),
                       const SizedBox(height: 24),
                     ],
                     const SizedBox(height: 32),

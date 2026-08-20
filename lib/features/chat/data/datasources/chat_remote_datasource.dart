@@ -20,7 +20,8 @@ class ChatRemoteDataSource {
     int pageSize = 20,
   }) async {
     final isStore = role == UserRole.store;
-    var endpoint = isStore ? ApiEndpoints.storeSearchRequests : ApiEndpoints.searchMe;
+    var endpoint =
+        isStore ? ApiEndpoints.storeSearchRequests : ApiEndpoints.searchMe;
     if (statusFilter != null && statusFilter.isNotEmpty) {
       endpoint = '$endpoint?status=$statusFilter&page=$page&pageSize=$pageSize';
     } else {
@@ -59,8 +60,11 @@ class ChatRemoteDataSource {
           title: title.isEmpty ? (subcategoryName ?? 'Solicitud') : title,
           requestType: ServiceType.spareParts,
           unreadCount: json['unreadCount'] as int? ?? 0,
-          conversationCount: json['totalOffersCount'] as int? ?? (json['hasOffer'] == true ? 1 : 0),
-          lastActivityAt: DateTime.parse(json['createdAt'] as String),
+          conversationCount: json['totalOffersCount'] as int? ??
+              (json['hasOffer'] == true ? 1 : 0),
+          lastActivityAt: DateTime.parse(
+            (json['lastMessageAt'] ?? json['createdAt']).toString(),
+          ),
           isOpen: json['requestStatus'] != 'CLOSED',
           clientName: json['consumerName'] as String? ?? 'Cliente',
           clientId: null,
@@ -69,11 +73,15 @@ class ChatRemoteDataSource {
           partType: json['partType'] as String?,
           vehicleYear: json['vehicle']?['year'] as int?,
           subcategory: subcategoryName as String?,
-          expiresAt: json['expiresAt'] != null ? DateTime.tryParse(json['expiresAt'].toString()) : null,
+          expiresAt: json['expiresAt'] != null
+              ? DateTime.tryParse(json['expiresAt'].toString())
+              : null,
           isExpired: json['isExpired'] as bool? ?? false,
           totalOffersCount: json['totalOffersCount'] as int? ?? 0,
           consumerAvatar: json['consumerAvatar'] as String?,
-          distance: json['distancia'] != null ? double.tryParse(json['distancia'].toString()) : null,
+          distance: json['distancia'] != null
+              ? double.tryParse(json['distancia'].toString())
+              : null,
           hasOffer: json['hasOffer'] as bool? ?? false,
           offerId: json['offerId'] as String?,
           offerStatus: json['offerStatus'] as String?,
@@ -93,10 +101,16 @@ class ChatRemoteDataSource {
 
         return ChatThreadModel(
           id: json['id'] as String,
-          title: title.isEmpty ? (subcategoryName ?? 'Vehículo no especificado') : title,
+          title: title.isEmpty
+              ? (subcategoryName ?? 'Vehículo no especificado')
+              : title,
           requestType: ServiceType.spareParts,
-          unreadCount: json['unreadCount'] as int? ?? json['_count']?['offers'] as int? ?? 0,
-          conversationCount: json['totalOffersCount'] as int? ?? json['_count']?['offers'] as int? ?? 0,
+          unreadCount: json['unreadCount'] as int? ??
+              json['_count']?['offers'] as int? ??
+              0,
+          conversationCount: json['totalOffersCount'] as int? ??
+              json['_count']?['offers'] as int? ??
+              0,
           lastActivityAt: DateTime.parse(json['createdAt'] as String),
           isOpen: json['status'] == 'OPEN',
           clientName: null,
@@ -106,9 +120,13 @@ class ChatRemoteDataSource {
           partType: json['partType'] as String?,
           vehicleYear: variant?['year'] as int?,
           subcategory: subcategoryName as String?,
-          expiresAt: json['expiresAt'] != null ? DateTime.tryParse(json['expiresAt'].toString()) : null,
+          expiresAt: json['expiresAt'] != null
+              ? DateTime.tryParse(json['expiresAt'].toString())
+              : null,
           isExpired: json['isExpired'] as bool? ?? false,
-          totalOffersCount: json['totalOffersCount'] as int? ?? json['_count']?['offers'] as int? ?? 0,
+          totalOffersCount: json['totalOffersCount'] as int? ??
+              json['_count']?['offers'] as int? ??
+              0,
           bestOfferPrice: json['bestOfferPrice'] != null
               ? double.tryParse(json['bestOfferPrice'].toString())
               : null,
@@ -160,9 +178,11 @@ class ChatRemoteDataSource {
         threadId: threadId,
         participantName: store?['name'] ?? 'Tienda',
         participantAvatarUrl: store?['logoUrl'] as String?,
-        lastMessage: json['message'] ?? '',
+        lastMessage: (json['lastMessage'] ?? json['message'] ?? '').toString(),
         unreadCount: json['unreadCount'] as int? ?? 0,
-        lastMessageAt: DateTime.parse(json['createdAt']),
+        lastMessageAt: DateTime.parse(
+          (json['lastMessageAt'] ?? json['createdAt']).toString(),
+        ),
         offerId: json['id'],
         offerStatus: json['status'],
         hasQuote: true,
@@ -286,7 +306,8 @@ class ChatRemoteDataSource {
       'searchMatchId': searchMatchId,
       if (price != null) 'price': price,
       if (brand != null && brand.isNotEmpty) 'spareBrand': brand,
-      if (sparePhotoUrl != null && sparePhotoUrl.isNotEmpty) 'sparePhotoUrl': sparePhotoUrl,
+      if (sparePhotoUrl != null && sparePhotoUrl.isNotEmpty)
+        'sparePhotoUrl': sparePhotoUrl,
     };
 
     final response = await _dioClient.post('offers', data: payload);

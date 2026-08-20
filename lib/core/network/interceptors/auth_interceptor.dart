@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../storage/secure_storage.dart';
+import '../../services/socket_service.dart';
 import '../api_endpoints.dart';
 import '../../../features/auth/presentation/providers/auth_provider.dart';
 
@@ -80,6 +81,16 @@ class AuthInterceptor extends Interceptor {
             await storage.saveRefreshToken(newRefreshToken);
           }
 
+          // Socket.IO keeps the authentication payload captured when the
+          // connection was created. Recreate it immediately with the rotated
+          // token; otherwise REST recovers while real-time stays disconnected.
+          try {
+            await _ref.read(socketServiceProvider).connect();
+          } catch (_) {
+            // Token rotation must still complete if real-time is temporarily
+            // unavailable. Socket.IO/lifecycle recovery will retry later.
+          }
+
           // Reintentar la petición original con el nuevo token.
           err.requestOptions.headers['Authorization'] = 'Bearer $newToken';
           final retryResponse = await _dio.fetch(err.requestOptions);
@@ -87,7 +98,8 @@ class AuthInterceptor extends Interceptor {
 
           // Reintentar peticiones pendientes.
           for (final pending in _pendingRequests) {
-            pending.err.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+            pending.err.requestOptions.headers['Authorization'] =
+                'Bearer $newToken';
             _dio.fetch(pending.err.requestOptions).then(
               (resp) => pending.handler.resolve(resp),
               onError: (dynamic error) {
@@ -127,7 +139,8 @@ class AuthInterceptor extends Interceptor {
             (message is List && message.contains('User not found'))) {
           isUserNotFound = true;
         }
-      } else if (responseData is String && responseData.contains('User not found')) {
+      } else if (responseData is String &&
+          responseData.contains('User not found')) {
         isUserNotFound = true;
       }
 

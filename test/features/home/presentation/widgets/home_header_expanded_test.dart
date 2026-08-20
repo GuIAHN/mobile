@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:guiautomotriz_mobile/core/services/location_service.dart';
 import 'package:guiautomotriz_mobile/core/storage/secure_storage.dart';
 import 'package:guiautomotriz_mobile/core/theme/app_colors.dart';
+import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
 import 'package:guiautomotriz_mobile/features/auth/domain/entities/user.dart';
 import 'package:guiautomotriz_mobile/features/auth/domain/repositories/auth_repository.dart';
 import 'package:guiautomotriz_mobile/features/auth/domain/usecases/login_usecase.dart';
@@ -209,6 +210,35 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('omits the user role suffix from the greeting', (tester) async {
+    const store = User(
+      id: 'store-1',
+      email: 'store@example.com',
+      name: 'Multirepuestos El Pana (Tienda)',
+      role: UserRole.store,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        authProvider.overrideWith(
+          (ref) => _TestAuthNotifier(
+            const AuthState(
+              status: AuthStatus.authenticated,
+              user: store,
+            ),
+          ),
+        ),
+        userCarsProvider.overrideWith((ref) async => const <UserCar>[]),
+        locationServiceProvider.overrideWithValue(_FakeLocationService()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await pumpHeader(tester, container);
+
+    expect(find.text('Hola, Multirepuestos El Pana'), findsOneWidget);
+    expect(find.textContaining('(Tienda)'), findsNothing);
   });
 
   testWidgets('shows honest empty-garage and location states', (tester) async {

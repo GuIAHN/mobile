@@ -2,6 +2,8 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/error/error_mapper.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/review.dart';
+import '../../domain/entities/my_review_status.dart';
+import '../../domain/entities/pending_review.dart';
 import '../../domain/repositories/reviews_repository.dart';
 import '../datasources/reviews_remote_datasource.dart';
 
@@ -30,13 +32,15 @@ class ReviewsRepositoryImpl implements ReviewsRepository {
 
   @override
   Future<Either<Failure, Review>> createReview({
-    required String conversationId,
+    String? conversationId,
+    String? targetId,
     required int rating,
     String? comentario,
   }) async {
     try {
       final review = await remoteDataSource.createReview(
         conversationId: conversationId,
+        targetId: targetId,
         rating: rating,
         comentario: comentario,
       );
@@ -68,6 +72,37 @@ class ReviewsRepositoryImpl implements ReviewsRepository {
   Future<Either<Failure, void>> deleteReview(String id) async {
     try {
       await remoteDataSource.deleteReview(id);
+      return const Right(null);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<PendingReview>>> getPendingReviews() async {
+    try {
+      return Right(await remoteDataSource.getPendingReviews());
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, MyReviewStatus>> getMyReview(String targetId) async {
+    try {
+      return Right(await remoteDataSource.getMyReview(targetId));
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> trackProviderContact(
+    String providerProfileId,
+    String channel,
+  ) async {
+    try {
+      await remoteDataSource.trackProviderContact(providerProfileId, channel);
       return const Right(null);
     } catch (e) {
       return Left(ErrorMapper.map(e));

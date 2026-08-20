@@ -20,6 +20,8 @@ class SecureStorage {
   static const _keyAccessToken = 'access_token';
   static const _keyRefreshToken = 'refresh_token';
   static const _keyUserId = 'user_id';
+  static const _contactedProviderPrefix = 'review_contacted_provider';
+  static const _handledStoreReviewPrefix = 'handled_store_review';
 
   // ── Access Token ─────────────────────────────────────────────────────────
 
@@ -57,6 +59,40 @@ class SecureStorage {
 
   Future<String?> getUserId() async {
     return _storage.read(key: _keyUserId);
+  }
+
+  Future<String?> _contactedProviderKey(String providerProfileId) async {
+    final userId = await getUserId();
+    if (userId == null || userId.isEmpty) return null;
+    return '${_contactedProviderPrefix}_${userId}_$providerProfileId';
+  }
+
+  Future<void> markProviderContacted(String providerProfileId) async {
+    final key = await _contactedProviderKey(providerProfileId);
+    if (key != null) await _storage.write(key: key, value: 'true');
+  }
+
+  Future<bool> hasContactedProvider(String providerProfileId) async {
+    final key = await _contactedProviderKey(providerProfileId);
+    if (key == null) return false;
+    return await _storage.read(key: key) == 'true';
+  }
+
+  Future<String?> _handledStoreReviewKey(String conversationId) async {
+    final userId = await getUserId();
+    if (userId == null || userId.isEmpty) return null;
+    return '${_handledStoreReviewPrefix}_${userId}_$conversationId';
+  }
+
+  Future<void> markStoreReviewHandled(String conversationId) async {
+    final key = await _handledStoreReviewKey(conversationId);
+    if (key != null) await _storage.write(key: key, value: 'true');
+  }
+
+  Future<bool> hasHandledStoreReview(String conversationId) async {
+    final key = await _handledStoreReviewKey(conversationId);
+    if (key == null) return false;
+    return await _storage.read(key: key) == 'true';
   }
 
   // ── Utilidades ───────────────────────────────────────────────────────────

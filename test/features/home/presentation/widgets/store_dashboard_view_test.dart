@@ -36,6 +36,31 @@ void main() {
     );
   }
 
+  DashboardResponse dashboardWithGrossSales(num value) {
+    return DashboardResponse(
+      scope: 'STORE',
+      computedAt: '2026-08-20T12:00:00.000Z',
+      groups: [
+        DashboardGroup(
+          title: 'Ventas',
+          panels: [
+            DashboardPanel(
+              id: 'M-T06',
+              span: 8,
+              metric: MetricResult(
+                id: 'M-T06',
+                title: 'Ventas brutas (GMV)',
+                unit: 'currency_hnl',
+                availability: 'AVAILABLE',
+                payload: {'value': value, 'deltaPct': 12.5},
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   Widget subject(
     Future<DashboardResponse> Function(Ref ref) loadDashboard, {
     Size size = const Size(375, 812),
@@ -89,6 +114,17 @@ void main() {
 
     expect(find.text(Formatters.currency(0)), findsOneWidget);
     expect(find.text('Estás al día'), findsOneWidget);
+  });
+
+  testWidgets('shows the M-T06 gross sales value in the activity card',
+      (tester) async {
+    await tester.pumpWidget(
+      subject((ref) async => dashboardWithGrossSales(1540.75)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ventas'), findsOneWidget);
+    expect(find.text(r'$ 1540.75'), findsOneWidget);
   });
 
   testWidgets('does not invent an amount when M-T10 is absent', (tester) async {

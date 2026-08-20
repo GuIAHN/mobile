@@ -1,3 +1,5 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -134,6 +136,7 @@ void main() {
     expect(find.byType(Image), findsNothing);
 
     for (final label in actionLabels) {
+      final isSelected = label == 'Pedir repuesto';
       final action = find.bySemanticsLabel(label);
       final decorations = tester
           .widgetList<Container>(
@@ -145,13 +148,65 @@ void main() {
           decorations.firstWhere((decoration) => decoration.boxShadow != null);
       final border = cardDecoration.border! as Border;
 
-      expect(border.top.width, 1.25);
+      expect(border.top.width, isSelected ? 2 : 1.25);
       expect(
         border.top.color,
-        AppColors.primary.withValues(alpha: 0.22),
+        isSelected
+            ? AppColors.primary
+            : AppColors.primary.withValues(alpha: 0.22),
       );
     }
   });
+
+  testWidgets('marks the current home action with a stronger border',
+      (tester) async {
+    await tester.pumpWidget(subject());
+
+    final selectedAction = find.bySemanticsLabel('Pedir repuesto');
+    final selectedData = tester.getSemantics(selectedAction).getSemanticsData();
+    expect(selectedData.flagsCollection.isSelected, Tristate.isTrue);
+
+    for (final label in const ['Buscar taller', 'Buscar mecánico']) {
+      final action = find.bySemanticsLabel(label);
+      final data = tester.getSemantics(action).getSemanticsData();
+      expect(data.flagsCollection.isSelected, Tristate.isFalse);
+    }
+  }, semanticsEnabled: true);
+
+  testWidgets('keeps the last selected home action highlighted on return',
+      (tester) async {
+    await tester.pumpWidget(subject());
+
+    await tester.tap(find.text('Buscar taller'));
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    final selectedAction = find.bySemanticsLabel('Buscar taller');
+    final decorations = tester
+        .widgetList<Container>(
+          find.descendant(
+            of: selectedAction,
+            matching: find.byType(Container),
+          ),
+        )
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>();
+    final cardDecoration =
+        decorations.firstWhere((decoration) => decoration.boxShadow != null);
+    final border = cardDecoration.border! as Border;
+
+    expect(border.top.color, AppColors.primary);
+    expect(border.top.width, 2);
+    expect(
+      tester
+          .getSemantics(selectedAction)
+          .getSemanticsData()
+          .flagsCollection
+          .isSelected,
+      Tristate.isTrue,
+    );
+  }, semanticsEnabled: true);
 
   testWidgets('each consumer action is a button with a 48 dp touch target',
       (tester) async {

@@ -24,6 +24,7 @@ import '../../features/chat/presentation/pages/chat_conversation_page.dart';
 import '../../features/chat/presentation/pages/mis_compras_page.dart';
 import '../../features/chat/presentation/pages/store_sales_page.dart';
 import '../../features/reviews/presentation/pages/provider_reviews_page.dart';
+import '../../features/reviews/presentation/pages/pending_reviews_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import 'route_names.dart';
 
@@ -176,8 +177,14 @@ class AppRouter {
               return ProviderReviewsPage(
                 targetId: id,
                 conversationId: conversationId,
+                isOwnProfile: state.uri.queryParameters['view'] == 'received',
               );
             },
+          ),
+          GoRoute(
+            path: RouteNames.pendingReviews,
+            name: 'pendingReviews',
+            builder: (context, state) => const PendingReviewsPage(),
           ),
 
           // ── Vehículos ────────────────────────────────────────────────────

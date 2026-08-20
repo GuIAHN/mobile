@@ -7,6 +7,9 @@ import '../../../../core/utils/formatters.dart';
 import '../../domain/entities/provider_detail.dart';
 import '../providers/home_providers.dart';
 import '../widgets/provider_detail_widgets.dart';
+import '../../../reviews/presentation/providers/reviews_providers.dart';
+import '../../../reviews/presentation/widgets/provider_review_action_card.dart';
+import '../../../reviews/presentation/widgets/provider_reviews_button.dart';
 
 class StoreDetailPage extends ConsumerWidget {
   final String storeId;
@@ -75,6 +78,10 @@ class StoreDetailPage extends ConsumerWidget {
                       distanciaKm: detail.distanciaKm,
                       tarifa: detail.tarifa,
                     ),
+                    if (!isStore && detail.userId != null) ...[
+                      const SizedBox(height: 12),
+                      ProviderReviewsButton(targetId: detail.userId!),
+                    ],
                     const SizedBox(height: 24),
                     if (detail.hasDelivery) ...[
                       const _DeliveryBadge(),
@@ -130,8 +137,19 @@ class StoreDetailPage extends ConsumerWidget {
                           value: detail.telefono!,
                           color: AppColors.success,
                           semanticsHint: 'Toca para llamar',
-                          onTap: () =>
-                              ContactActions.call(context, detail.telefono!),
+                          onTap: () async {
+                            if (!isStore) {
+                              await registerProviderContact(
+                                ref,
+                                providerProfileId: detail.id,
+                                channel: 'PHONE',
+                              );
+                            }
+                            if (context.mounted) {
+                              await ContactActions.call(
+                                  context, detail.telefono!);
+                            }
+                          },
                         ),
                         DetailContactTile(
                           icon: Icons.chat_bubble_rounded,
@@ -139,10 +157,29 @@ class StoreDetailPage extends ConsumerWidget {
                           value: detail.telefono!,
                           color: const Color(0xFF25D366),
                           semanticsHint: 'Toca para escribir por WhatsApp',
-                          onTap: () => ContactActions.whatsapp(
-                              context, detail.telefono!),
+                          onTap: () async {
+                            if (!isStore) {
+                              await registerProviderContact(
+                                ref,
+                                providerProfileId: detail.id,
+                                channel: 'WHATSAPP',
+                              );
+                            }
+                            if (context.mounted) {
+                              await ContactActions.whatsapp(
+                                  context, detail.telefono!);
+                            }
+                          },
                         ),
                       ],
+                      const SizedBox(height: 24),
+                    ],
+                    if (!isStore && detail.userId != null) ...[
+                      ProviderReviewActionCard(
+                        targetId: detail.userId!,
+                        providerProfileId: detail.id,
+                        providerName: detail.nombre,
+                      ),
                       const SizedBox(height: 24),
                     ],
                     const SizedBox(height: 32),

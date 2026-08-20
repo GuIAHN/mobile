@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/domain/enums/offer_status.dart';
 import '../../domain/entities/chat_thread.dart';
+import '../../../reports/presentation/providers/reports_provider.dart';
 import '../providers/chat_providers.dart';
 import 'quote_input_dialog.dart';
 import '_atoms/card_shell.dart';
@@ -106,6 +107,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
               ),
             );
             ref.invalidate(storeSalesRequestsProvider);
+            ref.invalidate(storeDashboardProvider);
           }
         },
       );

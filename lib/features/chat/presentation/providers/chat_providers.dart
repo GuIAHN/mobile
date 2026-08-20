@@ -84,21 +84,47 @@ final storeStatusFilterProvider = StateProvider<String>((ref) => 'UNQUOTED');
 /// Filtro activo para consultas de consumidores (ALL, OPEN, WITH_OFFER, BOUGHT, CLOSED).
 final consumerStatusFilterProvider = StateProvider<String>((ref) => 'ALL');
 
+/// Contador estable de eventos de tiempo real para las listas de chat.
+///
+/// Las suscripciones antes vivían dentro de cada `FutureProvider`. Al llegar
+/// un mensaje, el provider se invalidaba y recreaba también su suscripción;
+/// una ráfaga podía caer justo en ese intervalo y dejar la tarjeta con el
+/// primer mensaje recibido. Esta suscripción tiene un ciclo de vida separado
+/// y conserva todos los eventos mientras las consultas se actualizan.
+final _chatRealtimeRevisionProvider =
+    StateNotifierProvider<_ChatRealtimeRevisionNotifier, int>((ref) {
+  return _ChatRealtimeRevisionNotifier(ref.watch(socketServiceProvider));
+});
+
+class _ChatRealtimeRevisionNotifier extends StateNotifier<int> {
+  final List<StreamSubscription<dynamic>> _subscriptions;
+
+  _ChatRealtimeRevisionNotifier(SocketService socketService)
+      : _subscriptions = [],
+        super(0) {
+    _subscriptions.addAll([
+      socketService.onSearchMatched.listen((_) => _advance()),
+      socketService.onOfferUpdated.listen((_) => _advance()),
+      socketService.onMessage.listen((_) => _advance()),
+      socketService.onConnected.listen((_) => _advance()),
+    ]);
+  }
+
+  void _advance() => state++;
+
+  @override
+  void dispose() {
+    for (final subscription in _subscriptions) {
+      subscription.cancel();
+    }
+    super.dispose();
+  }
+}
+
 /// Solicitudes creadas por el consumidor. Viven en Compras, no en Chats.
 final consumerRequestsProvider = FutureProvider<ChatThreadsResult>((ref) async {
   final useCase = ref.watch(getChatThreadsUseCaseProvider);
-  final socketService = ref.watch(socketServiceProvider);
-
-  final offerSub = socketService.onOfferUpdated.listen((_) {
-    ref.invalidateSelf();
-  });
-  final messageSub = socketService.onMessage.listen((_) {
-    ref.invalidateSelf();
-  });
-  ref.onDispose(() {
-    offerSub.cancel();
-    messageSub.cancel();
-  });
+  ref.watch(_chatRealtimeRevisionProvider);
 
   final result = await useCase(
     role: UserRole.consumer,
@@ -114,18 +140,7 @@ final consumerRequestsProvider = FutureProvider<ChatThreadsResult>((ref) async {
 final storeSalesRequestsProvider =
     FutureProvider<ChatThreadsResult>((ref) async {
   final useCase = ref.watch(getChatThreadsUseCaseProvider);
-  final socketService = ref.watch(socketServiceProvider);
-
-  final matchSub = socketService.onSearchMatched.listen((_) {
-    ref.invalidateSelf();
-  });
-  final offerSub = socketService.onOfferUpdated.listen((_) {
-    ref.invalidateSelf();
-  });
-  ref.onDispose(() {
-    matchSub.cancel();
-    offerSub.cancel();
-  });
+  ref.watch(_chatRealtimeRevisionProvider);
 
   final result = await useCase(
     role: UserRole.store,
@@ -151,18 +166,7 @@ final chatThreadsProvider = FutureProvider<ChatThreadsResult>((ref) {
 final myConversationsProvider =
     FutureProvider<List<ChatConversation>>((ref) async {
   final repository = ref.watch(chatRepositoryProvider);
-  final socketService = ref.watch(socketServiceProvider);
-
-  final messageSub = socketService.onMessage.listen((_) {
-    ref.invalidateSelf();
-  });
-  final offerSub = socketService.onOfferUpdated.listen((_) {
-    ref.invalidateSelf();
-  });
-  ref.onDispose(() {
-    messageSub.cancel();
-    offerSub.cancel();
-  });
+  ref.watch(_chatRealtimeRevisionProvider);
 
   final result = await repository.getMyConversations();
   return result.fold(
@@ -183,18 +187,7 @@ final hasUnreadChatThreadsProvider = Provider<bool>((ref) {
 final chatConversationDetailsProvider = FutureProvider.autoDispose
     .family<ChatConversation, String>((ref, conversationId) async {
   final repository = ref.watch(chatRepositoryProvider);
-  final socketService = ref.watch(socketServiceProvider);
-
-  final sub1 = socketService.onOfferUpdated.listen((_) {
-    ref.invalidateSelf();
-  });
-  final sub2 = socketService.onMessage.listen((_) {
-    ref.invalidateSelf();
-  });
-  ref.onDispose(() {
-    sub1.cancel();
-    sub2.cancel();
-  });
+  ref.watch(_chatRealtimeRevisionProvider);
 
   final result = await repository.getConversationDetails(conversationId);
   return result.fold(
@@ -207,22 +200,7 @@ final chatConversationDetailsProvider = FutureProvider.autoDispose
 final chatConversationsProvider = FutureProvider.autoDispose
     .family<List<ChatConversation>, String>((ref, threadId) async {
   final useCase = ref.watch(getConversationsUseCaseProvider);
-  final socketService = ref.watch(socketServiceProvider);
-
-  final sub1 = socketService.onOfferUpdated.listen((_) {
-    ref.invalidateSelf();
-  });
-  final sub2 = socketService.onMessage.listen((_) {
-    ref.invalidateSelf();
-  });
-  final sub3 = socketService.onSearchMatched.listen((_) {
-    ref.invalidateSelf();
-  });
-  ref.onDispose(() {
-    sub1.cancel();
-    sub2.cancel();
-    sub3.cancel();
-  });
+  ref.watch(_chatRealtimeRevisionProvider);
 
   final result = await useCase(threadId);
   return result.fold(

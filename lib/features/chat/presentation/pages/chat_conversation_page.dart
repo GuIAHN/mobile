@@ -7,12 +7,14 @@ import '../providers/chat_providers.dart';
 import '../widgets/chat_message_bubble.dart';
 import '../widgets/active_offer_header_card.dart';
 import '../widgets/confirm_purchase_dialog.dart';
+import '../../../reviews/presentation/providers/reviews_providers.dart';
 import '../widgets/moderation_blocked_dialog.dart';
 import '../widgets/store_contact_sheet.dart';
 import '../widgets/quote_input_dialog.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
+import '../../../reports/presentation/providers/reports_provider.dart';
 import '../../../reviews/presentation/widgets/write_review_bottom_sheet.dart';
 
 class ChatConversationPage extends ConsumerStatefulWidget {
@@ -165,6 +167,8 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
 
     final detailsAsync =
         ref.watch(chatConversationDetailsProvider(widget.conversationId));
+    final reviewHandledLocally =
+        ref.watch(handledStoreReviewProvider(widget.conversationId));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -300,6 +304,8 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                 detailsAsync.valueOrNull!.hasQuote)
               ActiveOfferHeaderCard(
                 details: detailsAsync.valueOrNull!,
+                reviewHandledLocally: reviewHandledLocally.valueOrNull ?? false,
+                reviewHandlingStatusLoading: reviewHandledLocally.isLoading,
                 isStore: isStore,
                 onBuyPressed: () async {
                   final details = detailsAsync.valueOrNull!;
@@ -354,6 +360,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                           widget.conversationId));
                       ref.invalidate(myConversationsProvider);
                       ref.invalidate(storeSalesRequestsProvider);
+                      ref.invalidate(storeDashboardProvider);
                     },
                   );
                 },
@@ -366,9 +373,11 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                     builder: (context) => WriteReviewBottomSheet(
                       targetId: details.storeUserId ?? '',
                       conversationId: widget.conversationId,
+                      providerName: details.participantName,
                     ),
                   );
                   if (res == true && mounted) {
+                    await markStoreReviewHandled(ref, widget.conversationId);
                     ref.invalidate(
                         chatConversationDetailsProvider(widget.conversationId));
                   }

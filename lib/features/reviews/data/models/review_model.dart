@@ -5,7 +5,7 @@ class ReviewModel extends Review {
     required super.id,
     required super.authorId,
     required super.targetId,
-    required super.conversationId,
+    super.conversationId,
     required super.rating,
     super.comentario,
     required super.createdAt,
@@ -23,7 +23,7 @@ class ReviewModel extends Review {
       id: rawId?.toString() ?? '',
       authorId: rawAuthorId?.toString() ?? '',
       targetId: rawTargetId?.toString() ?? '',
-      conversationId: rawConversationId?.toString() ?? '',
+      conversationId: rawConversationId?.toString(),
       rating: json['rating'] is num
           ? (json['rating'] as num).toInt()
           : int.tryParse(json['rating']?.toString() ?? '0') ?? 0,
@@ -31,7 +31,8 @@ class ReviewModel extends Review {
       createdAt: rawCreatedAt != null
           ? DateTime.tryParse(rawCreatedAt.toString()) ?? DateTime.now()
           : DateTime.now(),
-      authorName: (json['authorName'] ?? json['author_name'])?.toString() ?? 'Usuario anónimo',
+      authorName: (json['authorName'] ?? json['author_name'])?.toString() ??
+          'Usuario anónimo',
     );
   }
 
