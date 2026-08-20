@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/services/socket_service.dart';
 import '../../../../core/storage/secure_storage.dart';
+import '../../../../core/network/token_refresh_coordinator.dart';
 import '../../../../features/notifications/services/push_notifications_service.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/entities/store_category_config.dart';
@@ -25,7 +26,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _authRepository;
   final SecureStorage _secureStorage;
   final SocketService? _socketService;
+  final TokenRefreshCoordinator? _tokenRefreshCoordinator;
   StreamSubscription<Map<String, dynamic>>? _notificationSub;
+  StreamSubscription<void>? _sessionInvalidatedSub;
 
   static const _accountStatusTipos = {'user.approved', 'user.rejected'};
 
@@ -37,6 +40,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required AuthRepository authRepository,
     required SecureStorage secureStorage,
     SocketService? socketService,
+    TokenRefreshCoordinator? tokenRefreshCoordinator,
   })  : _loginUseCase = loginUseCase,
         _registerUseCase = registerUseCase,
         _updateProfileUseCase = updateProfileUseCase,
@@ -44,12 +48,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
         _authRepository = authRepository,
         _secureStorage = secureStorage,
         _socketService = socketService,
+        _tokenRefreshCoordinator = tokenRefreshCoordinator,
         super(const AuthState.initial()) {
     checkAuthStatus();
     _notificationSub = _socketService?.onNotification.listen((data) {
       if (_accountStatusTipos.contains(data['tipo'])) {
         refreshUser();
       }
+    });
+    _sessionInvalidatedSub =
+        tokenRefreshCoordinator?.onSessionInvalidated.listen((_) {
+      _socketService?.disconnect();
+      state = const AuthState(
+        status: AuthStatus.unauthenticated,
+        user: null,
+        errorMessage: 'Tu sesión expiró. Inicia sesión nuevamente.',
+      );
     });
   }
 
@@ -71,11 +85,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   @override
   void dispose() {
     _notificationSub?.cancel();
+    _sessionInvalidatedSub?.cancel();
     super.dispose();
   }
 
   /// Helper genérico para ejecutar llamadas de autenticación/registro.
-  Future<void> _runAuthAction(Future<Either<Failure, User>> Function() action) async {
+  Future<void> _runAuthAction(
+      Future<Either<Failure, User>> Function() action) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     final result = await action();
     result.fold(
@@ -86,6 +102,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
       },
       (user) {
+        _tokenRefreshCoordinator?.markSessionActive();
         state = state.copyWith(
           status: AuthStatus.authenticated,
           user: user,
@@ -136,6 +153,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         }
       },
       (user) {
+        _tokenRefreshCoordinator?.markSessionActive();
         state = state.copyWith(
           status: AuthStatus.authenticated,
           user: user,
@@ -150,7 +168,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String email,
     required String password,
   }) async {
-    await _runAuthAction(() => _loginUseCase(LoginParams(email: email, password: password)));
+    await _runAuthAction(
+        () => _loginUseCase(LoginParams(email: email, password: password)));
   }
 
   /// Executes social login.
@@ -167,10 +186,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
       (failure) {
         state = state.copyWith(
           status: AuthStatus.unauthenticated,
-          errorMessage: failure is SocialNotRegisteredFailure ? null : failure.message,
+          errorMessage:
+              failure is SocialNotRegisteredFailure ? null : failure.message,
         );
       },
       (user) {
+        _tokenRefreshCoordinator?.markSessionActive();
         state = state.copyWith(
           status: AuthStatus.authenticated,
           user: user,
@@ -367,7 +388,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Removes a car from the cached user profile.
   void removeUserCar(String carId) {
     if (state.user != null && state.user!.cars != null) {
-      final updatedCars = state.user!.cars!.where((c) => c.id != carId).toList();
+      final updatedCars =
+          state.user!.cars!.where((c) => c.id != carId).toList();
       state = state.copyWith(user: state.user!.copyWith(cars: updatedCars));
     }
   }

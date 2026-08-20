@@ -1,299 +1,574 @@
 import 'dart:async';
+import 'dart:collection';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
-import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:socket_io_client/socket_io_client.dart' as io;
+import 'package:uuid/uuid.dart';
+
 import '../config/app_config.dart';
+import '../network/token_refresh_coordinator.dart';
+import '../realtime/event_names.dart';
+import '../realtime/reconnect_policy.dart';
 import '../storage/secure_storage.dart';
 
-typedef SocketFactory = io.Socket Function(dynamic uri, dynamic options);
+class RealtimeRequestException implements Exception {
+  const RealtimeRequestException(this.code, this.message);
+
+  final String code;
+  final String message;
+
+  factory RealtimeRequestException.fromAck(Object? ack) {
+    final rawError = ack is Map ? ack['error'] : null;
+    if (rawError is Map) {
+      final rawCode = rawError['code'];
+      final rawMessage = rawError['message'];
+      return RealtimeRequestException(
+        rawCode is String && rawCode.isNotEmpty ? rawCode : 'REQUEST_REJECTED',
+        rawMessage is String && rawMessage.isNotEmpty
+            ? rawMessage
+            : 'La solicitud de chat no pudo procesarse.',
+      );
+    }
+    if (rawError is String && rawError.isNotEmpty) {
+      return RealtimeRequestException('REQUEST_REJECTED', rawError);
+    }
+    return const RealtimeRequestException(
+      'REQUEST_REJECTED',
+      'La solicitud de chat no pudo procesarse.',
+    );
+  }
+
+  @override
+  String toString() => message;
+}
+
+typedef RealtimeSocketFactory = io.Socket Function(
+  String uri,
+  Map<String, dynamic> options,
+);
 
 final socketServiceProvider = Provider<SocketService>((ref) {
-  final secureStorage = ref.watch(secureStorageProvider);
-  final service = SocketService(secureStorage);
-  ref.onDispose(() {
-    service.dispose();
-  });
+  final service = SocketService(
+    ref.watch(secureStorageProvider),
+    ref.watch(tokenRefreshCoordinatorProvider),
+  );
+  ref.onDispose(service.dispose);
   return service;
 });
 
 class SocketService {
+  SocketService(
+    this._secureStorage,
+    this._tokenRefreshCoordinator, {
+    RealtimeSocketFactory? socketFactory,
+    ReconnectPolicy reconnectPolicy = const ReconnectPolicy(),
+    Duration catchUpThreshold = Duration.zero,
+    Duration messageAckTimeout = const Duration(seconds: 8),
+  })  : _socketFactory =
+            socketFactory ?? ((uri, options) => io.io(uri, options)),
+        _reconnectPolicy = reconnectPolicy,
+        _catchUpThreshold = catchUpThreshold,
+        _messageAckTimeout = messageAckTimeout;
+
+  final SecureStorage _secureStorage;
+  final TokenRefreshCoordinator _tokenRefreshCoordinator;
+  final RealtimeSocketFactory _socketFactory;
+  final ReconnectPolicy _reconnectPolicy;
+  final Duration _catchUpThreshold;
+  final Duration _messageAckTimeout;
+
   io.Socket? _socket;
   String? _connectedToken;
-  final SecureStorage _secureStorage;
-  final SocketFactory _socketFactory;
+  bool _isConnecting = false;
+  bool _shouldReconnect = false;
+  bool _refreshInProgress = false;
+  bool _requiresRefresh = false;
+  bool _disposed = false;
+  int _reconnectAttempt = 0;
+  DateTime? _disconnectedAt;
+  Timer? _reconnectTimer;
+  Timer? _proactiveRefreshTimer;
 
-  SocketService(
-    this._secureStorage, {
-    SocketFactory? socketFactory,
-  }) : _socketFactory =
-            socketFactory ?? ((uri, options) => io.io(uri, options));
+  final Set<String> _activeConversationRooms = <String>{};
+  final Map<String, String> _pendingMessageIds = <String, String>{};
+  final Map<String, Timer> _typingDebounceTimers = {};
+  final LinkedHashSet<String> _seenEventIds = LinkedHashSet<String>();
+  final LinkedHashSet<String> _seenMessageIds = LinkedHashSet<String>();
+  static const _maxRememberedEventIds = 512;
 
-  // Streams for events
   final _searchMatchedController =
       StreamController<Map<String, dynamic>>.broadcast();
   final _offerUpdatedController =
       StreamController<Map<String, dynamic>>.broadcast();
-  final _connectedController = StreamController<void>.broadcast();
-  final _authenticationRequiredController = StreamController<void>.broadcast();
-
-  // Chat events
+  final _reviewCreatedController =
+      StreamController<Map<String, dynamic>>.broadcast();
   final _messageController = StreamController<Map<String, dynamic>>.broadcast();
   final _typingStartController = StreamController<String>.broadcast();
   final _typingStopController = StreamController<String>.broadcast();
-
-  // Notificación genérica: se emite para CUALQUIER tipo de notification.new,
-  // incluso las que no tienen un stream específico (offer.inquiry,
-  // user.approved, settlement.*, etc.). Úsese para refrescar badges/listas
-  // de notificaciones en tiempo real.
   final _notificationController =
       StreamController<Map<String, dynamic>>.broadcast();
+  final _connectedController = StreamController<void>.broadcast();
+  final _reconnectedController = StreamController<void>.broadcast();
 
   Stream<Map<String, dynamic>> get onSearchMatched =>
       _searchMatchedController.stream;
   Stream<Map<String, dynamic>> get onOfferUpdated =>
       _offerUpdatedController.stream;
-  Stream<void> get onConnected => _connectedController.stream;
-  Stream<void> get onAuthenticationRequired =>
-      _authenticationRequiredController.stream;
+  Stream<Map<String, dynamic>> get onReviewCreated =>
+      _reviewCreatedController.stream;
   Stream<Map<String, dynamic>> get onMessage => _messageController.stream;
   Stream<String> get onTypingStart => _typingStartController.stream;
   Stream<String> get onTypingStop => _typingStopController.stream;
   Stream<Map<String, dynamic>> get onNotification =>
       _notificationController.stream;
-
-  bool _isConnecting = false;
-  String? _lastRejectedToken;
+  Stream<void> get onConnected => _connectedController.stream;
+  Stream<void> get onReconnect => _reconnectedController.stream;
 
   bool get isConnected => _socket?.connected == true;
 
-  /// Connects with the latest access token from secure storage.
-  ///
-  /// [force] recreates the transport even if Socket.IO still reports an
-  /// active connection. This is used after the app resumes so the server
-  /// authenticates the session again and consumers can resync missed events.
-  Future<void> connect({bool force = false}) async {
-    if (_isConnecting) return;
+  Future<void> connect() async {
+    if (_disposed) return;
+    _shouldReconnect = true;
+    await _openSocket();
+  }
+
+  Future<void> _openSocket() async {
+    if (_disposed || !_shouldReconnect || _isConnecting) return;
     _isConnecting = true;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
 
     try {
       final token = await _secureStorage.getToken();
       if (token == null || token.isEmpty) {
-        debugPrint(
-            '[SocketService] No token found in secure storage. Disconnecting socket.');
-        disconnect();
+        debugPrint('[SocketService] No access token available.');
         return;
       }
+      if (_socket?.connected == true && _connectedToken == token) return;
 
-      if (!force &&
-          _socket != null &&
-          _connectedToken == token &&
-          (_socket!.connected || _socket!.active)) {
-        return;
-      }
-
-      debugPrint(
-          '[SocketService] Connecting socket with token hash: ${token.hashCode}');
-      if (_connectedToken != token) {
-        _lastRejectedToken = null;
-      }
-      disconnect();
+      _disposeSocket();
       _connectedToken = token;
+      final options = io.OptionBuilder()
+          .setTransports(['websocket'])
+          .enableForceNew()
+          .disableAutoConnect()
+          .disableReconnection()
+          .setAuth({'token': token})
+          .build();
+      final socketUrl = _socketUrl();
+      final socket = _socketFactory(socketUrl, options);
+      _socket = socket;
 
-      // Remove /api from base url if it exists for socket connection
-      String socketUrl = AppConfig.apiBaseUrl.replaceAll('/api', '');
-      if (socketUrl.endsWith('/')) {
-        socketUrl = socketUrl.substring(0, socketUrl.length - 1);
-      }
-
-      _socket = _socketFactory(
-        socketUrl,
-        io.OptionBuilder()
-            .setTransports(['websocket', 'polling'])
-            .enableForceNew()
-            .disableAutoConnect()
-            .setAuth({'token': token})
-            .setQuery({'token': token})
-            .build(),
-      );
-
-      _socket?.onConnect((_) {
-        debugPrint('[SocketService] Socket connected: ${_socket?.id}');
-        _connectedController.add(null);
-      });
-
-      _socket?.onConnectError((error) {
-        debugPrint('[SocketService] Socket connect error: $error');
-        if (_looksLikeAuthenticationError(error)) {
-          _requestAuthenticationRecovery();
+      socket.onConnect((_) {
+        _reconnectAttempt = 0;
+        _requiresRefresh = false;
+        _reconnectTimer?.cancel();
+        _reconnectTimer = null;
+        _scheduleProactiveRefresh(token);
+        for (final conversationId in _activeConversationRooms) {
+          socket.emit(RealtimeClientEvent.join, {
+            'conversationId': conversationId,
+          });
         }
+
+        _connectedController.add(null);
+
+        final disconnectedAt = _disconnectedAt;
+        _disconnectedAt = null;
+        if (disconnectedAt != null &&
+            DateTime.now().difference(disconnectedAt) >= _catchUpThreshold) {
+          _reconnectedController.add(null);
+        }
+        debugPrint('[SocketService] Socket connected: ${socket.id}');
       });
 
-      _socket?.onError((error) {
+      socket.onConnectError((error) {
+        debugPrint('[SocketService] Socket connect error: $error');
+        unawaited(_handleConnectError(error));
+      });
+      socket.onError((error) {
         debugPrint('[SocketService] Socket error: $error');
       });
-
-      _socket?.onDisconnect((reason) {
+      socket.on(RealtimeControlEvent.wsError, (error) {
+        debugPrint('[SocketService] Realtime request rejected: $error');
+        // The server's LRU cap deliberately evicts the oldest connection.
+        // Reconnecting it would immediately evict the next device and create
+        // an endless replacement loop across all devices.
+        if (_extractErrorCode(error) == 'CONNECTION_REPLACED') {
+          _shouldReconnect = false;
+        }
+      });
+      socket.on(RealtimeControlEvent.authExpired, (_) {
+        _disconnectedAt ??= DateTime.now();
+        _requiresRefresh = true;
+        unawaited(_refreshAndReconnect());
+      });
+      socket.onDisconnect((reason) {
+        _proactiveRefreshTimer?.cancel();
+        _proactiveRefreshTimer = null;
+        _disconnectedAt ??= DateTime.now();
         debugPrint('[SocketService] Socket disconnected: $reason');
-        // A server-side disconnect disables Socket.IO's automatic reconnect.
-        // The most common cause here is a JWT that expired while the app was
-        // backgrounded or the network was unavailable.
-        if (reason?.toString() == 'io server disconnect') {
-          _requestAuthenticationRecovery();
-        }
+        _scheduleReconnect();
       });
 
-      _socket?.on('search.matched', (data) {
-        debugPrint('Received search.matched: $data');
-        if (data != null && data['data'] != null) {
-          _searchMatchedController.add(Map<String, dynamic>.from(data['data']));
-        } else if (data is Map) {
-          _searchMatchedController.add(Map<String, dynamic>.from(data));
-        }
-      });
-
-      _socket?.on('offer.updated', (data) {
-        debugPrint('Received offer.updated: $data');
-        if (data != null && data['data'] != null) {
-          _offerUpdatedController.add(Map<String, dynamic>.from(data['data']));
-        } else if (data is Map) {
-          _offerUpdatedController.add(Map<String, dynamic>.from(data));
-        }
-      });
-
-      _socket?.on('notification.new', (data) {
-        debugPrint('Received notification.new: $data');
-        if (data != null && data is Map) {
-          final tipo = data['tipo'];
-          final payloadData = data['data'] ?? data;
-
-          if (tipo == 'search.matched') {
-            _searchMatchedController
-                .add(Map<String, dynamic>.from(payloadData));
-          } else if (tipo == 'offer.updated' ||
-              tipo == 'offer.new' ||
-              tipo == 'offer.inquiry' ||
-              tipo == 'offer.bought' ||
-              tipo == 'offer.delivered') {
-            _offerUpdatedController.add(Map<String, dynamic>.from(payloadData));
-          } else if (tipo == 'message.new') {
-            _messageController.add(Map<String, dynamic>.from(payloadData));
-          }
-
-          // Siempre emitir en el stream genérico, independientemente del
-          // tipo, para que badges/listas de notificaciones se refresquen.
-          _notificationController.add(Map<String, dynamic>.from(data));
-        }
-      });
-
-      _socket?.on('message.new', (data) {
-        if (data != null && data is Map) {
-          _messageController.add(Map<String, dynamic>.from(data));
-        }
-      });
-
-      _socket?.on('typing.start', (data) {
-        if (data != null && data['userId'] != null) {
-          _typingStartController.add(data['userId'].toString());
-        }
-      });
-
-      _socket?.on('typing.stop', (data) {
-        if (data != null && data['userId'] != null) {
-          _typingStopController.add(data['userId'].toString());
-        }
-      });
-
-      _socket?.connect();
+      _bindDomainEvents(socket);
+      socket.connect();
     } finally {
       _isConnecting = false;
     }
   }
 
-  bool _looksLikeAuthenticationError(dynamic error) {
-    final message = error?.toString().toLowerCase() ?? '';
-    return message.contains('token') ||
-        message.contains('jwt') ||
-        message.contains('auth') ||
-        message.contains('unauthorized') ||
-        message.contains('expired') ||
-        message.contains('invalid');
+  void _bindDomainEvents(io.Socket socket) {
+    socket.on(RealtimeServerEvent.searchMatched, (raw) {
+      final data = _eventData(RealtimeServerEvent.searchMatched, raw);
+      if (data != null) _searchMatchedController.add(data);
+    });
+    socket.on(RealtimeServerEvent.offerNew, (raw) {
+      final data = _eventData(RealtimeServerEvent.offerNew, raw);
+      if (data != null) _offerUpdatedController.add(data);
+    });
+    socket.on(RealtimeServerEvent.offerUpdated, (raw) {
+      final data = _eventData(RealtimeServerEvent.offerUpdated, raw);
+      if (data != null) _offerUpdatedController.add(data);
+    });
+    socket.on(RealtimeServerEvent.reviewCreated, (raw) {
+      final data = _eventData(RealtimeServerEvent.reviewCreated, raw);
+      if (data != null) _reviewCreatedController.add(data);
+    });
+    socket.on(RealtimeServerEvent.notificationNew, (raw) {
+      final data = _eventData(RealtimeServerEvent.notificationNew, raw);
+      if (data != null) _notificationController.add(data);
+    });
+    socket.on(RealtimeServerEvent.messageNew, (raw) {
+      final data = _eventData(RealtimeServerEvent.messageNew, raw);
+      if (data != null) _publishMessage(data);
+    });
+    socket.on(RealtimeServerEvent.typingStart, (raw) {
+      final data = _eventData(RealtimeServerEvent.typingStart, raw);
+      final userId = data?['userId'];
+      if (userId != null) _typingStartController.add(userId.toString());
+    });
+    socket.on(RealtimeServerEvent.typingStop, (raw) {
+      final data = _eventData(RealtimeServerEvent.typingStop, raw);
+      final userId = data?['userId'];
+      if (userId != null) _typingStopController.add(userId.toString());
+    });
   }
 
-  void _requestAuthenticationRecovery() {
-    final token = _connectedToken;
-    if (token == null || token == _lastRejectedToken) return;
-    _lastRejectedToken = token;
-    _authenticationRequiredController.add(null);
-  }
-
-  void disconnect() {
-    if (_socket != null) {
-      debugPrint('[SocketService] Disconnecting socket...');
-      _socket!.off('connect');
-      _socket!.off('connect_error');
-      _socket!.off('error');
-      _socket!.off('disconnect');
-      _socket!.off('search.matched');
-      _socket!.off('offer.updated');
-      _socket!.off('notification.new');
-      _socket!.off('message.new');
-      _socket!.off('typing.start');
-      _socket!.off('typing.stop');
-      _socket!.disconnect();
-      _socket!.dispose();
-      _socket = null;
+  Map<String, dynamic>? _eventData(String expectedName, Object? raw) {
+    if (raw is! Map) return null;
+    final map = Map<String, dynamic>.from(raw);
+    if (map['eventId'] is String && map['data'] is Map) {
+      if (map['v'] != realtimeContractVersion || map['name'] != expectedName) {
+        debugPrint('[SocketService] Ignored incompatible event: $map');
+        return null;
+      }
+      final eventId = map['eventId'] as String;
+      if (!_seenEventIds.add(eventId)) return null;
+      if (_seenEventIds.length > _maxRememberedEventIds) {
+        _seenEventIds.remove(_seenEventIds.first);
+      }
+      return Map<String, dynamic>.from(map['data'] as Map);
     }
-    _connectedToken = null;
+
+    // One-release compatibility for a rolling backend/mobile deployment.
+    return map;
+  }
+
+  Future<void> _handleConnectError(Object? error) async {
+    final code = _extractErrorCode(error);
+    _disposeSocket();
+    switch (code) {
+      case 'AUTH_TOKEN_EXPIRED':
+      case 'AUTH_TOKEN_REQUIRED':
+        _requiresRefresh = true;
+        await _refreshAndReconnect();
+        return;
+      case 'AUTH_CONNECTION_LIMIT':
+        _scheduleReconnect();
+        return;
+      case 'AUTH_ACCESS_TOKEN_REQUIRED':
+      case 'AUTH_INVALID':
+      case 'ACCOUNT_INACTIVE':
+      case 'ACCOUNT_PENDING_APPROVAL':
+        _shouldReconnect = false;
+        await _tokenRefreshCoordinator.invalidateSession();
+        return;
+      default:
+        _scheduleReconnect();
+        return;
+    }
+  }
+
+  String? _extractErrorCode(Object? error) {
+    if (error is Map) {
+      final code = error['code'];
+      if (code is String) return code;
+      return _extractErrorCode(error['data']);
+    }
+    try {
+      final dynamic value = error;
+      return _extractErrorCode(value.data);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _refreshAndReconnect() async {
+    if (_disposed || !_shouldReconnect || _refreshInProgress) return;
+    _refreshInProgress = true;
+    _proactiveRefreshTimer?.cancel();
+    _proactiveRefreshTimer = null;
+    try {
+      await _tokenRefreshCoordinator.refreshAccessToken();
+      _requiresRefresh = false;
+      _disconnectedAt ??= DateTime.now();
+      _disposeSocket();
+      await _openSocket();
+    } on SessionInvalidatedException {
+      _shouldReconnect = false;
+      _disposeSocket();
+    } on TokenRefreshUnavailableException {
+      _requiresRefresh = true;
+      _scheduleReconnect();
+    } finally {
+      _refreshInProgress = false;
+    }
+  }
+
+  void _scheduleReconnect() {
+    if (_disposed || !_shouldReconnect || _reconnectTimer != null) return;
+    final delay = _reconnectPolicy.delayForAttempt(_reconnectAttempt);
+    _reconnectAttempt += 1;
+    _reconnectTimer = Timer(delay, () {
+      _reconnectTimer = null;
+      if (_requiresRefresh) {
+        unawaited(_refreshAndReconnect());
+      } else {
+        unawaited(_openSocket());
+      }
+    });
+  }
+
+  void _scheduleProactiveRefresh(String token) {
+    _proactiveRefreshTimer?.cancel();
+    final expiresAt = _jwtExpiration(token);
+    if (expiresAt == null) return;
+    final refreshAt = expiresAt.subtract(const Duration(minutes: 1));
+    final delay = refreshAt.difference(DateTime.now());
+    _proactiveRefreshTimer = Timer(
+      delay.isNegative ? Duration.zero : delay,
+      () {
+        _requiresRefresh = true;
+        unawaited(_refreshAndReconnect());
+      },
+    );
+  }
+
+  DateTime? _jwtExpiration(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      final payload = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+      );
+      final exp = payload is Map ? payload['exp'] : null;
+      return exp is num
+          ? DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000)
+          : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   void joinConversation(String conversationId) {
+    _activeConversationRooms.add(conversationId);
     if (_socket?.connected == true) {
-      _socket!.emit('join', {'conversationId': conversationId});
+      _socket!.emit(RealtimeClientEvent.join, {
+        'conversationId': conversationId,
+      });
     }
   }
 
-  Future<bool> sendMessage(String conversationId, String content,
-      {String type = 'text'}) async {
+  void leaveConversation(String conversationId) {
+    _activeConversationRooms.remove(conversationId);
     if (_socket?.connected == true) {
-      final completer = Completer<bool>();
-      _socket!.emitWithAck('message.send', {
+      _socket!.emit(RealtimeClientEvent.leave, {
         'conversationId': conversationId,
-        'content': content,
-        'type': type,
-      }, ack: (data) {
-        if (data != null && data['status'] == 'ok') {
-          completer.complete(true);
-        } else {
-          completer
-              .completeError(data?['error'] ?? 'Error desconocido al enviar');
-        }
       });
-      return completer.future;
+    }
+  }
+
+  Future<bool> sendMessage(
+    String conversationId,
+    String content, {
+    String type = 'text',
+  }) async {
+    if (_socket?.connected != true) return false;
+    const maxAttempts = 2;
+    final commandKey = '$conversationId\u0000$type\u0000$content';
+    final clientMessageId = _pendingMessageIds.putIfAbsent(
+      commandKey,
+      () => const Uuid().v4(),
+    );
+    try {
+      for (var attempt = 0; attempt < maxAttempts; attempt += 1) {
+        if (_socket?.connected != true) return false;
+        try {
+          final confirmed = await _sendMessageAttempt(
+            conversationId,
+            content,
+            type,
+            clientMessageId,
+          ).timeout(_messageAckTimeout);
+          _pendingMessageIds.remove(commandKey);
+          return confirmed;
+        } on TimeoutException {
+          if (attempt == maxAttempts - 1) {
+            throw const RealtimeRequestException(
+              'ACK_TIMEOUT',
+              'No se pudo confirmar el mensaje. Verifica tu conexión.',
+            );
+          }
+        }
+      }
+    } on RealtimeRequestException catch (error) {
+      // An ACK timeout is ambiguous, so keep the command id for a manual
+      // retry. Any server rejection is definitive and can release it.
+      if (error.code != 'ACK_TIMEOUT') _pendingMessageIds.remove(commandKey);
+      rethrow;
     }
     return false;
   }
 
+  Future<bool> _sendMessageAttempt(
+    String conversationId,
+    String content,
+    String type,
+    String clientMessageId,
+  ) {
+    final completer = Completer<bool>();
+    _socket!.emitWithAck(
+      RealtimeClientEvent.messageSend,
+      {
+        'clientMessageId': clientMessageId,
+        'conversationId': conversationId,
+        'content': content,
+        'type': type,
+      },
+      ack: (data) {
+        if (data is Map && data['status'] == 'ok') {
+          final rawMessage = data['message'];
+          if (!_disposed && rawMessage is Map) {
+            _publishMessage(Map<String, dynamic>.from(rawMessage));
+          }
+          completer.complete(true);
+        } else {
+          completer.completeError(RealtimeRequestException.fromAck(data));
+        }
+      },
+    );
+    return completer.future;
+  }
+
   void sendTypingStart(String conversationId) {
-    if (_socket?.connected == true) {
-      _socket!.emit('typing.start', {'conversationId': conversationId});
-    }
+    _emitTypingDebounced(RealtimeClientEvent.typingStart, conversationId);
   }
 
   void sendTypingStop(String conversationId) {
-    if (_socket?.connected == true) {
-      _socket!.emit('typing.stop', {'conversationId': conversationId});
+    _emitTypingDebounced(RealtimeClientEvent.typingStop, conversationId);
+  }
+
+  void _emitTypingDebounced(String event, String conversationId) {
+    if (_socket?.connected != true) return;
+    final key = '$event:$conversationId';
+    if (_typingDebounceTimers.containsKey(key)) return;
+    _socket!.emit(event, {'conversationId': conversationId});
+    _typingDebounceTimers[key] = Timer(
+      const Duration(milliseconds: 250),
+      () => _typingDebounceTimers.remove(key),
+    );
+  }
+
+  void disconnect() {
+    _shouldReconnect = false;
+    _requiresRefresh = false;
+    _reconnectAttempt = 0;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _proactiveRefreshTimer?.cancel();
+    _proactiveRefreshTimer = null;
+    _activeConversationRooms.clear();
+    _pendingMessageIds.clear();
+    _seenEventIds.clear();
+    _seenMessageIds.clear();
+    _disconnectedAt = null;
+    _disposeSocket();
+  }
+
+  void _publishMessage(Map<String, dynamic> message) {
+    final id = message['id'];
+    if (id is String && id.isNotEmpty) {
+      if (!_seenMessageIds.add(id)) return;
+      if (_seenMessageIds.length > _maxRememberedEventIds) {
+        _seenMessageIds.remove(_seenMessageIds.first);
+      }
     }
+    _messageController.add(message);
+  }
+
+  void _disposeSocket() {
+    for (final timer in _typingDebounceTimers.values) {
+      timer.cancel();
+    }
+    _typingDebounceTimers.clear();
+    final socket = _socket;
+    _socket = null;
+    _connectedToken = null;
+    if (socket == null) return;
+
+    socket.off('connect');
+    socket.off('connect_error');
+    socket.off('error');
+    socket.off('disconnect');
+    socket.off(RealtimeControlEvent.wsError);
+    socket.off(RealtimeControlEvent.authExpired);
+    for (final event in const [
+      RealtimeServerEvent.searchMatched,
+      RealtimeServerEvent.offerNew,
+      RealtimeServerEvent.offerUpdated,
+      RealtimeServerEvent.reviewCreated,
+      RealtimeServerEvent.notificationNew,
+      RealtimeServerEvent.messageNew,
+      RealtimeServerEvent.typingStart,
+      RealtimeServerEvent.typingStop,
+    ]) {
+      socket.off(event);
+    }
+    socket.disconnect();
+    socket.dispose();
+  }
+
+  String _socketUrl() {
+    var url = AppConfig.apiBaseUrl.replaceAll('/api', '');
+    if (url.endsWith('/')) url = url.substring(0, url.length - 1);
+    return url;
   }
 
   void dispose() {
+    if (_disposed) return;
     disconnect();
+    _disposed = true;
     _searchMatchedController.close();
     _offerUpdatedController.close();
-    _connectedController.close();
-    _authenticationRequiredController.close();
+    _reviewCreatedController.close();
     _messageController.close();
     _typingStartController.close();
     _typingStopController.close();
     _notificationController.close();
+    _connectedController.close();
+    _reconnectedController.close();
   }
 }

@@ -5,6 +5,7 @@ export 'auth_notifier.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/socket_service.dart';
 import '../../../../core/storage/secure_storage.dart';
+import '../../../../core/network/token_refresh_coordinator.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -77,6 +78,7 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
     authRepository: ref.watch(authRepositoryProvider),
     secureStorage: ref.watch(secureStorageProvider),
     socketService: ref.watch(socketServiceProvider),
+    tokenRefreshCoordinator: ref.watch(tokenRefreshCoordinatorProvider),
   );
 });
 

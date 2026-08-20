@@ -84,33 +84,89 @@ final storeStatusFilterProvider = StateProvider<String>((ref) => 'UNQUOTED');
 /// Filtro activo para consultas de consumidores (ALL, OPEN, WITH_OFFER, BOUGHT, CLOSED).
 final consumerStatusFilterProvider = StateProvider<String>((ref) => 'ALL');
 
-/// Contador estable de eventos de tiempo real para las listas de chat.
-///
-/// Las suscripciones antes vivían dentro de cada `FutureProvider`. Al llegar
-/// un mensaje, el provider se invalidaba y recreaba también su suscripción;
-/// una ráfaga podía caer justo en ese intervalo y dejar la tarjeta con el
-/// primer mensaje recibido. Esta suscripción tiene un ciclo de vida separado
-/// y conserva todos los eventos mientras las consultas se actualizan.
+/// Stable, targeted revisions for chat queries. Subscriptions live outside the
+/// FutureProviders, so an event cannot be lost while a query invalidates and
+/// rebuilds itself. Each query observes only the domains that affect it,
+/// avoiding the previous all-lists-on-every-event refetch pattern.
 final _chatRealtimeRevisionProvider =
-    StateNotifierProvider<_ChatRealtimeRevisionNotifier, int>((ref) {
+    StateNotifierProvider<_ChatRealtimeRevisionNotifier, _ChatRealtimeRevision>(
+        (ref) {
   return _ChatRealtimeRevisionNotifier(ref.watch(socketServiceProvider));
 });
 
-class _ChatRealtimeRevisionNotifier extends StateNotifier<int> {
-  final List<StreamSubscription<dynamic>> _subscriptions;
+class _ChatRealtimeRevision {
+  const _ChatRealtimeRevision({
+    this.consumerRequests = 0,
+    this.storeSales = 0,
+    this.conversations = 0,
+    this.details = 0,
+  });
 
+  final int consumerRequests;
+  final int storeSales;
+  final int conversations;
+  final int details;
+}
+
+class _ChatRealtimeRevisionNotifier
+    extends StateNotifier<_ChatRealtimeRevision> {
   _ChatRealtimeRevisionNotifier(SocketService socketService)
       : _subscriptions = [],
-        super(0) {
+        super(const _ChatRealtimeRevision()) {
     _subscriptions.addAll([
-      socketService.onSearchMatched.listen((_) => _advance()),
-      socketService.onOfferUpdated.listen((_) => _advance()),
-      socketService.onMessage.listen((_) => _advance()),
-      socketService.onConnected.listen((_) => _advance()),
+      socketService.onSearchMatched.listen((_) => _advance(storeSales: true)),
+      socketService.onOfferUpdated.listen(
+        (_) => _advance(
+          consumerRequests: true,
+          storeSales: true,
+          conversations: true,
+          details: true,
+        ),
+      ),
+      socketService.onMessage.listen(
+        (_) => _advance(
+          consumerRequests: true,
+          storeSales: true,
+          conversations: true,
+        ),
+      ),
+      socketService.onNotification.listen((event) {
+        // Inquiry creation currently has no independent domain event on the
+        // mobile contract, so its notification is the targeted invalidation.
+        if (event['tipo'] == 'offer.inquiry') {
+          _advance(
+            consumerRequests: true,
+            conversations: true,
+            details: true,
+          );
+        }
+      }),
+      socketService.onReconnect.listen(
+        (_) => _advance(
+          consumerRequests: true,
+          storeSales: true,
+          conversations: true,
+          details: true,
+        ),
+      ),
     ]);
   }
 
-  void _advance() => state++;
+  final List<StreamSubscription<dynamic>> _subscriptions;
+
+  void _advance({
+    bool consumerRequests = false,
+    bool storeSales = false,
+    bool conversations = false,
+    bool details = false,
+  }) {
+    state = _ChatRealtimeRevision(
+      consumerRequests: state.consumerRequests + (consumerRequests ? 1 : 0),
+      storeSales: state.storeSales + (storeSales ? 1 : 0),
+      conversations: state.conversations + (conversations ? 1 : 0),
+      details: state.details + (details ? 1 : 0),
+    );
+  }
 
   @override
   void dispose() {
@@ -124,7 +180,9 @@ class _ChatRealtimeRevisionNotifier extends StateNotifier<int> {
 /// Solicitudes creadas por el consumidor. Viven en Compras, no en Chats.
 final consumerRequestsProvider = FutureProvider<ChatThreadsResult>((ref) async {
   final useCase = ref.watch(getChatThreadsUseCaseProvider);
-  ref.watch(_chatRealtimeRevisionProvider);
+  ref.watch(
+    _chatRealtimeRevisionProvider.select((value) => value.consumerRequests),
+  );
 
   final result = await useCase(
     role: UserRole.consumer,
@@ -140,7 +198,9 @@ final consumerRequestsProvider = FutureProvider<ChatThreadsResult>((ref) async {
 final storeSalesRequestsProvider =
     FutureProvider<ChatThreadsResult>((ref) async {
   final useCase = ref.watch(getChatThreadsUseCaseProvider);
-  ref.watch(_chatRealtimeRevisionProvider);
+  ref.watch(
+    _chatRealtimeRevisionProvider.select((value) => value.storeSales),
+  );
 
   final result = await useCase(
     role: UserRole.store,
@@ -166,7 +226,9 @@ final chatThreadsProvider = FutureProvider<ChatThreadsResult>((ref) {
 final myConversationsProvider =
     FutureProvider<List<ChatConversation>>((ref) async {
   final repository = ref.watch(chatRepositoryProvider);
-  ref.watch(_chatRealtimeRevisionProvider);
+  ref.watch(
+    _chatRealtimeRevisionProvider.select((value) => value.conversations),
+  );
 
   final result = await repository.getMyConversations();
   return result.fold(
@@ -187,7 +249,9 @@ final hasUnreadChatThreadsProvider = Provider<bool>((ref) {
 final chatConversationDetailsProvider = FutureProvider.autoDispose
     .family<ChatConversation, String>((ref, conversationId) async {
   final repository = ref.watch(chatRepositoryProvider);
-  ref.watch(_chatRealtimeRevisionProvider);
+  ref.watch(
+    _chatRealtimeRevisionProvider.select((value) => value.details),
+  );
 
   final result = await repository.getConversationDetails(conversationId);
   return result.fold(
@@ -200,7 +264,9 @@ final chatConversationDetailsProvider = FutureProvider.autoDispose
 final chatConversationsProvider = FutureProvider.autoDispose
     .family<List<ChatConversation>, String>((ref, threadId) async {
   final useCase = ref.watch(getConversationsUseCaseProvider);
-  ref.watch(_chatRealtimeRevisionProvider);
+  ref.watch(
+    _chatRealtimeRevisionProvider.select((value) => value.conversations),
+  );
 
   final result = await useCase(threadId);
   return result.fold(
@@ -216,29 +282,31 @@ class ChatMessagesNotifier
   final GetMessagesUseCase _getMessagesUseCase;
   final SocketService _socketService;
   final String _conversationId;
+  final String _currentUserId;
   StreamSubscription? _msgSub;
-  StreamSubscription? _offerSub;
+  StreamSubscription? _reconnectSub;
 
   ChatMessagesNotifier({
     required GetMessagesUseCase getMessagesUseCase,
     required SocketService socketService,
     required String conversationId,
+    required String currentUserId,
   })  : _getMessagesUseCase = getMessagesUseCase,
         _socketService = socketService,
         _conversationId = conversationId,
+        _currentUserId = currentUserId,
         super(const AsyncValue.loading()) {
     loadMessages();
     _socketService.joinConversation(_conversationId);
 
-    // Escuchar nuevos mensajes y actualizaciones de oferta
+    // Apply complete message payloads locally. This keeps an active chat at
+    // zero HTTP reads per message while eventId/id de-duplication protects
+    // against retries and multi-room delivery.
     _msgSub = _socketService.onMessage.listen((data) {
-      if (data['conversationId'] == _conversationId ||
-          data['conversationId'] == null) {
-        loadMessages();
-      }
+      if (data['conversationId'] != _conversationId) return;
+      _appendMessage(data);
     });
-
-    _offerSub = _socketService.onOfferUpdated.listen((_) {
+    _reconnectSub = _socketService.onReconnect.listen((_) {
       loadMessages();
     });
   }
@@ -262,22 +330,52 @@ class ChatMessagesNotifier
 
   Future<void> sendMessage(String content) async {
     if (content.trim().isEmpty) return;
-    try {
-      final success =
-          await _socketService.sendMessage(_conversationId, content);
-      if (!success) {
-        throw Exception(
-            'Sin conexión al servidor de chat. Verifica tu red o recarga la app.');
-      }
-    } catch (e) {
-      throw Exception(e.toString());
+    final success = await _socketService.sendMessage(_conversationId, content);
+    if (!success) {
+      throw Exception(
+          'Sin conexión al servidor de chat. Verifica tu red o recarga la app.');
     }
+  }
+
+  void _appendMessage(Map<String, dynamic> data) {
+    final id = data['id']?.toString();
+    final senderId = data['senderId']?.toString();
+    final content = data['content']?.toString();
+    final createdAt = DateTime.tryParse(data['createdAt']?.toString() ?? '');
+    if (id == null ||
+        id.isEmpty ||
+        senderId == null ||
+        content == null ||
+        createdAt == null) {
+      return;
+    }
+
+    final current = state.valueOrNull;
+    if (current == null || current.any((message) => message.id == id)) return;
+    final typeName = data['type']?.toString();
+    final type = MessageType.values.firstWhere(
+      (value) => value.name == typeName,
+      orElse: () => MessageType.text,
+    );
+    final message = ChatMessage(
+      id: id,
+      conversationId: _conversationId,
+      senderId: senderId,
+      senderName: data['senderName']?.toString() ?? 'Usuario',
+      isFromMe: senderId == _currentUserId,
+      content: content,
+      type: type,
+      createdAt: createdAt,
+      isRead: data['read'] == true,
+    );
+    state = AsyncValue.data([message, ...current]);
   }
 
   @override
   void dispose() {
     _msgSub?.cancel();
-    _offerSub?.cancel();
+    _reconnectSub?.cancel();
+    _socketService.leaveConversation(_conversationId);
     super.dispose();
   }
 }
@@ -289,5 +387,6 @@ final chatMessagesProvider = StateNotifierProvider.family
     getMessagesUseCase: ref.watch(getMessagesUseCaseProvider),
     socketService: ref.watch(socketServiceProvider),
     conversationId: conversationId,
+    currentUserId: ref.watch(currentUserProvider)?.id ?? '',
   );
 });

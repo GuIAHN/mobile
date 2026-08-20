@@ -20,19 +20,22 @@ void main() {
       () async {
     final socket = _MockSocketService();
     final getThreads = _MockGetChatThreadsUseCase();
-    final connected = StreamController<void>.broadcast();
+    final reconnected = StreamController<void>.broadcast();
     final matched = StreamController<Map<String, dynamic>>.broadcast();
     final offers = StreamController<Map<String, dynamic>>.broadcast();
     final messages = StreamController<Map<String, dynamic>>.broadcast();
-    addTearDown(connected.close);
+    final notifications = StreamController<Map<String, dynamic>>.broadcast();
+    addTearDown(reconnected.close);
     addTearDown(matched.close);
     addTearDown(offers.close);
     addTearDown(messages.close);
+    addTearDown(notifications.close);
 
-    when(() => socket.onConnected).thenAnswer((_) => connected.stream);
+    when(() => socket.onReconnect).thenAnswer((_) => reconnected.stream);
     when(() => socket.onSearchMatched).thenAnswer((_) => matched.stream);
     when(() => socket.onOfferUpdated).thenAnswer((_) => offers.stream);
     when(() => socket.onMessage).thenAnswer((_) => messages.stream);
+    when(() => socket.onNotification).thenAnswer((_) => notifications.stream);
     when(
       () => getThreads(
         role: UserRole.store,
@@ -66,7 +69,7 @@ void main() {
       ),
     ).called(1);
 
-    connected.add(null);
+    reconnected.add(null);
     await pumpEventQueue();
     await container.read(storeSalesRequestsProvider.future);
 
@@ -81,19 +84,22 @@ void main() {
   test('store sales refresh after every incoming chat message', () async {
     final socket = _MockSocketService();
     final getThreads = _MockGetChatThreadsUseCase();
-    final connected = StreamController<void>.broadcast();
+    final reconnected = StreamController<void>.broadcast();
     final matched = StreamController<Map<String, dynamic>>.broadcast();
     final offers = StreamController<Map<String, dynamic>>.broadcast();
     final messages = StreamController<Map<String, dynamic>>.broadcast();
-    addTearDown(connected.close);
+    final notifications = StreamController<Map<String, dynamic>>.broadcast();
+    addTearDown(reconnected.close);
     addTearDown(matched.close);
     addTearDown(offers.close);
     addTearDown(messages.close);
+    addTearDown(notifications.close);
 
-    when(() => socket.onConnected).thenAnswer((_) => connected.stream);
+    when(() => socket.onReconnect).thenAnswer((_) => reconnected.stream);
     when(() => socket.onSearchMatched).thenAnswer((_) => matched.stream);
     when(() => socket.onOfferUpdated).thenAnswer((_) => offers.stream);
     when(() => socket.onMessage).thenAnswer((_) => messages.stream);
+    when(() => socket.onNotification).thenAnswer((_) => notifications.stream);
     when(
       () => getThreads(
         role: UserRole.store,

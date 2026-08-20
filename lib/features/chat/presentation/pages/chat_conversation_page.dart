@@ -13,6 +13,7 @@ import '../widgets/store_contact_sheet.dart';
 import '../widgets/quote_input_dialog.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/domain/enums/user_role.dart';
+import '../../../../core/services/socket_service.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../reports/presentation/providers/reports_provider.dart';
 import '../../../reviews/presentation/widgets/write_review_bottom_sheet.dart';
@@ -91,14 +92,13 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSending = false);
-        final message = e.toString().replaceAll('Exception:', '').trim();
+        final message = e is RealtimeRequestException
+            ? e.message
+            : e.toString().replaceAll('Exception:', '').trim();
         // Moderation rejections get a dedicated dialog (deliberate policy
         // violation) instead of the generic SnackBar used for transient
         // errors (disconnects, not-a-participant, etc.).
-        // Must match a substring of ModerationService.VIOLATION_MESSAGE
-        // (backend: moderation.service.ts) so only that specific rejection
-        // gets the dialog treatment.
-        if (message.contains('enlaces externos')) {
+        if (e is RealtimeRequestException && e.code == 'CONTENT_REJECTED') {
           ModerationBlockedDialog.show(context);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -114,7 +114,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
 
   Future<void> _quoteFromChat(String offerId, String requestTitle) async {
     final result = await QuoteInputDialog.show(context, requestTitle);
-    if (result == null) return;
+    if (result == null || !mounted) return;
 
     setState(() => _isQuoting = true);
     final scaffold = ScaffoldMessenger.of(context);
@@ -441,7 +441,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
             // ── Compose box ───────────────────────────────────────────────
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.white,
                 border: Border(top: BorderSide(color: AppColors.border)),
               ),

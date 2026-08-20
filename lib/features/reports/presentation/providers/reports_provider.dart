@@ -80,16 +80,22 @@ String? _formatDate(DateTime? date) {
 
 void _listenForDashboardRefresh(Ref ref) {
   final socketService = ref.watch(socketServiceProvider);
-  final offerSub = socketService.onOfferUpdated.listen((_) {
-    ref.invalidateSelf();
+  final notificationSub = socketService.onNotification.listen((event) {
+    if (const {
+      'search.matched',
+      'offer.bought',
+      'offer.delivered',
+    }.contains(event['tipo'])) {
+      ref.invalidateSelf();
+    }
   });
-  final searchSub = socketService.onSearchMatched.listen((_) {
+  final reconnectSub = socketService.onReconnect.listen((_) {
     ref.invalidateSelf();
   });
 
   ref.onDispose(() {
-    offerSub.cancel();
-    searchSub.cancel();
+    notificationSub.cancel();
+    reconnectSub.cancel();
   });
 }
 
