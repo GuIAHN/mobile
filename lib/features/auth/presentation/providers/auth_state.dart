@@ -2,7 +2,14 @@ import 'package:equatable/equatable.dart';
 import '../../domain/entities/user.dart';
 
 /// Estado posible para la pantalla de login.
-enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
+enum AuthStatus {
+  initial,
+  loading,
+  authenticated,
+  unauthenticated,
+  providerRegistrationSucceeded,
+  error,
+}
 
 /// Estado inmutable de la UI de autenticación.
 class AuthState extends Equatable {
@@ -26,12 +33,16 @@ class AuthState extends Equatable {
     return AuthState(
       status: status ?? this.status,
       user: user ?? this.user,
-      errorMessage: errorMessage == _sentinel ? this.errorMessage : errorMessage as String?,
+      errorMessage: errorMessage == _sentinel
+          ? this.errorMessage
+          : errorMessage as String?,
     );
   }
 
   bool get isLoading => status == AuthStatus.loading;
   bool get isAuthenticated => status == AuthStatus.authenticated;
+  bool get isProviderRegistrationSucceeded =>
+      status == AuthStatus.providerRegistrationSucceeded;
   bool get hasError => status == AuthStatus.error;
 
   @override

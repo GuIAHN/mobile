@@ -9,25 +9,33 @@ IconData getSpecialtyIcon(String name) {
   if (lower.contains('aire') || lower.contains('climatización')) {
     return Icons.ac_unit_outlined;
   }
-  if (lower.contains('tuning') || lower.contains('reprogramación') || lower.contains('computadoras')) {
+  if (lower.contains('tuning') ||
+      lower.contains('reprogramación') ||
+      lower.contains('computadoras')) {
     return Icons.computer_outlined;
   }
   if (lower.contains('escaneo') || lower.contains('diagnóstico')) {
     return Icons.troubleshoot_outlined;
   }
-  if (lower.contains('detallado') || lower.contains('detailing') || lower.contains('estética')) {
+  if (lower.contains('detallado') ||
+      lower.contains('detailing') ||
+      lower.contains('estética')) {
     return Icons.auto_awesome_outlined;
   }
   if (lower.contains('electricidad') || lower.contains('electrónica')) {
     return Icons.bolt_outlined;
   }
-  if (lower.contains('latonería') || lower.contains('pintura') || lower.contains('restauración')) {
+  if (lower.contains('latonería') ||
+      lower.contains('pintura') ||
+      lower.contains('restauración')) {
     return Icons.format_paint_outlined;
   }
   if (lower.contains('frenos') || lower.contains('abs')) {
     return Icons.album_outlined;
   }
-  if (lower.contains('suspensión') || lower.contains('dirección') || lower.contains('alineación')) {
+  if (lower.contains('suspensión') ||
+      lower.contains('dirección') ||
+      lower.contains('alineación')) {
     return Icons.swap_vert_outlined;
   }
   if (lower.contains('transmisiones automáticas') || lower.contains('cvt')) {
@@ -68,7 +76,9 @@ String getSpecialtyDescription(String name) {
   if (lower.contains('suspensión') || lower.contains('alineación')) {
     return 'Amortiguadores, terminales de dirección, alineación 3D y balanceo.';
   }
-  if (lower.contains('transmisión') || lower.contains('cvt') || lower.contains('embrague')) {
+  if (lower.contains('transmisión') ||
+      lower.contains('cvt') ||
+      lower.contains('embrague')) {
     return 'Diagnóstico, reconstrucción de cajas de cambios y kits de embrague.';
   }
   if (lower.contains('turbo')) {
@@ -83,6 +93,9 @@ class WorkshopSpecialtiesStep extends StatelessWidget {
   final List<Specialty> specialties;
   final String cardTitle;
   final String cardDescription;
+  final bool isLoading;
+  final Object? loadError;
+  final VoidCallback? onRetry;
 
   const WorkshopSpecialtiesStep({
     super.key,
@@ -90,28 +103,20 @@ class WorkshopSpecialtiesStep extends StatelessWidget {
     required this.onSpecialtyToggled,
     required this.specialties,
     this.cardTitle = 'Capacidad Técnica',
-    this.cardDescription = 'Su selección define el tipo de órdenes de servicio que recibirá en el panel de administración. Asegúrese de contar con las herramientas certificadas para cada especialidad elegida.',
+    this.cardDescription =
+        'Su selección define el tipo de órdenes de servicio que recibirá en el panel de administración. Asegúrese de contar con las herramientas certificadas para cada especialidad elegida.',
+    this.isLoading = false,
+    this.loadError,
+    this.onRetry,
   });
 
   @override
   Widget build(BuildContext context) {
     if (specialties.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 48),
-        alignment: Alignment.center,
-        child: Column(
-          children: [
-            const CircularProgressIndicator(color: AppColors.primary),
-            const SizedBox(height: 16),
-            Text(
-              'Cargando especialidades de la API...',
-              style: GoogleFonts.hankenGrotesk(
-                color: AppColors.textSecondary,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
+      return _SpecialtiesState(
+        isLoading: isLoading,
+        hasError: loadError != null,
+        onRetry: onRetry,
       );
     }
 
@@ -126,7 +131,9 @@ class WorkshopSpecialtiesStep extends StatelessWidget {
           return GestureDetector(
             onTap: () => onSpecialtyToggled(specialty.id),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 200),
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -139,7 +146,7 @@ class WorkshopSpecialtiesStep extends StatelessWidget {
                 boxShadow: active
                     ? [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.10),
+                          color: AppColors.primary.withValues(alpha: 0.10),
                           blurRadius: 16,
                           offset: const Offset(0, 6),
                         ),
@@ -154,14 +161,15 @@ class WorkshopSpecialtiesStep extends StatelessWidget {
                     height: 44,
                     decoration: BoxDecoration(
                       color: active
-                          ? AppColors.primary.withOpacity(0.10)
+                          ? AppColors.primary.withValues(alpha: 0.10)
                           : AppColors.background,
                       borderRadius: BorderRadius.circular(13),
                     ),
                     child: Icon(
                       icon,
                       size: 22,
-                      color: active ? AppColors.primary : AppColors.textSecondary,
+                      color:
+                          active ? AppColors.primary : AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -209,7 +217,7 @@ class WorkshopSpecialtiesStep extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 14,
                 offset: const Offset(0, 6),
               ),
@@ -239,6 +247,86 @@ class WorkshopSpecialtiesStep extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SpecialtiesState extends StatelessWidget {
+  const _SpecialtiesState({
+    required this.isLoading,
+    required this.hasError,
+    this.onRetry,
+  });
+
+  final bool isLoading;
+  final bool hasError;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          children: [
+            if (isLoading)
+              const CircularProgressIndicator(color: AppColors.primary)
+            else
+              Icon(
+                hasError ? Icons.cloud_off_outlined : Icons.build_outlined,
+                color: hasError ? AppColors.error : AppColors.textSecondary,
+                size: 36,
+              ),
+            const SizedBox(height: 16),
+            Text(
+              hasError
+                  ? 'No pudimos cargar las especialidades'
+                  : isLoading
+                      ? 'Cargando especialidades…'
+                      : 'No hay especialidades disponibles',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.hankenGrotesk(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              hasError
+                  ? 'Revisa tu conexión e inténtalo nuevamente.'
+                  : isLoading
+                      ? 'Esto puede tomar unos segundos.'
+                      : 'Inténtalo más tarde o comunícate con soporte.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.hankenGrotesk(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+            if (hasError && onRetry != null) ...[
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('REINTENTAR'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(160, 48),
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

@@ -112,6 +112,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
   }
 
+  /// Runs a provider application without turning it into an authenticated
+  /// session. Provider accounts must be reviewed before entering the app.
+  Future<void> _runProviderRegistration(
+      Future<Either<Failure, User>> Function() action) async {
+    state = const AuthState(status: AuthStatus.loading);
+    final result = await action();
+    result.fold(
+      (failure) {
+        state = AuthState(
+          status: AuthStatus.unauthenticated,
+          errorMessage: failure.message,
+        );
+      },
+      (user) {
+        state = AuthState(
+          status: AuthStatus.providerRegistrationSucceeded,
+          user: user,
+        );
+      },
+    );
+  }
+
   /// Syncs the device token to the backend for push notifications
   Future<void> _syncDeviceToken() async {
     try {
@@ -242,7 +264,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? idToken,
     String? provider,
   }) async {
-    await _runAuthAction(
+    await _runProviderRegistration(
       () => _authRepository.registerMechanic(
         email: email,
         password: password,
@@ -275,7 +297,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? idToken,
     String? provider,
   }) async {
-    await _runAuthAction(
+    await _runProviderRegistration(
       () => _authRepository.registerStore(
         email: email,
         password: password,
@@ -301,6 +323,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
         errorMessage: null,
       );
     }
+  }
+
+  /// Leaves the provider registration confirmation ready for a fresh login.
+  void finishProviderRegistration() {
+    state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
   /// Logs out by calling repository logout (invalidating server session & clearing secure tokens)

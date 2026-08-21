@@ -11,6 +11,8 @@ import '../../../../shared/widgets/api_error_message.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
 import '../providers/social_registration_state.dart';
+import '../widgets/account_security_step.dart';
+import '../widgets/registration_step_feedback.dart';
 
 class RegisterUserPage extends ConsumerStatefulWidget {
   const RegisterUserPage({super.key});
@@ -26,7 +28,9 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
+  int _paso = 1;
+  final _scrollController = ScrollController();
   bool _formularioValido = false;
 
   @override
@@ -44,6 +48,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
     for (final controller in [
       _nameController,
       _emailController,
+      _phoneController,
       _passwordController,
       _confirmPasswordController
     ]) {
@@ -55,21 +60,32 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
     return Validators.password(_passwordController.text) == null;
   }
 
-  void _validarFormulario() {
-    final socialData = ref.read(socialRegistrationProvider);
-    final isSocial = socialData != null;
-
-    final nombreValido = Validators.required(_nameController.text, fieldName: 'Nombre') == null &&
-        _nameController.text.trim().split(' ').length >= 2;
+  bool get _datosValidos {
+    final nombreValido =
+        Validators.required(_nameController.text, fieldName: 'Nombre') ==
+                null &&
+            _nameController.text.trim().split(RegExp(r'\s+')).length >= 2;
     final correoValido = Validators.email(_emailController.text) == null;
-    final passValido = isSocial || _passwordValida;
-    final confirmValido = isSocial || Validators.confirmPassword(_confirmPasswordController.text, _passwordController.text) == null;
+    final phone = _phoneController.text.trim();
+    final telefonoValido = phone.isEmpty || Validators.phone(phone) == null;
+    return nombreValido && correoValido && telefonoValido;
+  }
 
-    final valido = nombreValido && correoValido && passValido && confirmValido;
+  bool get _seguridadValida {
+    final isSocial = ref.read(socialRegistrationProvider) != null;
+    return isSocial ||
+        (_passwordValida &&
+            Validators.confirmPassword(_confirmPasswordController.text,
+                    _passwordController.text) ==
+                null);
+  }
+
+  void _validarFormulario() {
+    final valido = _paso == 1 ? _datosValidos : _seguridadValida;
     if (valido != _formularioValido) {
       setState(() => _formularioValido = valido);
     }
-    
+
     // Si hay un error mostrado y el usuario empieza a escribir, limpiarlo
     if (ref.read(authProvider).errorMessage != null) {
       ref.read(authProvider.notifier).clearError();
@@ -83,12 +99,34 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _avanzar() {
+    if (!_formularioValido) return;
+    if (_paso == 1) {
+      setState(() => _paso = 2);
+      _validarFormulario();
+      _scrollToTop();
+      return;
+    }
+    _submit();
+  }
+
+  void _retroceder() {
+    if (_paso == 2) {
+      setState(() => _paso = 1);
+      _validarFormulario();
+      _scrollToTop();
+    } else {
+      context.go(RouteNames.register);
+    }
   }
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    
+
     String? sanitizedPhone;
     final rawPhone = _phoneController.text.trim();
     if (rawPhone.isNotEmpty) {
@@ -111,11 +149,18 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AuthState>(authProvider, (_, next) {
+    ref.listen<AuthState>(authProvider, (previous, next) {
       if (next.isAuthenticated) {
         if (mounted) {
           context.go(RouteNames.registerVehicles);
         }
+      } else if (previous?.isLoading == true && next.errorMessage != null) {
+        final message = next.errorMessage!.toLowerCase();
+        final securityError =
+            message.contains('contrase') || message.contains('password');
+        setState(() => _paso = securityError ? 2 : 1);
+        _validarFormulario();
+        _scrollToTop();
       }
     });
 
@@ -132,7 +177,9 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
             child: LayoutBuilder(
               builder: (context, viewportConstraints) {
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  controller: _scrollController,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       minHeight: viewportConstraints.maxHeight - 32,
@@ -151,95 +198,84 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                             const SizedBox(height: 24),
                             ApiErrorMessage(
                               message: state.errorMessage,
-                              onClose: () => ref.read(authProvider.notifier).clearError(),
+                              onClose: () =>
+                                  ref.read(authProvider.notifier).clearError(),
                             ),
-                            AppTextField(
-                              label: 'NOMBRE COMPLETO',
-                              controller: _nameController,
-                              hint: 'Tu nombre y apellido',
-                              prefixIcon: Icons.person_outline,
-                              textInputAction: TextInputAction.next,
-                              enabled: !isSocial,
-                              validator: (v) {
-                                final err = Validators.required(v, fieldName: 'El nombre');
-                                if (err != null) return err;
-                                if (v!.trim().split(' ').length < 2) {
-                                  return 'Ingresa nombre y apellido';
-                                }
-                                return null;
-                              },
+                            AnimatedSwitcher(
+                              duration: MediaQuery.disableAnimationsOf(context)
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 300),
+                              child: _paso == 1
+                                  ? Column(
+                                      key: const ValueKey('personal-data'),
+                                      children: [
+                                        AppTextField(
+                                          label: 'NOMBRE COMPLETO',
+                                          controller: _nameController,
+                                          hint: 'Tu nombre y apellido',
+                                          prefixIcon: Icons.person_outline,
+                                          textInputAction: TextInputAction.next,
+                                          enabled: !isSocial,
+                                          validator: (v) {
+                                            final err = Validators.required(v,
+                                                fieldName: 'El nombre');
+                                            if (err != null) return err;
+                                            if (v!
+                                                    .trim()
+                                                    .split(RegExp(r'\s+'))
+                                                    .length <
+                                                2) {
+                                              return 'Ingresa nombre y apellido';
+                                            }
+                                            return null;
+                                          },
+                                        ),
+                                        AppTextField(
+                                          label: 'CORREO ELECTRÓNICO',
+                                          controller: _emailController,
+                                          hint: 'ejemplo@correo.com',
+                                          prefixIcon: Icons.mail_outline,
+                                          keyboardType:
+                                              TextInputType.emailAddress,
+                                          textInputAction: TextInputAction.next,
+                                          enabled: !isSocial,
+                                          validator: Validators.email,
+                                        ),
+                                        AppTextField(
+                                          label: 'TELÉFONO (OPCIONAL)',
+                                          controller: _phoneController,
+                                          hint: '414 123 4567',
+                                          helperText:
+                                              'Ingresa el número de teléfono móvil',
+                                          prefixIcon: Icons.smartphone_outlined,
+                                          keyboardType: TextInputType.phone,
+                                          textInputAction: TextInputAction.done,
+                                          validator: (v) {
+                                            if (v != null &&
+                                                v.trim().isNotEmpty) {
+                                              return Validators.phone(v);
+                                            }
+                                            return null;
+                                          },
+                                        ),
+                                      ],
+                                    )
+                                  : AccountSecurityStep(
+                                      key: const ValueKey('account-security'),
+                                      passwordController: _passwordController,
+                                      confirmPasswordController:
+                                          _confirmPasswordController,
+                                      isSocial: isSocial,
+                                      socialProvider: socialData?.provider,
+                                    ),
                             ),
-                            AppTextField(
-                              label: 'CORREO ELECTRÓNICO',
-                              controller: _emailController,
-                              hint: 'ejemplo@correo.com',
-                              prefixIcon: Icons.mail_outline,
-                              keyboardType: TextInputType.emailAddress,
-                              textInputAction: TextInputAction.next,
-                              enabled: !isSocial,
-                              validator: Validators.email,
-                            ),
-                            AppTextField(
-                              label: 'TELÉFONO (OPCIONAL)',
-                              controller: _phoneController,
-                              hint: '414 123 4567',
-                              helperText: 'Ingresa el número de teléfono móvil',
-                              prefixIcon: Icons.smartphone_outlined,
-                              keyboardType: TextInputType.phone,
-                              textInputAction: isSocial ? TextInputAction.done : TextInputAction.next,
-                              onFieldSubmitted: isSocial
-                                  ? (_) {
-                                      if (_formularioValido && !state.isLoading) {
-                                        _submit();
-                                      }
-                                    }
-                                  : null,
-                              validator: (v) {
-                                if (v != null && v.isNotEmpty) {
-                                  return Validators.phone(v);
-                                }
-                                return null;
-                              },
-                            ),
-                            if (!isSocial) ...[
-                              AppTextField(
-                                label: 'CONTRASEÑA',
-                                controller: _passwordController,
-                                hint: '••••••••••',
-                                prefixIcon: Icons.lock_outline,
-                                obscureText: true,
-                                textInputAction: TextInputAction.next,
-                                validator: Validators.password,
-                              ),
-                              AppTextField(
-                                label: 'CONFIRMAR CONTRASEÑA',
-                                controller: _confirmPasswordController,
-                                hint: '••••••••••',
-                                prefixIcon: Icons.lock_outline,
-                                obscureText: true,
-                                textInputAction: TextInputAction.done,
-                                validator: (v) => Validators.confirmPassword(v, _passwordController.text),
-                                onFieldSubmitted: (_) {
-                                  if (_formularioValido && !state.isLoading) {
-                                    _submit();
-                                  }
-                                },
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Mín. 8 caracteres con al menos un número y un símbolo especial.',
-                                style: GoogleFonts.hankenGrotesk(
-                                  fontSize: 11.5,
-                                  color: _passwordController.text.isEmpty
-                                      ? AppColors.textSecondary
-                                      : (_passwordValida ? AppColors.success : AppColors.primary),
-                                ),
-                              ),
-                            ],
                             const Spacer(),
                             const SizedBox(height: 32),
                             _loginLink(),
                             const SizedBox(height: 16),
+                            RegistrationStepFeedback(
+                              message: _validationFeedback,
+                            ),
                             _footer(),
                           ],
                         ),
@@ -258,15 +294,17 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   Widget _appBar() {
     return Row(
       children: [
-        GestureDetector(
-          onTap: () => context.go(RouteNames.register),
-          child: const Icon(
+        IconButton(
+          onPressed: _retroceder,
+          tooltip: _paso == 1 ? 'Volver a elegir perfil' : 'Paso anterior',
+          constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+          padding: EdgeInsets.zero,
+          icon: const Icon(
             Icons.arrow_back_ios_new,
             color: AppColors.textPrimary,
             size: 22,
           ),
         ),
-        const SizedBox(width: 12),
         Text(
           'Registro de Usuario',
           style: GoogleFonts.hankenGrotesk(
@@ -276,11 +314,6 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
           ),
         ),
         const Spacer(),
-        const Icon(
-          Icons.help_outline,
-          color: AppColors.textSecondary,
-          size: 20,
-          ),
       ],
     );
   }
@@ -290,7 +323,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          'PASO 1 DE 2',
+          'PASO $_paso DE 3',
           style: GoogleFonts.hankenGrotesk(
             fontSize: 11,
             fontWeight: FontWeight.w800,
@@ -299,14 +332,14 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
           ),
         ),
         Row(
-          children: List.generate(2, (i) {
+          children: List.generate(3, (i) {
             return AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               width: 28,
               height: 5,
               margin: const EdgeInsets.only(left: 6),
               decoration: BoxDecoration(
-                color: i < 1 ? AppColors.primary : AppColors.border,
+                color: i < _paso ? AppColors.primary : AppColors.border,
                 borderRadius: BorderRadius.circular(99),
               ),
             );
@@ -317,11 +350,15 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   }
 
   Widget _tituloPaso() {
+    final title = _paso == 1 ? 'Crea tu Cuenta' : 'Protege tu Cuenta';
+    final subtitle = _paso == 1
+        ? 'Paso 1 de 3: Registra tus datos básicos.'
+        : 'Paso 2 de 3: Define cómo iniciarás sesión.';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Crea tu Cuenta',
+          title,
           style: GoogleFonts.hankenGrotesk(
             fontSize: 26,
             fontWeight: FontWeight.w800,
@@ -330,7 +367,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Paso 1 de 2: Registra tus datos básicos.',
+          subtitle,
           style: GoogleFonts.hankenGrotesk(
             fontSize: 13,
             height: 1.45,
@@ -372,7 +409,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
     final enabled = _formularioValido && !state.isLoading;
 
     return _PressableScale(
-      onTap: enabled ? _submit : null,
+      onTap: enabled ? _avanzar : null,
       child: SizedBox(
         width: double.infinity,
         child: AnimatedContainer(
@@ -382,7 +419,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
             boxShadow: enabled
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.4),
+                      color: AppColors.primary.withValues(alpha: 0.4),
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),
@@ -390,7 +427,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                 : [],
           ),
           child: ElevatedButton(
-            onPressed: enabled ? _submit : null,
+            onPressed: enabled ? _avanzar : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
@@ -417,7 +454,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'REGISTRARSE',
+                          _paso == 1 ? 'CONTINUAR' : 'CREAR CUENTA',
                           style: GoogleFonts.hankenGrotesk(
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
@@ -425,7 +462,12 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        const Icon(Icons.person_add_outlined, size: 18),
+                        Icon(
+                          _paso == 1
+                              ? Icons.chevron_right
+                              : Icons.person_add_outlined,
+                          size: 18,
+                        ),
                       ],
                     ),
             ),
@@ -433,6 +475,40 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
         ),
       ),
     );
+  }
+
+  String? get _validationFeedback {
+    if (_formularioValido) return null;
+    if (_paso == 1) {
+      if (Validators.required(_nameController.text) != null ||
+          _nameController.text.trim().split(RegExp(r'\s+')).length < 2) {
+        return 'Ingresa tu nombre y apellido para continuar.';
+      }
+      if (Validators.email(_emailController.text) != null) {
+        return 'Ingresa un correo electrónico válido.';
+      }
+      return 'Revisa el teléfono o déjalo vacío si prefieres agregarlo después.';
+    }
+    return Validators.password(_passwordController.text) ??
+        Validators.confirmPassword(
+          _confirmPasswordController.text,
+          _passwordController.text,
+        );
+  }
+
+  void _scrollToTop() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _scrollController.jumpTo(0);
+        return;
+      }
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
   }
 }
 

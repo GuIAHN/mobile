@@ -160,27 +160,10 @@ class AuthRepositoryImpl implements AuthRepository {
         provider: provider,
       );
 
-      final LoginResponseModel loginResponse;
-      if (idToken != null && provider != null) {
-        loginResponse = await remoteDataSource.socialLogin(
-          idToken: idToken,
-          provider: provider,
-        );
-      } else {
-        loginResponse = await remoteDataSource.login(
-          email: email,
-          password: password!,
-        );
-      }
-
-      await secureStorage.saveToken(loginResponse.accessToken);
-      if (loginResponse.refreshToken != null) {
-        await secureStorage.saveRefreshToken(loginResponse.refreshToken!);
-      }
-      await secureStorage.saveUserId(registeredUser.id);
-
-      final finalUser = await remoteDataSource.getCurrentUser();
-      return Right(finalUser);
+      // Provider accounts remain pending review. Do not auto-login here: doing
+      // so briefly exposed authenticated screens and triggered protected API
+      // calls before the registration confirmation could be shown.
+      return Right(registeredUser);
     } catch (e) {
       return Left(ErrorMapper.map(e));
     }
@@ -217,27 +200,9 @@ class AuthRepositoryImpl implements AuthRepository {
         provider: provider,
       );
 
-      final LoginResponseModel loginResponse;
-      if (idToken != null && provider != null) {
-        loginResponse = await remoteDataSource.socialLogin(
-          idToken: idToken,
-          provider: provider,
-        );
-      } else {
-        loginResponse = await remoteDataSource.login(
-          email: email,
-          password: password!,
-        );
-      }
-
-      await secureStorage.saveToken(loginResponse.accessToken);
-      if (loginResponse.refreshToken != null) {
-        await secureStorage.saveRefreshToken(loginResponse.refreshToken!);
-      }
-      await secureStorage.saveUserId(registeredUser.id);
-
-      final finalUser = await remoteDataSource.getCurrentUser();
-      return Right(finalUser);
+      // Stores also require approval, so registration success is intentionally
+      // not an authenticated session.
+      return Right(registeredUser);
     } catch (e) {
       return Left(ErrorMapper.map(e));
     }

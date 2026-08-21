@@ -6,7 +6,6 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/async_error_listener.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/api_error_message.dart';
 import '../../../catalog/domain/entities/category.dart';
@@ -15,7 +14,9 @@ import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
 import '../providers/social_registration_state.dart';
 import '../../domain/entities/store_category_config.dart';
+import '../widgets/account_security_step.dart';
 import '../widgets/registration_completed_step.dart';
+import '../widgets/registration_step_feedback.dart';
 import '../widgets/store_catalog_helper.dart';
 import '../widgets/store_catalog_step.dart';
 import '../widgets/store_profile_step.dart';
@@ -30,7 +31,11 @@ class RegisterStorePage extends ConsumerStatefulWidget {
 }
 
 class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
-  int _paso = 1; // 1..4
+  static const _totalSteps = 5;
+  static const _completedStep = 6;
+
+  int _paso = 1;
+  final _scrollController = ScrollController();
 
   // ===== Paso 1: Perfil de la tienda =====
   final _nombreCtrl = TextEditingController();
@@ -45,7 +50,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
   final List<LineaCatalogo> _catalogo = [];
 
   // ===== Paso 4: Ubicación =====
-  LatLng _location = const LatLng(14.0818, -87.2068);
+  LatLng _location = const LatLng(10.4806, -66.9036);
   bool _ubicacionConfirmada = false;
 
   @override
@@ -68,7 +73,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       _passwordCtrl,
       _confirmPasswordCtrl
     ]) {
-      c.addListener(() => setState(() {}));
+      c.addListener(_onFieldChanged);
     }
   }
 
@@ -80,7 +85,16 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     _rifCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmPasswordCtrl.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onFieldChanged() {
+    if (!mounted) return;
+    setState(() {});
+    if (ref.read(authProvider).errorMessage != null) {
+      ref.read(authProvider.notifier).clearError();
+    }
   }
 
   LineaCatalogo? _buscarLinea(String categoryId) {
@@ -140,16 +154,17 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
         return Validators.required(_nombreCtrl.text) == null &&
             Validators.email(_emailCtrl.text) == null &&
             Validators.phone(_telefonoCtrl.text) == null &&
-            Validators.required(_rifCtrl.text) == null &&
-            (isSocial ||
-                (_passwordValida &&
-                    Validators.confirmPassword(
-                            _confirmPasswordCtrl.text, _passwordCtrl.text) ==
-                        null));
+            Validators.required(_rifCtrl.text) == null;
       case 2:
+        return isSocial ||
+            (_passwordValida &&
+                Validators.confirmPassword(
+                        _confirmPasswordCtrl.text, _passwordCtrl.text) ==
+                    null);
       case 3:
-        return _catalogo.isNotEmpty;
       case 4:
+        return _catalogo.isNotEmpty;
+      case 5:
         return _ubicacionConfirmada;
       default:
         return false;
@@ -158,9 +173,10 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
 
   void _avanzar() {
     if (!_pasoValido) return;
-    if (_paso < 4) {
+    if (_paso < _totalSteps) {
       setState(() => _paso++);
-    } else if (_paso == 4) {
+      _scrollToTop();
+    } else if (_paso == _totalSteps) {
       _submit();
     }
   }
@@ -208,8 +224,9 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
   }
 
   void _retroceder() {
-    if (_paso > 1 && _paso < 5) {
+    if (_paso > 1 && _paso < _completedStep) {
       setState(() => _paso--);
+      _scrollToTop();
     } else if (_paso == 1) {
       context.go(RouteNames.register);
     }
@@ -217,16 +234,19 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AuthState>(authProvider, (_, next) {
-      if (next.isAuthenticated) {
-        setState(() => _paso = 5);
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (next.isProviderRegistrationSucceeded) {
+        setState(() => _paso = _completedStep);
+        _scrollToTop();
+      } else if (previous?.isLoading == true && next.errorMessage != null) {
+        setState(() => _paso = _stepForServerError(next.errorMessage!));
+        _scrollToTop();
       }
     });
 
     final authState = ref.watch(authProvider);
     final socialData = ref.watch(socialRegistrationProvider);
     final isSocial = socialData != null;
-    ref.listenAsyncError(categoriesProvider, context);
     final categoriesAsync = ref.watch(categoriesProvider);
     final categories = categoriesAsync.valueOrNull ?? [];
 
@@ -239,6 +259,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
             child: LayoutBuilder(
               builder: (context, viewportConstraints) {
                 return SingleChildScrollView(
+                  controller: _scrollController,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   child: ConstrainedBox(
@@ -250,7 +271,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _appBar(),
-                          if (_paso < 5) ...[
+                          if (_paso < _completedStep) ...[
                             const SizedBox(height: 16),
                             _indicadorPasos(),
                             const SizedBox(height: 16),
@@ -265,7 +286,9 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                           const SizedBox(height: 8),
                           Expanded(
                             child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 350),
+                              duration: MediaQuery.disableAnimationsOf(context)
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 350),
                               transitionBuilder: (child, anim) =>
                                   FadeTransition(
                                 opacity: anim,
@@ -285,24 +308,32 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                                       emailController: _emailCtrl,
                                       telefonoController: _telefonoCtrl,
                                       rifController: _rifCtrl,
-                                      passwordController: _passwordCtrl,
-                                      confirmPasswordController:
-                                          _confirmPasswordCtrl,
                                       hasDelivery: _hasDelivery,
                                       onHasDeliveryChanged: (v) =>
                                           setState(() => _hasDelivery = v),
                                       isSocial: isSocial,
                                     ),
-                                  2 => StoreCatalogStep(
+                                  2 => AccountSecurityStep(
+                                      passwordController: _passwordCtrl,
+                                      confirmPasswordController:
+                                          _confirmPasswordCtrl,
+                                      isSocial: isSocial,
+                                      socialProvider: socialData?.provider,
+                                    ),
+                                  3 => StoreCatalogStep(
                                       catalogo: _catalogo,
                                       categories: categories,
                                       onAbrirSheetMarcas: _abrirSheetMarcas,
+                                      isLoading: categoriesAsync.isLoading,
+                                      loadError: categoriesAsync.error,
+                                      onRetry: () =>
+                                          ref.invalidate(categoriesProvider),
                                     ),
-                                  3 => StoreSummaryStep(
+                                  4 => StoreSummaryStep(
                                       catalogo: _catalogo,
                                       onAbrirSheetMarcas: _abrirSheetMarcas,
                                     ),
-                                  4 => WorkshopLocationStep(
+                                  5 => WorkshopLocationStep(
                                       location: _location,
                                       onLocationChanged: (location) =>
                                           setState(() => _location = location),
@@ -337,19 +368,23 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                                       onFinish: () {
                                         ref
                                             .read(authProvider.notifier)
-                                            .logout()
-                                            .then((_) {
-                                          if (!context.mounted) return;
-                                          context.go(RouteNames.login);
-                                        });
+                                            .finishProviderRegistration();
+                                        ref
+                                            .read(socialRegistrationProvider
+                                                .notifier)
+                                            .clear();
+                                        context.go(RouteNames.login);
                                       },
                                     ),
                                 },
                               ),
                             ),
                           ),
-                          if (_paso < 5) ...[
+                          if (_paso < _completedStep) ...[
                             const SizedBox(height: 32),
+                            RegistrationStepFeedback(
+                              message: _validationFeedback,
+                            ),
                             _footer(),
                           ],
                         ],
@@ -368,15 +403,17 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
   Widget _appBar() {
     return Row(
       children: [
-        GestureDetector(
-          onTap: _retroceder,
-          child: const Icon(
+        IconButton(
+          onPressed: _retroceder,
+          tooltip: _paso == 1 ? 'Volver a elegir perfil' : 'Paso anterior',
+          constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+          padding: EdgeInsets.zero,
+          icon: const Icon(
             Icons.arrow_back_ios_new,
             color: AppColors.textPrimary,
             size: 22,
           ),
         ),
-        const SizedBox(width: 12),
         Text(
           'Registro de Tienda',
           style: GoogleFonts.hankenGrotesk(
@@ -386,11 +423,6 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
           ),
         ),
         const Spacer(),
-        const Icon(
-          Icons.help_outline,
-          color: AppColors.textSecondary,
-          size: 20,
-        ),
       ],
     );
   }
@@ -400,7 +432,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          'PASO $_paso DE 4',
+          'PASO $_paso DE $_totalSteps',
           style: GoogleFonts.hankenGrotesk(
             fontSize: 11,
             fontWeight: FontWeight.w800,
@@ -409,7 +441,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
           ),
         ),
         Row(
-          children: List.generate(4, (i) {
+          children: List.generate(_totalSteps, (i) {
             return AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               width: 28,
@@ -436,16 +468,20 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
         subtitulo = 'Paso 1 de 4: Información básica';
         break;
       case 2:
+        titulo = 'Protege tu Cuenta';
+        subtitulo = 'Crea una contraseña segura para administrar tu tienda.';
+        break;
+      case 3:
         titulo = 'Catálogo';
         subtitulo =
             'Selecciona las categorías de repuestos que manejas y asócialas a sus marcas.';
         break;
-      case 3:
+      case 4:
         titulo = 'Catálogo Seleccionado';
         subtitulo =
             'Paso 3 de 4: Revisa las categorías registradas. Toca una tarjeta para modificar sus marcas.';
         break;
-      case 4:
+      case 5:
         titulo = 'Ubicación';
         subtitulo = 'Paso 4 de 4: Confirma la dirección física de la tienda.';
         break;
@@ -503,7 +539,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
         Expanded(
           flex: 2,
           child: _PressableScale(
-            onTap: _pasoValido ? _avanzar : null,
+            onTap: _pasoValido && !authState.isLoading ? _avanzar : null,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               decoration: BoxDecoration(
@@ -519,7 +555,8 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                     : [],
               ),
               child: ElevatedButton(
-                onPressed: _pasoValido ? _avanzar : null,
+                onPressed:
+                    _pasoValido && !authState.isLoading ? _avanzar : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -535,7 +572,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      _paso == 4 ? 'FINALIZAR' : 'CONTINUAR',
+                      _paso == _totalSteps ? 'FINALIZAR' : 'CONTINUAR',
                       style: GoogleFonts.hankenGrotesk(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
@@ -563,6 +600,68 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
         ),
       ],
     );
+  }
+
+  String? get _validationFeedback {
+    if (_pasoValido) return null;
+    switch (_paso) {
+      case 1:
+        if (Validators.required(_nombreCtrl.text) != null) {
+          return 'Ingresa el nombre de la tienda para continuar.';
+        }
+        if (Validators.email(_emailCtrl.text) != null) {
+          return 'Ingresa un correo electrónico válido.';
+        }
+        if (Validators.phone(_telefonoCtrl.text) != null) {
+          return 'Revisa el teléfono. Usa entre 7 y 15 dígitos.';
+        }
+        return 'Ingresa el RIF de la tienda.';
+      case 2:
+        return Validators.password(_passwordCtrl.text) ??
+            Validators.confirmPassword(
+              _confirmPasswordCtrl.text,
+              _passwordCtrl.text,
+            );
+      case 3:
+        return 'Agrega al menos una categoría y sus marcas al catálogo.';
+      case 4:
+        return 'El catálogo quedó vacío. Vuelve atrás y agrega una categoría.';
+      case 5:
+        return 'Confirma la ubicación exacta de la tienda para finalizar.';
+    }
+    return null;
+  }
+
+  int _stepForServerError(String message) {
+    final normalized = message.toLowerCase();
+    if (normalized.contains('contrase') || normalized.contains('password')) {
+      return 2;
+    }
+    if (normalized.contains('correo') ||
+        normalized.contains('email') ||
+        normalized.contains('teléfono') ||
+        normalized.contains('telefono') ||
+        normalized.contains('phone') ||
+        normalized.contains('rif')) {
+      return 1;
+    }
+    if (normalized.contains('categor')) return 3;
+    return _paso;
+  }
+
+  void _scrollToTop() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _scrollController.jumpTo(0);
+        return;
+      }
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
   }
 }
 

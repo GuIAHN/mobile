@@ -5,7 +5,7 @@ import 'package:guiautomotriz_mobile/shared/widgets/guia_map.dart';
 import 'package:latlong2/latlong.dart';
 
 void main() {
-  const initialLocation = LatLng(14.0818, -87.2068);
+  const initialLocation = LatLng(10.4806, -66.9036);
 
   Widget buildSubject({
     required ValueChanged<LatLng> onLocationChanged,

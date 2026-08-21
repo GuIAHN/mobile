@@ -18,7 +18,7 @@ RequestLocationSeed resolveRequestLocationSeed({
   double? gpsLongitude,
   double? profileLatitude,
   double? profileLongitude,
-  LatLng fallback = const LatLng(14.0723, -87.1921),
+  LatLng fallback = const LatLng(10.4806, -66.9036),
 }) {
   if (requestSelection != null &&
       _isValidCoordinates(

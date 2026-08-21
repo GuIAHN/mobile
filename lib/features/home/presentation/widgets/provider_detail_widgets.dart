@@ -735,7 +735,7 @@ class DetailLocationCard extends StatelessWidget {
     final hasCoordinates = lat != null && lng != null;
     final point = hasCoordinates
         ? LatLng(lat!, lng!)
-        : const LatLng(14.0723, -87.1921);
+        : const LatLng(10.4806, -66.9036);
 
     return Container(
       width: double.infinity,

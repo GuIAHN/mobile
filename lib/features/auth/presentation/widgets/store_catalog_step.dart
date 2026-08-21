@@ -8,12 +8,18 @@ class StoreCatalogStep extends StatelessWidget {
   final List<LineaCatalogo> catalogo;
   final List<Category> categories;
   final ValueChanged<Category> onAbrirSheetMarcas;
+  final bool isLoading;
+  final Object? loadError;
+  final VoidCallback? onRetry;
 
   const StoreCatalogStep({
     super.key,
     required this.catalogo,
     required this.categories,
     required this.onAbrirSheetMarcas,
+    this.isLoading = false,
+    this.loadError,
+    this.onRetry,
   });
 
   LineaCatalogo? _buscarLinea(String categoryId) {
@@ -26,22 +32,10 @@ class StoreCatalogStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (categories.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 48),
-        alignment: Alignment.center,
-        child: Column(
-          children: [
-            const CircularProgressIndicator(color: AppColors.primary),
-            const SizedBox(height: 16),
-            Text(
-              'Cargando categorías de la API...',
-              style: GoogleFonts.hankenGrotesk(
-                color: AppColors.textSecondary,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
+      return _CatalogState(
+        isLoading: isLoading,
+        hasError: loadError != null,
+        onRetry: onRetry,
       );
     }
 
@@ -97,7 +91,9 @@ class _CardCategoria extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 200),
         margin: const EdgeInsets.only(bottom: 14),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
@@ -109,7 +105,7 @@ class _CardCategoria extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(activa ? 0.05 : 0.03),
+              color: Colors.black.withValues(alpha: activa ? 0.05 : 0.03),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -126,7 +122,7 @@ class _CardCategoria extends StatelessWidget {
                   height: 50,
                   decoration: BoxDecoration(
                     color: activa
-                        ? AppColors.primary.withOpacity(0.12)
+                        ? AppColors.primary.withValues(alpha: 0.12)
                         : const Color(0xFFF3F4F6),
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -228,6 +224,91 @@ class _CardCategoria extends StatelessWidget {
   }
 }
 
+class _CatalogState extends StatelessWidget {
+  const _CatalogState({
+    required this.isLoading,
+    required this.hasError,
+    this.onRetry,
+  });
+
+  final bool isLoading;
+  final bool hasError;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = hasError
+        ? 'No pudimos cargar las categorías'
+        : isLoading
+            ? 'Cargando categorías…'
+            : 'No hay categorías disponibles';
+    final description = hasError
+        ? 'Revisa tu conexión e inténtalo nuevamente.'
+        : isLoading
+            ? 'Esto puede tomar unos segundos.'
+            : 'Inténtalo más tarde o comunícate con soporte.';
+
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          children: [
+            if (isLoading)
+              const CircularProgressIndicator(color: AppColors.primary)
+            else
+              Icon(
+                hasError
+                    ? Icons.cloud_off_outlined
+                    : Icons.inventory_2_outlined,
+                color: hasError ? AppColors.error : AppColors.textSecondary,
+                size: 36,
+              ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.hankenGrotesk(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              description,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.hankenGrotesk(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+            if (hasError && onRetry != null) ...[
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('REINTENTAR'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(160, 48),
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ChipMarca extends StatelessWidget {
   final String marca;
   const _ChipMarca(this.marca);
@@ -237,10 +318,10 @@ class _ChipMarca extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.85),
+        color: Colors.white.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppColors.primary.withOpacity(0.2),
+          color: AppColors.primary.withValues(alpha: 0.2),
           width: 1.2,
         ),
       ),

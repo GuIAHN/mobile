@@ -290,8 +290,14 @@ class AppRouter {
       return RouteNames.login;
     }
 
-    // Si tiene token e intenta acceder a login, registro u onboarding → home
-    if (hasToken && isAuthRoute && state.matchedLocation != RouteNames.splash) {
+    // Registration pages own their completion navigation. Redirecting them as
+    // soon as a token appeared skipped the success step (and also skipped the
+    // consumer vehicle setup). Only entry-level auth pages auto-redirect.
+    final shouldLeaveEntryAuth = state.matchedLocation == RouteNames.login ||
+        state.matchedLocation == RouteNames.register ||
+        state.matchedLocation == RouteNames.forgotPassword ||
+        state.matchedLocation == RouteNames.onboarding;
+    if (hasToken && shouldLeaveEntryAuth) {
       return RouteNames.home;
     }
 

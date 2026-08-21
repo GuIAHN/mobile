@@ -6,13 +6,14 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/async_error_listener.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/api_error_message.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
+import '../widgets/account_security_step.dart';
 import '../widgets/registration_completed_step.dart';
+import '../widgets/registration_step_feedback.dart';
 import '../widgets/workshop_info_step.dart';
 import '../widgets/workshop_location_step.dart';
 import '../widgets/workshop_specialties_step.dart';
@@ -26,7 +27,11 @@ class RegisterWorkshopPage extends ConsumerStatefulWidget {
 }
 
 class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
-  int _paso = 1; // 1..4
+  static const _totalSteps = 4;
+  static const _completedStep = 5;
+
+  int _paso = 1;
+  final _scrollController = ScrollController();
 
   // ===== Paso 1: Información del taller =====
   final _nombreCtrl = TextEditingController();
@@ -40,7 +45,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
   final Set<String> _seleccionadas = {};
 
   // ===== Paso 3: Ubicación =====
-  LatLng _location = const LatLng(14.0818, -87.2068);
+  LatLng _location = const LatLng(10.4806, -66.9036);
   bool _ubicacionConfirmada = false;
 
   @override
@@ -57,7 +62,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
       _passwordCtrl,
       _confirmPasswordCtrl
     ]) {
-      c.addListener(() => setState(() {}));
+      c.addListener(_onFieldChanged);
     }
   }
 
@@ -69,7 +74,16 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
     _rifCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmPasswordCtrl.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onFieldChanged() {
+    if (!mounted) return;
+    setState(() {});
+    if (ref.read(authProvider).errorMessage != null) {
+      ref.read(authProvider.notifier).clearError();
+    }
   }
 
   bool get _passwordValida {
@@ -83,14 +97,15 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
         return Validators.required(_nombreCtrl.text) == null &&
             Validators.email(_emailCtrl.text) == null &&
             Validators.phone(_telefonoCtrl.text) == null &&
-            Validators.required(_rifCtrl.text) == null &&
-            _passwordValida &&
+            Validators.required(_rifCtrl.text) == null;
+      case 2:
+        return _passwordValida &&
             Validators.confirmPassword(
                     _confirmPasswordCtrl.text, _passwordCtrl.text) ==
                 null;
-      case 2:
-        return _seleccionadas.isNotEmpty;
       case 3:
+        return _seleccionadas.isNotEmpty;
+      case 4:
         return _ubicacionConfirmada;
       default:
         return false;
@@ -99,9 +114,10 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
 
   void _avanzar() {
     if (!_pasoValido) return;
-    if (_paso < 3) {
+    if (_paso < _totalSteps) {
       setState(() => _paso++);
-    } else if (_paso == 3) {
+      _scrollToTop();
+    } else if (_paso == _totalSteps) {
       _submit();
     }
   }
@@ -136,8 +152,9 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
   }
 
   void _retroceder() {
-    if (_paso > 1 && _paso < 4) {
+    if (_paso > 1 && _paso < _completedStep) {
       setState(() => _paso--);
+      _scrollToTop();
     } else if (_paso == 1) {
       context.go(RouteNames.register);
     }
@@ -145,14 +162,17 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AuthState>(authProvider, (_, next) {
-      if (next.isAuthenticated) {
-        setState(() => _paso = 4);
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (next.isProviderRegistrationSucceeded) {
+        setState(() => _paso = _completedStep);
+        _scrollToTop();
+      } else if (previous?.isLoading == true && next.errorMessage != null) {
+        setState(() => _paso = _stepForServerError(next.errorMessage!));
+        _scrollToTop();
       }
     });
 
     final authState = ref.watch(authProvider);
-    ref.listenAsyncError(specialtiesProvider, context);
     final specialtiesAsync = ref.watch(specialtiesProvider);
     final specialties = specialtiesAsync.valueOrNull ?? [];
 
@@ -165,6 +185,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
             child: LayoutBuilder(
               builder: (context, viewportConstraints) {
                 return SingleChildScrollView(
+                  controller: _scrollController,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   child: ConstrainedBox(
@@ -177,9 +198,11 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _appBar(),
-                          if (_paso < 4) ...[
+                          if (_paso < _completedStep) ...[
                             const SizedBox(height: 16),
                             _indicadorPasos(),
+                            const SizedBox(height: 16),
+                            _tituloPaso(),
                             const SizedBox(height: 16),
                             ApiErrorMessage(
                               message: authState.errorMessage,
@@ -190,7 +213,9 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                           const SizedBox(height: 24),
                           Expanded(
                             child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 350),
+                              duration: MediaQuery.disableAnimationsOf(context)
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 350),
                               transitionBuilder: (child, anim) =>
                                   FadeTransition(
                                 opacity: anim,
@@ -210,11 +235,13 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                                       emailController: _emailCtrl,
                                       telefonoController: _telefonoCtrl,
                                       rifController: _rifCtrl,
+                                    ),
+                                  2 => AccountSecurityStep(
                                       passwordController: _passwordCtrl,
                                       confirmPasswordController:
                                           _confirmPasswordCtrl,
                                     ),
-                                  2 => WorkshopSpecialtiesStep(
+                                  3 => WorkshopSpecialtiesStep(
                                       selectedSpecialtyIds: _seleccionadas,
                                       onSpecialtyToggled: (id) {
                                         setState(() {
@@ -226,8 +253,12 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                                         });
                                       },
                                       specialties: specialties,
+                                      isLoading: specialtiesAsync.isLoading,
+                                      loadError: specialtiesAsync.error,
+                                      onRetry: () =>
+                                          ref.invalidate(specialtiesProvider),
                                     ),
-                                  3 => WorkshopLocationStep(
+                                  4 => WorkshopLocationStep(
                                       location: _location,
                                       onLocationChanged: (location) =>
                                           setState(() => _location = location),
@@ -267,19 +298,19 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                                       onFinish: () {
                                         ref
                                             .read(authProvider.notifier)
-                                            .logout()
-                                            .then((_) {
-                                          if (!context.mounted) return;
-                                          context.go(RouteNames.login);
-                                        });
+                                            .finishProviderRegistration();
+                                        context.go(RouteNames.login);
                                       },
                                     ),
                                 },
                               ),
                             ),
                           ),
-                          if (_paso < 4) ...[
+                          if (_paso < _completedStep) ...[
                             const SizedBox(height: 32),
+                            RegistrationStepFeedback(
+                              message: _validationFeedback,
+                            ),
                             _footer(),
                           ],
                         ],
@@ -298,15 +329,17 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
   Widget _appBar() {
     return Row(
       children: [
-        GestureDetector(
-          onTap: _retroceder,
-          child: const Icon(
+        IconButton(
+          onPressed: _retroceder,
+          tooltip: _paso == 1 ? 'Volver a elegir perfil' : 'Paso anterior',
+          constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+          padding: EdgeInsets.zero,
+          icon: const Icon(
             Icons.arrow_back_ios_new,
             color: AppColors.textPrimary,
             size: 22,
           ),
         ),
-        const SizedBox(width: 12),
         Text(
           'Registro de Taller',
           style: GoogleFonts.hankenGrotesk(
@@ -324,7 +357,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          'PASO $_paso DE 4',
+          'PASO $_paso DE $_totalSteps',
           style: GoogleFonts.hankenGrotesk(
             fontSize: 11,
             fontWeight: FontWeight.w800,
@@ -333,7 +366,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
           ),
         ),
         Row(
-          children: List.generate(4, (i) {
+          children: List.generate(_totalSteps, (i) {
             return AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               width: 28,
@@ -353,7 +386,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
   Widget _footer() {
     final authState = ref.watch(authProvider);
     return _PressableScale(
-      onTap: _pasoValido ? _avanzar : null,
+      onTap: _pasoValido && !authState.isLoading ? _avanzar : null,
       child: SizedBox(
         width: double.infinity,
         child: AnimatedContainer(
@@ -398,7 +431,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          _paso == 3 ? 'FINALIZAR' : 'CONTINUAR',
+                          _paso == _totalSteps ? 'FINALIZAR' : 'CONTINUAR',
                           style: GoogleFonts.hankenGrotesk(
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
@@ -413,6 +446,111 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
         ),
       ),
     );
+  }
+
+  Widget _tituloPaso() {
+    final (title, subtitle) = switch (_paso) {
+      1 => (
+          'Perfil del Taller',
+          'Registra los datos públicos y fiscales de tu negocio.'
+        ),
+      2 => (
+          'Protege tu Cuenta',
+          'Crea una contraseña segura para administrar tu taller.'
+        ),
+      3 => (
+          'Especialidades',
+          'Selecciona las áreas de servicio que domina tu equipo.'
+        ),
+      4 => (
+          'Ubicación',
+          'Confirma el punto exacto donde tus clientes encontrarán el taller.'
+        ),
+      _ => ('', ''),
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 26,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 13,
+            height: 1.45,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String? get _validationFeedback {
+    if (_pasoValido) return null;
+    switch (_paso) {
+      case 1:
+        if (Validators.required(_nombreCtrl.text) != null) {
+          return 'Ingresa el nombre del taller para continuar.';
+        }
+        if (Validators.email(_emailCtrl.text) != null) {
+          return 'Ingresa un correo electrónico válido.';
+        }
+        if (Validators.phone(_telefonoCtrl.text) != null) {
+          return 'Revisa el teléfono. Usa entre 7 y 15 dígitos.';
+        }
+        return 'Ingresa el RIF del taller.';
+      case 2:
+        return Validators.password(_passwordCtrl.text) ??
+            Validators.confirmPassword(
+              _confirmPasswordCtrl.text,
+              _passwordCtrl.text,
+            );
+      case 3:
+        return 'Selecciona al menos una especialidad para continuar.';
+      case 4:
+        return 'Confirma la ubicación exacta del taller para finalizar.';
+    }
+    return null;
+  }
+
+  int _stepForServerError(String message) {
+    final normalized = message.toLowerCase();
+    if (normalized.contains('contrase') || normalized.contains('password')) {
+      return 2;
+    }
+    if (normalized.contains('correo') ||
+        normalized.contains('email') ||
+        normalized.contains('teléfono') ||
+        normalized.contains('telefono') ||
+        normalized.contains('phone') ||
+        normalized.contains('rif') ||
+        normalized.contains('identification')) {
+      return 1;
+    }
+    return _paso;
+  }
+
+  void _scrollToTop() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _scrollController.jumpTo(0);
+        return;
+      }
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
   }
 }
 

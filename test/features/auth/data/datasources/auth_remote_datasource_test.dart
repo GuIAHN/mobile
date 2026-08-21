@@ -143,8 +143,8 @@ void main() {
       password: 'secret1',
       name: 'Repuestos Centro',
       phone: '99999999',
-      latitude: 14.0818,
-      longitude: -87.2068,
+      latitude: 10.4806,
+      longitude: -66.9036,
       address: 'Tegucigalpa',
       rif: 'J123456789',
       catalog: const [
