@@ -2,6 +2,13 @@ import 'package:equatable/equatable.dart';
 
 class ChatConversation extends Equatable {
   final String id;
+
+  /// Identificador del chat en tiempo real.
+  ///
+  /// En la bandeja general coincide con [id]. En el detalle de una solicitud,
+  /// [id] identifica la oferta y este campo permite asociar `message.new` con
+  /// el card correcto sin volver a consultar toda la pantalla.
+  final String? conversationId;
   final String threadId;
   final String participantName;
   final String? participantAvatarUrl;
@@ -47,6 +54,7 @@ class ChatConversation extends Equatable {
 
   const ChatConversation({
     required this.id,
+    this.conversationId,
     required this.threadId,
     required this.participantName,
     this.participantAvatarUrl,
@@ -96,9 +104,58 @@ class ChatConversation extends Equatable {
     return '${d.toStringAsFixed(1)} km';
   }
 
+  String get realtimeConversationId => conversationId ?? id;
+
+  ChatConversation withRealtimePreview({
+    required String lastMessage,
+    required int unreadCount,
+    required DateTime lastMessageAt,
+  }) {
+    return ChatConversation(
+      id: id,
+      conversationId: conversationId,
+      threadId: threadId,
+      participantName: participantName,
+      participantAvatarUrl: participantAvatarUrl,
+      lastMessage: lastMessage,
+      unreadCount: unreadCount,
+      lastMessageAt: lastMessageAt,
+      offerId: offerId,
+      offerStatus: offerStatus,
+      hasQuote: hasQuote,
+      isInquiry: isInquiry,
+      price: price,
+      spareBrand: spareBrand,
+      sparePhotoUrl: sparePhotoUrl,
+      storeLogoUrl: storeLogoUrl,
+      storeUserId: storeUserId,
+      storeId: storeId,
+      storePhone: storePhone,
+      storeAddress: storeAddress,
+      storeLat: storeLat,
+      storeLng: storeLng,
+      verified: verified,
+      hasDelivery: hasDelivery,
+      distanceKm: distanceKm,
+      storeRating: storeRating,
+      storeReviewCount: storeReviewCount,
+      note: note,
+      hasConversation: hasConversation,
+      hasReviewed: hasReviewed,
+      reviewRating: reviewRating,
+      reviewComment: reviewComment,
+      vehicleTitle: vehicleTitle,
+      subcategoryName: subcategoryName,
+      partType: partType,
+      requestDetails: requestDetails,
+      offerMessage: offerMessage,
+    );
+  }
+
   @override
   List<Object?> get props => [
         id,
+        conversationId,
         threadId,
         participantName,
         participantAvatarUrl,

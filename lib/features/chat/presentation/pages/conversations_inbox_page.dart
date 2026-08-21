@@ -142,8 +142,11 @@ class _ConversationsInboxPageState
         itemBuilder: (context, index) {
           final conversation = filtered[index];
           return StaggeredEntrance(
+            key: ValueKey(
+              'conversation-${conversation.realtimeConversationId}',
+            ),
             index: index,
-            child: StoreChatCard(
+            child: RealtimeStoreChatCard(
               conversation: conversation,
               consumerPerspective: consumerPerspective,
               onTap: () => context.push(

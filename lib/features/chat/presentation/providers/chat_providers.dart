@@ -123,13 +123,6 @@ class _ChatRealtimeRevisionNotifier
           details: true,
         ),
       ),
-      socketService.onMessage.listen(
-        (_) => _advance(
-          consumerRequests: true,
-          storeSales: true,
-          conversations: true,
-        ),
-      ),
       socketService.onNotification.listen((event) {
         // Inquiry creation currently has no independent domain event on the
         // mobile contract, so its notification is the targeted invalidation.
@@ -175,6 +168,136 @@ class _ChatRealtimeRevisionNotifier
     }
     super.dispose();
   }
+}
+
+/// Mensaje recibido después de la última carga REST de una conversación.
+class ConversationRealtimeMessage {
+  const ConversationRealtimeMessage({
+    required this.id,
+    required this.senderId,
+    required this.content,
+    required this.createdAt,
+    required this.isRead,
+  });
+
+  final String id;
+  final String senderId;
+  final String content;
+  final DateTime createdAt;
+  final bool isRead;
+}
+
+/// Actualizaciones locales de un único card de conversación.
+class ConversationRealtimeUpdate {
+  const ConversationRealtimeUpdate(this.messages);
+
+  final List<ConversationRealtimeMessage> messages;
+}
+
+/// Mantiene los eventos por conversación sin invalidar las consultas que
+/// alimentan la pantalla completa. Cada card selecciona únicamente su entrada.
+final _conversationRealtimeUpdatesProvider = StateNotifierProvider<
+    _ConversationRealtimeUpdatesNotifier,
+    Map<String, ConversationRealtimeUpdate>>((ref) {
+  return _ConversationRealtimeUpdatesNotifier(ref.watch(socketServiceProvider));
+});
+
+final conversationRealtimeUpdateProvider =
+    Provider.family<ConversationRealtimeUpdate?, String>((ref, conversationId) {
+  return ref.watch(
+    _conversationRealtimeUpdatesProvider.select(
+      (updates) => updates[conversationId],
+    ),
+  );
+});
+
+class _ConversationRealtimeUpdatesNotifier
+    extends StateNotifier<Map<String, ConversationRealtimeUpdate>> {
+  _ConversationRealtimeUpdatesNotifier(SocketService socketService)
+      : super(const {}) {
+    _messageSubscription = socketService.onMessage.listen(_handleMessage);
+  }
+
+  static const _maxMessagesPerConversation = 50;
+  late final StreamSubscription<Map<String, dynamic>> _messageSubscription;
+
+  void _handleMessage(Map<String, dynamic> data) {
+    final id = data['id']?.toString();
+    final conversationId = data['conversationId']?.toString();
+    final senderId = data['senderId']?.toString();
+    final content = data['content']?.toString();
+    final createdAt = DateTime.tryParse(data['createdAt']?.toString() ?? '');
+
+    if (id == null ||
+        id.isEmpty ||
+        conversationId == null ||
+        conversationId.isEmpty ||
+        senderId == null ||
+        content == null ||
+        createdAt == null) {
+      return;
+    }
+
+    final previous = state[conversationId]?.messages ?? const [];
+    if (previous.any((message) => message.id == id)) return;
+
+    final messages = <ConversationRealtimeMessage>[
+      ...previous,
+      ConversationRealtimeMessage(
+        id: id,
+        senderId: senderId,
+        content: content,
+        createdAt: createdAt,
+        isRead: data['read'] == true,
+      ),
+    ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+    if (messages.length > _maxMessagesPerConversation) {
+      messages.removeRange(0, messages.length - _maxMessagesPerConversation);
+    }
+
+    state = Map.unmodifiable({
+      ...state,
+      conversationId: ConversationRealtimeUpdate(List.unmodifiable(messages)),
+    });
+  }
+
+  @override
+  void dispose() {
+    _messageSubscription.cancel();
+    super.dispose();
+  }
+}
+
+/// Combina la respuesta REST con los mensajes posteriores a esa respuesta.
+/// Si el servidor ya incluyó un mensaje en una recarga manual, su timestamp
+/// evita volver a contarlo como no leído.
+ChatConversation applyRealtimeConversationUpdate(
+  ChatConversation conversation,
+  ConversationRealtimeUpdate? update, {
+  required String currentUserId,
+}) {
+  if (update == null) return conversation;
+
+  final freshMessages = update.messages
+      .where(
+        (message) => message.createdAt.isAfter(conversation.lastMessageAt),
+      )
+      .toList();
+  if (freshMessages.isEmpty) return conversation;
+
+  final latest = freshMessages.last;
+  final unreadDelta = freshMessages
+      .where(
+        (message) => !message.isRead && message.senderId != currentUserId,
+      )
+      .length;
+
+  return conversation.withRealtimePreview(
+    lastMessage: latest.content,
+    unreadCount: conversation.unreadCount + unreadDelta,
+    lastMessageAt: latest.createdAt,
+  );
 }
 
 /// Solicitudes creadas por el consumidor. Viven en Compras, no en Chats.
@@ -241,8 +364,23 @@ final myConversationsProvider =
 /// solicitudes que casualmente tengan ofertas.
 final hasUnreadChatThreadsProvider = Provider<bool>((ref) {
   final conversations = ref.watch(myConversationsProvider);
-  return conversations.valueOrNull
-          ?.any((conversation) => conversation.unreadCount > 0) ??
+  final currentUserId = ref.watch(
+    currentUserProvider.select((user) => user?.id ?? ''),
+  );
+
+  return conversations.valueOrNull?.any((conversation) {
+        final update = ref.watch(
+          conversationRealtimeUpdateProvider(
+            conversation.realtimeConversationId,
+          ),
+        );
+        return applyRealtimeConversationUpdate(
+              conversation,
+              update,
+              currentUserId: currentUserId,
+            ).unreadCount >
+            0;
+      }) ??
       false;
 });
 

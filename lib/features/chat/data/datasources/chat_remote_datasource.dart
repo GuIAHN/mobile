@@ -175,6 +175,7 @@ class ChatRemoteDataSource {
       final store = json['store'] as Map<String, dynamic>?;
       return ChatConversationModel(
         id: json['id'],
+        conversationId: json['conversationId'] as String?,
         threadId: threadId,
         participantName: store?['name'] ?? 'Tienda',
         participantAvatarUrl: store?['logoUrl'] as String?,

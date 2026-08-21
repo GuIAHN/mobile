@@ -1,13 +1,54 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/domain/enums/offer_status.dart';
 import '../../domain/entities/chat_conversation.dart';
+import '../providers/chat_providers.dart';
 import '_atoms/card_shell.dart';
 import '_atoms/card_tokens.dart';
 import '_atoms/status_badge.dart';
 import '_atoms/price_text.dart';
+
+/// Vincula un único card a los mensajes de su conversación. El `select` del
+/// provider evita que los demás cards se reconstruyan cuando llega un mensaje.
+class RealtimeStoreChatCard extends ConsumerWidget {
+  const RealtimeStoreChatCard({
+    super.key,
+    required this.conversation,
+    required this.onTap,
+    this.consumerPerspective = false,
+  });
+
+  final ChatConversation conversation;
+  final VoidCallback onTap;
+  final bool consumerPerspective;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final update = ref.watch(
+      conversationRealtimeUpdateProvider(
+        conversation.realtimeConversationId,
+      ),
+    );
+    final currentUserId = ref.watch(
+      currentUserProvider.select((user) => user?.id ?? ''),
+    );
+    final resolved = applyRealtimeConversationUpdate(
+      conversation,
+      update,
+      currentUserId: currentUserId,
+    );
+
+    return StoreChatCard(
+      conversation: resolved,
+      onTap: onTap,
+      consumerPerspective: consumerPerspective,
+    );
+  }
+}
 
 /// Card compacta de conversación para la bandeja de Chats.
 ///

@@ -312,6 +312,7 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
         itemBuilder: (context, index) {
           final thread = visible[index];
           return StaggeredEntrance(
+            key: ValueKey('request-${thread.id}'),
             index: index,
             child: isProvider
                 ? ChatThreadCard(

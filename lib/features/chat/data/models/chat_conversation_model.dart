@@ -3,6 +3,7 @@ import '../../domain/entities/chat_conversation.dart';
 class ChatConversationModel extends ChatConversation {
   const ChatConversationModel({
     required super.id,
+    super.conversationId,
     required super.threadId,
     required super.participantName,
     super.participantAvatarUrl,
@@ -42,20 +43,25 @@ class ChatConversationModel extends ChatConversation {
 
   factory ChatConversationModel.fromJson(Map<String, dynamic> json) {
     // Helper para parsear campos numéricos que Prisma puede enviar como String o num
-    double? parseDouble(dynamic v) =>
-        v == null ? null : (v is num ? v.toDouble() : double.tryParse(v.toString()));
-    int? parseInt(dynamic v) =>
-        v == null ? null : (v is int ? v : (v is num ? v.toInt() : int.tryParse(v.toString())));
+    double? parseDouble(dynamic v) => v == null
+        ? null
+        : (v is num ? v.toDouble() : double.tryParse(v.toString()));
+    int? parseInt(dynamic v) => v == null
+        ? null
+        : (v is int ? v : (v is num ? v.toInt() : int.tryParse(v.toString())));
 
     return ChatConversationModel(
       id: json['id'] as String,
-      threadId: json['threadId'] as String? ?? json['offerId'] as String? ?? 'DIRECT',
+      conversationId: json['conversationId'] as String?,
+      threadId:
+          json['threadId'] as String? ?? json['offerId'] as String? ?? 'DIRECT',
       participantName: json['participantName'] as String? ?? 'Usuario',
       participantAvatarUrl: json['participantAvatarUrl'] as String?,
       lastMessage: json['lastMessage'] as String? ?? '',
       unreadCount: parseInt(json['unreadCount']) ?? 0,
       lastMessageAt: json['lastMessageAt'] != null
-          ? DateTime.tryParse(json['lastMessageAt'].toString()) ?? DateTime.now()
+          ? DateTime.tryParse(json['lastMessageAt'].toString()) ??
+              DateTime.now()
           : DateTime.now(),
       offerId: json['offerId'] as String?,
       offerStatus: json['offerStatus'] as String?,
@@ -85,6 +91,7 @@ class ChatConversationModel extends ChatConversation {
 
   Map<String, dynamic> toJson() => {
         'id': id,
+        'conversationId': conversationId,
         'threadId': threadId,
         'participantName': participantName,
         'participantAvatarUrl': participantAvatarUrl,

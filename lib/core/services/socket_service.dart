@@ -111,6 +111,8 @@ class SocketService {
       StreamController<Map<String, dynamic>>.broadcast();
   final _connectedController = StreamController<void>.broadcast();
   final _reconnectedController = StreamController<void>.broadcast();
+  final _authenticationRequiredController =
+      StreamController<void>.broadcast();
 
   Stream<Map<String, dynamic>> get onSearchMatched =>
       _searchMatchedController.stream;
@@ -125,12 +127,18 @@ class SocketService {
       _notificationController.stream;
   Stream<void> get onConnected => _connectedController.stream;
   Stream<void> get onReconnect => _reconnectedController.stream;
+  Stream<void> get onAuthenticationRequired =>
+      _authenticationRequiredController.stream;
 
   bool get isConnected => _socket?.connected == true;
 
-  Future<void> connect() async {
+  Future<void> connect({bool force = false}) async {
     if (_disposed) return;
     _shouldReconnect = true;
+    if (force) {
+      _disconnectedAt ??= DateTime.now();
+      _disposeSocket();
+    }
     await _openSocket();
   }
 
@@ -332,6 +340,7 @@ class SocketService {
       _disposeSocket();
     } on TokenRefreshUnavailableException {
       _requiresRefresh = true;
+      _authenticationRequiredController.add(null);
       _scheduleReconnect();
     } finally {
       _refreshInProgress = false;
@@ -570,5 +579,6 @@ class SocketService {
     _notificationController.close();
     _connectedController.close();
     _reconnectedController.close();
+    _authenticationRequiredController.close();
   }
 }

@@ -19,6 +19,7 @@ void main() {
         data: const [
           {
             'id': 'offer-1',
+            'conversationId': 'conversation-1',
             'message': 'Mensaje inicial de la oferta',
             'lastMessage': 'Este es el último mensaje no leído',
             'unreadCount': 2,
@@ -39,6 +40,7 @@ void main() {
     );
 
     expect(result.single.lastMessage, 'Este es el último mensaje no leído');
+    expect(result.single.conversationId, 'conversation-1');
     expect(
       result.single.lastMessageAt,
       DateTime.parse('2026-08-20T12:05:00.000Z'),

@@ -183,8 +183,9 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
                 });
 
                 if (sortedConversations.isEmpty) {
-                  if (isStore)
+                  if (isStore) {
                     return const SliverToBoxAdapter(child: SizedBox.shrink());
+                  }
 
                   return SliverToBoxAdapter(
                     child: Padding(
@@ -235,8 +236,9 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 24, vertical: 6),
                         child: StaggeredEntrance(
+                          key: ValueKey('offer-${conv.id}'),
                           index: index,
-                          child: ChatConversationCard(
+                          child: RealtimeChatConversationCard(
                             conversation: conv,
                             onTap: () async {
                               if (isStore) {

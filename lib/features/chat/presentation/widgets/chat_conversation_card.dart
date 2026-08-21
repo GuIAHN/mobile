@@ -1,11 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/chat_conversation.dart';
+import '../providers/chat_providers.dart';
 import '_atoms/card_shell.dart';
 import '_atoms/card_tokens.dart';
 import '_atoms/meta_line.dart';
 import '_atoms/price_text.dart';
+
+/// Variante reactiva del card de oferta. Sólo observa la conversación que
+/// representa, por lo que un mensaje no reconstruye la lista ni el resumen de
+/// la solicitud.
+class RealtimeChatConversationCard extends ConsumerWidget {
+  const RealtimeChatConversationCard({
+    super.key,
+    required this.conversation,
+    required this.onTap,
+  });
+
+  final ChatConversation conversation;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final update = ref.watch(
+      conversationRealtimeUpdateProvider(
+        conversation.realtimeConversationId,
+      ),
+    );
+    final currentUserId = ref.watch(
+      currentUserProvider.select((user) => user?.id ?? ''),
+    );
+    final resolved = applyRealtimeConversationUpdate(
+      conversation,
+      update,
+      currentUserId: currentUserId,
+    );
+
+    return ChatConversationCard(
+      conversation: resolved,
+      onTap: onTap,
+    );
+  }
+}
 
 /// Card de oferta recibida — vista consumidor.
 ///
@@ -35,7 +74,8 @@ class ChatConversationCard extends StatelessWidget {
     final semanticLabel = StringBuffer('Oferta de ${conv.participantName}');
     if (conv.verified) semanticLabel.write(', tienda verificada');
     if (conv.storeRating != null) {
-      semanticLabel.write(', calificación ${conv.storeRating!.toStringAsFixed(1)} de 5');
+      semanticLabel
+          .write(', calificación ${conv.storeRating!.toStringAsFixed(1)} de 5');
     }
     semanticLabel.write(', ${conv.formattedPrice}');
     if (distance != null) semanticLabel.write(', a $distance');
@@ -75,7 +115,8 @@ class ChatConversationCard extends StatelessWidget {
                         ),
                         if (conv.verified) ...[
                           const SizedBox(width: 4),
-                          const Icon(Icons.verified_rounded, size: 16, color: AppColors.celeste),
+                          const Icon(Icons.verified_rounded,
+                              size: 16, color: AppColors.celeste),
                         ],
                       ],
                     ),
@@ -148,7 +189,8 @@ class ChatConversationCard extends StatelessWidget {
                     minimumSize: Size.zero,
                     padding: const EdgeInsets.symmetric(horizontal: 18),
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   child: Text('Ver oferta', style: CardTokens.button),
                 ),
@@ -246,7 +288,8 @@ class _ProductThumb extends StatelessWidget {
   }
 
   Widget _fallback() => const Center(
-        child: Icon(Icons.inventory_2_rounded, color: AppColors.grey400, size: 30),
+        child:
+            Icon(Icons.inventory_2_rounded, color: AppColors.grey400, size: 30),
       );
 }
 
