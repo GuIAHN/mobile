@@ -23,6 +23,7 @@ class SecuritySection extends StatelessWidget {
       eyebrow: 'SEGURIDAD',
       title: 'Cambiar contraseña',
       subtitle: 'Actualiza la seguridad de tu cuenta.',
+      icon: Icons.lock_outline_rounded,
       onTap: () => _openChangePassword(context),
     );
   }

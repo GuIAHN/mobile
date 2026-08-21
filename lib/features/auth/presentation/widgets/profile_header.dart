@@ -8,8 +8,6 @@ import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../shared/widgets/image_source_selector_sheet.dart';
-import '../../../provider_profile/presentation/providers/provider_profile_providers.dart';
-import '../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../../domain/entities/user.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
@@ -17,10 +15,14 @@ import '../providers/auth_state.dart';
 class _RoleStyle {
   final String label;
   final Color bgColor;
+  final Color textColor;
+  final IconData icon;
 
   const _RoleStyle({
     required this.label,
     required this.bgColor,
+    required this.textColor,
+    required this.icon,
   });
 
   factory _RoleStyle.of(UserRole role) {
@@ -29,31 +31,43 @@ class _RoleStyle {
         return const _RoleStyle(
           label: 'Consumidor',
           bgColor: AppColors.primaryMuted,
+          textColor: AppColors.primary,
+          icon: Icons.person_outline_rounded,
         );
       case UserRole.mechanic:
         return const _RoleStyle(
           label: 'Mecánico',
           bgColor: AppColors.grey200,
+          textColor: AppColors.grey800,
+          icon: Icons.build_outlined,
         );
       case UserRole.store:
         return const _RoleStyle(
           label: 'Tienda',
           bgColor: AppColors.tertiaryMuted,
+          textColor: AppColors.tertiary,
+          icon: Icons.storefront_outlined,
         );
       case UserRole.workshop:
         return const _RoleStyle(
           label: 'Taller',
           bgColor: AppColors.successLight,
+          textColor: AppColors.successInk,
+          icon: Icons.garage_outlined,
         );
       case UserRole.admin:
         return const _RoleStyle(
           label: 'Administrador',
           bgColor: AppColors.errorLight,
+          textColor: AppColors.errorInk,
+          icon: Icons.admin_panel_settings_outlined,
         );
       case UserRole.unknown:
         return const _RoleStyle(
           label: 'Usuario',
           bgColor: AppColors.grey100,
+          textColor: AppColors.textPrimary,
+          icon: Icons.person_outline_rounded,
         );
     }
   }
@@ -207,6 +221,33 @@ class ProfileHeader extends ConsumerWidget {
                               ),
                               child: avatarChild,
                             ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(7),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColors.surface,
+                                    width: 2.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.15),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.camera_alt_rounded,
+                                  size: 15,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
                             if (isLoading)
                               Positioned.fill(
                                 child: Container(
@@ -245,32 +286,36 @@ class ProfileHeader extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 11,
+                      horizontal: 12,
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
                       color: roleStyle.bgColor,
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                    child: Text(
-                      roleStyle.label.toUpperCase(),
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                        color: AppColors.textPrimary,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: roleStyle.textColor.withValues(alpha: 0.2),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 9),
-                  Text(
-                    'CAMBIAR FOTO',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                      color: AppColors.primary,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          roleStyle.icon,
+                          size: 14,
+                          color: roleStyle.textColor,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          roleStyle.label.toUpperCase(),
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                            color: roleStyle.textColor,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -298,9 +343,7 @@ class ProfileHeader extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 10),
-        _ContactInfoPanel(user: user, roleLabel: roleStyle.label),
-        const SizedBox(height: 16),
-        _ProfileStatsRow(user: user),
+        _ContactInfoPanel(user: user),
       ],
     );
   }
@@ -348,9 +391,8 @@ class ProfileHeader extends ConsumerWidget {
 
 class _ContactInfoPanel extends StatelessWidget {
   final User user;
-  final String roleLabel;
 
-  const _ContactInfoPanel({required this.user, required this.roleLabel});
+  const _ContactInfoPanel({required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -372,6 +414,7 @@ class _ContactInfoPanel extends StatelessWidget {
       child: Column(
         children: [
           _ContactInfoRow(
+            icon: Icons.smartphone_outlined,
             label: 'TELÉFONO',
             value: phone == null || phone.isEmpty
                 ? 'Sin número registrado'
@@ -381,14 +424,9 @@ class _ContactInfoPanel extends StatelessWidget {
           const Divider(
               height: 1, indent: 16, endIndent: 16, color: AppColors.border),
           _ContactInfoRow(
+            icon: Icons.mail_outline_rounded,
             label: 'CORREO ELECTRÓNICO',
             value: user.email,
-          ),
-          const Divider(
-              height: 1, indent: 16, endIndent: 16, color: AppColors.border),
-          _ContactInfoRow(
-            label: 'TIPO DE CUENTA',
-            value: roleLabel,
           ),
         ],
       ),
@@ -397,11 +435,13 @@ class _ContactInfoPanel extends StatelessWidget {
 }
 
 class _ContactInfoRow extends StatelessWidget {
+  final IconData icon;
   final String label;
   final String value;
   final bool isMuted;
 
   const _ContactInfoRow({
+    required this.icon,
     required this.label,
     required this.value,
     this.isMuted = false,
@@ -414,27 +454,39 @@ class _ContactInfoRow extends StatelessWidget {
       excludeSemantics: true,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Text(
-              label,
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.1,
-                color: AppColors.textSecondary,
-              ),
+            Icon(
+              icon,
+              size: 22,
+              color: AppColors.textSecondary,
             ),
-            const SizedBox(height: 3),
-            Text(
-              value,
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 14,
-                height: 1.3,
-                fontWeight: FontWeight.w700,
-                color:
-                    isMuted ? AppColors.textSecondary : AppColors.textPrimary,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.1,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    value,
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 14,
+                      height: 1.3,
+                      fontWeight: FontWeight.w700,
+                      color:
+                          isMuted ? AppColors.textSecondary : AppColors.textPrimary,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -444,8 +496,7 @@ class _ContactInfoRow extends StatelessWidget {
   }
 }
 
-/// Acción textual discreta para editar el perfil. Evita añadir otro icono
-/// decorativo y conserva una zona táctil amplia en la esquina del encabezado.
+/// Botón de acción circular con icono para editar el perfil.
 class _EditProfileButton extends StatelessWidget {
   final VoidCallback? onTap;
 
@@ -459,26 +510,20 @@ class _EditProfileButton extends StatelessWidget {
       label: 'Editar perfil',
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(99),
+        shape: const CircleBorder(),
         child: InkWell(
           key: const Key('edit-profile'),
           onTap: onTap,
-          borderRadius: BorderRadius.circular(99),
+          customBorder: const CircleBorder(),
           child: SizedBox(
-            width: 84,
-            height: 48,
-            child: Center(
-              child: Text(
-                'EDITAR',
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
-                  color: onTap == null
-                      ? AppColors.textDisabled
-                      : AppColors.primary,
-                ),
-              ),
+            width: 40,
+            height: 40,
+            child: Icon(
+              Icons.edit_outlined,
+              size: 22,
+              color: onTap == null
+                  ? AppColors.textDisabled
+                  : AppColors.textSecondary,
             ),
           ),
         ),
@@ -742,121 +787,5 @@ class _EditProfileBottomSheetState
             phone: _phoneController.text.trim(),
           );
     }
-  }
-}
-
-class _ProfileStatsRow extends ConsumerWidget {
-  final User user;
-
-  const _ProfileStatsRow({required this.user});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    _StatData? roleStat;
-
-    if (user.role.isMechanic || user.role.isWorkshop) {
-      final specialtiesAsync = ref.watch(providerSpecialtiesProvider);
-      roleStat = _StatData(
-        value: specialtiesAsync.when(
-          data: (s) => '${s.length}',
-          loading: () => 'Cargando',
-          error: (_, __) => 'No disponible',
-        ),
-        label: 'Especialidades',
-      );
-    } else if (user.role.isStore) {
-      final catalogAsync = ref.watch(storeCatalogProvider);
-      roleStat = _StatData(
-        value: catalogAsync.when(
-          data: (l) => '${l.length}',
-          loading: () => 'Cargando',
-          error: (_, __) => 'No disponible',
-        ),
-        label: 'Líneas de venta',
-      );
-    } else if (user.role.isConsumer) {
-      final carsAsync = ref.watch(userCarsProvider);
-      roleStat = _StatData(
-        value: carsAsync.when(
-          data: (c) => '${c.length}',
-          loading: () => 'Cargando',
-          error: (_, __) => 'No disponible',
-        ),
-        label: 'Vehículos',
-      );
-    }
-
-    final accountStat = _StatData(
-      value: user.approved ? 'Activa' : 'Pendiente',
-      label: 'Cuenta',
-    );
-
-    final stats = [if (roleStat != null) roleStat, accountStat];
-
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < stats.length; i++) ...[
-            if (i > 0) const SizedBox(width: 8),
-            Expanded(child: _StatChip(stat: stats[i])),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _StatData {
-  final String value;
-  final String label;
-
-  const _StatData({required this.value, required this.label});
-}
-
-class _StatChip extends StatelessWidget {
-  final _StatData stat;
-
-  const _StatChip({required this.stat});
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: '${stat.label}: ${stat.value}',
-      excludeSemantics: true,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              stat.value,
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 15,
-                height: 1.2,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              stat.label,
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 11,
-                height: 1.2,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

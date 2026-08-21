@@ -776,12 +776,18 @@ class _CategoryRow extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(leftInset, 10, 16, 10),
               child: Row(
                 children: [
-                  _CategoryIconBadge(
-                    name: node.name,
-                    size: 34,
-                    emphasized: isSelected,
+                  // Subcategorías: punto de acento en lugar del ícono del padre
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.grey300,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Text(
                       node.name,

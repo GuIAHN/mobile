@@ -12,6 +12,7 @@ class ProfileActionCard extends StatelessWidget {
   final String eyebrow;
   final String title;
   final String subtitle;
+  final IconData? icon;
   final VoidCallback onTap;
 
   const ProfileActionCard({
@@ -21,6 +22,7 @@ class ProfileActionCard extends StatelessWidget {
     required this.eyebrow,
     required this.title,
     required this.subtitle,
+    this.icon,
     required this.onTap,
   });
 
@@ -56,14 +58,28 @@ class ProfileActionCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  title,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 14.5,
-                    height: 1.2,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
+                Row(
+                  children: [
+                    if (icon != null) ...[
+                      Icon(
+                        icon,
+                        size: 19,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 14.5,
+                          height: 1.2,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 5),
                 Text(

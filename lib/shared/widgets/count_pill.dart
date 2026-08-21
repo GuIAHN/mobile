@@ -4,12 +4,18 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 
 /// Pastilla pequeña para mostrar un contador junto a un título de sección
-/// (p. ej. "MI GARAGE · 3", "ESPECIALIDADES · 2"). Usa el tono celeste
-/// reservado para contadores/metadata en el sistema de diseño.
+/// (p. ej. "MI GARAGE · 3", "ESPECIALIDADES · 2").
 class CountPill extends StatelessWidget {
   final int count;
+  final Color? backgroundColor;
+  final Color? textColor;
 
-  const CountPill({super.key, required this.count});
+  const CountPill({
+    super.key,
+    required this.count,
+    this.backgroundColor,
+    this.textColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -19,17 +25,17 @@ class CountPill extends StatelessWidget {
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
         decoration: BoxDecoration(
-          color: AppColors.celesteMuted,
+          color: backgroundColor ?? AppColors.primaryMuted,
           borderRadius: BorderRadius.circular(99),
         ),
         child: Text(
           '$count',
           style: GoogleFonts.hankenGrotesk(
-            fontSize: 11,
+            fontSize: 11.5,
             fontWeight: FontWeight.w800,
-            color: AppColors.celesteInk,
+            color: textColor ?? AppColors.primary,
           ),
         ),
       ),

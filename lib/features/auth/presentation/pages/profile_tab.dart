@@ -294,6 +294,7 @@ class _PendingReviewsSection extends StatelessWidget {
       eyebrow: 'OPINIONES',
       title: 'Reseñas pendientes',
       subtitle: 'Valora las compras que recibiste.',
+      icon: Icons.rate_review_outlined,
       onTap: () => context.push(RouteNames.pendingReviews),
     );
   }
@@ -312,6 +313,7 @@ class _ReceivedReviewsSection extends StatelessWidget {
       eyebrow: 'REPUTACIÓN',
       title: 'Reseñas de clientes',
       subtitle: 'Consulta las opiniones que recibiste.',
+      icon: Icons.star_outline_rounded,
       onTap: () => context.push(RouteNames.receivedReviewsPath(targetId)),
     );
   }
