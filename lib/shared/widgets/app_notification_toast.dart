@@ -131,9 +131,7 @@ class _AppNotificationToastState extends State<AppNotificationToast>
       },
       child: Semantics(
         container: true,
-        liveRegion: true,
-        label: semanticLabel,
-        excludeSemantics: true,
+        explicitChildNodes: true,
         child: Material(
           color: Colors.transparent,
           child: Container(
@@ -155,61 +153,85 @@ class _AppNotificationToastState extends State<AppNotificationToast>
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: type.backgroundColor,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(type.icon, color: type.accentColor, size: 22),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                          height: 1.2,
+                  child: Semantics(
+                    liveRegion: true,
+                    label: semanticLabel,
+                    excludeSemantics: true,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: type.backgroundColor,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(
+                            type.icon,
+                            color: type.accentColor,
+                            size: 22,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        notification.message,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textSecondary,
-                          height: 1.35,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary,
+                                  height: 1.2,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                notification.message,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textSecondary,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 if (notification.isDismissible)
-                  IconButton(
-                    key: const Key('app-notification-close'),
-                    onPressed: _triggerExit,
-                    tooltip: 'Cerrar notificación',
-                    constraints: const BoxConstraints(
-                      minWidth: 48,
-                      minHeight: 48,
-                    ),
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      size: 19,
-                      color: AppColors.textMeta,
+                  // El host vive en MaterialApp.builder, por encima del
+                  // Overlay del Navigator. La semántica explícita evita que
+                  // IconButton.tooltip intente insertar un RawTooltip allí.
+                  Semantics(
+                    button: true,
+                    label: 'Cerrar notificación',
+                    onTap: _triggerExit,
+                    excludeSemantics: true,
+                    child: IconButton(
+                      key: const Key('app-notification-close'),
+                      onPressed: _triggerExit,
+                      constraints: const BoxConstraints(
+                        minWidth: 48,
+                        minHeight: 48,
+                      ),
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        size: 19,
+                        color: AppColors.textMeta,
+                      ),
                     ),
                   )
                 else

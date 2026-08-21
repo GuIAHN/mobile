@@ -60,6 +60,7 @@ void main() {
     expect(find.byType(LinearProgressIndicator), findsNothing);
     expect(find.bySemanticsLabel(RegExp('Nuevo mensaje.*Eduardo Russo')),
         findsOneWidget);
+    expect(find.bySemanticsLabel('Cerrar notificación'), findsOneWidget);
     expect(
       tester.getSize(find.byKey(const Key('app-notification-close'))).width,
       greaterThanOrEqualTo(48),
@@ -72,7 +73,7 @@ void main() {
     var dismissals = 0;
     await pumpToast(tester, onDismissed: () => dismissals += 1);
 
-    await tester.tap(find.byTooltip('Cerrar notificación'));
+    await tester.tap(find.byKey(const Key('app-notification-close')));
     await tester.pump();
 
     expect(dismissals, 1);
@@ -81,7 +82,7 @@ void main() {
   testWidgets('supports a non-dismissible data state', (tester) async {
     await pumpToast(tester, width: 430, dismissible: false);
 
-    expect(find.byTooltip('Cerrar notificación'), findsNothing);
+    expect(find.byKey(const Key('app-notification-close')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }
