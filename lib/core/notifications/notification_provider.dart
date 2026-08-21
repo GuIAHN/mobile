@@ -3,7 +3,7 @@ import 'notification_model.dart';
 import 'notification_type.dart';
 
 /// Máximo de notificaciones visibles simultáneamente en el host.
-const int kMaxVisibleNotifications = 3;
+const int kMaxVisibleNotifications = 2;
 
 // ── Provider ────────────────────────────────────────────────────────────────
 

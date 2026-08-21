@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/notifications/notification_model.dart';
 import '../../core/notifications/notification_provider.dart';
 import 'app_notification_toast.dart';
 
@@ -9,7 +10,7 @@ import 'app_notification_toast.dart';
 /// **Debe insertarse una única vez**, en el `builder` de [MaterialApp.router] en `app.dart`.
 ///
 /// Observa el [notificationProvider] y renderiza los toasts activos apilados
-/// en la parte inferior-central de la pantalla con un offset entre ellos.
+/// en la parte superior de la pantalla, respetando el área segura.
 ///
 /// ```dart
 /// MaterialApp.router(
@@ -37,9 +38,16 @@ class AppNotificationHost extends ConsumerWidget {
             right: 16,
             top: 0,
             child: SafeArea(
-              child: _NotificationStack(
-                notifications: notifications,
-                ref: ref,
+              minimum: const EdgeInsets.only(top: 8),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: _NotificationStack(
+                    notifications: notifications,
+                    ref: ref,
+                  ),
+                ),
               ),
             ),
           ),
@@ -50,7 +58,7 @@ class AppNotificationHost extends ConsumerWidget {
 
 /// Renderiza la pila de toasts con offset vertical entre sí.
 class _NotificationStack extends StatelessWidget {
-  final List notifications;
+  final List<NotificationModel> notifications;
   final WidgetRef ref;
 
   const _NotificationStack({
