@@ -33,7 +33,8 @@ class ProfileGarage extends ConsumerWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Icon(Icons.directions_car_filled_outlined, color: AppColors.primary, size: 20),
+                  const Icon(Icons.directions_car_filled_outlined,
+                      color: AppColors.primary, size: 20),
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
@@ -63,7 +64,8 @@ class ProfileGarage extends ConsumerWidget {
             PressableScale(
               onTap: () => _abrirDialogoAgregarVehiculo(context, ref),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppColors.primaryMuted,
                   borderRadius: BorderRadius.circular(99),
@@ -94,7 +96,8 @@ class ProfileGarage extends ConsumerWidget {
             if (cars.isEmpty) {
               return Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
@@ -110,7 +113,8 @@ class ProfileGarage extends ConsumerWidget {
                         color: AppColors.primaryMuted,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.no_crash_outlined, size: 28, color: AppColors.primary),
+                      child: const Icon(Icons.no_crash_outlined,
+                          size: 28, color: AppColors.primary),
                     ),
                     const SizedBox(height: 14),
                     Text(
@@ -126,7 +130,8 @@ class ProfileGarage extends ConsumerWidget {
                     PressableScale(
                       onTap: () => _abrirDialogoAgregarVehiculo(context, ref),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
                         decoration: BoxDecoration(
                           color: AppColors.primary,
                           borderRadius: BorderRadius.circular(99),
@@ -134,14 +139,18 @@ class ProfileGarage extends ConsumerWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.add, size: 15, color: Colors.white),
+                            const Icon(Icons.add,
+                                size: 15, color: Colors.white),
                             const SizedBox(width: 4),
-                            Text(
-                              'Agregar vehículo',
-                              style: GoogleFonts.hankenGrotesk(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
+                            Flexible(
+                              child: Text(
+                                'Agregar vehículo',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                           ],
@@ -215,14 +224,16 @@ class ProfileGarage extends ConsumerWidget {
             decoration: BoxDecoration(
               color: AppColors.grey50,
               border: Border(
-                bottom: BorderSide(color: AppColors.border.withValues(alpha: 0.6)),
+                bottom:
+                    BorderSide(color: AppColors.border.withValues(alpha: 0.6)),
               ),
             ),
             child: Stack(
               children: [
                 Positioned.fill(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 10, horizontal: 14),
                     child: VehicleTypeIllustration(
                       vehicleType: car.vehicleType,
                       height: 105,
@@ -268,7 +279,8 @@ class ProfileGarage extends ConsumerWidget {
                   top: 10,
                   right: 10,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
@@ -284,7 +296,8 @@ class ProfileGarage extends ConsumerWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.calendar_today_rounded, size: 11, color: AppColors.primary),
+                        const Icon(Icons.calendar_today_rounded,
+                            size: 11, color: AppColors.primary),
                         const SizedBox(width: 4),
                         Text(
                           '${car.year}',
@@ -319,7 +332,8 @@ class ProfileGarage extends ConsumerWidget {
                             width: 24,
                             height: 24,
                             fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                            errorBuilder: (_, __, ___) =>
+                                const SizedBox.shrink(),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -431,7 +445,8 @@ class ProfileGarage extends ConsumerWidget {
     }
   }
 
-  void _confirmarEliminarVehiculo(BuildContext context, WidgetRef ref, UserCar car) {
+  void _confirmarEliminarVehiculo(
+      BuildContext context, WidgetRef ref, UserCar car) {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -463,7 +478,8 @@ class ProfileGarage extends ConsumerWidget {
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(dialogContext),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.border, width: 1.5),
+                      side:
+                          const BorderSide(color: AppColors.border, width: 1.5),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(32),
@@ -485,7 +501,8 @@ class ProfileGarage extends ConsumerWidget {
                     onPressed: () async {
                       Navigator.pop(dialogContext); // Cierra diálogo primero
 
-                      final deleteCarUseCase = ref.read(deleteCarUseCaseProvider);
+                      final deleteCarUseCase =
+                          ref.read(deleteCarUseCaseProvider);
                       final deleteResult = await deleteCarUseCase(car.id);
 
                       if (!context.mounted) return;

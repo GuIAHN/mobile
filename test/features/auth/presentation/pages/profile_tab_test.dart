@@ -27,6 +27,11 @@ class _MockSecureStorage extends Mock implements SecureStorage {}
 
 class _TestAuthNotifier extends AuthNotifier {
   _TestAuthNotifier(User user)
+      : this.withState(
+          AuthState(status: AuthStatus.authenticated, user: user),
+        );
+
+  _TestAuthNotifier.withState(AuthState initialState)
       : super(
           loginUseCase: LoginUseCase(_MockAuthRepository()),
           registerUseCase: RegisterUseCase(_MockAuthRepository()),
@@ -35,7 +40,7 @@ class _TestAuthNotifier extends AuthNotifier {
           authRepository: _MockAuthRepository(),
           secureStorage: _MockSecureStorage(),
         ) {
-    state = AuthState(status: AuthStatus.authenticated, user: user);
+    state = initialState;
   }
 
   @override
@@ -43,6 +48,46 @@ class _TestAuthNotifier extends AuthNotifier {
 }
 
 void main() {
+  testWidgets('shows explicit loading and recoverable error states',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith(
+            (ref) => _TestAuthNotifier.withState(
+              const AuthState(status: AuthStatus.loading),
+            ),
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ProfileTab())),
+      ),
+    );
+
+    expect(find.text('Cargando tu perfil…'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith(
+            (ref) => _TestAuthNotifier.withState(
+              const AuthState(
+                status: AuthStatus.error,
+                errorMessage: 'No se pudo cargar el perfil.',
+              ),
+            ),
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ProfileTab())),
+      ),
+    );
+
+    expect(find.text('No se pudo cargar el perfil.'), findsOneWidget);
+    expect(find.text('Reintentar'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('keeps profile content below the iPhone camera safe area',
       (tester) async {
     const topSafeArea = 59.0;
@@ -110,6 +155,106 @@ void main() {
     expect(pendingSize.width, securitySize.width);
     expect(find.byKey(const Key('open-received-reviews')), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('orders identity, contact information and account shortcuts',
+      (tester) async {
+    const user = User(
+      id: 'consumer-1',
+      email: 'consumer@gmail.com',
+      name: 'Usuario Consumidor',
+      phone: '+504 9999 1111',
+      role: UserRole.consumer,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith((ref) => _TestAuthNotifier(user)),
+          userCarsProvider.overrideWith((ref) async => const []),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ProfileTab())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final headerRect = tester.getRect(find.byType(ProfileHeader));
+    final avatarRect = tester.getRect(
+      find.byKey(const Key('change-profile-photo')),
+    );
+    expect(avatarRect.center.dx, closeTo(headerRect.center.dx, 1));
+
+    final nameTop = tester.getTopLeft(find.text('Usuario Consumidor')).dy;
+    final contactTop =
+        tester.getTopLeft(find.text('INFORMACIÓN DE CONTACTO')).dy;
+    final accountTop = tester.getTopLeft(find.text('MI CUENTA')).dy;
+
+    expect(nameTop, lessThan(contactTop));
+    expect(contactTop, lessThan(accountTop));
+    expect(find.text('+504 9999 1111'), findsOneWidget);
+    expect(find.text('consumer@gmail.com'), findsOneWidget);
+    expect(find.text('Consumidor'), findsOneWidget);
+  });
+
+  testWidgets('supports small and large phones with scaled profile text',
+      (tester) async {
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    tester.view.devicePixelRatio = 1;
+
+    const user = User(
+      id: 'consumer-1',
+      email: 'usuario.con.correo.extenso@example.com',
+      name: 'Usuario con nombre completo extenso',
+      phone: '+50499991111',
+      role: UserRole.consumer,
+    );
+
+    for (final size in const [Size(320, 568), Size(430, 932)]) {
+      tester.view.physicalSize = size;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authProvider.overrideWith((ref) => _TestAuthNotifier(user)),
+            userCarsProvider.overrideWith((ref) async => const []),
+          ],
+          child: MaterialApp(
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: const TextScaler.linear(2),
+                disableAnimations: true,
+              ),
+              child: child!,
+            ),
+            home: const Scaffold(body: ProfileTab()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getSize(find.byKey(const Key('edit-profile'))).height,
+        greaterThanOrEqualTo(48),
+      );
+      expect(
+        tester.getSize(find.byKey(const Key('change-profile-photo'))).height,
+        greaterThanOrEqualTo(48),
+      );
+      expect(
+        tester.getSize(find.byKey(const Key('open-change-password'))).height,
+        greaterThanOrEqualTo(48),
+      );
+
+      await tester.drag(
+        find.byType(SingleChildScrollView).first,
+        const Offset(0, -1000),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    }
   });
 
   testWidgets('shows configurable specialties only to mechanics and workshops',
@@ -229,6 +374,9 @@ void main() {
     );
     expect(reviewsSize, securitySize);
 
+    await tester.ensureVisible(
+      find.byKey(const Key('open-received-reviews')),
+    );
     await tester.tap(find.byKey(const Key('open-received-reviews')));
     await tester.pumpAndSettle();
 

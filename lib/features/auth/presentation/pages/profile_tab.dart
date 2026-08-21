@@ -6,12 +6,15 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/error_view.dart';
+import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../../shared/widgets/staggered_entrance.dart';
 import '../../../provider_profile/presentation/widgets/provider_specialties_card.dart';
 import '../../../provider_profile/presentation/widgets/store_catalog_card.dart';
 import '../../../vehicles/presentation/widgets/profile_garage.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/profile_action_card.dart';
 import '../widgets/profile_header.dart';
 import '../widgets/security_section.dart';
 
@@ -24,8 +27,17 @@ class ProfileTab extends ConsumerWidget {
     final user = authState.user;
 
     if (user == null) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
+      if (authState.errorMessage != null) {
+        return SafeArea(
+          child: ErrorView(
+            message: authState.errorMessage!,
+            onRetry: () => ref.read(authProvider.notifier).checkAuthStatus(),
+          ),
+        );
+      }
+
+      return const SafeArea(
+        child: LoadingIndicator(message: 'Cargando tu perfil…'),
       );
     }
 
@@ -35,48 +47,53 @@ class ProfileTab extends ConsumerWidget {
         user.role == UserRole.mechanic || user.role == UserRole.workshop;
 
     final sections = <Widget>[
-      // 1. Tarjeta Encabezado del Perfil (Avatar + Info + Teléfono + Stats)
       ProfileHeader(user: user),
-
-      // 1b. Seguridad de la cuenta (cambiar contraseña), separado a
-      // propósito del editor de datos básicos del header.
-      const SecuritySection(),
-
-      // 2. Sección "Mi Garage" (Solo para consumidores)
-      if (isConsumer) const _PendingReviewsSection(),
-
-      // Reseñas recibidas por tiendas, talleres y mecánicos.
-      if (user.role.isProvider) _ReceivedReviewsSection(targetId: user.id),
-
+      _AccountActionsSection(
+        isConsumer: isConsumer,
+        isProvider: user.role.isProvider,
+        userId: user.id,
+      ),
       if (isConsumer) const ProfileGarage(),
-
-      // 4. Especialidades configurables (mecánicos y talleres)
       if (isProfessionalProvider) const ProviderSpecialtiesCard(),
-
-      // 4b. Línea de venta (categorías y marcas) para tiendas de repuestos
       if (user.role.isStore) const StoreCatalogCard(),
     ];
 
     return SafeArea(
       bottom: false,
-      child: ListView(
+      child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 24,
-          bottom: 120,
+        child: Padding(
+          padding: const EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 24,
+            bottom: 120,
+          ),
+          child: Column(
+            children: [
+              StaggeredEntrance(
+                index: 0,
+                child: Text(
+                  'Perfil',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 28,
+                    height: 1.15,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              for (var i = 0; i < sections.length; i++) ...[
+                StaggeredEntrance(index: i + 1, child: sections[i]),
+                const SizedBox(height: 24),
+              ],
+              const SizedBox(height: 4),
+              _buildLogoutButton(context, ref),
+            ],
+          ),
         ),
-        children: [
-          for (var i = 0; i < sections.length; i++) ...[
-            StaggeredEntrance(index: i, child: sections[i]),
-            SizedBox(height: i == 0 ? 20 : 24),
-          ],
-
-          // 5. Botón de Cerrar Sesión (separado visualmente de la navegación normal)
-          const SizedBox(height: 4),
-          _buildLogoutButton(context, ref),
-        ],
       ),
     );
   }
@@ -86,28 +103,23 @@ class ProfileTab extends ConsumerWidget {
       onTap: () => _mostrarConfirmarLogout(context, ref),
       child: Container(
         width: double.infinity,
-        height: 52,
+        constraints: const BoxConstraints(minHeight: 52),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(32),
           border: Border.all(color: AppColors.error.withValues(alpha: 0.5)),
         ),
         alignment: Alignment.center,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.logout_rounded, color: AppColors.error, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              'CERRAR SESIÓN',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.5,
-                color: AppColors.error,
-              ),
-            ),
-          ],
+        child: Text(
+          'CERRAR SESIÓN',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+            color: AppColors.error,
+          ),
         ),
       ),
     );
@@ -136,20 +148,6 @@ class ProfileTab extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.logout_rounded,
-                  color: AppColors.error,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(height: 20),
               Text(
                 '¿Cerrar Sesión?',
                 style: GoogleFonts.hankenGrotesk(
@@ -236,87 +234,67 @@ class ProfileTab extends ConsumerWidget {
   }
 }
 
+class _AccountActionsSection extends StatelessWidget {
+  final bool isConsumer;
+  final bool isProvider;
+  final String userId;
+
+  const _AccountActionsSection({
+    required this.isConsumer,
+    required this.isProvider,
+    required this.userId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final reviewAction = isConsumer
+        ? const _PendingReviewsSection()
+        : isProvider
+            ? _ReceivedReviewsSection(targetId: userId)
+            : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'MI CUENTA',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Expanded(child: SecuritySection()),
+              if (reviewAction != null) ...[
+                const SizedBox(width: 12),
+                Expanded(child: reviewAction),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _PendingReviewsSection extends StatelessWidget {
   const _PendingReviewsSection();
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: 'Abrir reseñas pendientes',
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(24),
-          child: InkWell(
-            key: const Key('open-pending-reviews'),
-            onTap: () => context.push(RouteNames.pendingReviews),
-            borderRadius: BorderRadius.circular(24),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.warningLight,
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                    child: const Icon(
-                      Icons.rate_review_outlined,
-                      color: AppColors.warningInk,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Reseñas pendientes',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Valora las compras que ya recibiste',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 12.5,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.textSecondary,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    return ProfileActionCard(
+      actionKey: const Key('open-pending-reviews'),
+      semanticsLabel: 'Abrir reseñas pendientes',
+      eyebrow: 'OPINIONES',
+      title: 'Reseñas pendientes',
+      subtitle: 'Valora las compras que recibiste.',
+      onTap: () => context.push(RouteNames.pendingReviews),
     );
   }
 }
@@ -328,84 +306,13 @@ class _ReceivedReviewsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: 'Abrir reseñas recibidas de clientes',
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(24),
-          child: InkWell(
-            key: const Key('open-received-reviews'),
-            onTap: () => context.push(
-              RouteNames.receivedReviewsPath(targetId),
-            ),
-            borderRadius: BorderRadius.circular(24),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryMuted,
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                    child: const Icon(
-                      Icons.reviews_outlined,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Reseñas de clientes',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Consulta las opiniones que recibiste',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 12.5,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.textSecondary,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    return ProfileActionCard(
+      actionKey: const Key('open-received-reviews'),
+      semanticsLabel: 'Abrir reseñas recibidas de clientes',
+      eyebrow: 'REPUTACIÓN',
+      title: 'Reseñas de clientes',
+      subtitle: 'Consulta las opiniones que recibiste.',
+      onTap: () => context.push(RouteNames.receivedReviewsPath(targetId)),
     );
   }
 }

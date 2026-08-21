@@ -1,0 +1,96 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import '../../../../core/theme/app_colors.dart';
+
+/// Acceso compacto del perfil, inspirado en la organización por módulos de la
+/// referencia visual. Todo el contenedor es interactivo para ofrecer un área
+/// táctil amplia y una lectura clara con tecnologías de asistencia.
+class ProfileActionCard extends StatelessWidget {
+  final Key? actionKey;
+  final String semanticsLabel;
+  final String eyebrow;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const ProfileActionCard({
+    super.key,
+    this.actionKey,
+    required this.semanticsLabel,
+    required this.eyebrow,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: semanticsLabel,
+      excludeSemantics: true,
+      child: Material(
+        color: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: AppColors.border),
+        ),
+        child: InkWell(
+          key: actionKey,
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  eyebrow,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 10,
+                    height: 1.2,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.3,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  title,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 14.5,
+                    height: 1.2,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 12.5,
+                    height: 1.35,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'ABRIR',
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 11,
+                    height: 1.2,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.3,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

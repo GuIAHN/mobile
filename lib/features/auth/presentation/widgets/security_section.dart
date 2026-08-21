@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../providers/auth_provider.dart';
+import 'profile_action_card.dart';
 
 /// Tarjeta "Seguridad" del perfil: por ahora solo aloja el cambio de
 /// contraseña, deliberadamente separado del editor de datos básicos
@@ -16,77 +17,13 @@ class SecuritySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(24),
-        child: InkWell(
-          key: const Key('open-change-password'),
-          onTap: () => _openChangePassword(context),
-          borderRadius: BorderRadius.circular(24),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.celesteMuted,
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: const Icon(
-                    Icons.lock_outline_rounded,
-                    color: AppColors.celesteInk,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Cambiar contraseña',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Actualiza la contraseña de tu cuenta.',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 12.5,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppColors.textSecondary,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return ProfileActionCard(
+      actionKey: const Key('open-change-password'),
+      semanticsLabel: 'Cambiar la contraseña de la cuenta',
+      eyebrow: 'SEGURIDAD',
+      title: 'Cambiar contraseña',
+      subtitle: 'Actualiza la seguridad de tu cuenta.',
+      onTap: () => _openChangePassword(context),
     );
   }
 
@@ -304,26 +241,13 @@ class _ChangePasswordBottomSheetState
                             color: AppColors.errorLight,
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(
-                                Icons.error_outline_rounded,
-                                size: 20,
-                                color: AppColors.errorInk,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _saveError!,
-                                  style: GoogleFonts.hankenGrotesk(
-                                    fontSize: 12.5,
-                                    height: 1.35,
-                                    color: AppColors.errorInk,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            _saveError!,
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 12.5,
+                              height: 1.35,
+                              color: AppColors.errorInk,
+                            ),
                           ),
                         ),
                       ),
@@ -444,11 +368,6 @@ class _ChangePasswordBottomSheetState
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         filled: true,
         fillColor: AppColors.surface,
-        prefixIcon: const Icon(
-          Icons.lock_outline_rounded,
-          color: AppColors.textSecondary,
-          size: 20,
-        ),
         helperText: helperText,
         helperStyle: GoogleFonts.hankenGrotesk(
           fontSize: 12,

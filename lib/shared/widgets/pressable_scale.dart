@@ -25,14 +25,17 @@ class _PressableScaleState extends State<PressableScale> {
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onTap != null;
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
     return GestureDetector(
       onTapDown: enabled ? (_) => setState(() => _isPressed = true) : null,
       onTapUp: enabled ? (_) => setState(() => _isPressed = false) : null,
       onTapCancel: enabled ? () => setState(() => _isPressed = false) : null,
       onTap: widget.onTap,
       child: AnimatedScale(
-        scale: _isPressed ? widget.scale : 1.0,
-        duration: const Duration(milliseconds: 100),
+        scale: _isPressed && !disableAnimations ? widget.scale : 1.0,
+        duration: disableAnimations
+            ? Duration.zero
+            : const Duration(milliseconds: 100),
         curve: Curves.easeOut,
         child: widget.child,
       ),

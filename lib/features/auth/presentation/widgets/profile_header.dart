@@ -16,14 +16,10 @@ import '../providers/auth_state.dart';
 
 class _RoleStyle {
   final String label;
-  final IconData icon;
-  final Color color;
   final Color bgColor;
 
   const _RoleStyle({
     required this.label,
-    required this.icon,
-    required this.color,
     required this.bgColor,
   });
 
@@ -32,43 +28,31 @@ class _RoleStyle {
       case UserRole.consumer:
         return const _RoleStyle(
           label: 'Consumidor',
-          icon: Icons.person_rounded,
-          color: AppColors.primary,
           bgColor: AppColors.primaryMuted,
         );
       case UserRole.mechanic:
         return const _RoleStyle(
           label: 'Mecánico',
-          icon: Icons.build_rounded,
-          color: AppColors.secondary,
           bgColor: AppColors.grey200,
         );
       case UserRole.store:
         return const _RoleStyle(
           label: 'Tienda',
-          icon: Icons.storefront_rounded,
-          color: AppColors.tertiary,
           bgColor: AppColors.tertiaryMuted,
         );
       case UserRole.workshop:
         return const _RoleStyle(
           label: 'Taller',
-          icon: Icons.warehouse_rounded,
-          color: AppColors.success,
           bgColor: AppColors.successLight,
         );
       case UserRole.admin:
         return const _RoleStyle(
           label: 'Administrador',
-          icon: Icons.shield_rounded,
-          color: AppColors.error,
           bgColor: AppColors.errorLight,
         );
       case UserRole.unknown:
         return const _RoleStyle(
           label: 'Usuario',
-          icon: Icons.person_outline_rounded,
-          color: AppColors.textSecondary,
           bgColor: AppColors.grey100,
         );
     }
@@ -84,13 +68,15 @@ class ProfileHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Escuchar errores para mostrar un SnackBar
     ref.listen<AuthState>(authProvider, (previous, next) {
-      if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
+      if (next.errorMessage != null &&
+          next.errorMessage != previous?.errorMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(next.errorMessage!),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
         ref.read(authProvider.notifier).clearError();
@@ -129,8 +115,8 @@ class ProfileHeader extends ConsumerWidget {
         borderRadius: BorderRadius.circular(99),
         child: Image.network(
           fullAvatarUrl,
-          width: 84,
-          height: 84,
+          width: 96,
+          height: 96,
           fit: BoxFit.cover,
           loadingBuilder: (context, child, loadingProgress) {
             if (loadingProgress == null) return child;
@@ -150,7 +136,7 @@ class ProfileHeader extends ConsumerWidget {
               child: Text(
                 initials,
                 style: GoogleFonts.hankenGrotesk(
-                  fontSize: 22,
+                  fontSize: 26,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
                 ),
@@ -163,198 +149,159 @@ class ProfileHeader extends ConsumerWidget {
       avatarChild = Text(
         initials,
         style: GoogleFonts.hankenGrotesk(
-          fontSize: 22,
+          fontSize: 26,
           fontWeight: FontWeight.w900,
           color: Colors.white,
         ),
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primaryMuted, Colors.white],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          stops: [0.0, 0.65],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-          // Avatar con Iniciales / Foto + Carga + Botón de cámara
-          Stack(
-            children: [
-              GestureDetector(
-                onTap: isLoading ? null : () => _mostrarOpcionesImagen(context, ref),
-                child: Container(
-                  width: 84,
-                  height: 84,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.white, width: 3),
-                    gradient: LinearGradient(
-                      colors: [
-                        AppColors.primary,
-                        AppColors.primary.withValues(alpha: 0.8),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.25),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  alignment: Alignment.center,
-                  child: avatarChild,
-                ),
-              ),
-              if (isLoading)
-                Positioned.fill(
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.black45,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: GestureDetector(
-                  onTap: isLoading ? null : () => _mostrarOpcionesImagen(context, ref),
-                  child: Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.border, width: 1.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.camera_alt_rounded,
-                      color: AppColors.primary,
-                      size: 14,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 18),
+    final avatarAction =
+        isLoading ? null : () => _mostrarOpcionesImagen(context, ref);
 
-          // Información de texto
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  user.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Stack(
+          alignment: Alignment.topCenter,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(48, 4, 48, 0),
+              child: Column(
+                children: [
+                  Semantics(
+                    button: true,
+                    enabled: avatarAction != null,
+                    label: isLoading
+                        ? 'Actualizando foto de perfil'
+                        : 'Cambiar foto de perfil',
+                    child: Material(
+                      color: Colors.transparent,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        key: const Key('change-profile-photo'),
+                        onTap: avatarAction,
+                        customBorder: const CircleBorder(),
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              width: 96,
+                              height: 96,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: AppColors.surface,
+                                  width: 4,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.22),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: avatarChild,
+                            ),
+                            if (isLoading)
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black45,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Center(
+                                    child: SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  user.email,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 13.5,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (user.phone != null && user.phone!.isNotEmpty) ...[
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 14),
                   Text(
-                    user.phone!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    user.name,
+                    textAlign: TextAlign.center,
                     style: GoogleFonts.hankenGrotesk(
-                      fontSize: 13.5,
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 21,
+                      height: 1.2,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: roleStyle.bgColor,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Text(
+                      roleStyle.label.toUpperCase(),
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 9),
+                  Text(
+                    'CAMBIAR FOTO',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                      color: AppColors.primary,
                     ),
                   ),
                 ],
-                const SizedBox(height: 10),
-
-                // Pill / Tag de Rol
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: roleStyle.bgColor,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(roleStyle.icon, size: 12, color: roleStyle.color),
-                      const SizedBox(width: 5),
-                      Text(
-                        roleStyle.label.toUpperCase(),
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1,
-                          color: roleStyle.color,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
+            Positioned(
+              right: 0,
+              top: 0,
+              child: _EditProfileButton(
+                onTap: isLoading
+                    ? null
+                    : () => _mostrarDialogoEdicion(context, ref),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'INFORMACIÓN DE CONTACTO',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+            color: AppColors.textSecondary,
           ),
-          _EditProfileButton(
-            onTap: isLoading ? null : () => _mostrarDialogoEdicion(context, ref),
-          ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          const Divider(height: 1, color: AppColors.border),
-          const SizedBox(height: 16),
-          _ProfileStatsRow(user: user),
-        ],
-      ),
+        ),
+        const SizedBox(height: 10),
+        _ContactInfoPanel(user: user, roleLabel: roleStyle.label),
+        const SizedBox(height: 16),
+        _ProfileStatsRow(user: user),
+      ],
     );
   }
 
@@ -399,10 +346,106 @@ class ProfileHeader extends ConsumerWidget {
   }
 }
 
-/// Botón de "Editar perfil" discreto en la esquina del header: solo un
-/// ícono de lápiz sin relleno ni borde para no competir visualmente con el
-/// avatar y el nombre. Pensado para no "molestar" en la vista, según lo
-/// pedido, a diferencia de un botón grande o un pill con texto.
+class _ContactInfoPanel extends StatelessWidget {
+  final User user;
+  final String roleLabel;
+
+  const _ContactInfoPanel({required this.user, required this.roleLabel});
+
+  @override
+  Widget build(BuildContext context) {
+    final phone = user.phone?.trim();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _ContactInfoRow(
+            label: 'TELÉFONO',
+            value: phone == null || phone.isEmpty
+                ? 'Sin número registrado'
+                : phone,
+            isMuted: phone == null || phone.isEmpty,
+          ),
+          const Divider(
+              height: 1, indent: 16, endIndent: 16, color: AppColors.border),
+          _ContactInfoRow(
+            label: 'CORREO ELECTRÓNICO',
+            value: user.email,
+          ),
+          const Divider(
+              height: 1, indent: 16, endIndent: 16, color: AppColors.border),
+          _ContactInfoRow(
+            label: 'TIPO DE CUENTA',
+            value: roleLabel,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContactInfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool isMuted;
+
+  const _ContactInfoRow({
+    required this.label,
+    required this.value,
+    this.isMuted = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '$label: $value',
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.1,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              value,
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 14,
+                height: 1.3,
+                fontWeight: FontWeight.w700,
+                color:
+                    isMuted ? AppColors.textSecondary : AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Acción textual discreta para editar el perfil. Evita añadir otro icono
+/// decorativo y conserva una zona táctil amplia en la esquina del encabezado.
 class _EditProfileButton extends StatelessWidget {
   final VoidCallback? onTap;
 
@@ -412,17 +455,31 @@ class _EditProfileButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
+      enabled: onTap != null,
       label: 'Editar perfil',
-      child: InkWell(
-        onTap: onTap,
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(99),
-        child: const SizedBox(
-          width: 44,
-          height: 44,
-          child: Icon(
-            Icons.edit_outlined,
-            size: 18,
-            color: AppColors.textSecondary,
+        child: InkWell(
+          key: const Key('edit-profile'),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(99),
+          child: SizedBox(
+            width: 84,
+            height: 48,
+            child: Center(
+              child: Text(
+                'EDITAR',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                  color: onTap == null
+                      ? AppColors.textDisabled
+                      : AppColors.primary,
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -522,7 +579,6 @@ class _EditProfileBottomSheetState
                   ),
                 ),
                 const SizedBox(height: 24),
-
                 Text(
                   'Nombre Completo',
                   style: GoogleFonts.hankenGrotesk(
@@ -541,8 +597,8 @@ class _EditProfileBottomSheetState
                     hintText: 'Ej. Juan Pérez',
                     hintStyle: GoogleFonts.hankenGrotesk(
                         fontSize: 15, color: AppColors.textSecondary),
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
                     filled: true,
                     fillColor: AppColors.grey50,
                     border: OutlineInputBorder(
@@ -551,8 +607,8 @@ class _EditProfileBottomSheetState
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide:
-                          const BorderSide(color: AppColors.primary, width: 1.5),
+                      borderSide: const BorderSide(
+                          color: AppColors.primary, width: 1.5),
                     ),
                     errorStyle: GoogleFonts.hankenGrotesk(fontSize: 12),
                   ),
@@ -567,7 +623,6 @@ class _EditProfileBottomSheetState
                   },
                 ),
                 const SizedBox(height: 18),
-
                 Text(
                   'Número de Teléfono',
                   style: GoogleFonts.hankenGrotesk(
@@ -587,8 +642,8 @@ class _EditProfileBottomSheetState
                     hintText: 'Ej. +50499887766',
                     hintStyle: GoogleFonts.hankenGrotesk(
                         fontSize: 15, color: AppColors.textSecondary),
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
                     filled: true,
                     fillColor: AppColors.grey50,
                     border: OutlineInputBorder(
@@ -597,8 +652,8 @@ class _EditProfileBottomSheetState
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide:
-                          const BorderSide(color: AppColors.primary, width: 1.5),
+                      borderSide: const BorderSide(
+                          color: AppColors.primary, width: 1.5),
                     ),
                     errorStyle: GoogleFonts.hankenGrotesk(fontSize: 12),
                   ),
@@ -614,7 +669,6 @@ class _EditProfileBottomSheetState
                   },
                 ),
                 const SizedBox(height: 28),
-
                 Row(
                   children: [
                     Expanded(
@@ -703,66 +757,61 @@ class _ProfileStatsRow extends ConsumerWidget {
     if (user.role.isMechanic || user.role.isWorkshop) {
       final specialtiesAsync = ref.watch(providerSpecialtiesProvider);
       roleStat = _StatData(
-        icon: Icons.build_circle_rounded,
-        value: specialtiesAsync.maybeWhen(
+        value: specialtiesAsync.when(
           data: (s) => '${s.length}',
-          orElse: () => '—',
+          loading: () => 'Cargando',
+          error: (_, __) => 'No disponible',
         ),
         label: 'Especialidades',
       );
     } else if (user.role.isStore) {
       final catalogAsync = ref.watch(storeCatalogProvider);
       roleStat = _StatData(
-        icon: Icons.category_rounded,
-        value: catalogAsync.maybeWhen(
+        value: catalogAsync.when(
           data: (l) => '${l.length}',
-          orElse: () => '—',
+          loading: () => 'Cargando',
+          error: (_, __) => 'No disponible',
         ),
         label: 'Líneas de venta',
       );
     } else if (user.role.isConsumer) {
       final carsAsync = ref.watch(userCarsProvider);
       roleStat = _StatData(
-        icon: Icons.directions_car_filled_rounded,
-        value: carsAsync.maybeWhen(
+        value: carsAsync.when(
           data: (c) => '${c.length}',
-          orElse: () => '—',
+          loading: () => 'Cargando',
+          error: (_, __) => 'No disponible',
         ),
         label: 'Vehículos',
       );
     }
 
     final accountStat = _StatData(
-      icon: Icons.verified_rounded,
       value: user.approved ? 'Activa' : 'Pendiente',
       label: 'Cuenta',
     );
 
     final stats = [if (roleStat != null) roleStat, accountStat];
 
-    return Row(
-      children: [
-        for (var i = 0; i < stats.length; i++) ...[
-          if (i > 0)
-            Container(
-              width: 1,
-              height: 32,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              color: AppColors.border,
-            ),
-          Expanded(child: _StatChip(stat: stats[i])),
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < stats.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Expanded(child: _StatChip(stat: stats[i])),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
 
 class _StatData {
-  final IconData icon;
   final String value;
   final String label;
 
-  const _StatData({required this.icon, required this.value, required this.label});
+  const _StatData({required this.value, required this.label});
 }
 
 class _StatChip extends StatelessWidget {
@@ -772,47 +821,42 @@ class _StatChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.celesteMuted,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(stat.icon, size: 16, color: AppColors.celesteInk),
+    return Semantics(
+      label: '${stat.label}: ${stat.value}',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                stat.value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              stat.value,
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 15,
+                height: 1.2,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
               ),
-              Text(
-                stat.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              stat.label,
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 11,
+                height: 1.2,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
