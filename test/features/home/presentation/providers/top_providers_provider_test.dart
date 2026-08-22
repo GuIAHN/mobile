@@ -126,6 +126,33 @@ void main() {
     expect(mechanics.single.id, 'mechanic-first');
   });
 
+  test('keeps the grouped Home response warm between tab visits', () async {
+    final repository = _FakeHomeRepository(groupedResult());
+    final container = ProviderContainer(
+      overrides: [homeRepositoryProvider.overrideWithValue(repository)],
+    );
+    addTearDown(container.dispose);
+
+    final firstVisit = container.listen(
+      topProvidersProvider(ServiceType.workshops),
+      (_, __) {},
+      fireImmediately: true,
+    );
+    await container.read(homeTopProvidersProvider.future);
+    firstVisit.close();
+    await Future<void>.delayed(Duration.zero);
+
+    final secondVisit = container.listen(
+      topProvidersProvider(ServiceType.workshops),
+      (_, __) {},
+      fireImmediately: true,
+    );
+    addTearDown(secondVisit.close);
+    await container.read(homeTopProvidersProvider.future);
+
+    expect(repository.calls, 1);
+  });
+
   test('active location is sent once to the grouped fetch', () async {
     final repository = _FakeHomeRepository(groupedResult());
     final position = Position(

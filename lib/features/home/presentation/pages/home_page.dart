@@ -124,30 +124,35 @@ class _HomePageState extends ConsumerState<HomePage> {
     final isDashboardSelected = selectedType == ServiceType.storeDashboard;
     final currentRole = ref.watch(currentRoleProvider);
     final isConsumer = currentRole.isConsumer;
-    final promosAsync = ref.watch(adsAsPromosProvider(selectedType));
     final allowedTypes = currentRole.allowedServiceTypes;
     final unreadNotifications = ref.watch(unreadNotificationsCountProvider);
     final hasUnreadNotifications = (unreadNotifications.valueOrNull ?? 0) > 0;
-    final promoSection = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 260),
-        switchInCurve: Curves.easeOut,
-        switchOutCurve: Curves.easeIn,
-        child: KeyedSubtree(
-          key: ValueKey<bool>(promosAsync.isLoading),
-          child: promosAsync.when(
-            data: (promos) => PromoCarousel(promos: promos),
-            loading: () => const PromoSkeleton(),
-            error: (error, stack) => _PromoErrorCard(
-              onRetry: () {
-                ref.invalidate(adsAsPromosProvider(selectedType));
-              },
+    Widget? promoSection;
+    if (isConsumer) {
+      final promosAsync = ref.watch(adsAsPromosProvider(selectedType));
+      promoSection = Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 260),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          child: KeyedSubtree(
+            key: ValueKey<bool>(promosAsync.isLoading),
+            child: promosAsync.when(
+              data: (promos) => PromoCarousel(promos: promos),
+              loading: () => const PromoSkeleton(),
+              error: (error, stack) => _PromoErrorCard(
+                onRetry: () {
+                  ref
+                      .refresh(adsAsPromosProvider(selectedType).future)
+                      .ignore();
+                },
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    }
 
     return ListView(
       controller: _scrollController,
@@ -174,7 +179,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           child: CategoryGrid(),
         ),
 
-        if (isConsumer) promoSection,
+        if (promoSection != null) promoSection,
 
         if (isDashboardSelected && currentRole.isStore)
           // Dashboard para usuarios tipo tienda

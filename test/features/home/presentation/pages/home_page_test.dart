@@ -399,10 +399,6 @@ void main() {
       lessThan(tester.getTopLeft(workshopsSurface).dy),
     );
 
-    expect(
-      find.byKey(const Key('home-selected-vehicle-control')),
-      findsOneWidget,
-    );
     expect(find.byKey(const Key('home-vehicle-chips-list')), findsNothing);
 
     final workshopsSection = tester.widget<TopProvidersSection>(
@@ -433,8 +429,7 @@ void main() {
     );
   });
 
-  testWidgets(
-      'spare-part action uses the first garage car displayed by the header',
+  testWidgets('spare-part action uses the first cached garage car',
       (tester) async {
     final container = containerFor(
       workshops: const AsyncValue.data([]),
@@ -445,7 +440,6 @@ void main() {
     await pumpHome(tester, container);
 
     expect(container.read(searchVehicleProvider), isNull);
-    expect(find.text('Toyota Corolla · 2022'), findsOneWidget);
 
     await tester.tap(find.text('Pedir repuesto'));
     await tester.pump();
@@ -534,6 +528,27 @@ void main() {
       find.byKey(const Key('home-selected-vehicle-control')),
       findsNothing,
     );
+  });
+
+  testWidgets('provider Home does not request consumer advertising',
+      (tester) async {
+    var promoLoads = 0;
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      user: mechanic,
+      initialServiceType: ServiceType.spareParts,
+      loadPromos: (ref, type) async {
+        promoLoads++;
+        return const [promo];
+      },
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+
+    expect(promoLoads, 0);
+    expect(find.byType(PromoCarousel), findsNothing);
   });
 
   for (final providerCase in const [

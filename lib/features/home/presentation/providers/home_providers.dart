@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/providers/cache_for.dart';
 import '../../../../core/domain/enums/part_type.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../core/providers/current_user_provider.dart';
@@ -279,6 +280,7 @@ final homeItemsProvider = FutureProvider.family
 /// Una única carga agrupada para las dos secciones destacadas del Home.
 final homeTopProvidersProvider =
     FutureProvider.autoDispose<TopProvidersResult>((ref) async {
+  ref.cacheFor(const Duration(minutes: 30));
   final isLocationShared = ref.watch(isLocationSharedProvider);
   var location =
       isLocationShared ? ref.read(userLocationProvider).valueOrNull : null;

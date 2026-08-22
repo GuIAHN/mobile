@@ -10,6 +10,7 @@ import '../../../../../core/providers/current_user_provider.dart';
 import '../../../../../core/router/route_names.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../vehicles/presentation/providers/vehicle_providers.dart';
+import '../../../../vehicles/domain/entities/user_car.dart';
 import '../../providers/home_providers.dart';
 import '../spare_part_wizard/spare_part_wizard_page.dart';
 
@@ -35,13 +36,16 @@ class CategoryGrid extends ConsumerWidget {
   const CategoryGrid({super.key});
 
   void _handleCategoryTap(
-      BuildContext context, WidgetRef ref, ServiceType type) {
+    BuildContext context,
+    WidgetRef ref,
+    ServiceType type,
+    List<UserCar>? garageCars,
+  ) {
     HapticFeedback.selectionClick();
     ref.read(selectedServiceTypeProvider.notifier).state = type;
     switch (type) {
       case ServiceType.spareParts:
         final selectedVehicle = ref.read(searchVehicleProvider);
-        final garageCars = ref.read(userCarsProvider).valueOrNull;
         final displayedVehicle = selectedVehicle ??
             (garageCars == null || garageCars.isEmpty
                 ? null
@@ -104,6 +108,9 @@ class CategoryGrid extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentRole = ref.watch(currentRoleProvider);
     final selectedType = ref.watch(selectedServiceTypeProvider);
+    final garageCars = currentRole.canRequestSpareParts
+        ? ref.watch(userCarsProvider).valueOrNull
+        : null;
     final allowedTypes = currentRole.allowedServiceTypes;
     final availableTypes = ServiceType.values
         .where((type) => allowedTypes.contains(type))
@@ -125,8 +132,12 @@ class CategoryGrid extends ConsumerWidget {
                   config: _configFor(availableTypes[index]),
                   isSelected: selectedType == availableTypes[index],
                   isCompact: constraints.maxWidth < 400,
-                  onTap: () =>
-                      _handleCategoryTap(context, ref, availableTypes[index]),
+                  onTap: () => _handleCategoryTap(
+                    context,
+                    ref,
+                    availableTypes[index],
+                    garageCars,
+                  ),
                 );
 
             final usesAccessibleList =

@@ -20,6 +20,8 @@ class SecureStorage {
   static const _keyAccessToken = 'access_token';
   static const _keyRefreshToken = 'refresh_token';
   static const _keyUserId = 'user_id';
+  static const _keySyncedDeviceToken = 'synced_device_token';
+  static const _keySyncedDeviceUserId = 'synced_device_user_id';
   static const _contactedProviderPrefix = 'review_contacted_provider';
   static const _handledStoreReviewPrefix = 'handled_store_review';
 
@@ -59,6 +61,29 @@ class SecureStorage {
 
   Future<String?> getUserId() async {
     return _storage.read(key: _keyUserId);
+  }
+
+  // ── Push token synchronization ────────────────────────────────────────────
+
+  Future<bool> isDeviceTokenSynced({
+    required String userId,
+    required String token,
+  }) async {
+    final values = await Future.wait([
+      _storage.read(key: _keySyncedDeviceUserId),
+      _storage.read(key: _keySyncedDeviceToken),
+    ]);
+    return values[0] == userId && values[1] == token;
+  }
+
+  Future<void> markDeviceTokenSynced({
+    required String userId,
+    required String token,
+  }) async {
+    await Future.wait([
+      _storage.write(key: _keySyncedDeviceUserId, value: userId),
+      _storage.write(key: _keySyncedDeviceToken, value: token),
+    ]);
   }
 
   Future<String?> _contactedProviderKey(String providerProfileId) async {
@@ -109,6 +134,8 @@ class SecureStorage {
       _storage.delete(key: _keyAccessToken),
       _storage.delete(key: _keyRefreshToken),
       _storage.delete(key: _keyUserId),
+      _storage.delete(key: _keySyncedDeviceToken),
+      _storage.delete(key: _keySyncedDeviceUserId),
     ]);
   }
 

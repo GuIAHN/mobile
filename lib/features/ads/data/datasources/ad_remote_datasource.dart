@@ -7,7 +7,8 @@ class AdRemoteDataSource {
 
   AdRemoteDataSource(this.dio);
 
-  Future<List<AdModel>> getFeed(double? lat, double? lng, {int limit = 5}) async {
+  Future<List<AdModel>> getFeed(double? lat, double? lng,
+      {int limit = 5}) async {
     final queryParameters = <String, dynamic>{
       'limit': limit,
     };
@@ -19,8 +20,8 @@ class AdRemoteDataSource {
       queryParameters: queryParameters,
     );
 
-    // The backend wraps the response in { code, message, data }
-    final data = response.data['data'] as List;
+    // ResponseUnwrapInterceptor already extracts the backend's `data` field.
+    final data = response.data as List<dynamic>;
     return data
         .map((json) => AdModel.fromJson(json as Map<String, dynamic>))
         .toList();

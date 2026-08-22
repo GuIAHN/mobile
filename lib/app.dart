@@ -10,7 +10,6 @@ import 'shared/widgets/maintenance_page.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/presentation/providers/auth_state.dart';
 import 'core/services/socket_service.dart';
-import 'core/storage/secure_storage.dart';
 import 'core/notifications/foreground_notification_toast_provider.dart';
 
 class GuiAutomotrizApp extends ConsumerStatefulWidget {
@@ -32,17 +31,17 @@ class _GuiAutomotrizAppState extends ConsumerState<GuiAutomotrizApp>
     _authenticationRecoverySub = ref
         .read(socketServiceProvider)
         .onAuthenticationRequired
-        .listen((_) => unawaited(_recoverRealtimeSession()));
+        .listen((_) => unawaited(_recoverRealtimeSession(verifySession: true)));
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      unawaited(_recoverRealtimeSession(forceReconnect: true));
+      unawaited(_recoverRealtimeSession());
     }
   }
 
-  Future<void> _recoverRealtimeSession({bool forceReconnect = false}) async {
+  Future<void> _recoverRealtimeSession({bool verifySession = false}) async {
     if (_recoveringRealtime ||
         ref.read(authProvider).status != AuthStatus.authenticated) {
       return;
@@ -50,26 +49,18 @@ class _GuiAutomotrizAppState extends ConsumerState<GuiAutomotrizApp>
 
     _recoveringRealtime = true;
     try {
-      final storage = ref.read(secureStorageProvider);
-      final tokenBeforeRefresh = await storage.getToken();
-      if (!mounted) return;
-      // This lightweight authenticated request rotates an expired JWT via
-      // AuthInterceptor before Socket.IO reconnects.
-      await ref.read(authProvider.notifier).refreshUser();
-      if (!mounted ||
-          ref.read(authProvider).status != AuthStatus.authenticated) {
-        return;
+      // A server-requested authentication recovery verifies the session and
+      // lets AuthInterceptor rotate an expired JWT. A normal app resume only
+      // asks the socket to reconnect when needed; it must not refetch the full
+      // profile or tear down a healthy transport on every foreground event.
+      if (verifySession) {
+        await ref.read(authProvider.notifier).refreshUser();
+        if (!mounted ||
+            ref.read(authProvider).status != AuthStatus.authenticated) {
+          return;
+        }
       }
-      final tokenAfterRefresh = await storage.getToken();
-      if (!mounted) return;
-      // AuthInterceptor already recreates the socket when it rotates the
-      // token. Force a fresh transport on resume only when the token did not
-      // change, avoiding a duplicate connection attempt.
-      final shouldForceReconnect =
-          forceReconnect && tokenBeforeRefresh == tokenAfterRefresh;
-      await ref.read(socketServiceProvider).connect(
-            force: shouldForceReconnect,
-          );
+      await ref.read(socketServiceProvider).connect();
     } catch (error) {
       debugPrint('[Realtime] No se pudo recuperar la conexión: $error');
     } finally {

@@ -29,6 +29,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final TokenRefreshCoordinator? _tokenRefreshCoordinator;
   StreamSubscription<Map<String, dynamic>>? _notificationSub;
   StreamSubscription<void>? _sessionInvalidatedSub;
+  Future<void>? _deviceTokenSyncInFlight;
 
   static const _accountStatusTipos = {'user.approved', 'user.rejected'};
 
@@ -77,7 +78,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         // Ignore transient failures; keep the cached user as-is.
       },
       (user) {
-        state = state.copyWith(user: user);
+        if (state.user != user) {
+          state = state.copyWith(user: user);
+        }
       },
     );
   }
@@ -135,16 +138,44 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   /// Syncs the device token to the backend for push notifications
-  Future<void> _syncDeviceToken() async {
+  Future<void> _syncDeviceToken() {
+    final inFlight = _deviceTokenSyncInFlight;
+    if (inFlight != null) return inFlight;
+
+    late final Future<void> operation;
+    operation = _performDeviceTokenSync().whenComplete(() {
+      if (identical(_deviceTokenSyncInFlight, operation)) {
+        _deviceTokenSyncInFlight = null;
+      }
+    });
+    _deviceTokenSyncInFlight = operation;
+    return operation;
+  }
+
+  Future<void> _performDeviceTokenSync() async {
     try {
       final token = await PushNotificationsService.getToken();
-      if (token != null) {
-        await _authRepository.registerDeviceToken(
-          token,
-          deviceOs: kIsWeb ? 'web' : defaultTargetPlatform.name,
-        );
+      final userId = state.user?.id;
+      if (token == null || userId == null) return;
+      if (await _secureStorage.isDeviceTokenSynced(
+        userId: userId,
+        token: token,
+      )) {
+        return;
       }
-    } catch (e) {
+
+      final result = await _authRepository.registerDeviceToken(
+        token,
+        deviceOs: kIsWeb ? 'web' : defaultTargetPlatform.name,
+      );
+      await result.fold(
+        (_) async {},
+        (_) => _secureStorage.markDeviceTokenSynced(
+          userId: userId,
+          token: token,
+        ),
+      );
+    } catch (_) {
       // Ignore errors for token sync
     }
   }
@@ -334,6 +365,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// and updating authentication state to unauthenticated.
   Future<void> logout() async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    // If login/startup is still registering this device, let it finish before
+    // removing the token so a late upsert cannot recreate it after logout.
+    await _deviceTokenSyncInFlight;
     try {
       final token = await PushNotificationsService.getToken();
       if (token != null) {

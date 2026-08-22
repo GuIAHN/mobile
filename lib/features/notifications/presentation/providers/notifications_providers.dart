@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/providers/cache_for.dart';
 import '../../../../core/services/socket_service.dart';
 import '../../data/datasources/notifications_remote_datasource.dart';
 import '../../data/repositories/notifications_repository_impl.dart';
@@ -53,16 +56,26 @@ final getUnreadNotificationsCountUseCaseProvider =
 
 final unreadNotificationsCountProvider =
     FutureProvider.autoDispose<int>((ref) async {
+  ref.cacheFor(const Duration(minutes: 2));
   final socketService = ref.watch(socketServiceProvider);
+  Timer? refreshDebounce;
+  void scheduleRefresh() {
+    refreshDebounce?.cancel();
+    refreshDebounce = Timer(const Duration(milliseconds: 500), () {
+      ref.invalidateSelf();
+    });
+  }
+
   final sub = socketService.onNotification.listen((_) {
-    ref.invalidateSelf();
+    scheduleRefresh();
   });
-  final connectedSub = socketService.onConnected.listen((_) {
-    ref.invalidateSelf();
+  final reconnectSub = socketService.onReconnect.listen((_) {
+    scheduleRefresh();
   });
   ref.onDispose(() {
+    refreshDebounce?.cancel();
     sub.cancel();
-    connectedSub.cancel();
+    reconnectSub.cancel();
   });
 
   final result = await ref.watch(getUnreadNotificationsCountUseCaseProvider)();
@@ -86,12 +99,12 @@ final notificationsProvider = StateNotifierProvider.autoDispose<
   final sub = socketService.onNotification.listen((_) {
     notifier.refresh();
   });
-  final connectedSub = socketService.onConnected.listen((_) {
+  final reconnectSub = socketService.onReconnect.listen((_) {
     notifier.refresh();
   });
   ref.onDispose(() {
     sub.cancel();
-    connectedSub.cancel();
+    reconnectSub.cancel();
   });
 
   return notifier;

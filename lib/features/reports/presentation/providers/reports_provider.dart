@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/services/socket_service.dart';
+import '../../../../core/providers/cache_for.dart';
 
 import '../../../../core/network/dio_client.dart';
 import '../../data/datasources/reports_remote_datasource.dart';
@@ -101,10 +102,13 @@ void _listenForDashboardRefresh(Ref ref) {
 
 final storeDashboardProvider =
     FutureProvider.autoDispose<DashboardResponse>((ref) async {
+  ref.cacheFor(const Duration(minutes: 1));
   final repository = ref.watch(reportsRepositoryProvider);
   final filter = ref.watch(dashboardFilterProvider);
-  final user = ref.watch(authProvider).user;
-  if (user == null || !user.role.isStore) {
+  final userIdentity = ref.watch(
+    authProvider.select((state) => (state.user?.id, state.user?.role)),
+  );
+  if (userIdentity.$1 == null || userIdentity.$2?.isStore != true) {
     throw Exception('Dashboard de tienda no autorizado');
   }
 
@@ -112,30 +116,20 @@ final storeDashboardProvider =
 
   final from = _formatDate(filter.from);
   final to = _formatDate(filter.to);
-  final grossSalesFuture = repository
-      .getStoreMetric(
-        'M-T06',
-        from: from,
-        to: to,
-      )
-      .then<MetricResult?>(
-        (metric) => metric,
-        onError: (Object _, StackTrace __) => null,
-      );
-  final dashboard = await repository.getStoreDashboard(from: from, to: to);
-  final grossSalesMetric = await grossSalesFuture;
-
-  return grossSalesMetric == null
-      ? dashboard
-      : dashboard.replaceMetric(grossSalesMetric);
+  return repository.getStoreDashboard(from: from, to: to);
 });
 
 final providerDashboardProvider =
     FutureProvider.autoDispose<DashboardResponse>((ref) async {
+  ref.cacheFor(const Duration(minutes: 1));
   final repository = ref.watch(reportsRepositoryProvider);
   final filter = ref.watch(dashboardFilterProvider);
-  final user = ref.watch(authProvider).user;
-  if (user == null || (!user.role.isMechanic && !user.role.isWorkshop)) {
+  final userIdentity = ref.watch(
+    authProvider.select((state) => (state.user?.id, state.user?.role)),
+  );
+  final role = userIdentity.$2;
+  if (userIdentity.$1 == null ||
+      (role?.isMechanic != true && role?.isWorkshop != true)) {
     throw Exception('Dashboard de proveedor no autorizado');
   }
 
