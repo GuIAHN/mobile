@@ -16,6 +16,7 @@ import '../widgets/registration_completed_step.dart';
 import '../widgets/registration_step_feedback.dart';
 import '../widgets/mechanic_profile_step.dart';
 import '../widgets/mechanic_technical_step.dart';
+import '../widgets/terms_acceptance_step.dart';
 import '../widgets/workshop_specialties_step.dart';
 
 class RegisterMechanicPage extends ConsumerStatefulWidget {
@@ -27,8 +28,8 @@ class RegisterMechanicPage extends ConsumerStatefulWidget {
 }
 
 class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
-  static const _totalSteps = 4;
-  static const _completedStep = 5;
+  static const _totalSteps = 5;
+  static const _completedStep = 6;
 
   int _paso = 1;
   final _scrollController = ScrollController();
@@ -45,6 +46,7 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
 
   // ===== Paso 3: Perfil técnico =====
   double _aniosExperiencia = 5;
+  bool _termsAccepted = false;
 
   @override
   void initState() {
@@ -115,6 +117,8 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
         return _seleccionadas.isNotEmpty;
       case 4:
         return true; // bio es opcional, el slider siempre tiene valor
+      case 5:
+        return _termsAccepted;
       default:
         return false;
     }
@@ -132,7 +136,7 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
 
   Future<void> _submit() async {
     final authState = ref.read(authProvider);
-    if (authState.isLoading) return;
+    if (authState.isLoading || !_termsAccepted) return;
 
     String sanitizedPhone = _telefonoCtrl.text.trim();
     if (sanitizedPhone.isNotEmpty) {
@@ -285,6 +289,13 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
                                       onAniosExperienciaChanged: (v) =>
                                           setState(() => _aniosExperiencia = v),
                                     ),
+                                  5 => TermsAcceptanceStep(
+                                      audience: TermsAudience.serviceProvider,
+                                      isAccepted: _termsAccepted,
+                                      onAcceptedChanged: (accepted) => setState(
+                                        () => _termsAccepted = accepted,
+                                      ),
+                                    ),
                                   _ => RegistrationCompletedStep(
                                       title: '¡Solicitud\nRecibida!',
                                       description:
@@ -367,7 +378,6 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
 
   Widget _indicadorPasos() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           'PASO $_paso DE $_totalSteps',
@@ -378,19 +388,23 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
             color: AppColors.textSecondary,
           ),
         ),
-        Row(
-          children: List.generate(_totalSteps, (i) {
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: 28,
-              height: 5,
-              margin: const EdgeInsets.only(left: 6),
-              decoration: BoxDecoration(
-                color: i < _paso ? AppColors.primary : AppColors.border,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            );
-          }),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Row(
+            children: List.generate(_totalSteps, (i) {
+              return Expanded(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  height: 5,
+                  margin: EdgeInsets.only(left: i == 0 ? 0 : 6),
+                  decoration: BoxDecoration(
+                    color: i < _paso ? AppColors.primary : AppColors.border,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              );
+            }),
+          ),
         ),
       ],
     );
@@ -403,7 +417,7 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
     switch (_paso) {
       case 1:
         titulo = 'Perfil del Mecánico';
-        subtitulo = 'Paso 1 de 4: Información personal';
+        subtitulo = 'Paso 1 de 5: Información personal';
         break;
       case 2:
         titulo = 'Protege tu Cuenta';
@@ -416,7 +430,12 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
         break;
       case 4:
         titulo = 'Perfil Técnico';
-        subtitulo = 'Paso 3 de 4: Detalles de experiencia';
+        subtitulo = 'Paso 4 de 5: Detalles de experiencia';
+        break;
+      case 5:
+        titulo = 'Términos y Condiciones';
+        subtitulo =
+            'Paso 5 de 5: Revisa y acepta el documento para registrarte.';
         break;
     }
 
@@ -557,6 +576,8 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
             );
       case 3:
         return 'Selecciona al menos una especialidad para continuar.';
+      case 5:
+        return 'Abre el documento y acepta los términos y condiciones para registrarte.';
     }
     return null;
   }

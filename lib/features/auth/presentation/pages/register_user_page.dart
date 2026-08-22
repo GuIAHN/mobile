@@ -13,6 +13,7 @@ import '../providers/auth_state.dart';
 import '../providers/social_registration_state.dart';
 import '../widgets/account_security_step.dart';
 import '../widgets/registration_step_feedback.dart';
+import '../widgets/terms_acceptance_step.dart';
 
 class RegisterUserPage extends ConsumerStatefulWidget {
   const RegisterUserPage({super.key});
@@ -22,6 +23,8 @@ class RegisterUserPage extends ConsumerStatefulWidget {
 }
 
 class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
+  static const _totalSteps = 3;
+
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -32,6 +35,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   int _paso = 1;
   final _scrollController = ScrollController();
   bool _formularioValido = false;
+  bool _termsAccepted = false;
 
   @override
   void initState() {
@@ -81,7 +85,12 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   }
 
   void _validarFormulario() {
-    final valido = _paso == 1 ? _datosValidos : _seguridadValida;
+    final valido = switch (_paso) {
+      1 => _datosValidos,
+      2 => _seguridadValida,
+      3 => _termsAccepted,
+      _ => false,
+    };
     if (valido != _formularioValido) {
       setState(() => _formularioValido = valido);
     }
@@ -105,8 +114,8 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
 
   void _avanzar() {
     if (!_formularioValido) return;
-    if (_paso == 1) {
-      setState(() => _paso = 2);
+    if (_paso < _totalSteps) {
+      setState(() => _paso++);
       _validarFormulario();
       _scrollToTop();
       return;
@@ -115,8 +124,8 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   }
 
   void _retroceder() {
-    if (_paso == 2) {
-      setState(() => _paso = 1);
+    if (_paso > 1) {
+      setState(() => _paso--);
       _validarFormulario();
       _scrollToTop();
     } else {
@@ -125,7 +134,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   }
 
   Future<void> _submit() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!_datosValidos || !_seguridadValida || !_termsAccepted) return;
 
     String? sanitizedPhone;
     final rawPhone = _phoneController.text.trim();
@@ -205,69 +214,81 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                               duration: MediaQuery.disableAnimationsOf(context)
                                   ? Duration.zero
                                   : const Duration(milliseconds: 300),
-                              child: _paso == 1
-                                  ? Column(
-                                      key: const ValueKey('personal-data'),
-                                      children: [
-                                        AppTextField(
-                                          label: 'NOMBRE COMPLETO',
-                                          controller: _nameController,
-                                          hint: 'Tu nombre y apellido',
-                                          prefixIcon: Icons.person_outline,
-                                          textInputAction: TextInputAction.next,
-                                          enabled: !isSocial,
-                                          validator: (v) {
-                                            final err = Validators.required(v,
-                                                fieldName: 'El nombre');
-                                            if (err != null) return err;
-                                            if (v!
-                                                    .trim()
-                                                    .split(RegExp(r'\s+'))
-                                                    .length <
-                                                2) {
-                                              return 'Ingresa nombre y apellido';
-                                            }
-                                            return null;
-                                          },
-                                        ),
-                                        AppTextField(
-                                          label: 'CORREO ELECTRÓNICO',
-                                          controller: _emailController,
-                                          hint: 'ejemplo@correo.com',
-                                          prefixIcon: Icons.mail_outline,
-                                          keyboardType:
-                                              TextInputType.emailAddress,
-                                          textInputAction: TextInputAction.next,
-                                          enabled: !isSocial,
-                                          validator: Validators.email,
-                                        ),
-                                        AppTextField(
-                                          label: 'TELÉFONO (OPCIONAL)',
-                                          controller: _phoneController,
-                                          hint: '414 123 4567',
-                                          helperText:
-                                              'Ingresa el número de teléfono móvil',
-                                          prefixIcon: Icons.smartphone_outlined,
-                                          keyboardType: TextInputType.phone,
-                                          textInputAction: TextInputAction.done,
-                                          validator: (v) {
-                                            if (v != null &&
-                                                v.trim().isNotEmpty) {
-                                              return Validators.phone(v);
-                                            }
-                                            return null;
-                                          },
-                                        ),
-                                      ],
-                                    )
-                                  : AccountSecurityStep(
-                                      key: const ValueKey('account-security'),
-                                      passwordController: _passwordController,
-                                      confirmPasswordController:
-                                          _confirmPasswordController,
-                                      isSocial: isSocial,
-                                      socialProvider: socialData?.provider,
-                                    ),
+                              child: switch (_paso) {
+                                1 => Column(
+                                    key: const ValueKey('personal-data'),
+                                    children: [
+                                      AppTextField(
+                                        label: 'NOMBRE COMPLETO',
+                                        controller: _nameController,
+                                        hint: 'Tu nombre y apellido',
+                                        prefixIcon: Icons.person_outline,
+                                        textInputAction: TextInputAction.next,
+                                        enabled: !isSocial,
+                                        validator: (v) {
+                                          final err = Validators.required(v,
+                                              fieldName: 'El nombre');
+                                          if (err != null) return err;
+                                          if (v!
+                                                  .trim()
+                                                  .split(RegExp(r'\s+'))
+                                                  .length <
+                                              2) {
+                                            return 'Ingresa nombre y apellido';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                      AppTextField(
+                                        label: 'CORREO ELECTRÓNICO',
+                                        controller: _emailController,
+                                        hint: 'ejemplo@correo.com',
+                                        prefixIcon: Icons.mail_outline,
+                                        keyboardType:
+                                            TextInputType.emailAddress,
+                                        textInputAction: TextInputAction.next,
+                                        enabled: !isSocial,
+                                        validator: Validators.email,
+                                      ),
+                                      AppTextField(
+                                        label: 'TELÉFONO (OPCIONAL)',
+                                        controller: _phoneController,
+                                        hint: '414 123 4567',
+                                        helperText:
+                                            'Ingresa el número de teléfono móvil',
+                                        prefixIcon: Icons.smartphone_outlined,
+                                        keyboardType: TextInputType.phone,
+                                        textInputAction: TextInputAction.done,
+                                        validator: (v) {
+                                          if (v != null &&
+                                              v.trim().isNotEmpty) {
+                                            return Validators.phone(v);
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                2 => AccountSecurityStep(
+                                    key: const ValueKey('account-security'),
+                                    passwordController: _passwordController,
+                                    confirmPasswordController:
+                                        _confirmPasswordController,
+                                    isSocial: isSocial,
+                                    socialProvider: socialData?.provider,
+                                  ),
+                                _ => TermsAcceptanceStep(
+                                    key: const ValueKey('terms-acceptance'),
+                                    audience: TermsAudience.consumer,
+                                    isAccepted: _termsAccepted,
+                                    onAcceptedChanged: (accepted) {
+                                      setState(() {
+                                        _termsAccepted = accepted;
+                                        _formularioValido = accepted;
+                                      });
+                                    },
+                                  ),
+                              },
                             ),
                             const Spacer(),
                             const SizedBox(height: 32),
@@ -320,10 +341,9 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
 
   Widget _indicadorPasos() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          'PASO $_paso DE 3',
+          'PASO $_paso DE $_totalSteps',
           style: GoogleFonts.hankenGrotesk(
             fontSize: 11,
             fontWeight: FontWeight.w800,
@@ -331,29 +351,38 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
             color: AppColors.textSecondary,
           ),
         ),
-        Row(
-          children: List.generate(3, (i) {
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: 28,
-              height: 5,
-              margin: const EdgeInsets.only(left: 6),
-              decoration: BoxDecoration(
-                color: i < _paso ? AppColors.primary : AppColors.border,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            );
-          }),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Row(
+            children: List.generate(_totalSteps, (i) {
+              return Expanded(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  height: 5,
+                  margin: EdgeInsets.only(left: i == 0 ? 0 : 6),
+                  decoration: BoxDecoration(
+                    color: i < _paso ? AppColors.primary : AppColors.border,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              );
+            }),
+          ),
         ),
       ],
     );
   }
 
   Widget _tituloPaso() {
-    final title = _paso == 1 ? 'Crea tu Cuenta' : 'Protege tu Cuenta';
-    final subtitle = _paso == 1
-        ? 'Paso 1 de 3: Registra tus datos básicos.'
-        : 'Paso 2 de 3: Define cómo iniciarás sesión.';
+    final (title, subtitle) = switch (_paso) {
+      1 => ('Crea tu Cuenta', 'Paso 1 de 3: Registra tus datos básicos.'),
+      2 => ('Protege tu Cuenta', 'Paso 2 de 3: Define cómo iniciarás sesión.'),
+      3 => (
+          'Términos y Condiciones',
+          'Paso 3 de 3: Revisa y acepta el documento para registrarte.'
+        ),
+      _ => ('', ''),
+    };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -454,7 +483,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          _paso == 1 ? 'CONTINUAR' : 'CREAR CUENTA',
+                          _paso < _totalSteps ? 'CONTINUAR' : 'CREAR CUENTA',
                           style: GoogleFonts.hankenGrotesk(
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
@@ -463,7 +492,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                         ),
                         const SizedBox(width: 8),
                         Icon(
-                          _paso == 1
+                          _paso < _totalSteps
                               ? Icons.chevron_right
                               : Icons.person_add_outlined,
                           size: 18,
@@ -489,11 +518,14 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
       }
       return 'Revisa el teléfono o déjalo vacío si prefieres agregarlo después.';
     }
-    return Validators.password(_passwordController.text) ??
-        Validators.confirmPassword(
-          _confirmPasswordController.text,
-          _passwordController.text,
-        );
+    if (_paso == 2) {
+      return Validators.password(_passwordController.text) ??
+          Validators.confirmPassword(
+            _confirmPasswordController.text,
+            _passwordController.text,
+          );
+    }
+    return 'Abre el documento y acepta los términos y condiciones para crear tu cuenta.';
   }
 
   void _scrollToTop() {

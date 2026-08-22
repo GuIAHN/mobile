@@ -14,6 +14,7 @@ import '../providers/auth_state.dart';
 import '../widgets/account_security_step.dart';
 import '../widgets/registration_completed_step.dart';
 import '../widgets/registration_step_feedback.dart';
+import '../widgets/terms_acceptance_step.dart';
 import '../widgets/workshop_info_step.dart';
 import '../widgets/workshop_location_step.dart';
 import '../widgets/workshop_specialties_step.dart';
@@ -27,8 +28,8 @@ class RegisterWorkshopPage extends ConsumerStatefulWidget {
 }
 
 class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
-  static const _totalSteps = 4;
-  static const _completedStep = 5;
+  static const _totalSteps = 5;
+  static const _completedStep = 6;
 
   int _paso = 1;
   final _scrollController = ScrollController();
@@ -47,6 +48,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
   // ===== Paso 3: Ubicación =====
   LatLng _location = const LatLng(10.4806, -66.9036);
   bool _ubicacionConfirmada = false;
+  bool _termsAccepted = false;
 
   @override
   void initState() {
@@ -107,6 +109,8 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
         return _seleccionadas.isNotEmpty;
       case 4:
         return _ubicacionConfirmada;
+      case 5:
+        return _termsAccepted;
       default:
         return false;
     }
@@ -124,7 +128,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
 
   Future<void> _submit() async {
     final authState = ref.read(authProvider);
-    if (authState.isLoading) return;
+    if (authState.isLoading || !_termsAccepted) return;
 
     String sanitizedPhone = _telefonoCtrl.text.trim();
     if (sanitizedPhone.isNotEmpty) {
@@ -267,6 +271,13 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                                           setState(
                                               () => _ubicacionConfirmada = c),
                                     ),
+                                  5 => TermsAcceptanceStep(
+                                      audience: TermsAudience.serviceProvider,
+                                      isAccepted: _termsAccepted,
+                                      onAcceptedChanged: (accepted) => setState(
+                                        () => _termsAccepted = accepted,
+                                      ),
+                                    ),
                                   _ => RegistrationCompletedStep(
                                       title: '¡REGISTRO\nCOMPLETADO!',
                                       description:
@@ -354,7 +365,6 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
 
   Widget _indicadorPasos() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           'PASO $_paso DE $_totalSteps',
@@ -365,19 +375,23 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
             color: AppColors.textSecondary,
           ),
         ),
-        Row(
-          children: List.generate(_totalSteps, (i) {
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: 28,
-              height: 5,
-              margin: const EdgeInsets.only(left: 6),
-              decoration: BoxDecoration(
-                color: i < _paso ? AppColors.primary : AppColors.border,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            );
-          }),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Row(
+            children: List.generate(_totalSteps, (i) {
+              return Expanded(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  height: 5,
+                  margin: EdgeInsets.only(left: i == 0 ? 0 : 6),
+                  decoration: BoxDecoration(
+                    color: i < _paso ? AppColors.primary : AppColors.border,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              );
+            }),
+          ),
         ),
       ],
     );
@@ -466,6 +480,10 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
           'Ubicación',
           'Confirma el punto exacto donde tus clientes encontrarán el taller.'
         ),
+      5 => (
+          'Términos y Condiciones',
+          'Revisa y acepta el documento para completar tu registro.'
+        ),
       _ => ('', ''),
     };
 
@@ -516,7 +534,9 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
       case 3:
         return 'Selecciona al menos una especialidad para continuar.';
       case 4:
-        return 'Confirma la ubicación exacta del taller para finalizar.';
+        return 'Confirma la ubicación exacta del taller para continuar.';
+      case 5:
+        return 'Abre el documento y acepta los términos y condiciones para registrarte.';
     }
     return null;
   }
