@@ -63,6 +63,9 @@ flutter_launcher_icons:
   android: "ic_launcher"
   ios: true
   image_path: "assets/images/logo_icon_zoom.png"
+  image_path_android: "assets/images/logo_icon_android.png"
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/images/logo_icon_zoom.png"
   remove_alpha_ios: true
   min_sdk_android: 21
 
