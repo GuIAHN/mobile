@@ -6,6 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/utils/venezuelan_phone_number.dart';
+import '../../../../shared/widgets/app_phone_field.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/api_error_message.dart';
 import '../providers/auth_provider.dart';
@@ -136,12 +138,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   Future<void> _submit() async {
     if (!_datosValidos || !_seguridadValida || !_termsAccepted) return;
 
-    String? sanitizedPhone;
-    final rawPhone = _phoneController.text.trim();
-    if (rawPhone.isNotEmpty) {
-      final clean = rawPhone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-      sanitizedPhone = clean.startsWith('0') ? clean.substring(1) : clean;
-    }
+    final sanitizedPhone = VenezuelanPhoneNumber.toApi(_phoneController.text);
 
     final socialData = ref.read(socialRegistrationProvider);
 
@@ -250,22 +247,11 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                                         enabled: !isSocial,
                                         validator: Validators.email,
                                       ),
-                                      AppTextField(
+                                      AppPhoneField(
                                         label: 'TELÉFONO (OPCIONAL)',
                                         controller: _phoneController,
-                                        hint: '414 123 4567',
-                                        helperText:
-                                            'Ingresa el número de teléfono móvil',
-                                        prefixIcon: Icons.smartphone_outlined,
-                                        keyboardType: TextInputType.phone,
+                                        required: false,
                                         textInputAction: TextInputAction.done,
-                                        validator: (v) {
-                                          if (v != null &&
-                                              v.trim().isNotEmpty) {
-                                            return Validators.phone(v);
-                                          }
-                                          return null;
-                                        },
                                       ),
                                     ],
                                   ),

@@ -1,3 +1,5 @@
+import 'venezuelan_phone_number.dart';
+
 /// Validadores de formulario reutilizables para la app guIAutomotriz.
 /// Devuelven `null` si es válido o un mensaje de error si no.
 abstract class Validators {
@@ -92,9 +94,8 @@ abstract class Validators {
     if (value == null || value.trim().isEmpty) {
       return 'El teléfono es requerido.';
     }
-    final phoneRegex = RegExp(r'^\+?[0-9\s\-()]{7,15}$');
-    if (!phoneRegex.hasMatch(value.trim())) {
-      return 'Ingresa un número de teléfono válido.';
+    if (VenezuelanPhoneNumber.toLocal(value) == null) {
+      return 'Selecciona un prefijo y completa los 7 dígitos.';
     }
     return null;
   }

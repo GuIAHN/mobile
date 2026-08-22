@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/utils/venezuelan_phone_number.dart';
 import '../../../../shared/widgets/api_error_message.dart';
 import '../../../catalog/domain/entities/category.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
@@ -198,11 +199,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       );
     }).toList();
 
-    String sanitizedPhone = _telefonoCtrl.text.trim();
-    if (sanitizedPhone.isNotEmpty) {
-      final clean = sanitizedPhone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-      sanitizedPhone = clean.startsWith('0') ? clean.substring(1) : clean;
-    }
+    final sanitizedPhone = VenezuelanPhoneNumber.toApi(_telefonoCtrl.text)!;
 
     String rif = _rifCtrl.text.trim();
     if (rif.toUpperCase().startsWith('J')) {
@@ -632,7 +629,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
           return 'Ingresa un correo electrónico válido.';
         }
         if (Validators.phone(_telefonoCtrl.text) != null) {
-          return 'Revisa el teléfono. Usa entre 7 y 15 dígitos.';
+          return 'Selecciona el prefijo y completa los 7 dígitos.';
         }
         return 'Ingresa el RIF de la tienda.';
       case 2:

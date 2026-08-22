@@ -48,6 +48,31 @@ class _TestAuthNotifier extends AuthNotifier {
 }
 
 void main() {
+  testWidgets('does not repeat the profile label inside the profile tab',
+      (tester) async {
+    const user = User(
+      id: 'consumer-1',
+      email: 'consumer@gmail.com',
+      name: 'Usuario Consumidor',
+      role: UserRole.consumer,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith((ref) => _TestAuthNotifier(user)),
+          userCarsProvider.overrideWith((ref) async => const []),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ProfileTab())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Perfil'), findsNothing);
+    expect(find.byType(ProfileHeader), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('shows explicit loading and recoverable error states',
       (tester) async {
     await tester.pumpWidget(

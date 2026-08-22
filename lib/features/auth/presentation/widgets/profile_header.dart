@@ -7,6 +7,8 @@ import '../../../../core/config/env.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../core/utils/venezuelan_phone_number.dart';
+import '../../../../shared/widgets/app_phone_field.dart';
 import '../../../../shared/widgets/image_source_selector_sheet.dart';
 import '../../domain/entities/user.dart';
 import '../providers/auth_provider.dart';
@@ -668,50 +670,11 @@ class _EditProfileBottomSheetState
                   },
                 ),
                 const SizedBox(height: 18),
-                Text(
-                  'Número de Teléfono',
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
+                AppPhoneField(
+                  label: 'NÚMERO DE TELÉFONO',
                   controller: _phoneController,
                   enabled: !isLoading,
-                  keyboardType: TextInputType.phone,
-                  style: GoogleFonts.hankenGrotesk(
-                      fontSize: 15, fontWeight: FontWeight.w600),
-                  decoration: InputDecoration(
-                    hintText: 'Ej. +50499887766',
-                    hintStyle: GoogleFonts.hankenGrotesk(
-                        fontSize: 15, color: AppColors.textSecondary),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                    filled: true,
-                    fillColor: AppColors.grey50,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(
-                          color: AppColors.primary, width: 1.5),
-                    ),
-                    errorStyle: GoogleFonts.hankenGrotesk(fontSize: 12),
-                  ),
-                  validator: (val) {
-                    if (val == null || val.trim().isEmpty) {
-                      return 'Por favor ingresa tu número de teléfono';
-                    }
-                    final phoneRegex = RegExp(r'^\+?[1-9]\d{6,14}$');
-                    if (!phoneRegex.hasMatch(val.trim())) {
-                      return 'Formato de teléfono inválido (E.164: Ej. +50499887766)';
-                    }
-                    return null;
-                  },
+                  textInputAction: TextInputAction.done,
                 ),
                 const SizedBox(height: 28),
                 Row(
@@ -784,7 +747,7 @@ class _EditProfileBottomSheetState
     if (_formKey.currentState?.validate() ?? false) {
       ref.read(authProvider.notifier).updateProfile(
             name: _nameController.text.trim(),
-            phone: _phoneController.text.trim(),
+            phone: VenezuelanPhoneNumber.toApi(_phoneController.text),
           );
     }
   }

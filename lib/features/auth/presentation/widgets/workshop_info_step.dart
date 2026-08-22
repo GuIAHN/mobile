@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../shared/widgets/app_phone_field.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 
 class WorkshopInfoStep extends StatelessWidget {
@@ -41,15 +42,10 @@ class WorkshopInfoStep extends StatelessWidget {
           textInputAction: TextInputAction.next,
           validator: Validators.email,
         ),
-        _campo(
+        AppPhoneField(
           label: 'NÚMERO DE TELÉFONO',
-          ctrl: telefonoController,
-          hint: '414 123 4567',
-          icono: Icons.call_outlined,
-          teclado: TextInputType.phone,
+          controller: telefonoController,
           textInputAction: TextInputAction.next,
-          helperText: 'Ingresa el número sin el "0" ni "+58" (ej. 4141234567)',
-          validator: Validators.phone,
         ),
         _campoRif(
           label: 'RIF / IDENTIFICACIÓN DEL TALLER',

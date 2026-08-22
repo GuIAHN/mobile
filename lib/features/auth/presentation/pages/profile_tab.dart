@@ -71,22 +71,8 @@ class ProfileTab extends ConsumerWidget {
           ),
           child: Column(
             children: [
-              StaggeredEntrance(
-                index: 0,
-                child: Text(
-                  'Perfil',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 28,
-                    height: 1.15,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
               for (var i = 0; i < sections.length; i++) ...[
-                StaggeredEntrance(index: i + 1, child: sections[i]),
+                StaggeredEntrance(index: i, child: sections[i]),
                 const SizedBox(height: 24),
               ],
               const SizedBox(height: 4),
