@@ -21,6 +21,7 @@ import '../widgets/store_catalog_helper.dart';
 import '../widgets/store_catalog_step.dart';
 import '../widgets/store_profile_step.dart';
 import '../widgets/store_summary_step.dart';
+import '../widgets/terms_acceptance_step.dart';
 import '../widgets/workshop_location_step.dart';
 
 class RegisterStorePage extends ConsumerStatefulWidget {
@@ -31,8 +32,8 @@ class RegisterStorePage extends ConsumerStatefulWidget {
 }
 
 class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
-  static const _totalSteps = 5;
-  static const _completedStep = 6;
+  static const _totalSteps = 6;
+  static const _completedStep = 7;
 
   int _paso = 1;
   final _scrollController = ScrollController();
@@ -52,6 +53,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
   // ===== Paso 4: Ubicación =====
   LatLng _location = const LatLng(10.4806, -66.9036);
   bool _ubicacionConfirmada = false;
+  bool _termsAccepted = false;
 
   @override
   void initState() {
@@ -166,6 +168,8 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
         return _catalogo.isNotEmpty;
       case 5:
         return _ubicacionConfirmada;
+      case 6:
+        return _termsAccepted;
       default:
         return false;
     }
@@ -183,7 +187,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
 
   Future<void> _submit() async {
     final authState = ref.read(authProvider);
-    if (authState.isLoading) return;
+    if (authState.isLoading || !_termsAccepted) return;
 
     final catalogConfigs = _catalogo.map((l) {
       return StoreCategoryConfig(
@@ -346,6 +350,13 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                                       helperText:
                                           'Toca el mapa para ajustar la ubicación exacta de la tienda',
                                     ),
+                                  6 => TermsAcceptanceStep(
+                                      audience: TermsAudience.serviceProvider,
+                                      isAccepted: _termsAccepted,
+                                      onAcceptedChanged: (accepted) => setState(
+                                        () => _termsAccepted = accepted,
+                                      ),
+                                    ),
                                   _ => RegistrationCompletedStep(
                                       title: '¡Solicitud\nRecibida!',
                                       description:
@@ -429,7 +440,6 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
 
   Widget _indicadorPasos() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           'PASO $_paso DE $_totalSteps',
@@ -440,19 +450,23 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
             color: AppColors.textSecondary,
           ),
         ),
-        Row(
-          children: List.generate(_totalSteps, (i) {
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: 28,
-              height: 5,
-              margin: const EdgeInsets.only(left: 6),
-              decoration: BoxDecoration(
-                color: i < _paso ? AppColors.primary : AppColors.border,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            );
-          }),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Row(
+            children: List.generate(_totalSteps, (i) {
+              return Expanded(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  height: 5,
+                  margin: EdgeInsets.only(left: i == 0 ? 0 : 6),
+                  decoration: BoxDecoration(
+                    color: i < _paso ? AppColors.primary : AppColors.border,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              );
+            }),
+          ),
         ),
       ],
     );
@@ -465,7 +479,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     switch (_paso) {
       case 1:
         titulo = 'Perfil de la Tienda';
-        subtitulo = 'Paso 1 de 4: Información básica';
+        subtitulo = 'Paso 1 de 6: Información básica';
         break;
       case 2:
         titulo = 'Protege tu Cuenta';
@@ -479,11 +493,16 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       case 4:
         titulo = 'Catálogo Seleccionado';
         subtitulo =
-            'Paso 3 de 4: Revisa las categorías registradas. Toca una tarjeta para modificar sus marcas.';
+            'Paso 4 de 6: Revisa las categorías registradas. Toca una tarjeta para modificar sus marcas.';
         break;
       case 5:
         titulo = 'Ubicación';
-        subtitulo = 'Paso 4 de 4: Confirma la dirección física de la tienda.';
+        subtitulo = 'Paso 5 de 6: Confirma la dirección física de la tienda.';
+        break;
+      case 6:
+        titulo = 'Términos y Condiciones';
+        subtitulo =
+            'Paso 6 de 6: Revisa y acepta el documento para registrarte.';
         break;
     }
 
@@ -627,7 +646,9 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       case 4:
         return 'El catálogo quedó vacío. Vuelve atrás y agrega una categoría.';
       case 5:
-        return 'Confirma la ubicación exacta de la tienda para finalizar.';
+        return 'Confirma la ubicación exacta de la tienda para continuar.';
+      case 6:
+        return 'Abre el documento y acepta los términos y condiciones para registrarte.';
     }
     return null;
   }
