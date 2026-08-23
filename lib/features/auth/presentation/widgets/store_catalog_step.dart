@@ -1,51 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/catalog_summary_card.dart';
 import '../../../catalog/domain/entities/category.dart';
 import 'store_catalog_helper.dart';
 
 class StoreCatalogStep extends StatelessWidget {
   final List<LineaCatalogo> catalogo;
-  final List<Category> categories;
-  final ValueChanged<Category> onAbrirSheetMarcas;
-  final bool isLoading;
-  final Object? loadError;
-  final VoidCallback? onRetry;
+  final ValueChanged<LineaCatalogo> onAbrirSheetMarcas;
+  final VoidCallback onAgregarSubcategoria;
 
   const StoreCatalogStep({
     super.key,
     required this.catalogo,
-    required this.categories,
     required this.onAbrirSheetMarcas,
-    this.isLoading = false,
-    this.loadError,
-    this.onRetry,
+    required this.onAgregarSubcategoria,
   });
-
-  LineaCatalogo? _buscarLinea(String categoryId) {
-    for (final l in catalogo) {
-      if (l.category.id == categoryId) return l;
-    }
-    return null;
-  }
 
   @override
   Widget build(BuildContext context) {
-    if (categories.isEmpty) {
-      return _CatalogState(
-        isLoading: isLoading,
-        hasError: loadError != null,
-        onRetry: onRetry,
-      );
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: 16, top: 4),
           child: Text(
-            'SELECCIONA LAS MARCAS QUE MANEJAS EN CADA CATEGORÍA',
+            'SUBCATEGORÍAS QUE MANEJA TU TIENDA',
             style: GoogleFonts.hankenGrotesk(
               fontSize: 11,
               fontWeight: FontWeight.w700,
@@ -54,14 +34,43 @@ class StoreCatalogStep extends StatelessWidget {
             ),
           ),
         ),
-        ...categories.map((cat) {
-          final linea = _buscarLinea(cat.id);
+        if (catalogo.isEmpty) const _EmptyCatalogState(),
+        ...catalogo.map((linea) {
+          final cat = linea.category;
           return _CardCategoria(
             category: cat,
             linea: linea,
-            onTap: () => onAbrirSheetMarcas(cat),
+            onTap: () => onAbrirSheetMarcas(linea),
           );
         }),
+        const SizedBox(height: 4),
+        Semantics(
+          button: true,
+          label: 'Agregar una subcategoría al catálogo de la tienda',
+          child: OutlinedButton.icon(
+            key: const Key('add-store-subcategory'),
+            onPressed: onAgregarSubcategoria,
+            icon: const Icon(Icons.add_rounded, size: 22),
+            label: Text(
+              catalogo.isEmpty
+                  ? 'SELECCIONAR SUBCATEGORÍA'
+                  : 'AGREGAR OTRA SUBCATEGORÍA',
+            ),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary, width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(32),
+              ),
+              textStyle: GoogleFonts.hankenGrotesk(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.1,
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -83,175 +92,37 @@ class _CardCategoria extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final marcas = linea?.brands ?? {};
-    final activa = marcas.isNotEmpty;
+    final sparePartTypes = linea?.sparePartsTypes ?? {};
+    final configured = marcas.isNotEmpty && sparePartTypes.isNotEmpty;
 
-    final icon = getCategoryIcon(category.name);
-    final desc = getCategoryDescription(category.name);
-
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 200),
-        margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: activa ? AppColors.primaryMuted : Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: activa ? AppColors.primary : AppColors.border,
-            width: activa ? 1.8 : 1.0,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: activa ? 0.05 : 0.03),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                /* Icono de Categoría */
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: activa
-                        ? AppColors.primary.withValues(alpha: 0.12)
-                        : const Color(0xFFF3F4F6),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: activa ? AppColors.primary : AppColors.textSecondary,
-                    size: 26,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                /* Nombre y Descripción */
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        category.name,
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        desc,
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 12.5,
-                          height: 1.4,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                /* Badge de conteo o Chevron */
-                activa
-                    ? _BadgeCount(marcas.length)
-                    : const Icon(
-                        Icons.add_circle_outline,
-                        color: AppColors.textDisabled,
-                        size: 24,
-                      ),
-              ],
-            ),
-            /* Marcas y tipos seleccionados */
-            if (activa) ...[
-              const SizedBox(height: 14),
-              const Divider(color: AppColors.border, height: 1),
-              const SizedBox(height: 12),
-              Text(
-                'MARCAS:',
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textDisabled,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: marcas.map((m) => _ChipMarca(m.name)).toList(),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'TIPOS DE REPUESTO:',
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textDisabled,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: linea!.sparePartsTypes.map((t) {
-                  switch (t) {
-                    case 'ORIGINAL':
-                      return const _ChipTipo('Original');
-                    case 'GENERIC':
-                      return const _ChipTipo('Genérico');
-                    case 'PERFORMANCE':
-                      return const _ChipTipo('Performance');
-                    default:
-                      return _ChipTipo(t);
-                  }
-                }).toList(),
-              ),
-            ],
-          ],
-        ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: CatalogSummaryCard(
+        key: ValueKey('store-catalog-category-${category.id}'),
+        title: category.name,
+        icon: getCategoryIcon(category.name),
+        brandSummary: marcas.isEmpty
+            ? 'Sin marcas seleccionadas'
+            : '${marcas.length} ${marcas.length == 1 ? 'marca' : 'marcas'}',
+        sparePartTypes: sparePartTypes,
+        configured: configured,
+        actionLabel: configured ? 'Editar' : 'Configurar',
+        onTap: onTap,
       ),
     );
   }
 }
 
-class _CatalogState extends StatelessWidget {
-  const _CatalogState({
-    required this.isLoading,
-    required this.hasError,
-    this.onRetry,
-  });
-
-  final bool isLoading;
-  final bool hasError;
-  final VoidCallback? onRetry;
+class _EmptyCatalogState extends StatelessWidget {
+  const _EmptyCatalogState();
 
   @override
   Widget build(BuildContext context) {
-    final title = hasError
-        ? 'No pudimos cargar las categorías'
-        : isLoading
-            ? 'Cargando categorías…'
-            : 'No hay categorías disponibles';
-    final description = hasError
-        ? 'Revisa tu conexión e inténtalo nuevamente.'
-        : isLoading
-            ? 'Esto puede tomar unos segundos.'
-            : 'Inténtalo más tarde o comunícate con soporte.';
-
     return Semantics(
-      liveRegion: true,
+      label: 'Todavía no has seleccionado subcategorías',
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -259,19 +130,14 @@ class _CatalogState extends StatelessWidget {
         ),
         child: Column(
           children: [
-            if (isLoading)
-              const CircularProgressIndicator(color: AppColors.primary)
-            else
-              Icon(
-                hasError
-                    ? Icons.cloud_off_outlined
-                    : Icons.inventory_2_outlined,
-                color: hasError ? AppColors.error : AppColors.textSecondary,
-                size: 36,
-              ),
+            const Icon(
+              Icons.account_tree_outlined,
+              color: AppColors.primary,
+              size: 36,
+            ),
             const SizedBox(height: 16),
             Text(
-              title,
+              'Selecciona lo que vendes',
               textAlign: TextAlign.center,
               style: GoogleFonts.hankenGrotesk(
                 color: AppColors.textPrimary,
@@ -281,7 +147,7 @@ class _CatalogState extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              description,
+              'Explora las categorías y elige una subcategoría para configurar sus marcas y tipos de repuesto.',
               textAlign: TextAlign.center,
               style: GoogleFonts.hankenGrotesk(
                 color: AppColors.textSecondary,
@@ -289,100 +155,7 @@ class _CatalogState extends StatelessWidget {
                 height: 1.4,
               ),
             ),
-            if (hasError && onRetry != null) ...[
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('REINTENTAR'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(160, 48),
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary),
-                ),
-              ),
-            ],
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ChipMarca extends StatelessWidget {
-  final String marca;
-  const _ChipMarca(this.marca);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.2),
-          width: 1.2,
-        ),
-      ),
-      child: Text(
-        marca,
-        style: GoogleFonts.hankenGrotesk(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: AppColors.primary,
-        ),
-      ),
-    );
-  }
-}
-
-class _ChipTipo extends StatelessWidget {
-  final String tipo;
-  const _ChipTipo(this.tipo);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFE5E7EB),
-          width: 1.2,
-        ),
-      ),
-      child: Text(
-        tipo,
-        style: GoogleFonts.hankenGrotesk(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textSecondary,
-        ),
-      ),
-    );
-  }
-}
-
-class _BadgeCount extends StatelessWidget {
-  final int count;
-  const _BadgeCount(this.count);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(99),
-      ),
-      child: Text(
-        '$count ${count == 1 ? 'marca' : 'marcas'}',
-        style: GoogleFonts.hankenGrotesk(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w700,
-          color: Colors.white,
         ),
       ),
     );

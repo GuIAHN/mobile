@@ -24,6 +24,14 @@
 - Texto de input: 16px, w400 (w600 si tiene valor seleccionado).
 - Botón principal: 15px, w700, letterSpacing 2, MAYÚSCULAS.
 
+## 2.1 ICONOGRAFÍA
+- Familia única: **Lucide**, consumida desde `AppIcons` y `AppLineIcon`; no importar la librería directamente en features.
+- Estilo por defecto: outline, trazo consistente, sin mezclar con iconos filled en la misma capa.
+- Tamaños permitidos: 16px inline, 20px en acciones, 24px como leading y 32px para features. El hero puede usar 64px.
+- Los iconos se presentan directamente sobre la superficie, **sin círculo, squircle ni fondo redondeado decorativo**.
+- Un fondo detrás del icono solo se permite cuando comunica un estado funcional: selección, error, marcador de mapa o identidad de marca.
+- Los iconos Material existentes se migran progresivamente. Las pantallas nuevas deben usar `AppIcons`.
+
 ## 3. COMPONENTES
 
 ### Scaffold
@@ -57,7 +65,7 @@
 ### Cards de ítems (listas)
 - Fondo blanco, borderRadius: 20, padding 16, margen inferior 12.
 - Sombra: negro 4%, blur 14, offset (0, 6).
-- Icono líder en contenedor 48x48, borderRadius 14, fondo naranjaSuave, icono naranja.
+- Icono líder Lucide de 24px, sin contenedor decorativo; reservar una columna visual de 32px y un gap de 12px antes del texto.
 
 ### Links de texto
 - Color naranja, w700, sin subrayado.

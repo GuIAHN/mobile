@@ -12,7 +12,7 @@ class ChatThread extends Equatable {
   final String? clientName; // Nombre del creador (para vista de tienda)
   final String? clientId;
   final String? fotoUrl;
-  
+
   // Extra details for the UI
   final String? details;
   final String? partType;
@@ -30,7 +30,17 @@ class ChatThread extends Equatable {
   final String? offerId;
   final String? offerStatus;
   final double? offerPrice;
+  final double? deliveryCost;
+  final double? totalCost;
   final String? conversationId;
+  final String? searchMatchId;
+  final String? matchState;
+  final DateTime? declinedAt;
+  final String? declineReason;
+  final bool isInquiry;
+  final DateTime? cancelledAt;
+  final String? cancelSource;
+  final String? cancelReason;
 
   // Consumer Best Offer Info
   final double? bestOfferPrice;
@@ -64,7 +74,17 @@ class ChatThread extends Equatable {
     this.offerId,
     this.offerStatus,
     this.offerPrice,
+    this.deliveryCost,
+    this.totalCost,
     this.conversationId,
+    this.searchMatchId,
+    this.matchState,
+    this.declinedAt,
+    this.declineReason,
+    this.isInquiry = false,
+    this.cancelledAt,
+    this.cancelSource,
+    this.cancelReason,
     this.bestOfferPrice,
     this.bestOfferStoreName,
     this.bestOfferStatus,
@@ -96,6 +116,20 @@ class ChatThread extends Equatable {
         offerId,
         offerStatus,
         offerPrice,
+        deliveryCost,
+        totalCost,
+        conversationId,
+        searchMatchId,
+        matchState,
+        declinedAt,
+        declineReason,
+        isInquiry,
+        cancelledAt,
+        cancelSource,
+        cancelReason,
+        bestOfferPrice,
+        bestOfferStoreName,
+        bestOfferStatus,
         lastMessage,
       ];
 }

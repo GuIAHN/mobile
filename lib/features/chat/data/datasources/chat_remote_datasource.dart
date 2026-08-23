@@ -88,8 +88,26 @@ class ChatRemoteDataSource {
           offerPrice: json['offerPrice'] != null
               ? double.tryParse(json['offerPrice'].toString())
               : null,
+          deliveryCost: json['deliveryCost'] != null
+              ? double.tryParse(json['deliveryCost'].toString())
+              : null,
+          totalCost: json['totalCost'] != null
+              ? double.tryParse(json['totalCost'].toString())
+              : null,
           lastMessage: json['lastMessage'] as String?,
           conversationId: json['conversationId'] as String?,
+          searchMatchId: json['searchMatchId'] as String?,
+          matchState: json['matchState'] as String?,
+          declinedAt: json['declinedAt'] != null
+              ? DateTime.tryParse(json['declinedAt'].toString())
+              : null,
+          declineReason: json['declineReason'] as String?,
+          isInquiry: json['isInquiry'] as bool? ?? false,
+          cancelledAt: json['cancelledAt'] != null
+              ? DateTime.tryParse(json['cancelledAt'].toString())
+              : null,
+          cancelSource: json['cancelSource'] as String?,
+          cancelReason: json['cancelReason'] as String?,
         );
       } else {
         final variant = json['userCar']?['variant'];
@@ -186,10 +204,21 @@ class ChatRemoteDataSource {
         ),
         offerId: json['id'],
         offerStatus: json['status'],
+        cancelledAt: json['cancelledAt'] != null
+            ? DateTime.tryParse(json['cancelledAt'].toString())
+            : null,
+        cancelSource: json['cancelSource'] as String?,
+        cancelReason: json['cancelReason'] as String?,
         hasQuote: true,
         isInquiry: json['status'] == 'INQUIRY',
         price: json['price'] != null
             ? double.tryParse(json['price'].toString())
+            : null,
+        deliveryCost: json['deliveryCost'] != null
+            ? double.tryParse(json['deliveryCost'].toString())
+            : null,
+        totalCost: json['totalCost'] != null
+            ? double.tryParse(json['totalCost'].toString())
             : null,
         spareBrand: json['spareBrand'],
         sparePhotoUrl: json['sparePhotoUrl'],
@@ -245,6 +274,11 @@ class ChatRemoteDataSource {
             : DateTime.now(),
         offerId: json['offerId'],
         offerStatus: json['offerStatus'],
+        cancelledAt: json['cancelledAt'] != null
+            ? DateTime.tryParse(json['cancelledAt'].toString())
+            : null,
+        cancelSource: json['cancelSource'] as String?,
+        cancelReason: json['cancelReason'] as String?,
         hasQuote: json['hasQuote'] ?? false,
         isInquiry: json['isInquiry'] ?? false,
         price: json['price'] != null
@@ -252,6 +286,12 @@ class ChatRemoteDataSource {
             : null,
         spareBrand: json['spareBrand'],
         sparePhotoUrl: json['sparePhotoUrl'],
+        storeRating: json['storeRating'] != null
+            ? double.tryParse(json['storeRating'].toString())
+            : null,
+        storeReviewCount: json['storeRatingCount'] is num
+            ? (json['storeRatingCount'] as num).toInt()
+            : int.tryParse(json['storeRatingCount']?.toString() ?? '') ?? 0,
         note: json['note'] as String?,
       );
     }).toList();
@@ -276,6 +316,7 @@ class ChatRemoteDataSource {
   Future<ChatConversationModel> createQuote({
     required String threadId,
     double? price,
+    double? deliveryCost,
     String? brand,
     String? photoPath,
   }) async {
@@ -306,6 +347,7 @@ class ChatRemoteDataSource {
     final payload = {
       'searchMatchId': searchMatchId,
       if (price != null) 'price': price,
+      if (deliveryCost != null) 'deliveryCost': deliveryCost,
       if (brand != null && brand.isNotEmpty) 'spareBrand': brand,
       if (sparePhotoUrl != null && sparePhotoUrl.isNotEmpty)
         'sparePhotoUrl': sparePhotoUrl,
@@ -338,6 +380,12 @@ class ChatRemoteDataSource {
       price: json['price'] != null
           ? double.tryParse(json['price'].toString())
           : null,
+      deliveryCost: json['deliveryCost'] != null
+          ? double.tryParse(json['deliveryCost'].toString())
+          : null,
+      totalCost: json['totalCost'] != null
+          ? double.tryParse(json['totalCost'].toString())
+          : null,
       spareBrand: json['spareBrand'],
       sparePhotoUrl: json['sparePhotoUrl'],
     );
@@ -348,6 +396,8 @@ class ChatRemoteDataSource {
   Future<void> quoteOffer({
     required String offerId,
     required double price,
+    required bool updateDeliveryCost,
+    double? deliveryCost,
     String? brand,
     String? photoPath,
   }) async {
@@ -361,6 +411,7 @@ class ChatRemoteDataSource {
 
     await _dioClient.patch('offers/$offerId', data: {
       'price': price,
+      if (updateDeliveryCost) 'deliveryCost': deliveryCost,
       if (brand != null && brand.isNotEmpty) 'spareBrand': brand,
       if (sparePhotoUrl != null && sparePhotoUrl.isNotEmpty)
         'sparePhotoUrl': sparePhotoUrl,
@@ -373,5 +424,27 @@ class ChatRemoteDataSource {
 
   Future<void> deliverOffer(String offerId) async {
     await _dioClient.post('offers/$offerId/deliver');
+  }
+
+  Future<void> cancelOffer(String offerId, {String? reason}) async {
+    await _dioClient.post(
+      ApiEndpoints.offerCancel(offerId),
+      data: {
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      },
+    );
+  }
+
+  Future<void> declineMatch(String searchMatchId, String reason) async {
+    await _dioClient.post(
+      ApiEndpoints.storeSearchRequestDecline(searchMatchId),
+      data: {'reason': reason},
+    );
+  }
+
+  Future<void> undoDecline(String searchMatchId) async {
+    await _dioClient.delete(
+      ApiEndpoints.storeSearchRequestDecline(searchMatchId),
+    );
   }
 }

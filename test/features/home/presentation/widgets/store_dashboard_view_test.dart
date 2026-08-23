@@ -174,6 +174,31 @@ void main() {
     expect(find.byType(BillingBalanceCard), findsNothing);
   });
 
+  testWidgets('explains the response-time block instead of a generic error',
+      (tester) async {
+    const blocked = StoreMetricsBlockedException(
+      message: 'Responde más rápido para recuperar el acceso.',
+      status: StoreResponseStatus(
+        blocked: true,
+        medianMinutes: 45,
+        thresholdMinutes: 30,
+        sampleSize: 12,
+        minSample: 10,
+        windowDays: 30,
+      ),
+    );
+
+    await tester.pumpWidget(
+      subject((ref) => Future<DashboardResponse>.error(blocked)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dashboard temporalmente bloqueado'), findsOneWidget);
+    expect(find.textContaining('Mediana: 45 min'), findsOneWidget);
+    expect(find.text('Comprobar de nuevo'), findsOneWidget);
+    expect(find.text('Error al cargar dashboard'), findsNothing);
+  });
+
   testWidgets('balance card adapts to representative phones and large text',
       (tester) async {
     addTearDown(() => tester.binding.setSurfaceSize(null));

@@ -13,6 +13,16 @@ void main() {
     );
   });
 
+  test('does not blame the password when a legacy backend rejects payload', () {
+    const response =
+        'property payload should not exist, email must be an email, password must be longer than or equal to 6 characters, name should not be empty';
+
+    expect(
+      ErrorMapper.parseErrorMessage(response),
+      'No pudimos procesar el registro con documentos. El servidor necesita actualizarse antes de intentarlo nuevamente.',
+    );
+  });
+
   test('does not expose missing-token backend text to the user', () {
     final request = RequestOptions(path: '/reports/store/dashboard');
     final failure = ErrorMapper.map(

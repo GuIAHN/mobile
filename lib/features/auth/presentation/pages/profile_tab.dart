@@ -17,6 +17,7 @@ import '../providers/auth_provider.dart';
 import '../widgets/profile_action_card.dart';
 import '../widgets/profile_header.dart';
 import '../widgets/security_section.dart';
+import '../../../home/presentation/widgets/navigation/bottom_nav_bar.dart';
 
 class ProfileTab extends ConsumerWidget {
   const ProfileTab({super.key});
@@ -63,11 +64,11 @@ class ProfileTab extends ConsumerWidget {
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         child: Padding(
-          padding: const EdgeInsets.only(
+          padding: EdgeInsets.only(
             left: 20,
             right: 20,
             top: 24,
-            bottom: 120,
+            bottom: bottomNavContentInset(context) + 16,
           ),
           child: Column(
             children: [

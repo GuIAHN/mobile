@@ -60,27 +60,35 @@ class _HomePageState extends ConsumerState<HomePage> {
     final isStore = ref.watch(currentRoleProvider).isStore;
 
     return Scaffold(
+      key: const Key('home-scaffold'),
       backgroundColor: AppColors.background,
-      // El body se extiende por debajo de la barra para que el contenido se vea
-      // continuo detrás de la parte saliente del logo central.
-      extendBody: true,
-      bottomNavigationBar: const BottomNavBar(),
       body: Stack(
         children: [
-          AnimatedSwitcher(
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : const Duration(milliseconds: 250),
-            child: _buildSelectedTab(
-              context,
-              activeTab: activeTab,
-              isStore: isStore,
+          Positioned.fill(
+            child: AnimatedSwitcher(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 250),
+              child: _buildSelectedTab(
+                context,
+                activeTab: activeTab,
+                isStore: isStore,
+              ),
             ),
           ),
           if (user != null && !user.approved)
             const Positioned.fill(
               child: UnapprovedOverlay(),
             ),
+          // La navegación vive como una capa flotante: no reserva una franja
+          // rectangular y deja que la pantalla continúe visible alrededor y
+          // detrás de la cápsula.
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: BottomNavBar(),
+          ),
         ],
       ),
     );
@@ -102,14 +110,6 @@ class _HomePageState extends ConsumerState<HomePage> {
         isStore ? const StoreSalesPage() : const ConsumerPurchasesPage(),
       MainNavigationTab.profile => const ProfileTab(),
     };
-
-    if (activeTab == MainNavigationTab.profile) {
-      return Padding(
-        key: ValueKey<MainNavigationTab>(activeTab),
-        padding: EdgeInsets.only(bottom: bottomNavContentInset(context)),
-        child: page,
-      );
-    }
 
     return KeyedSubtree(
       key: ValueKey<MainNavigationTab>(activeTab),

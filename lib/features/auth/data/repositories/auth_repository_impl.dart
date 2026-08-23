@@ -82,6 +82,7 @@ class AuthRepositoryImpl implements AuthRepository {
     String? phone,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
   }) async {
     try {
       // 1. Create the user in the backend.
@@ -92,6 +93,7 @@ class AuthRepositoryImpl implements AuthRepository {
         role: role,
         idToken: idToken,
         provider: provider,
+        acceptedTerms: acceptedTerms,
       );
 
       // 2. Log in automatically to obtain tokens for the active session.
@@ -143,6 +145,10 @@ class AuthRepositoryImpl implements AuthRepository {
     required List<String> specialtyIds,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
+    String? idPhotoPath,
+    String? rifPhotoPath,
+    String? mercantilRegistryPath,
   }) async {
     try {
       final registeredUser = await remoteDataSource.registerMechanic(
@@ -158,11 +164,12 @@ class AuthRepositoryImpl implements AuthRepository {
         specialtyIds: specialtyIds,
         idToken: idToken,
         provider: provider,
+        acceptedTerms: acceptedTerms,
+        idPhotoPath: idPhotoPath,
+        rifPhotoPath: rifPhotoPath,
+        mercantilRegistryPath: mercantilRegistryPath,
       );
 
-      // Provider accounts remain pending review. Do not auto-login here: doing
-      // so briefly exposed authenticated screens and triggered protected API
-      // calls before the registration confirmation could be shown.
       return Right(registeredUser);
     } catch (e) {
       return Left(ErrorMapper.map(e));
@@ -183,6 +190,9 @@ class AuthRepositoryImpl implements AuthRepository {
     required bool hasDelivery,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
+    required String rifPhotoPath,
+    required String mercantilRegistryPath,
   }) async {
     try {
       final registeredUser = await remoteDataSource.registerStore(
@@ -198,6 +208,9 @@ class AuthRepositoryImpl implements AuthRepository {
         hasDelivery: hasDelivery,
         idToken: idToken,
         provider: provider,
+        acceptedTerms: acceptedTerms,
+        rifPhotoPath: rifPhotoPath,
+        mercantilRegistryPath: mercantilRegistryPath,
       );
 
       // Stores also require approval, so registration success is intentionally

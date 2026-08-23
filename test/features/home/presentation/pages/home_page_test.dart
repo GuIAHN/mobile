@@ -808,7 +808,7 @@ void main() {
     );
   });
 
-  testWidgets('purchases list reaches navigation without a blank band',
+  testWidgets('purchases list flows behind the floating navigation capsule',
       (tester) async {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final threads = List.generate(
@@ -857,14 +857,29 @@ void main() {
         description: 'chat requests list',
       );
       final listRect = tester.getRect(chatList);
-      final navigationRect = tester.getRect(find.byType(BottomNavBar));
+      final navigationSurfaceRect = tester.getRect(
+        find.byKey(const Key('bottom-nav-surface')),
+      );
+      final homeScaffold = tester.widget<Scaffold>(
+        find.byKey(const Key('home-scaffold')),
+      );
+      final list = tester.widget<ListView>(chatList);
 
+      expect(homeScaffold.bottomNavigationBar, isNull);
       expect(
         listRect.bottom,
-        closeTo(navigationRect.top, 1),
-        reason: 'The requests viewport must finish where the menu begins at '
+        greaterThan(navigationSurfaceRect.top),
+        reason: 'The requests viewport must continue behind the capsule at '
             '${configuration.size} and ${configuration.textScale}x text; '
-            'list=$listRect navigation=$navigationRect',
+            'list=$listRect navigation=$navigationSurfaceRect',
+      );
+      expect(
+        (list.padding! as EdgeInsets).bottom,
+        greaterThanOrEqualTo(bottomNavContentInset(
+          tester.element(chatList),
+        )),
+        reason: 'The list still needs enough trailing scroll space for its '
+            'last card to clear the floating navigation.',
       );
       expect(tester.takeException(), isNull);
     }

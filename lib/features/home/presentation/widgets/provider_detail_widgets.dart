@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/guia_map.dart';
@@ -180,7 +180,7 @@ class _DecorCircle extends StatelessWidget {
   }
 }
 
-/// Botón back circular para usar como leading del SliverAppBar.
+/// Botón back lineal para usar como leading del SliverAppBar.
 class DetailBackButton extends StatelessWidget {
   const DetailBackButton({super.key});
 
@@ -191,14 +191,14 @@ class DetailBackButton extends StatelessWidget {
       child: Semantics(
         button: true,
         label: 'Volver',
-        child: CircleAvatar(
-          backgroundColor: Colors.white,
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-            color: AppColors.textPrimary,
-            tooltip: 'Volver',
-            onPressed: () => Navigator.pop(context),
+        child: IconButton(
+          icon: const AppLineIcon(
+            AppIcons.back,
+            size: AppIconSize.leading,
           ),
+          color: Colors.white,
+          tooltip: 'Volver',
+          onPressed: () => Navigator.pop(context),
         ),
       ),
     );
@@ -258,7 +258,8 @@ class DetailHeroStatsCard extends StatelessWidget {
           Expanded(
             child: _HeroStatItem(
               icon: Icons.star_rounded,
-              iconColor: hasRating ? const Color(0xFFF59E0B) : AppColors.grey400,
+              iconColor:
+                  hasRating ? const Color(0xFFF59E0B) : AppColors.grey400,
               value: ratingValue,
               label: ratingSub,
             ),
@@ -718,12 +719,14 @@ class DetailLocationCard extends StatelessWidget {
   final String? direccion;
   final double? lat;
   final double? lng;
+  final bool embedded;
 
   const DetailLocationCard({
     super.key,
     this.direccion,
     this.lat,
     this.lng,
+    this.embedded = false,
   });
 
   @override
@@ -733,9 +736,80 @@ class DetailLocationCard extends StatelessWidget {
     }
 
     final hasCoordinates = lat != null && lng != null;
-    final point = hasCoordinates
-        ? LatLng(lat!, lng!)
-        : const LatLng(10.4806, -66.9036);
+    final point =
+        hasCoordinates ? LatLng(lat!, lng!) : const LatLng(10.4806, -66.9036);
+
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (direccion != null && direccion!.isNotEmpty) ...[
+          Row(
+            children: [
+              const AppLineIcon(
+                AppIcons.location,
+                size: AppIconSize.action,
+                color: AppColors.primaryInk,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  direccion!,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+        ],
+
+        // Mapa real con OpenStreetMap via flutter_map usando el widget compartido
+        GuiaMap(
+          point: point,
+          isApproximate: !hasCoordinates,
+        ),
+        const SizedBox(height: 14),
+
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () => ContactActions.openGoogleMaps(
+              context,
+              lat: lat,
+              lng: lng,
+              address: direccion,
+            ),
+            icon: const AppLineIcon(
+              AppIcons.externalLink,
+              size: AppIconSize.action,
+            ),
+            label: Text(
+              'ABRIR EN GOOGLE MAPS',
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.5,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(32),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    if (embedded) return content;
 
     return Container(
       width: double.infinity,
@@ -751,85 +825,12 @@ class DetailLocationCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (direccion != null && direccion!.isNotEmpty) ...[
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.location_on_rounded,
-                      color: AppColors.primary, size: 18),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    direccion!,
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-          ],
-
-          // Mapa real con OpenStreetMap via flutter_map usando el widget compartido
-          GuiaMap(
-            point: point,
-            isApproximate: !hasCoordinates,
-          ),
-          const SizedBox(height: 14),
-
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => ContactActions.openGoogleMaps(
-                context,
-                lat: lat,
-                lng: lng,
-                address: direccion,
-              ),
-              icon: const Icon(Icons.open_in_new_rounded, size: 18),
-              label: Text(
-                'ABRIR EN GOOGLE MAPS',
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.5,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(32),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+      child: content,
     );
   }
 }
 
-
-
 // ── CTA ───────────────────────────────────────────────────────────────────
-
-
 
 // ── Estados de carga y error ──────────────────────────────────────────────
 
@@ -898,14 +899,10 @@ class DetailErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: const BoxDecoration(
-                color: AppColors.errorLight,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.wifi_off_rounded,
-                  size: 34, color: AppColors.error),
+            const AppLineIcon(
+              AppIcons.connectivityError,
+              size: AppIconSize.feature,
+              color: AppColors.error,
             ),
             const SizedBox(height: 18),
             Text(
@@ -933,7 +930,10 @@ class DetailErrorView extends StatelessWidget {
               height: 48,
               child: ElevatedButton.icon(
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded, size: 18),
+                icon: const AppLineIcon(
+                  AppIcons.retry,
+                  size: AppIconSize.action,
+                ),
                 label: Text(
                   'Reintentar',
                   style: GoogleFonts.hankenGrotesk(

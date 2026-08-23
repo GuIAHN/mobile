@@ -8,12 +8,25 @@ import '../providers/chat_providers.dart';
 import '../../domain/entities/chat_thread.dart';
 import '../widgets/chat_thread_card.dart';
 import '../widgets/consumer_thread_card.dart';
+import '../../../home/presentation/widgets/navigation/bottom_nav_bar.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/staggered_entrance.dart';
 
 /// Filtro por estado de la solicitud/oferta.
-enum _StatusFilter { all, active, closed, unquoted, quoted, bought, delivered }
+enum _StatusFilter {
+  all,
+  active,
+  closed,
+  pending,
+  inquiring,
+  declined,
+  quoted,
+  bought,
+  delivered,
+  cancelled,
+  discarded,
+}
 
 /// Bandeja comercial reutilizada por Compras (consumidor) y Ventas (tienda).
 /// Las conversaciones reales viven en [ConversationsInboxPage].
@@ -63,16 +76,15 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
         return threads.where((t) => t.isOpen && !t.isExpired).toList();
       case _StatusFilter.closed:
         return threads.where((t) => !t.isOpen || t.isExpired).toList();
-      case _StatusFilter.unquoted:
-        return threads.where((t) => !t.hasOffer).toList();
+      case _StatusFilter.pending:
+        return threads.where((t) => t.matchState == 'PENDING').toList();
+      case _StatusFilter.inquiring:
+        return threads.where((t) => t.matchState == 'INQUIRING').toList();
+      case _StatusFilter.declined:
+        return threads.where((t) => t.matchState == 'DECLINED').toList();
       case _StatusFilter.quoted:
         return isStore
-            ? threads
-                .where((t) =>
-                    t.hasOffer &&
-                    t.offerStatus != 'BOUGHT' &&
-                    t.offerStatus != 'DELIVERED')
-                .toList()
+            ? threads.where((t) => t.matchState == 'QUOTED').toList()
             : threads
                 .where(
                     (t) => t.totalOffersCount > 0 || t.bestOfferPrice != null)
@@ -82,24 +94,41 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
             .where((t) => isStore
                 ? t.offerStatus == 'BOUGHT'
                 : t.bestOfferStatus == 'BOUGHT' ||
-                    t.bestOfferStatus == 'DELIVERED')
+                    t.bestOfferStatus == 'DELIVERED' ||
+                    t.bestOfferStatus == 'CANCELLED')
             .toList();
       case _StatusFilter.delivered:
         return threads.where((t) => t.offerStatus == 'DELIVERED').toList();
+      case _StatusFilter.cancelled:
+        return threads
+            .where((t) => isStore
+                ? t.offerStatus == 'CANCELLED'
+                : t.bestOfferStatus == 'CANCELLED')
+            .toList();
+      case _StatusFilter.discarded:
+        return threads.where((t) => t.offerStatus == 'DISCARDED').toList();
     }
   }
 
   String _mapFilterToParam(_StatusFilter filter, bool isProvider) {
     if (isProvider) {
       switch (filter) {
-        case _StatusFilter.unquoted:
-          return 'UNQUOTED';
+        case _StatusFilter.pending:
+          return 'PENDING';
+        case _StatusFilter.inquiring:
+          return 'INQUIRING';
+        case _StatusFilter.declined:
+          return 'DECLINED';
         case _StatusFilter.quoted:
           return 'QUOTED';
         case _StatusFilter.bought:
           return 'BOUGHT';
         case _StatusFilter.delivered:
           return 'DELIVERED';
+        case _StatusFilter.cancelled:
+          return 'CANCELLED';
+        case _StatusFilter.discarded:
+          return 'DISCARDED';
         case _StatusFilter.all:
         default:
           return 'ALL';
@@ -114,6 +143,8 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
           return 'BOUGHT';
         case _StatusFilter.closed:
           return 'CLOSED';
+        case _StatusFilter.cancelled:
+          return 'CANCELLED';
         case _StatusFilter.all:
         default:
           return 'ALL';
@@ -129,13 +160,14 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
     );
 
     if (isStore && !_initializedProviderFilter) {
-      _statusFilter = _StatusFilter.unquoted;
+      _statusFilter = _StatusFilter.pending;
       _initializedProviderFilter = true;
     }
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
+        bottom: false,
         child: threadsAsync.when(
           loading: () => _buildLoadingState(isStore),
           error: (err, _) => _buildErrorState(err.toString(), isStore),
@@ -166,7 +198,12 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
         Expanded(
           child: ListView.builder(
             physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+            padding: EdgeInsets.fromLTRB(
+              24,
+              8,
+              24,
+              bottomNavContentInset(context) + 24,
+            ),
             itemCount: 4,
             itemBuilder: (context, index) => StaggeredEntrance(
               index: index,
@@ -211,8 +248,12 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
         searchFiltered.where((t) => t.isOpen && !t.isExpired).length;
     final closedCount =
         counts['closed'] ?? (searchFiltered.length - activeCount);
-    final unquotedCount =
-        counts['unquoted'] ?? searchFiltered.where((t) => !t.hasOffer).length;
+    final pendingCount = counts['pending'] ??
+        searchFiltered.where((t) => t.matchState == 'PENDING').length;
+    final inquiringCount = counts['inquiring'] ??
+        searchFiltered.where((t) => t.matchState == 'INQUIRING').length;
+    final declinedCount = counts['declined'] ??
+        searchFiltered.where((t) => t.matchState == 'DECLINED').length;
     final quotedCount = counts['quoted'] ??
         counts['withOffer'] ??
         searchFiltered
@@ -225,10 +266,19 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
             .where((t) => isProvider
                 ? t.offerStatus == 'BOUGHT'
                 : t.bestOfferStatus == 'BOUGHT' ||
-                    t.bestOfferStatus == 'DELIVERED')
+                    t.bestOfferStatus == 'DELIVERED' ||
+                    t.bestOfferStatus == 'CANCELLED')
             .length;
     final deliveredCount = counts['delivered'] ??
         searchFiltered.where((t) => t.offerStatus == 'DELIVERED').length;
+    final cancelledCount = counts['cancelled'] ??
+        searchFiltered
+            .where((t) => isProvider
+                ? t.offerStatus == 'CANCELLED'
+                : t.bestOfferStatus == 'CANCELLED')
+            .length;
+    final discardedCount = counts['discarded'] ??
+        searchFiltered.where((t) => t.offerStatus == 'DISCARDED').length;
     final visible = _applyStatus(searchFiltered, isProvider);
 
     return Column(
@@ -239,10 +289,14 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
           allCount: allCount,
           activeCount: activeCount,
           closedCount: closedCount,
-          unquotedCount: unquotedCount,
+          pendingCount: pendingCount,
+          inquiringCount: inquiringCount,
+          declinedCount: declinedCount,
           quotedCount: quotedCount,
           boughtCount: boughtCount,
           deliveredCount: deliveredCount,
+          cancelledCount: cancelledCount,
+          discardedCount: discardedCount,
         ),
         Expanded(
           child: _buildListBody(threads, searchFiltered, visible, isProvider),
@@ -293,6 +347,9 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics()),
+          padding: EdgeInsets.only(
+            bottom: bottomNavContentInset(context) + 24,
+          ),
           children: [
             const SizedBox(height: 80),
             emptyWidget,
@@ -307,7 +364,12 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(
             parent: BouncingScrollPhysics()),
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+        padding: EdgeInsets.fromLTRB(
+          24,
+          8,
+          24,
+          bottomNavContentInset(context) + 24,
+        ),
         itemCount: visible.length,
         itemBuilder: (context, index) {
           final thread = visible[index];
@@ -348,10 +410,14 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
     required int allCount,
     required int activeCount,
     required int closedCount,
-    int unquotedCount = 0,
+    int pendingCount = 0,
+    int inquiringCount = 0,
+    int declinedCount = 0,
     int quotedCount = 0,
     int boughtCount = 0,
     int deliveredCount = 0,
+    int cancelledCount = 0,
+    int discardedCount = 0,
   }) {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 14, 24, 14),
@@ -364,29 +430,6 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            isProvider ? 'Ventas' : 'Compras',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary,
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            isProvider
-                ? 'Cotiza solicitudes y da seguimiento a tus ventas'
-                : 'Administra tus solicitudes y compara ofertas',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 16),
-
           // Barra de búsqueda
           _buildSearchBar(isLoading, isProvider),
 
@@ -400,10 +443,14 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
                 allCount: allCount,
                 activeCount: activeCount,
                 closedCount: closedCount,
-                unquotedCount: unquotedCount,
+                pendingCount: pendingCount,
+                inquiringCount: inquiringCount,
+                declinedCount: declinedCount,
                 quotedCount: quotedCount,
                 boughtCount: boughtCount,
                 deliveredCount: deliveredCount,
+                cancelledCount: cancelledCount,
+                discardedCount: discardedCount,
                 onChanged: (f) {
                   setState(() => _statusFilter = f);
                   final param = _mapFilterToParam(f, isProvider);
@@ -424,11 +471,12 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
 
   Widget _buildSearchBar(bool isLoading, bool isProvider) {
     return Container(
-      height: 46,
+      key: const Key('request-search-bar'),
+      height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
@@ -501,10 +549,14 @@ class _StatusFilterChips extends StatelessWidget {
   final int allCount;
   final int activeCount;
   final int closedCount;
-  final int unquotedCount;
+  final int pendingCount;
+  final int inquiringCount;
+  final int declinedCount;
   final int quotedCount;
   final int boughtCount;
   final int deliveredCount;
+  final int cancelledCount;
+  final int discardedCount;
   final ValueChanged<_StatusFilter> onChanged;
 
   const _StatusFilterChips({
@@ -513,10 +565,14 @@ class _StatusFilterChips extends StatelessWidget {
     required this.allCount,
     required this.activeCount,
     required this.closedCount,
-    this.unquotedCount = 0,
+    this.pendingCount = 0,
+    this.inquiringCount = 0,
+    this.declinedCount = 0,
     this.quotedCount = 0,
     this.boughtCount = 0,
     this.deliveredCount = 0,
+    this.cancelledCount = 0,
+    this.discardedCount = 0,
     required this.onChanged,
   });
 
@@ -526,10 +582,24 @@ class _StatusFilterChips extends StatelessWidget {
       return Row(
         children: [
           _StatusChip(
-            label: 'Sin cotizar',
-            count: unquotedCount,
-            isSelected: selected == _StatusFilter.unquoted,
-            onTap: () => onChanged(_StatusFilter.unquoted),
+            label: 'Pendientes',
+            count: pendingCount,
+            isSelected: selected == _StatusFilter.pending,
+            onTap: () => onChanged(_StatusFilter.pending),
+          ),
+          const SizedBox(width: 8),
+          _StatusChip(
+            label: 'Consultas',
+            count: inquiringCount,
+            isSelected: selected == _StatusFilter.inquiring,
+            onTap: () => onChanged(_StatusFilter.inquiring),
+          ),
+          const SizedBox(width: 8),
+          _StatusChip(
+            label: 'Declinadas',
+            count: declinedCount,
+            isSelected: selected == _StatusFilter.declined,
+            onTap: () => onChanged(_StatusFilter.declined),
           ),
           const SizedBox(width: 8),
           _StatusChip(
@@ -551,6 +621,20 @@ class _StatusFilterChips extends StatelessWidget {
             count: deliveredCount,
             isSelected: selected == _StatusFilter.delivered,
             onTap: () => onChanged(_StatusFilter.delivered),
+          ),
+          const SizedBox(width: 8),
+          _StatusChip(
+            label: 'Canceladas',
+            count: cancelledCount,
+            isSelected: selected == _StatusFilter.cancelled,
+            onTap: () => onChanged(_StatusFilter.cancelled),
+          ),
+          const SizedBox(width: 8),
+          _StatusChip(
+            label: 'Descartadas',
+            count: discardedCount,
+            isSelected: selected == _StatusFilter.discarded,
+            onTap: () => onChanged(_StatusFilter.discarded),
           ),
           const SizedBox(width: 8),
           _StatusChip(
@@ -591,6 +675,13 @@ class _StatusFilterChips extends StatelessWidget {
           count: boughtCount,
           isSelected: selected == _StatusFilter.bought,
           onTap: () => onChanged(_StatusFilter.bought),
+        ),
+        const SizedBox(width: 8),
+        _StatusChip(
+          label: 'Canceladas',
+          count: cancelledCount,
+          isSelected: selected == _StatusFilter.cancelled,
+          onTap: () => onChanged(_StatusFilter.cancelled),
         ),
         const SizedBox(width: 8),
         _StatusChip(

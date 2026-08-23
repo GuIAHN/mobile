@@ -32,6 +32,9 @@ class ConsumerThreadCard extends StatelessWidget {
     if (thread.bestOfferStatus == 'DELIVERED') {
       return (status: OfferStatus.delivered, labelOverride: null);
     }
+    if (thread.bestOfferStatus == 'CANCELLED') {
+      return (status: OfferStatus.cancelled, labelOverride: null);
+    }
     if (!thread.isOpen || thread.isExpired) {
       return (status: OfferStatus.discarded, labelOverride: 'CERRADA');
     }
@@ -59,7 +62,8 @@ class ConsumerThreadCard extends StatelessWidget {
     final status = resolved.status;
     final isTerminal = status == OfferStatus.discarded ||
         status == OfferStatus.bought ||
-        status == OfferStatus.delivered;
+        status == OfferStatus.delivered ||
+        status == OfferStatus.cancelled;
     final hasBestOffer = thread.bestOfferPrice != null;
     final hasResponses = thread.totalOffersCount > 0 || hasBestOffer;
 
@@ -259,11 +263,13 @@ class _OfferSummary extends StatelessWidget {
   bool get _isTerminal =>
       status == OfferStatus.discarded ||
       status == OfferStatus.bought ||
-      status == OfferStatus.delivered;
+      status == OfferStatus.delivered ||
+      status == OfferStatus.cancelled;
 
   String get _heading {
     if (status == OfferStatus.bought) return 'OFERTA COMPRADA';
     if (status == OfferStatus.delivered) return 'OFERTA ENTREGADA';
+    if (status == OfferStatus.cancelled) return 'COMPRA CANCELADA';
     if (hasBestOffer) return 'MEJOR OFERTA';
     if (_isTerminal) return 'RESULTADO';
     return 'COTIZACIONES';
@@ -276,6 +282,9 @@ class _OfferSummary extends StatelessWidget {
   }
 
   String get _supportingText {
+    if (status == OfferStatus.cancelled) {
+      return 'La tienda permanece visible en el historial y en el chat';
+    }
     if (hasResponses) return 'Abre la solicitud para revisar las respuestas';
     if (_isTerminal) return 'La búsqueda finalizó sin ofertas';
     return 'Te avisaremos cuando una tienda responda';

@@ -77,7 +77,7 @@ class ChatConversationCard extends StatelessWidget {
       semanticLabel
           .write(', calificación ${conv.storeRating!.toStringAsFixed(1)} de 5');
     }
-    semanticLabel.write(', ${conv.formattedPrice}');
+    semanticLabel.write(', ${conv.formattedTotalCost}');
     if (distance != null) semanticLabel.write(', a $distance');
     if (hasUnread) semanticLabel.write(', mensajes sin leer');
 
@@ -145,9 +145,18 @@ class ChatConversationCard extends StatelessWidget {
 
                     // Precio protagonista
                     PriceText(
-                      amount: conv.price,
+                      amount: conv.totalCost ?? conv.price,
                       style: CardTokens.priceHero,
                     ),
+                    if (conv.deliveryCost != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        conv.deliveryCost == 0
+                            ? 'Total · delivery gratis'
+                            : 'Total con delivery',
+                        style: CardTokens.meta,
+                      ),
+                    ],
                   ],
                 ),
               ),

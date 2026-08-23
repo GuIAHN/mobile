@@ -17,9 +17,7 @@ final foregroundNotificationToastProvider = Provider<void>((ref) {
     var titulo = data['titulo']?.toString();
     var mensaje = cuerpo;
 
-    // Para mensajes, el backend envía "Remitente: vista previa". Separarlo
-    // crea una jerarquía natural (persona + mensaje) sin repetir el genérico
-    // "Nuevo mensaje" dentro de una tarjeta ya identificada por su icono.
+
     if (tipo == 'message.new') {
       final separator = cuerpo.indexOf(':');
       if (separator > 0 && separator < cuerpo.length - 1) {
@@ -45,7 +43,10 @@ NotificationType _typeForTipo(String tipo) {
       return NotificationType.message;
     case 'user.rejected':
     case 'settlement.rejected':
+    case 'offer.cancelled':
       return NotificationType.error;
+    case 'search.no_store_available':
+      return NotificationType.warning;
     case 'user.approved':
     case 'settlement.approved':
       return NotificationType.success;

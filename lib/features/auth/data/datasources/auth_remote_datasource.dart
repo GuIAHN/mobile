@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/network/api_endpoints.dart';
@@ -126,6 +128,7 @@ class AuthRemoteDataSource {
     required String role,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
   }) async {
     try {
       final response = await _client.post<Map<String, dynamic>>(
@@ -137,6 +140,7 @@ class AuthRemoteDataSource {
           'userType': role,
           if (idToken != null) 'idToken': idToken,
           if (provider != null) 'provider': provider,
+          'acceptedTerms': acceptedTerms,
         },
       );
 
@@ -181,26 +185,43 @@ class AuthRemoteDataSource {
     required List<String> specialtyIds,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
+    String? idPhotoPath,
+    String? rifPhotoPath,
+    String? mercantilRegistryPath,
   }) async {
     try {
+      final payload = {
+        'email': email,
+        if (password != null) 'password': password,
+        'name': name,
+        'phone': phone,
+        'location': {
+          'lat': latitude,
+          'lon': longitude,
+        },
+        'description': description,
+        'isWorkshop': isWorkshop,
+        'identification': identification,
+        'specialtyIds': specialtyIds,
+        if (idToken != null) 'idToken': idToken,
+        if (provider != null) 'provider': provider,
+        'acceptedTerms': acceptedTerms,
+      };
+      final formData = FormData.fromMap({
+        'payload': jsonEncode(payload),
+        if (idPhotoPath != null)
+          'idPhoto': await _registrationDocument(idPhotoPath),
+        if (rifPhotoPath != null)
+          'rifPhoto': await _registrationDocument(rifPhotoPath),
+        if (mercantilRegistryPath != null)
+          'mercantilRegistry':
+              await _registrationDocument(mercantilRegistryPath),
+      });
       final response = await _client.post<Map<String, dynamic>>(
         'mechanics/register',
-        data: {
-          'email': email,
-          if (password != null) 'password': password,
-          'name': name,
-          'phone': phone,
-          'location': {
-            'lat': latitude,
-            'lon': longitude,
-          },
-          'description': description,
-          'isWorkshop': isWorkshop,
-          'identification': identification,
-          'specialtyIds': specialtyIds,
-          if (idToken != null) 'idToken': idToken,
-          if (provider != null) 'provider': provider,
-        },
+        data: formData,
+        options: Options(contentType: 'multipart/form-data'),
       );
 
       if (response.data == null) {
@@ -230,33 +251,41 @@ class AuthRemoteDataSource {
     required bool hasDelivery,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
+    required String rifPhotoPath,
+    required String mercantilRegistryPath,
   }) async {
     try {
+      final payload = {
+        'email': email,
+        if (password != null) 'password': password,
+        'name': name,
+        'phone': phone,
+        'location': {'lat': latitude, 'lon': longitude},
+        'address': address,
+        'rif': rif,
+        'categories': catalog
+            .map((c) => {
+                  'subcategoryId': c.subcategoryId,
+                  'servesAllBrands': c.servesAllBrands,
+                  'brandIds': c.brandIds,
+                  'sparePartsTypes': c.sparePartsTypes,
+                })
+            .toList(),
+        'hasDelivery': hasDelivery,
+        if (idToken != null) 'idToken': idToken,
+        if (provider != null) 'provider': provider,
+        'acceptedTerms': acceptedTerms,
+      };
+      final formData = FormData.fromMap({
+        'payload': jsonEncode(payload),
+        'rifPhoto': await _registrationDocument(rifPhotoPath),
+        'mercantilRegistry': await _registrationDocument(mercantilRegistryPath),
+      });
       final response = await _client.post<Map<String, dynamic>>(
         'stores/register',
-        data: {
-          'email': email,
-          if (password != null) 'password': password,
-          'name': name,
-          'phone': phone,
-          'location': {
-            'lat': latitude,
-            'lon': longitude,
-          },
-          'address': address,
-          'rif': rif,
-          'categories': catalog
-              .map((c) => {
-                    'categoryId': c.categoryId,
-                    'servesAllBrands': c.servesAllBrands,
-                    'brandIds': c.brandIds,
-                    'sparePartsTypes': c.sparePartsTypes,
-                  })
-              .toList(),
-          'hasDelivery': hasDelivery,
-          if (idToken != null) 'idToken': idToken,
-          if (provider != null) 'provider': provider,
-        },
+        data: formData,
+        options: Options(contentType: 'multipart/form-data'),
       );
 
       if (response.data == null) {
@@ -272,9 +301,17 @@ class AuthRemoteDataSource {
     }
   }
 
+  Future<MultipartFile> _registrationDocument(String filePath) {
+    final filename = filePath.split('/').last.split('\\').last;
+    return MultipartFile.fromFile(
+      filePath,
+      filename: filename.isEmpty ? 'document.jpg' : filename,
+    );
+  }
+
   /// Calls POST /stores/me/categories to register a store catalog line.
   Future<void> configureStoreCategory({
-    required String categoryId,
+    required String subcategoryId,
     required bool servesAllBrands,
     required List<String> brandIds,
     required List<String> sparePartsTypes,
@@ -283,7 +320,7 @@ class AuthRemoteDataSource {
       await _client.post<Map<String, dynamic>>(
         'stores/me/categories',
         data: {
-          'categoryId': categoryId,
+          'subcategoryId': subcategoryId,
           'servesAllBrands': servesAllBrands,
           'brandIds': brandIds,
           'sparePartsTypes': sparePartsTypes,

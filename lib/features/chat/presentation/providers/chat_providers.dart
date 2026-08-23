@@ -15,6 +15,9 @@ import '../../domain/usecases/quote_offer_usecase.dart';
 import '../../domain/usecases/buy_offer_usecase.dart';
 import '../../domain/usecases/deliver_offer_usecase.dart';
 import '../../domain/usecases/mark_as_read_usecase.dart';
+import '../../domain/usecases/cancel_offer_usecase.dart';
+import '../../domain/usecases/decline_match_usecase.dart';
+import '../../domain/usecases/undo_decline_usecase.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/services/socket_service.dart';
@@ -76,12 +79,24 @@ final markAsReadUseCaseProvider = Provider<MarkAsReadUseCase>((ref) {
   return MarkAsReadUseCase(ref.watch(chatRepositoryProvider));
 });
 
+final cancelOfferUseCaseProvider = Provider<CancelOfferUseCase>((ref) {
+  return CancelOfferUseCase(ref.watch(chatRepositoryProvider));
+});
+
+final declineMatchUseCaseProvider = Provider<DeclineMatchUseCase>((ref) {
+  return DeclineMatchUseCase(ref.watch(chatRepositoryProvider));
+});
+
+final undoDeclineUseCaseProvider = Provider<UndoDeclineUseCase>((ref) {
+  return UndoDeclineUseCase(ref.watch(chatRepositoryProvider));
+});
+
 // ── State Providers ──────────────────────────────────────────────────────────
 
-/// Filtro activo para consultas de tiendas (UNQUOTED, QUOTED, BOUGHT, DELIVERED, ALL).
-final storeStatusFilterProvider = StateProvider<String>((ref) => 'UNQUOTED');
+/// Filtro activo para solicitudes de tiendas. `UNQUOTED` ya no es válido.
+final storeStatusFilterProvider = StateProvider<String>((ref) => 'PENDING');
 
-/// Filtro activo para consultas de consumidores (ALL, OPEN, WITH_OFFER, BOUGHT, CLOSED).
+/// Filtro activo del consumidor, incluido el historial cancelado.
 final consumerStatusFilterProvider = StateProvider<String>((ref) => 'ALL');
 
 /// Stable, targeted revisions for chat queries. Subscriptions live outside the

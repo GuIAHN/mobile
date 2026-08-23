@@ -40,7 +40,7 @@ void main() {
     when(
       () => getThreads(
         role: UserRole.store,
-        statusFilter: 'UNQUOTED',
+        statusFilter: 'PENDING',
       ),
     ).thenAnswer(
       (_) async => const Right(
@@ -66,7 +66,7 @@ void main() {
     verify(
       () => getThreads(
         role: UserRole.store,
-        statusFilter: 'UNQUOTED',
+        statusFilter: 'PENDING',
       ),
     ).called(1);
 
@@ -77,7 +77,7 @@ void main() {
     verify(
       () => getThreads(
         role: UserRole.store,
-        statusFilter: 'UNQUOTED',
+        statusFilter: 'PENDING',
       ),
     ).called(1);
   });

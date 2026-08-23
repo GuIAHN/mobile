@@ -24,6 +24,7 @@ abstract class ChatRepository {
   Future<Either<Failure, ChatConversation>> createQuote({
     required String threadId,
     double? price,
+    double? deliveryCost,
     String? brand,
     String? photoPath,
   });
@@ -31,6 +32,8 @@ abstract class ChatRepository {
   Future<Either<Failure, void>> quoteOffer({
     required String offerId,
     required double price,
+    required bool updateDeliveryCost,
+    double? deliveryCost,
     String? brand,
     String? photoPath,
   });
@@ -45,6 +48,18 @@ abstract class ChatRepository {
   Future<Either<Failure, void>> buyOffer(String offerId);
 
   Future<Either<Failure, void>> deliverOffer(String offerId);
+
+  Future<Either<Failure, void>> cancelOffer(
+    String offerId, {
+    String? reason,
+  });
+
+  Future<Either<Failure, void>> declineMatch(
+    String searchMatchId,
+    String reason,
+  );
+
+  Future<Either<Failure, void>> undoDecline(String searchMatchId);
 
   Future<Either<Failure, void>> markAsRead(String conversationId);
 }

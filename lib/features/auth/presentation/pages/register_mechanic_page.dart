@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -17,8 +19,10 @@ import '../widgets/registration_completed_step.dart';
 import '../widgets/registration_step_feedback.dart';
 import '../widgets/mechanic_profile_step.dart';
 import '../widgets/mechanic_technical_step.dart';
+import '../widgets/provider_documents_step.dart';
 import '../widgets/terms_acceptance_step.dart';
 import '../widgets/workshop_specialties_step.dart';
+import '../widgets/workshop_location_step.dart';
 
 class RegisterMechanicPage extends ConsumerStatefulWidget {
   const RegisterMechanicPage({super.key});
@@ -29,8 +33,8 @@ class RegisterMechanicPage extends ConsumerStatefulWidget {
 }
 
 class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
-  static const _totalSteps = 5;
-  static const _completedStep = 6;
+  static const _totalSteps = 7;
+  static const _completedStep = 8;
 
   int _paso = 1;
   final _scrollController = ScrollController();
@@ -47,7 +51,10 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
 
   // ===== Paso 3: Perfil técnico =====
   double _aniosExperiencia = 5;
+  LatLng _location = const LatLng(10.4806, -66.9036);
+  bool _ubicacionConfirmada = false;
   bool _termsAccepted = false;
+  XFile? _idPhoto;
 
   @override
   void initState() {
@@ -119,6 +126,10 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
       case 4:
         return true; // bio es opcional, el slider siempre tiene valor
       case 5:
+        return _ubicacionConfirmada;
+      case 6:
+        return _idPhoto != null;
+      case 7:
         return _termsAccepted;
       default:
         return false;
@@ -148,8 +159,8 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
           password: socialData == null ? _passwordCtrl.text : null,
           name: _nombreCtrl.text.trim(),
           phone: sanitizedPhone,
-          latitude: 10.4806,
-          longitude: -66.9036,
+          latitude: _location.latitude,
+          longitude: _location.longitude,
           description:
               'Mecánico con ${_aniosExperiencia.round()} años de experiencia.',
           isWorkshop: false,
@@ -157,6 +168,8 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
           specialtyIds: _seleccionadas.toList(),
           idToken: socialData?.idToken,
           provider: socialData?.provider,
+          acceptedTerms: _termsAccepted,
+          idPhotoPath: _idPhoto!.path,
         );
   }
 
@@ -286,7 +299,23 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
                                       onAniosExperienciaChanged: (v) =>
                                           setState(() => _aniosExperiencia = v),
                                     ),
-                                  5 => TermsAcceptanceStep(
+                                  5 => WorkshopLocationStep(
+                                      location: _location,
+                                      onLocationChanged: (location) =>
+                                          setState(() => _location = location),
+                                      ubicacionConfirmada: _ubicacionConfirmada,
+                                      onUbicacionConfirmadaChanged:
+                                          (confirmed) => setState(() =>
+                                              _ubicacionConfirmada = confirmed),
+                                      helperText:
+                                          'Usa tu ubicación actual o mueve el mapa para marcar dónde prestas servicio.',
+                                    ),
+                                  6 => ProviderDocumentsStep(
+                                      idPhoto: _idPhoto,
+                                      onIdPhotoChanged: (file) =>
+                                          setState(() => _idPhoto = file),
+                                    ),
+                                  7 => TermsAcceptanceStep(
                                       audience: TermsAudience.serviceProvider,
                                       isAccepted: _termsAccepted,
                                       onAcceptedChanged: (accepted) => setState(
@@ -414,7 +443,7 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
     switch (_paso) {
       case 1:
         titulo = 'Perfil del Mecánico';
-        subtitulo = 'Paso 1 de 5: Información personal';
+        subtitulo = 'Paso 1 de 7: Información personal';
         break;
       case 2:
         titulo = 'Protege tu Cuenta';
@@ -427,12 +456,20 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
         break;
       case 4:
         titulo = 'Perfil Técnico';
-        subtitulo = 'Paso 4 de 5: Detalles de experiencia';
+        subtitulo = 'Paso 4 de 7: Detalles de experiencia';
         break;
       case 5:
+        titulo = 'Ubicación';
+        subtitulo = 'Paso 5 de 7: Confirma dónde prestas servicio.';
+        break;
+      case 6:
+        titulo = 'Verificación de Identidad';
+        subtitulo = 'Paso 6 de 7: Adjunta una fotografía legible de tu cédula.';
+        break;
+      case 7:
         titulo = 'Términos y Condiciones';
         subtitulo =
-            'Paso 5 de 5: Revisa y acepta el documento para registrarte.';
+            'Paso 7 de 7: Revisa y acepta el documento para registrarte.';
         break;
     }
 
@@ -574,6 +611,10 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
       case 3:
         return 'Selecciona al menos una especialidad para continuar.';
       case 5:
+        return 'Confirma tu ubicación en el mapa para continuar.';
+      case 6:
+        return 'Adjunta una fotografía legible de tu documento de identidad.';
+      case 7:
         return 'Abre el documento y acepta los términos y condiciones para registrarte.';
     }
     return null;
@@ -593,6 +634,18 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
         normalized.contains('cedula') ||
         normalized.contains('identification')) {
       return 1;
+    }
+    if (normalized.contains('document') ||
+        normalized.contains('idphoto') ||
+        normalized.contains('image') ||
+        normalized.contains('file')) {
+      return 6;
+    }
+    if (normalized.contains('location') ||
+        normalized.contains('ubicaci') ||
+        normalized.contains('latitude') ||
+        normalized.contains('longitude')) {
+      return 5;
     }
     return _paso;
   }

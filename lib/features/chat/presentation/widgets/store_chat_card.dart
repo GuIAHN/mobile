@@ -74,8 +74,13 @@ class StoreChatCard extends StatelessWidget {
         return OfferStatus.bought;
       case 'DELIVERED':
         return OfferStatus.delivered;
-      default:
+      case 'CANCELLED':
+        return OfferStatus.cancelled;
+      case null:
+      case 'INQUIRY':
         return OfferStatus.noQuoteYet;
+      default:
+        return OfferStatus.unknown;
     }
   }
 
@@ -85,6 +90,7 @@ class StoreChatCard extends StatelessWidget {
     final timeStr = Formatters.relativeDate(conv.lastMessageAt);
     final status = _resolveStatus(conv);
     final hasUnread = conv.unreadCount > 0;
+    final usesLargeText = MediaQuery.textScalerOf(context).scale(14) > 19;
 
     final message = conv.lastMessage.trim().isNotEmpty
         ? conv.lastMessage
@@ -94,7 +100,7 @@ class StoreChatCard extends StatelessWidget {
       'Chat con ${conv.participantName}, '
       '${(consumerPerspective ? status.consumerLabel : status.label).toLowerCase()}',
     );
-    if (conv.hasQuote) semanticLabel.write(', ${conv.formattedPrice}');
+    if (conv.hasQuote) semanticLabel.write(', ${conv.formattedTotalCost}');
     if (hasUnread) {
       semanticLabel.write(
           ', ${conv.unreadCount} mensaje${conv.unreadCount > 1 ? 's' : ''} sin leer');
@@ -115,12 +121,14 @@ class StoreChatCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Avatar con badge de no leídos ──────────────────────────
-              _ClientAvatar(
-                url: conv.participantAvatarUrl,
-                name: conv.participantName,
-                unreadCount: conv.unreadCount,
-              ),
-              const SizedBox(width: 14),
+              if (!usesLargeText) ...[
+                _ClientAvatar(
+                  url: conv.participantAvatarUrl,
+                  name: conv.participantName,
+                  unreadCount: conv.unreadCount,
+                ),
+                const SizedBox(width: 14),
+              ],
 
               // ── Columna principal ──────────────────────────────────────
               Expanded(
@@ -138,9 +146,8 @@ class StoreChatCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.hankenGrotesk(
                               fontSize: 15,
-                              fontWeight: hasUnread
-                                  ? FontWeight.w800
-                                  : FontWeight.w600,
+                              fontWeight:
+                                  hasUnread ? FontWeight.w800 : FontWeight.w600,
                               letterSpacing: -0.2,
                               height: 1.2,
                               color: AppColors.textPrimary,
@@ -160,6 +167,27 @@ class StoreChatCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                    if (consumerPerspective && conv.storeRating != null) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.star_rounded,
+                            size: 15,
+                            color: Color(0xFFF59E0B),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${conv.storeRating!.toStringAsFixed(1)} (${conv.storeReviewCount})',
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 4),
 
                     // Preview del último mensaje
@@ -213,32 +241,59 @@ class StoreChatCard extends StatelessWidget {
                     // Pie comercial: estado izquierda + precio naranja derecha
                     if (status != OfferStatus.noQuoteYet || conv.hasQuote) ...[
                       const SizedBox(height: 8),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          if (status != OfferStatus.noQuoteYet)
-                            StatusBadge(
-                              key: const Key('chat-card-status-badge'),
-                              status: status,
-                              labelOverride:
-                                  consumerPerspective ? status.consumerLabel : null,
-                            ),
-                          const Spacer(),
-                          if (conv.hasQuote && conv.price != null)
-                            Text(
-                              key: const Key('chat-card-price'),
-                              conv.formattedPrice,
-                              style: GoogleFonts.hankenGrotesk(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.5,
-                                color: AppColors.primary,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures(),
-                                ],
-                              ),
-                            ),
-                        ],
+                      LayoutBuilder(
+                        key: const Key('chat-card-commercial-summary'),
+                        builder: (context, constraints) {
+                          final statusWidget = status != OfferStatus.noQuoteYet
+                              ? StatusBadge(
+                                  key: const Key('chat-card-status-badge'),
+                                  status: status,
+                                  labelOverride: consumerPerspective
+                                      ? status.consumerLabel
+                                      : null,
+                                )
+                              : null;
+                          final priceWidget =
+                              conv.hasQuote && conv.price != null
+                                  ? Text(
+                                      key: const Key('chat-card-price'),
+                                      conv.formattedTotalCost,
+                                      style: GoogleFonts.hankenGrotesk(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -0.5,
+                                        color: AppColors.primary,
+                                        fontFeatures: const [
+                                          FontFeature.tabularFigures(),
+                                        ],
+                                      ),
+                                    )
+                                  : null;
+                          final shouldStack = constraints.maxWidth < 240 ||
+                              MediaQuery.textScalerOf(context).scale(14) > 19;
+
+                          if (shouldStack) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (statusWidget != null) statusWidget,
+                                if (statusWidget != null && priceWidget != null)
+                                  const SizedBox(height: 8),
+                                if (priceWidget != null) priceWidget,
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              if (statusWidget != null) statusWidget,
+                              if (statusWidget != null && priceWidget != null)
+                                const SizedBox(width: 12),
+                              if (priceWidget != null) priceWidget,
+                            ],
+                          );
+                        },
                       ),
                     ],
 
@@ -339,4 +394,3 @@ class _ClientAvatar extends StatelessWidget {
         ),
       );
 }
-

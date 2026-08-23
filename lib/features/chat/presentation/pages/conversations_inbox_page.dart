@@ -12,6 +12,7 @@ import '../../../../shared/widgets/staggered_entrance.dart';
 import '../../domain/entities/chat_conversation.dart';
 import '../providers/chat_providers.dart';
 import '../widgets/store_chat_card.dart';
+import '../../../home/presentation/widgets/navigation/bottom_nav_bar.dart';
 
 /// Bandeja transversal de conversaciones.
 ///
@@ -56,12 +57,12 @@ class _ConversationsInboxPageState
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             _ConversationsHeader(
               controller: _searchController,
               query: _query,
-              isStore: role.isStore,
               enabled: !conversationsAsync.isLoading,
               onChanged: (value) => setState(() => _query = value),
               onClear: () {
@@ -90,7 +91,12 @@ class _ConversationsInboxPageState
   Widget _buildLoading() {
     return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        8,
+        24,
+        bottomNavContentInset(context) + 24,
+      ),
       itemCount: 4,
       itemBuilder: (_, index) => StaggeredEntrance(
         index: index,
@@ -112,6 +118,9 @@ class _ConversationsInboxPageState
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(
             parent: BouncingScrollPhysics(),
+          ),
+          padding: EdgeInsets.only(
+            bottom: bottomNavContentInset(context) + 24,
           ),
           children: [
             const SizedBox(height: 80),
@@ -137,7 +146,12 @@ class _ConversationsInboxPageState
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+        padding: EdgeInsets.fromLTRB(
+          24,
+          8,
+          24,
+          bottomNavContentInset(context) + 24,
+        ),
         itemCount: filtered.length,
         itemBuilder: (context, index) {
           final conversation = filtered[index];
@@ -163,7 +177,6 @@ class _ConversationsInboxPageState
 class _ConversationsHeader extends StatelessWidget {
   final TextEditingController controller;
   final String query;
-  final bool isStore;
   final bool enabled;
   final ValueChanged<String> onChanged;
   final VoidCallback onClear;
@@ -171,7 +184,6 @@ class _ConversationsHeader extends StatelessWidget {
   const _ConversationsHeader({
     required this.controller,
     required this.query,
-    required this.isStore,
     required this.enabled,
     required this.onChanged,
     required this.onClear,
@@ -186,92 +198,66 @@ class _ConversationsHeader extends StatelessWidget {
           bottom: BorderSide(color: AppColors.border, width: 0.6),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Chats',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary,
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            isStore
-                ? 'Conversaciones con tus clientes'
-                : 'Conversaciones con tiendas',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+      child: Container(
+        key: const Key('conversations-search-bar'),
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.only(left: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.search_rounded,
               color: AppColors.textSecondary,
-              height: 1.35,
+              size: 20,
             ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            constraints: const BoxConstraints(minHeight: 48),
-            padding: const EdgeInsets.only(left: 14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.search_rounded,
-                  color: AppColors.textSecondary,
-                  size: 20,
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: controller,
+                enabled: enabled,
+                onChanged: onChanged,
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    enabled: enabled,
-                    onChanged: onChanged,
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      disabledBorder: InputBorder.none,
-                      errorBorder: InputBorder.none,
-                      focusedErrorBorder: InputBorder.none,
-                      filled: false,
-                      isCollapsed: true,
-                      contentPadding: EdgeInsets.zero,
-                      hintText: 'Buscar una conversación...',
-                      hintStyle: GoogleFonts.hankenGrotesk(
-                        fontSize: 14,
-                        color: AppColors.textPlaceholder,
-                      ),
-                    ),
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  filled: false,
+                  isCollapsed: true,
+                  contentPadding: EdgeInsets.zero,
+                  hintText: 'Buscar una conversación...',
+                  hintStyle: GoogleFonts.hankenGrotesk(
+                    fontSize: 14,
+                    color: AppColors.textPlaceholder,
                   ),
                 ),
-                if (query.isNotEmpty)
-                  SizedBox.square(
-                    dimension: 48,
-                    child: IconButton(
-                      onPressed: onClear,
-                      tooltip: 'Limpiar búsqueda',
-                      icon: const Icon(
-                        Icons.cancel_rounded,
-                        color: AppColors.textSecondary,
-                        size: 19,
-                      ),
-                    ),
-                  ),
-              ],
+              ),
             ),
-          ),
-        ],
+            if (query.isNotEmpty)
+              SizedBox.square(
+                dimension: 48,
+                child: IconButton(
+                  onPressed: onClear,
+                  tooltip: 'Limpiar búsqueda',
+                  icon: const Icon(
+                    Icons.cancel_rounded,
+                    color: AppColors.textSecondary,
+                    size: 19,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

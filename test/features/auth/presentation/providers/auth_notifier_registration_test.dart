@@ -35,6 +35,9 @@ void main() {
         hasDelivery: any(named: 'hasDelivery'),
         idToken: any(named: 'idToken'),
         provider: any(named: 'provider'),
+        acceptedTerms: any(named: 'acceptedTerms'),
+        rifPhotoPath: any(named: 'rifPhotoPath'),
+        mercantilRegistryPath: any(named: 'mercantilRegistryPath'),
       ),
     ).thenAnswer(
       (_) async => const Right(
@@ -68,12 +71,15 @@ void main() {
       rif: 'J123456789',
       catalog: const [
         StoreCategoryConfig(
-          categoryId: 'category-id',
+          subcategoryId: 'category-id',
           brandIds: ['brand-id'],
           sparePartsTypes: ['ORIGINAL'],
         ),
       ],
       hasDelivery: true,
+      acceptedTerms: true,
+      rifPhotoPath: '/tmp/rif.jpg',
+      mercantilRegistryPath: '/tmp/registry.jpg',
     );
 
     expect(notifier.state.isProviderRegistrationSucceeded, isTrue);

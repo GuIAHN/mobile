@@ -124,6 +124,18 @@ class ErrorMapper {
       return 'No pudimos validar tu sesión. Inicia sesión e inténtalo nuevamente.';
     }
 
+    final rejectsMultipartPayload =
+        lower.contains('property payload should not exist');
+    final reportsSeveralMissingRegistrationFields =
+        lower.contains('password') &&
+            lower.contains('email') &&
+            (lower.contains('name') ||
+                lower.contains('address') ||
+                lower.contains('categories'));
+    if (rejectsMultipartPayload || reportsSeveralMissingRegistrationFields) {
+      return 'No pudimos procesar el registro con documentos. El servidor necesita actualizarse antes de intentarlo nuevamente.';
+    }
+
     if (lower.contains('password')) {
       if (lower.contains('at least') ||
           lower.contains('minimum') ||

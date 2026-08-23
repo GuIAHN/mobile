@@ -50,12 +50,13 @@ void main() {
     );
   });
 
-  test('maps every backend notification family to a readable visual style',
-      () {
+  test('maps every backend notification family to a readable visual style', () {
     const expectedLabels = {
       'offer.new': 'Oferta',
+      'offer.cancelled': 'Compra cancelada',
       'message.new': 'Mensaje',
       'search.matched': 'Solicitud',
+      'search.no_store_available': 'Sin disponibilidad',
       'user.approved': 'Cuenta',
       'settlement.approved': 'Pago',
       'custom.kind': 'Notificación',

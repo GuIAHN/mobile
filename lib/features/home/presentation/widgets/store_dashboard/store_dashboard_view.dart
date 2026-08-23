@@ -25,7 +25,7 @@ class StoreDashboardView extends ConsumerWidget {
       child: dashboardAsync.when(
         data: (dashboard) => _buildDashboard(context, ref, dashboard),
         loading: () => _buildLoadingState(),
-        error: (err, stack) => _buildErrorState(err.toString(), ref),
+        error: (err, stack) => _buildErrorState(context, err, ref),
       ),
     );
   }
@@ -40,6 +40,9 @@ class StoreDashboardView extends ConsumerWidget {
     final quotesMetric =
         dashboard.metricById('M-T02') ?? dashboard.metricById('M-T07');
     final conversionMetric = dashboard.metricById('KPI-T02');
+    final cancellationMetric = dashboard.metricById('KPI-T07');
+    final declineMetric = dashboard.metricById('KPI-T08');
+    final declineReasonsMetric = dashboard.metricById('M-T11');
     final funnelMetric = dashboard.metricById('M-T03');
     final outstandingBalanceMetric = dashboard.metricById('M-T10');
     final outstandingBalance = _metricValue(outstandingBalanceMetric);
@@ -177,12 +180,44 @@ class StoreDashboardView extends ConsumerWidget {
                       ? (conversionMetric.payload['deltaPct'] as num).toDouble()
                       : null,
                 ),
+              if (cancellationMetric != null)
+                MetricCard(
+                  label: 'Cancelación',
+                  value: _percentageValue(cancellationMetric),
+                  icon: const Icon(
+                    Icons.block_rounded,
+                    size: 20,
+                    color: AppColors.errorInk,
+                  ),
+                  themeColor: AppColors.error,
+                  iconColor: AppColors.errorInk,
+                  iconBgColor: AppColors.errorLight,
+                ),
+              if (declineMetric != null)
+                MetricCard(
+                  label: 'Declinadas',
+                  value: _percentageValue(declineMetric),
+                  icon: const Icon(
+                    Icons.remove_circle_outline_rounded,
+                    size: 20,
+                    color: Color(0xFF7C3AED),
+                  ),
+                  themeColor: const Color(0xFF7C3AED),
+                  iconColor: const Color(0xFF7C3AED),
+                  iconBgColor: const Color(0xFFF5F3FF),
+                ),
             ],
           ),
           const SizedBox(height: 12),
           const SectionHeader(title: 'Flujo de Ventas'),
           const SizedBox(height: 12),
           if (funnelSteps.isNotEmpty) StoreFunnelChart(steps: funnelSteps),
+          if (declineReasonsMetric != null) ...[
+            const SizedBox(height: 20),
+            const SectionHeader(title: 'Motivos de solicitudes declinadas'),
+            const SizedBox(height: 12),
+            _DeclineReasonsCard(metric: declineReasonsMetric),
+          ],
           const SizedBox(height: 24),
         ],
       ),
@@ -196,6 +231,13 @@ class StoreDashboardView extends ConsumerWidget {
     if (value is num) return value.toDouble();
     if (value is String) return double.tryParse(value);
     return null;
+  }
+
+  String _percentageValue(MetricResult metric) {
+    final value = metric.payload['value'];
+    if (value == null) return '—';
+    if (value is num) return '${value.toStringAsFixed(1)}%';
+    return '$value%';
   }
 
   Widget _buildLoadingState() {
@@ -234,12 +276,69 @@ class StoreDashboardView extends ConsumerWidget {
     );
   }
 
-  Widget _buildErrorState(String error, WidgetRef ref) {
+  Widget _buildErrorState(
+    BuildContext context,
+    Object error,
+    WidgetRef ref,
+  ) {
+    if (error is StoreMetricsBlockedException) {
+      final status = error.status;
+      final median = status.medianMinutes?.toStringAsFixed(0) ?? '—';
+      final threshold = status.thresholdMinutes?.toStringAsFixed(0) ?? '—';
+      final sample = status.sampleSize?.toStringAsFixed(0) ?? '—';
+      final minSample = status.minSample?.toStringAsFixed(0) ?? '—';
+
+      return Padding(
+        padding: const EdgeInsets.only(top: 32),
+        child: EmptyState(
+          title: 'Dashboard temporalmente bloqueado',
+          subtitle: '${error.message}\n\n'
+              'Mediana: $median min · Límite: $threshold min\n'
+              'Muestra: $sample de $minSample respuestas requeridas',
+          icon: Icons.speed_rounded,
+          action: ElevatedButton.icon(
+            onPressed: () async {
+              try {
+                final latest =
+                    await ref.refresh(storeResponseStatusProvider.future);
+                if (!context.mounted) return;
+                if (latest.blocked) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'El acceso sigue bloqueado. Continúa respondiendo más rápido.',
+                      ),
+                    ),
+                  );
+                }
+                ref.invalidate(storeDashboardProvider);
+              } catch (_) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('No se pudo actualizar el diagnóstico.'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.refresh_rounded),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(48, 48),
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            label: const Text('Comprobar de nuevo'),
+          ),
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.only(top: 32.0),
       child: EmptyState(
         title: 'Error al cargar dashboard',
-        subtitle: error,
+        subtitle: error.toString(),
         icon: Icons.error_outline_rounded,
         action: ElevatedButton(
           onPressed: () => ref.invalidate(storeDashboardProvider),
@@ -249,6 +348,110 @@ class StoreDashboardView extends ConsumerWidget {
           ),
           child: const Text('Reintentar'),
         ),
+      ),
+    );
+  }
+}
+
+class _DeclineReasonsCard extends StatelessWidget {
+  final MetricResult metric;
+
+  const _DeclineReasonsCard({required this.metric});
+
+  @override
+  Widget build(BuildContext context) {
+    final rawSlices = metric.payload['slices'] as List<dynamic>? ?? const [];
+    final slices = rawSlices.whereType<Map<String, dynamic>>().toList();
+    final rawTotal = metric.payload['total'];
+    final total = rawTotal is num
+        ? rawTotal.toDouble()
+        : slices.fold<double>(
+            0,
+            (sum, item) => sum + ((item['y'] as num?)?.toDouble() ?? 0),
+          );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: slices.isEmpty
+          ? const Text(
+              'Aún no hay solicitudes declinadas en este período.',
+              style: TextStyle(color: AppColors.textSecondary),
+            )
+          : Column(
+              children: [
+                for (var index = 0; index < slices.length; index++) ...[
+                  _DeclineReasonRow(
+                    label: slices[index]['label'] as String? ??
+                        slices[index]['x']?.toString() ??
+                        'Otro',
+                    count: (slices[index]['y'] as num?)?.toInt() ?? 0,
+                    total: total,
+                  ),
+                  if (index != slices.length - 1) const SizedBox(height: 14),
+                ],
+              ],
+            ),
+    );
+  }
+}
+
+class _DeclineReasonRow extends StatelessWidget {
+  final String label;
+  final int count;
+  final double total;
+
+  const _DeclineReasonRow({
+    required this.label,
+    required this.count,
+    required this.total,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = total > 0 ? count / total : 0.0;
+    return Semantics(
+      label: '$label, $count, ${(ratio * 100).toStringAsFixed(0)} por ciento',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '$count',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              value: ratio.clamp(0, 1),
+              minHeight: 7,
+              color: AppColors.primary,
+              backgroundColor: AppColors.primaryMuted,
+            ),
+          ),
+        ],
       ),
     );
   }

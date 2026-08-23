@@ -12,10 +12,8 @@ import '../../../../shared/widgets/image_source_selector_sheet.dart';
 /// Permite ingresar montos numéricos con decimales (máximo 8 enteros, 2 decimales),
 /// permitiendo el uso de punto o coma como separador decimal.
 class _DecimalFormatter extends TextInputFormatter {
-  final int maxIntegerDigits;
-  final int maxDecimalDigits;
-
-  _DecimalFormatter({this.maxIntegerDigits = 8, this.maxDecimalDigits = 2});
+  static const maxIntegerDigits = 8;
+  static const maxDecimalDigits = 2;
 
   @override
   TextEditingValue formatEditUpdate(
@@ -58,7 +56,7 @@ class _DecimalFormatter extends TextInputFormatter {
 /// Hoja de cotización con entrada de monto limpia: número grande en naranja
 /// con símbolo `$`, sin fondo ni teclado propio (usa el teclado del sistema).
 ///
-/// Devuelve `{price, brand?, photoPath?}`.
+/// Devuelve `{price, deliveryCost?, updateDeliveryCost, brand?, photoPath?}`.
 class QuoteInputDialog extends StatefulWidget {
   final String requestTitle;
 
@@ -67,7 +65,8 @@ class QuoteInputDialog extends StatefulWidget {
     required this.requestTitle,
   });
 
-  static Future<Map<String, dynamic>?> show(BuildContext context, String title) {
+  static Future<Map<String, dynamic>?> show(
+      BuildContext context, String title) {
     return showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
@@ -84,24 +83,28 @@ class QuoteInputDialog extends StatefulWidget {
 class _QuoteInputDialogState extends State<QuoteInputDialog> {
   final _priceController = TextEditingController();
   final _brandController = TextEditingController();
+  final _deliveryController = TextEditingController();
 
   final _priceFocus = FocusNode();
 
   final ImagePicker _picker = ImagePicker();
   String? _selectedImagePath;
   String? _errorMessage;
+  bool _includeDelivery = false;
 
   @override
   void initState() {
     super.initState();
     // Actualiza el estado del botón al escribir.
     _priceController.addListener(() => setState(() => _errorMessage = null));
+    _deliveryController.addListener(() => setState(() => _errorMessage = null));
   }
 
   @override
   void dispose() {
     _priceController.dispose();
     _brandController.dispose();
+    _deliveryController.dispose();
     _priceFocus.dispose();
     super.dispose();
   }
@@ -126,9 +129,17 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
       setState(() => _errorMessage = 'Ingresa un precio mayor a 0.');
       return;
     }
+    final deliveryCost = _value(_deliveryController);
+    if (_includeDelivery && deliveryCost == null) {
+      setState(
+          () => _errorMessage = 'Ingresa el costo del delivery (puede ser 0).');
+      return;
+    }
     HapticFeedback.mediumImpact();
     Navigator.pop(context, {
       'price': price,
+      'updateDeliveryCost': true,
+      'deliveryCost': _includeDelivery ? deliveryCost : null,
       if (brand.isNotEmpty) 'brand': brand,
       if (_selectedImagePath != null) 'photoPath': _selectedImagePath,
     });
@@ -200,6 +211,16 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
               ),
 
               const SizedBox(height: 24),
+
+              _DeliverySection(
+                includeDelivery: _includeDelivery,
+                controller: _deliveryController,
+                onChanged: (value) => setState(() {
+                  _includeDelivery = value;
+                  if (!value) _deliveryController.clear();
+                }),
+              ),
+              const SizedBox(height: 20),
 
               if (_errorMessage != null) ...[
                 Row(
@@ -307,36 +328,37 @@ class _AmountField extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: IntrinsicWidth(
                 child: TextField(
-                controller: controller,
-                focusNode: focusNode,
-                autofocus: autofocus,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                textAlign: TextAlign.left,
-                cursorColor: AppColors.primary,
-                inputFormatters: [_DecimalFormatter()],
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -2,
-                  height: 1.0,
-                  color: AppColors.primary,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-                decoration: InputDecoration(
-                  isCollapsed: true,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  filled: false,
-                  hintText: '00.00',
-                  hintStyle: GoogleFonts.hankenGrotesk(
+                  controller: controller,
+                  focusNode: focusNode,
+                  autofocus: autofocus,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  textAlign: TextAlign.left,
+                  cursorColor: AppColors.primary,
+                  inputFormatters: [_DecimalFormatter()],
+                  style: GoogleFonts.hankenGrotesk(
                     fontSize: fontSize,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -2,
                     height: 1.0,
-                    color: AppColors.primary.withValues(alpha: 0.28),
+                    color: AppColors.primary,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
-                ),
+                  decoration: InputDecoration(
+                    isCollapsed: true,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    filled: false,
+                    hintText: '00.00',
+                    hintStyle: GoogleFonts.hankenGrotesk(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -2,
+                      height: 1.0,
+                      color: AppColors.primary.withValues(alpha: 0.28),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -355,6 +377,86 @@ class _ThinDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(height: 1, color: AppColors.border);
+  }
+}
+
+class _DeliverySection extends StatelessWidget {
+  const _DeliverySection({
+    required this.includeDelivery,
+    required this.controller,
+    required this.onChanged,
+  });
+
+  final bool includeDelivery;
+  final TextEditingController controller;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: includeDelivery ? AppColors.primary : AppColors.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            value: includeDelivery,
+            onChanged: onChanged,
+            activeTrackColor: AppColors.primary,
+            title: Text(
+              'Incluir delivery',
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            subtitle: Text(
+              'Desactívalo si el cliente debe retirar en tienda.',
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 12.5,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          if (includeDelivery) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [_DecimalFormatter()],
+              style: GoogleFonts.hankenGrotesk(
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+              decoration: InputDecoration(
+                labelText: 'Costo del delivery',
+                helperText: 'Escribe 0 si el delivery es gratis.',
+                prefixText: r'$ ',
+                filled: true,
+                fillColor: AppColors.background,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 

@@ -7,6 +7,8 @@ import '../providers/chat_providers.dart';
 import '../widgets/chat_message_bubble.dart';
 import '../widgets/active_offer_header_card.dart';
 import '../widgets/confirm_purchase_dialog.dart';
+import '../widgets/cancel_purchase_dialog.dart';
+import '../../domain/entities/chat_conversation.dart';
 import '../../../reviews/presentation/providers/reviews_providers.dart';
 import '../widgets/moderation_blocked_dialog.dart';
 import '../widgets/store_contact_sheet.dart';
@@ -37,6 +39,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
   bool _canSend = false;
   bool _isSending = false;
   bool _isQuoting = false;
+  bool _isCancelling = false;
 
   @override
   void initState() {
@@ -123,6 +126,8 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
       final res = await useCase(
         offerId: offerId,
         price: result['price'] as double,
+        updateDeliveryCost: result['updateDeliveryCost'] as bool? ?? false,
+        deliveryCost: result['deliveryCost'] as double?,
         brand: result['brand'] as String?,
         photoPath: result['photoPath'] as String?,
       );
@@ -148,6 +153,56 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
       );
     } finally {
       if (mounted) setState(() => _isQuoting = false);
+    }
+  }
+
+  Future<void> _cancelPurchase(ChatConversation details) async {
+    if (_isCancelling || details.offerId == null) return;
+
+    final confirmation = await CancelPurchaseDialog.show(context);
+    if (confirmation == null || !mounted) return;
+
+    setState(() => _isCancelling = true);
+    final scaffold = ScaffoldMessenger.of(context);
+    try {
+      final result = await ref.read(cancelOfferUseCaseProvider)(
+        details.offerId!,
+        reason: confirmation.reason,
+      );
+
+      result.fold(
+        (failure) {
+          scaffold.showSnackBar(
+            SnackBar(
+              content: Text(
+                failure.code == 409
+                    ? 'La compra cambió de estado. Actualizamos la información.'
+                    : 'No se pudo cancelar: ${failure.message}',
+              ),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        },
+        (_) {
+          scaffold.showSnackBar(
+            const SnackBar(
+              content: Text('Compra cancelada.'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        },
+      );
+
+      // También se refresca ante 409: el servidor es la fuente de verdad.
+      ref.invalidate(
+        chatConversationDetailsProvider(widget.conversationId),
+      );
+      ref.invalidate(myConversationsProvider);
+      ref.invalidate(consumerRequestsProvider);
+      ref.invalidate(storeSalesRequestsProvider);
+      ref.invalidate(storeDashboardProvider);
+    } finally {
+      if (mounted) setState(() => _isCancelling = false);
     }
   }
 
@@ -307,6 +362,10 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                 reviewHandledLocally: reviewHandledLocally.valueOrNull ?? false,
                 reviewHandlingStatusLoading: reviewHandledLocally.isLoading,
                 isStore: isStore,
+                isCancelling: _isCancelling,
+                onCancelPressed: () => _cancelPurchase(
+                  detailsAsync.valueOrNull!,
+                ),
                 onBuyPressed: () async {
                   final details = detailsAsync.valueOrNull!;
                   final confirmed = await ConfirmPurchaseDialog.show(

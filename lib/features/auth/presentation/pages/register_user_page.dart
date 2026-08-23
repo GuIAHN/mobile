@@ -150,6 +150,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
           phone: sanitizedPhone,
           idToken: socialData?.idToken,
           provider: socialData?.provider,
+          acceptedTerms: _termsAccepted,
         );
   }
 

@@ -28,6 +28,7 @@ abstract class AuthRepository {
     String? phone,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
   });
 
   /// Registers a mechanic or workshop.
@@ -44,6 +45,10 @@ abstract class AuthRepository {
     required List<String> specialtyIds,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
+    String? idPhotoPath,
+    String? rifPhotoPath,
+    String? mercantilRegistryPath,
   });
 
   /// Registers a store and configures its initial catalog.
@@ -60,6 +65,9 @@ abstract class AuthRepository {
     required bool hasDelivery,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
+    required String rifPhotoPath,
+    required String mercantilRegistryPath,
   });
 
   /// Closes the current session and clears stored tokens.

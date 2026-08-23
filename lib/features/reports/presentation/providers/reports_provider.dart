@@ -86,6 +86,8 @@ void _listenForDashboardRefresh(Ref ref) {
       'search.matched',
       'offer.bought',
       'offer.delivered',
+      'offer.cancelled',
+      'search.declined',
     }.contains(event['tipo'])) {
       ref.invalidateSelf();
     }
@@ -117,6 +119,17 @@ final storeDashboardProvider =
   final from = _formatDate(filter.from);
   final to = _formatDate(filter.to);
   return repository.getStoreDashboard(from: from, to: to);
+});
+
+final storeResponseStatusProvider =
+    FutureProvider.autoDispose<StoreResponseStatus>((ref) async {
+  final userIdentity = ref.watch(
+    authProvider.select((state) => (state.user?.id, state.user?.role)),
+  );
+  if (userIdentity.$1 == null || userIdentity.$2?.isStore != true) {
+    throw Exception('Diagnóstico de tienda no autorizado');
+  }
+  return ref.watch(reportsRepositoryProvider).getStoreResponseStatus();
 });
 
 final providerDashboardProvider =

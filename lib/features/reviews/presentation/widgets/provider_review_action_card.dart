@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../providers/reviews_providers.dart';
@@ -68,7 +69,10 @@ class ProviderReviewActionCard extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.cloud_off_rounded, color: AppColors.textSecondary),
+            const AppLineIcon(
+              AppIcons.cloudError,
+              color: AppColors.textSecondary,
+            ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(
@@ -122,15 +126,13 @@ class ProviderReviewActionCard extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppColors.warningLight,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                const SizedBox(
+                  width: AppSpacing.xl3,
+                  child: AppLineIcon(
+                    AppIcons.rating,
+                    size: AppIconSize.leading,
+                    color: AppColors.warningInk,
                   ),
-                  child: const Icon(Icons.star_rounded,
-                      color: AppColors.warningInk),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
@@ -172,11 +174,9 @@ class ProviderReviewActionCard extends ConsumerWidget {
               height: AppSpacing.buttonHeightMd,
               child: OutlinedButton.icon(
                 onPressed: () => _openForm(context, ref),
-                icon: Icon(
-                  review == null
-                      ? Icons.rate_review_outlined
-                      : Icons.edit_rounded,
-                  size: 20,
+                icon: AppLineIcon(
+                  review == null ? AppIcons.reviews : AppIcons.edit,
+                  size: AppIconSize.action,
                 ),
                 label: Text(
                   review == null ? 'DEJAR VALORACIÓN' : 'EDITAR VALORACIÓN',

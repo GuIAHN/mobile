@@ -11,8 +11,13 @@ import 'package:guiautomotriz_mobile/features/chat/presentation/pages/conversati
 import 'package:guiautomotriz_mobile/features/chat/presentation/pages/mis_compras_page.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/pages/store_sales_page.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/providers/chat_providers.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 void main() {
+  setUpAll(() async {
+    await initializeDateFormatting('es');
+  });
+
   final conversation = ChatConversation(
     id: 'conversation-1',
     threadId: 'request-1',
@@ -43,6 +48,8 @@ void main() {
     conversationCount: 0,
     lastActivityAt: DateTime.utc(2026, 8, 14),
     clientName: 'Carlos',
+    searchMatchId: 'match-1',
+    matchState: 'PENDING',
   );
 
   ChatThreadsResult resultFor(ChatThread thread) => ChatThreadsResult(
@@ -82,8 +89,8 @@ void main() {
       page: const ConversationsInboxPage(),
     );
 
-    expect(find.text('Chats'), findsOneWidget);
-    expect(find.text('Conversaciones con tiendas'), findsOneWidget);
+    expect(find.text('Chats'), findsNothing);
+    expect(find.text('Conversaciones con tiendas'), findsNothing);
     expect(find.text('Repuestos Central'), findsOneWidget);
     expect(find.text('Motor BMW N55'), findsNothing);
     expect(
@@ -105,9 +112,9 @@ void main() {
       page: const ConsumerPurchasesPage(),
     );
 
-    expect(find.text('Compras'), findsOneWidget);
+    expect(find.text('Compras'), findsNothing);
     expect(find.text('Administra tus solicitudes y compara ofertas'),
-        findsOneWidget);
+        findsNothing);
     expect(find.text('Motor BMW N55'), findsOneWidget);
     expect(find.text('Con ofertas'), findsOneWidget);
   });
@@ -120,7 +127,8 @@ void main() {
       page: const ConversationsInboxPage(),
     );
 
-    expect(find.text('Conversaciones con tus clientes'), findsOneWidget);
+    expect(find.text('Chats'), findsNothing);
+    expect(find.text('Conversaciones con tus clientes'), findsNothing);
     expect(find.text('Repuestos Central'), findsOneWidget);
     expect(find.text('Bomba de gasolina'), findsNothing);
 
@@ -130,11 +138,11 @@ void main() {
       page: const StoreSalesPage(),
     );
 
-    expect(find.text('Ventas'), findsOneWidget);
+    expect(find.text('Ventas'), findsNothing);
     expect(find.text('Cotiza solicitudes y da seguimiento a tus ventas'),
-        findsOneWidget);
+        findsNothing);
     expect(find.text('Bomba de gasolina'), findsOneWidget);
-    expect(find.text('Sin cotizar'), findsAtLeastNWidgets(1));
+    expect(find.text('Pendientes'), findsAtLeastNWidgets(1));
   });
 
   testWidgets('Ventas search field does not draw an inner border',
@@ -154,6 +162,29 @@ void main() {
     expect(decoration.disabledBorder, InputBorder.none);
     expect(decoration.errorBorder, InputBorder.none);
     expect(decoration.focusedErrorBorder, InputBorder.none);
+  });
+
+  testWidgets('Chats and Compras start with compact search controls',
+      (tester) async {
+    await pumpPage(
+      tester,
+      role: UserRole.consumer,
+      page: const ConversationsInboxPage(),
+    );
+
+    final chatsSearch = find.byKey(const Key('conversations-search-bar'));
+    expect(tester.getTopLeft(chatsSearch).dy, 14);
+    expect(tester.getSize(chatsSearch).height, greaterThanOrEqualTo(48));
+
+    await pumpPage(
+      tester,
+      role: UserRole.consumer,
+      page: const ConsumerPurchasesPage(),
+    );
+
+    final purchasesSearch = find.byKey(const Key('request-search-bar'));
+    expect(tester.getTopLeft(purchasesSearch).dy, 14);
+    expect(tester.getSize(purchasesSearch).height, greaterThanOrEqualTo(48));
   });
 
   testWidgets('Chats search filters only the conversation list',

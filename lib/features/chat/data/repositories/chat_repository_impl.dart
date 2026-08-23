@@ -80,6 +80,7 @@ class ChatRepositoryImpl implements ChatRepository {
   Future<Either<Failure, ChatConversation>> createQuote({
     required String threadId,
     double? price,
+    double? deliveryCost,
     String? brand,
     String? photoPath,
   }) async {
@@ -87,6 +88,7 @@ class ChatRepositoryImpl implements ChatRepository {
       final conversation = await remoteDataSource.createQuote(
         threadId: threadId,
         price: price,
+        deliveryCost: deliveryCost,
         brand: brand,
         photoPath: photoPath,
       );
@@ -100,6 +102,8 @@ class ChatRepositoryImpl implements ChatRepository {
   Future<Either<Failure, void>> quoteOffer({
     required String offerId,
     required double price,
+    required bool updateDeliveryCost,
+    double? deliveryCost,
     String? brand,
     String? photoPath,
   }) async {
@@ -107,6 +111,8 @@ class ChatRepositoryImpl implements ChatRepository {
       await remoteDataSource.quoteOffer(
         offerId: offerId,
         price: price,
+        updateDeliveryCost: updateDeliveryCost,
+        deliveryCost: deliveryCost,
         brand: brand,
         photoPath: photoPath,
       );
@@ -162,6 +168,42 @@ class ChatRepositoryImpl implements ChatRepository {
   Future<Either<Failure, void>> deliverOffer(String offerId) async {
     try {
       await remoteDataSource.deliverOffer(offerId);
+      return const Right(null);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> cancelOffer(
+    String offerId, {
+    String? reason,
+  }) async {
+    try {
+      await remoteDataSource.cancelOffer(offerId, reason: reason);
+      return const Right(null);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> declineMatch(
+    String searchMatchId,
+    String reason,
+  ) async {
+    try {
+      await remoteDataSource.declineMatch(searchMatchId, reason);
+      return const Right(null);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> undoDecline(String searchMatchId) async {
+    try {
+      await remoteDataSource.undoDecline(searchMatchId);
       return const Right(null);
     } catch (e) {
       return Left(ErrorMapper.map(e));

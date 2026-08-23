@@ -45,6 +45,9 @@ void main() {
         hasDelivery: any(named: 'hasDelivery'),
         idToken: any(named: 'idToken'),
         provider: any(named: 'provider'),
+        acceptedTerms: any(named: 'acceptedTerms'),
+        rifPhotoPath: any(named: 'rifPhotoPath'),
+        mercantilRegistryPath: any(named: 'mercantilRegistryPath'),
       ),
     ).thenAnswer((_) async => registeredStore);
 
@@ -59,12 +62,15 @@ void main() {
       rif: 'J123456789',
       catalog: const [
         StoreCategoryConfig(
-          categoryId: 'category-id',
+          subcategoryId: 'category-id',
           brandIds: ['brand-id'],
           sparePartsTypes: ['ORIGINAL'],
         ),
       ],
       hasDelivery: true,
+      acceptedTerms: true,
+      rifPhotoPath: '/tmp/rif.jpg',
+      mercantilRegistryPath: '/tmp/registry.jpg',
     );
 
     expect(result.getOrElse(() => throw StateError('registration failed')),
@@ -102,6 +108,10 @@ void main() {
         specialtyIds: any(named: 'specialtyIds'),
         idToken: any(named: 'idToken'),
         provider: any(named: 'provider'),
+        acceptedTerms: any(named: 'acceptedTerms'),
+        idPhotoPath: any(named: 'idPhotoPath'),
+        rifPhotoPath: any(named: 'rifPhotoPath'),
+        mercantilRegistryPath: any(named: 'mercantilRegistryPath'),
       ),
     ).thenAnswer((_) async => registeredMechanic);
 
@@ -116,6 +126,8 @@ void main() {
       isWorkshop: false,
       identification: 'V12345678',
       specialtyIds: const ['specialty-id'],
+      acceptedTerms: true,
+      idPhotoPath: '/tmp/id.jpg',
     );
 
     expect(result.getOrElse(() => throw StateError('registration failed')),

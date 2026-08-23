@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_conversation.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/widgets/store_chat_card.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 void main() {
+  setUpAll(() => initializeDateFormatting('es'));
+
   ChatConversation conversation({
     bool hasQuote = true,
     double? price = 1250,
@@ -73,8 +76,8 @@ void main() {
     expect(messageRect.bottom, lessThan(summaryRect.top));
     expect(badgeRect.center.dy, closeTo(priceRect.center.dy, 8));
     expect(priceRect.left - badgeRect.right, lessThanOrEqualTo(30));
-    expect(find.text('OFERTA'), findsOneWidget);
-    expect(find.text(r'$1,250.00'), findsOneWidget);
+    expect(find.text('COMPRADA'), findsOneWidget);
+    expect(find.text(conversation().formattedPrice), findsOneWidget);
   });
 
   testWidgets('stacks status and price at large text without overflow',

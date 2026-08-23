@@ -7,6 +7,7 @@ import '../../../../core/utils/formatters.dart';
 import '../../domain/entities/provider_detail.dart';
 import '../providers/home_providers.dart';
 import '../widgets/provider_detail_widgets.dart';
+import '../widgets/service_provider_detail_view.dart';
 import '../../../reviews/presentation/providers/reviews_providers.dart';
 import '../../../reviews/presentation/widgets/provider_review_action_card.dart';
 import '../../../reviews/presentation/widgets/provider_reviews_button.dart';
@@ -31,13 +32,23 @@ class StoreDetailPage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: detailAsync.when(
-        loading: () => const DetailSkeleton(),
+        loading: () => isStore
+            ? const DetailSkeleton()
+            : const ServiceProviderDetailSkeleton(),
         error: (e, _) => DetailErrorView(
           title: 'No se pudo cargar la $providerLabel',
-          message: e.toString(),
+          message:
+              'No pudimos cargar los datos. Revisa tu conexión e inténtalo nuevamente.',
           onRetry: () => ref.invalidate(providerDetailProvider(args)),
         ),
         data: (detail) {
+          if (!isStore) {
+            return ServiceProviderDetailView(
+              detail: detail,
+              heroTag: 'provider-avatar-$storeId',
+            );
+          }
+
           final hasContact = detail.telefono != null;
           final hasLocation = detail.direccion != null ||
               detail.lat != null ||

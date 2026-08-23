@@ -18,11 +18,16 @@ class ChatConversation extends Equatable {
 
   final String? offerId;
   final String? offerStatus;
+  final DateTime? cancelledAt;
+  final String? cancelSource;
+  final String? cancelReason;
 
   // Pricing Quote Fields
   final bool hasQuote;
   final bool isInquiry;
   final double? price;
+  final double? deliveryCost;
+  final double? totalCost;
   final String? spareBrand;
   final String? sparePhotoUrl;
 
@@ -63,9 +68,14 @@ class ChatConversation extends Equatable {
     required this.lastMessageAt,
     this.offerId,
     this.offerStatus,
+    this.cancelledAt,
+    this.cancelSource,
+    this.cancelReason,
     this.hasQuote = false,
     this.isInquiry = false,
     this.price,
+    this.deliveryCost,
+    this.totalCost,
     this.spareBrand,
     this.sparePhotoUrl,
     this.storeLogoUrl,
@@ -97,6 +107,18 @@ class ChatConversation extends Equatable {
     return '\$${price!.toStringAsFixed(0)}';
   }
 
+  String get formattedDeliveryCost {
+    if (deliveryCost == null) return 'Retiro en tienda';
+    if (deliveryCost == 0) return 'Delivery gratis';
+    return '\$${deliveryCost!.toStringAsFixed(0)}';
+  }
+
+  String get formattedTotalCost {
+    final total = totalCost;
+    if (total == null) return formattedPrice;
+    return '\$${total.toStringAsFixed(0)}';
+  }
+
   /// Distancia legible para chips ("1.2 km"). Null si no hay dato válido.
   String? get formattedDistance {
     final d = distanceKm;
@@ -122,9 +144,14 @@ class ChatConversation extends Equatable {
       lastMessageAt: lastMessageAt,
       offerId: offerId,
       offerStatus: offerStatus,
+      cancelledAt: cancelledAt,
+      cancelSource: cancelSource,
+      cancelReason: cancelReason,
       hasQuote: hasQuote,
       isInquiry: isInquiry,
       price: price,
+      deliveryCost: deliveryCost,
+      totalCost: totalCost,
       spareBrand: spareBrand,
       sparePhotoUrl: sparePhotoUrl,
       storeLogoUrl: storeLogoUrl,
@@ -164,9 +191,14 @@ class ChatConversation extends Equatable {
         lastMessageAt,
         offerId,
         offerStatus,
+        cancelledAt,
+        cancelSource,
+        cancelReason,
         hasQuote,
         isInquiry,
         price,
+        deliveryCost,
+        totalCost,
         spareBrand,
         sparePhotoUrl,
         storeLogoUrl,

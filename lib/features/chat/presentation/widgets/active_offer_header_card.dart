@@ -10,10 +10,12 @@ class ActiveOfferHeaderCard extends StatefulWidget {
   final bool isStore;
   final VoidCallback? onBuyPressed;
   final VoidCallback? onDeliverPressed;
+  final VoidCallback? onCancelPressed;
   final VoidCallback? onReviewPressed;
   final VoidCallback? onViewStoreReviewsPressed;
   final bool reviewHandledLocally;
   final bool reviewHandlingStatusLoading;
+  final bool isCancelling;
 
   const ActiveOfferHeaderCard({
     super.key,
@@ -21,10 +23,12 @@ class ActiveOfferHeaderCard extends StatefulWidget {
     required this.isStore,
     this.onBuyPressed,
     this.onDeliverPressed,
+    this.onCancelPressed,
     this.onReviewPressed,
     this.onViewStoreReviewsPressed,
     this.reviewHandledLocally = false,
     this.reviewHandlingStatusLoading = false,
+    this.isCancelling = false,
   });
 
   @override
@@ -44,18 +48,19 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
 
     final isBought = details.offerStatus == 'BOUGHT';
     final isDelivered = details.offerStatus == 'DELIVERED';
+    final isCancelled = details.offerStatus == 'CANCELLED';
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(
           bottom: BorderSide(color: AppColors.border, width: 0.8),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: Color(0x08000000),
             blurRadius: 10,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -113,15 +118,25 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primaryMuted,
+                                  color: isCancelled
+                                      ? AppColors.errorLight
+                                      : AppColors.primaryMuted,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  'OFERTA COTIZADA',
+                                  isCancelled
+                                      ? 'COMPRA CANCELADA'
+                                      : isDelivered
+                                          ? 'OFERTA ENTREGADA'
+                                          : isBought
+                                              ? 'COMPRA CONFIRMADA'
+                                              : 'OFERTA COTIZADA',
                                   style: GoogleFonts.hankenGrotesk(
                                     fontSize: 9.5,
                                     fontWeight: FontWeight.w900,
-                                    color: AppColors.primary,
+                                    color: isCancelled
+                                        ? AppColors.errorInk
+                                        : AppColors.primary,
                                     letterSpacing: 0.5,
                                   ),
                                 ),
@@ -173,6 +188,27 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                               ],
                             ),
                           ],
+                          if (!isStore && details.storeRating != null) ...[
+                            const SizedBox(height: 3),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.star_rounded,
+                                  size: 14,
+                                  color: Color(0xFFF59E0B),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${details.storeRating!.toStringAsFixed(1)} (${details.storeReviewCount})',
+                                  style: GoogleFonts.hankenGrotesk(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -183,8 +219,10 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          details.price != null
-                              ? Formatters.currency(details.price!)
+                          (details.totalCost ?? details.price) != null
+                              ? Formatters.currency(
+                                  details.totalCost ?? details.price!,
+                                )
                               : 'A convenir',
                           style: GoogleFonts.hankenGrotesk(
                             fontSize: 17,
@@ -192,6 +230,17 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                             color: AppColors.primary,
                           ),
                         ),
+                        if (details.deliveryCost != null)
+                          Text(
+                            details.deliveryCost == 0
+                                ? 'Total · delivery gratis'
+                                : 'Total con delivery',
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         if (details.partType != null) ...[
                           const SizedBox(height: 2),
                           Container(
@@ -324,7 +373,7 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                   // 1. Consumidor: Comprar Ahora (solo si ya hay precio)
                   if (!isStore &&
                       !details.isInquiry &&
-                      (!isBought && !isDelivered))
+                      (!isBought && !isDelivered && !isCancelled))
                     SizedBox(
                       width: double.infinity,
                       height: 42,
@@ -333,8 +382,8 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                         icon: const Icon(Icons.shopping_cart_outlined,
                             size: 18, color: Colors.white),
                         label: Text(
-                          details.price != null
-                              ? 'Comprar Ahora • ${Formatters.currency(details.price!)}'
+                          (details.totalCost ?? details.price) != null
+                              ? 'Comprar Ahora • ${Formatters.currency(details.totalCost ?? details.price!)}'
                               : 'Comprar Ahora',
                           style: GoogleFonts.hankenGrotesk(
                             fontSize: 14,
@@ -417,6 +466,41 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 48,
+                          child: OutlinedButton.icon(
+                            onPressed: widget.isCancelling
+                                ? null
+                                : widget.onCancelPressed,
+                            icon: widget.isCancelling
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.error,
+                                    ),
+                                  )
+                                : const Icon(Icons.block_rounded, size: 18),
+                            label: Text(
+                              widget.isCancelling
+                                  ? 'Cancelando...'
+                                  : 'Cancelar compra',
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.errorInk,
+                              side: const BorderSide(color: AppColors.error),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     )
 
@@ -449,7 +533,60 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
 
                   // 4. Entregado -> Reseñas / Calificar
                   else if (isDelivered)
-                    _buildReviewSection(context, details, isStore),
+                    _buildReviewSection(context, details, isStore)
+                  else if (isCancelled)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.errorLight,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: AppColors.error.withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.block_rounded,
+                            color: AppColors.errorInk,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  details.cancelSource == 'SYSTEM'
+                                      ? 'Compra cancelada automáticamente'
+                                      : 'Compra cancelada',
+                                  style: GoogleFonts.hankenGrotesk(
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.errorInk,
+                                  ),
+                                ),
+                                if (details.cancelReason != null &&
+                                    details.cancelReason!
+                                        .trim()
+                                        .isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    details.cancelReason!,
+                                    style: GoogleFonts.hankenGrotesk(
+                                      fontSize: 12.5,
+                                      height: 1.35,
+                                      color: AppColors.errorInk,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ],
             ),

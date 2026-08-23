@@ -30,6 +30,8 @@ abstract class ApiEndpoints {
   static const String stores = 'stores';
   static String storeDetail(String id) => 'stores/$id';
   static const String storeSearchRequests = 'stores/me/search-requests';
+  static String storeSearchRequestDecline(String searchMatchId) =>
+      'stores/me/search-requests/$searchMatchId/decline';
   static const String storeOwnCategories = 'stores/me/categories';
 
   // ── Home / Dashboard ──────────────────────────────────────────────────────
@@ -49,6 +51,7 @@ abstract class ApiEndpoints {
   static String searchById(String id) => 'search/$id';
   static String searchClose(String id) => 'search/$id/close';
   static String searchOffers(String id) => 'search/$id/offers';
+  static String offerCancel(String id) => 'offers/$id/cancel';
 
   // ── Subida de imágenes ────────────────────────────────────────────────────
   static const String requestImageUpload = 'upload/requests';
@@ -68,6 +71,7 @@ abstract class ApiEndpoints {
 
   // ── Reports / Dashboard ───────────────────────────────────────────────────
   static const String storeDashboard = 'reports/store/dashboard';
+  static const String storeResponseStatus = 'reports/store/response-status';
   static String storeMetric(String metricId) =>
       'reports/store/metrics/$metricId';
   static const String providerDashboard = 'reports/provider/dashboard';

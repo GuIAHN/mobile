@@ -16,6 +16,22 @@ class NotificationVisualStyle {
   final Color background;
 
   factory NotificationVisualStyle.forType(String type) {
+    if (type == 'offer.cancelled') {
+      return const NotificationVisualStyle(
+        label: 'Compra cancelada',
+        icon: Icons.block_rounded,
+        foreground: AppColors.errorInk,
+        background: AppColors.errorLight,
+      );
+    }
+    if (type == 'search.no_store_available') {
+      return const NotificationVisualStyle(
+        label: 'Sin disponibilidad',
+        icon: Icons.storefront_outlined,
+        foreground: AppColors.warningInk,
+        background: AppColors.warningLight,
+      );
+    }
     if (type.startsWith('offer.')) {
       return const NotificationVisualStyle(
         label: 'Oferta',

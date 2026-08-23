@@ -27,6 +27,8 @@ void main() {
             'lastMessageAt': '2026-08-20T12:05:00.000Z',
             'status': 'SENT',
             'price': 125,
+            'deliveryCost': 25,
+            'totalCost': 150,
             'store': {'name': 'Repuestos Central'},
           },
         ],
@@ -47,6 +49,8 @@ void main() {
     );
     expect(result.single.note, 'Mensaje inicial de la oferta');
     expect(result.single.unreadCount, 2);
+    expect(result.single.deliveryCost, 25);
+    expect(result.single.totalCost, 150);
   });
 
   test('offer card remains compatible with the previous API contract',
@@ -81,5 +85,173 @@ void main() {
       result.single.lastMessageAt,
       DateTime.parse('2026-08-20T12:00:00.000Z'),
     );
+  });
+
+  test('reads cancellation metadata and store reputation from offers',
+      () async {
+    final client = _MockDioClient();
+    final endpoint = ApiEndpoints.searchOffers('request-1');
+    when(() => client.get(endpoint)).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: endpoint),
+        statusCode: 200,
+        data: const [
+          {
+            'id': 'offer-1',
+            'createdAt': '2026-08-20T12:00:00.000Z',
+            'status': 'CANCELLED',
+            'cancelledAt': '2026-08-22T09:00:00.000Z',
+            'cancelSource': 'SYSTEM',
+            'cancelReason': 'Sin confirmación de entrega',
+            'price': 125,
+            'store': {
+              'name': 'Repuestos Central',
+              'rating': 4.6,
+              'ratingCount': 18,
+            },
+          },
+        ],
+      ),
+    );
+    final dataSource = ChatRemoteDataSource(client, () => 'consumer-1');
+
+    final offer = (await dataSource.getConversations(
+      'request-1',
+      UserRole.consumer,
+    ))
+        .single;
+
+    expect(offer.offerStatus, 'CANCELLED');
+    expect(offer.cancelSource, 'SYSTEM');
+    expect(offer.cancelReason, 'Sin confirmación de entrega');
+    expect(offer.storeRating, 4.6);
+    expect(offer.storeReviewCount, 18);
+  });
+
+  test('reads flat reputation fields from the conversations inbox', () async {
+    final client = _MockDioClient();
+    when(() => client.get('conversations/me')).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: 'conversations/me'),
+        statusCode: 200,
+        data: const [
+          {
+            'id': 'conversation-1',
+            'participantName': 'Tienda RC-A1B2C3',
+            'storeRating': 4.5,
+            'storeRatingCount': 12,
+          },
+        ],
+      ),
+    );
+    final dataSource = ChatRemoteDataSource(client, () => 'consumer-1');
+
+    final conversation = (await dataSource.getMyConversations()).single;
+
+    expect(conversation.storeRating, 4.5);
+    expect(conversation.storeReviewCount, 12);
+  });
+
+  test('uses the cancellation and decline endpoints', () async {
+    final client = _MockDioClient();
+    final dataSource = ChatRemoteDataSource(client, () => 'consumer-1');
+    when(
+      () => client.post(
+        ApiEndpoints.offerCancel('offer-1'),
+        data: {'reason': 'Ya no lo necesito'},
+      ),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: 'offers/offer-1/cancel'),
+      ),
+    );
+    when(
+      () => client.post(
+        ApiEndpoints.storeSearchRequestDecline('match-1'),
+        data: {'reason': 'SIN_STOCK'},
+      ),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: 'decline'),
+      ),
+    );
+    when(
+      () => client.delete(
+        ApiEndpoints.storeSearchRequestDecline('match-1'),
+      ),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: 'decline'),
+      ),
+    );
+
+    await dataSource.cancelOffer('offer-1', reason: 'Ya no lo necesito');
+    await dataSource.declineMatch('match-1', 'SIN_STOCK');
+    await dataSource.undoDecline('match-1');
+
+    verify(
+      () => client.post(
+        ApiEndpoints.offerCancel('offer-1'),
+        data: {'reason': 'Ya no lo necesito'},
+      ),
+    ).called(1);
+    verify(
+      () => client.post(
+        ApiEndpoints.storeSearchRequestDecline('match-1'),
+        data: {'reason': 'SIN_STOCK'},
+      ),
+    ).called(1);
+    verify(
+      () => client.delete(
+        ApiEndpoints.storeSearchRequestDecline('match-1'),
+      ),
+    ).called(1);
+  });
+
+  test('updates delivery cost and can explicitly clear it', () async {
+    final client = _MockDioClient();
+    final dataSource = ChatRemoteDataSource(client, () => 'store-1');
+    when(
+      () => client.patch(
+        'offers/offer-1',
+        data: {'price': 125.0, 'deliveryCost': 24.5},
+      ),
+    ).thenAnswer(
+      (_) async => Response(requestOptions: RequestOptions(path: 'offer')),
+    );
+    when(
+      () => client.patch(
+        'offers/offer-1',
+        data: {'price': 125.0, 'deliveryCost': null},
+      ),
+    ).thenAnswer(
+      (_) async => Response(requestOptions: RequestOptions(path: 'offer')),
+    );
+
+    await dataSource.quoteOffer(
+      offerId: 'offer-1',
+      price: 125,
+      updateDeliveryCost: true,
+      deliveryCost: 24.5,
+    );
+    await dataSource.quoteOffer(
+      offerId: 'offer-1',
+      price: 125,
+      updateDeliveryCost: true,
+      deliveryCost: null,
+    );
+
+    verify(
+      () => client.patch(
+        'offers/offer-1',
+        data: {'price': 125.0, 'deliveryCost': 24.5},
+      ),
+    ).called(1);
+    verify(
+      () => client.patch(
+        'offers/offer-1',
+        data: {'price': 125.0, 'deliveryCost': null},
+      ),
+    ).called(1);
   });
 }

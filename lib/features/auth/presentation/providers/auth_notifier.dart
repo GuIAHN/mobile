@@ -264,6 +264,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? phone,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
   }) async {
     await _runAuthAction(
       () => _registerUseCase(
@@ -275,6 +276,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           phone: phone,
           idToken: idToken,
           provider: provider,
+          acceptedTerms: acceptedTerms,
         ),
       ),
     );
@@ -294,6 +296,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required List<String> specialtyIds,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
+    String? idPhotoPath,
+    String? rifPhotoPath,
+    String? mercantilRegistryPath,
   }) async {
     await _runProviderRegistration(
       () => _authRepository.registerMechanic(
@@ -309,6 +315,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         specialtyIds: specialtyIds,
         idToken: idToken,
         provider: provider,
+        acceptedTerms: acceptedTerms,
+        idPhotoPath: idPhotoPath,
+        rifPhotoPath: rifPhotoPath,
+        mercantilRegistryPath: mercantilRegistryPath,
       ),
     );
   }
@@ -327,6 +337,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required bool hasDelivery,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
+    required String rifPhotoPath,
+    required String mercantilRegistryPath,
   }) async {
     await _runProviderRegistration(
       () => _authRepository.registerStore(
@@ -342,6 +355,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         hasDelivery: hasDelivery,
         idToken: idToken,
         provider: provider,
+        acceptedTerms: acceptedTerms,
+        rifPhotoPath: rifPhotoPath,
+        mercantilRegistryPath: mercantilRegistryPath,
       ),
     );
   }

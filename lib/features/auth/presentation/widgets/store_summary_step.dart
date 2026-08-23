@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../catalog/domain/entities/category.dart';
 import 'store_catalog_helper.dart';
 
 class StoreSummaryStep extends StatelessWidget {
   final List<LineaCatalogo> catalogo;
-  final ValueChanged<Category> onAbrirSheetMarcas;
+  final ValueChanged<LineaCatalogo> onAbrirSheetMarcas;
 
   const StoreSummaryStep({
     super.key,
@@ -16,7 +15,8 @@ class StoreSummaryStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final marcasUnicas = catalogo.expand((l) => l.brands.map((b) => b.name)).toSet();
+    final marcasUnicas =
+        catalogo.expand((l) => l.brands.map((b) => b.name)).toSet();
     final marcasStr = marcasUnicas.join(', ');
 
     return Column(
@@ -27,7 +27,7 @@ class StoreSummaryStep extends StatelessWidget {
           return _CardLinea(
             linea: l,
             icono: icon,
-            onTap: () => onAbrirSheetMarcas(l.category),
+            onTap: () => onAbrirSheetMarcas(l),
           );
         }),
         const SizedBox(height: 8),
@@ -39,7 +39,7 @@ class StoreSummaryStep extends StatelessWidget {
             border: Border.all(color: AppColors.border),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -58,7 +58,7 @@ class StoreSummaryStep extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'El sistema mostrará tu tienda a los usuarios que busquen repuestos de las marcas configuradas (${marcasStr.isEmpty ? 'Ninguna marca seleccionada' : marcasStr}). Puedes volver atrás para agregar más marcas o categorías.',
+                'El sistema mostrará tu tienda a los usuarios que busquen repuestos de las marcas configuradas (${marcasStr.isEmpty ? 'Ninguna marca seleccionada' : marcasStr}). Puedes volver atrás para agregar más marcas o subcategorías.',
                 style: GoogleFonts.hankenGrotesk(
                   fontSize: 13.5,
                   height: 1.5,
@@ -100,7 +100,7 @@ class _CardLinea extends StatelessWidget {
           border: Border.all(color: AppColors.border),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 12,
               offset: const Offset(0, 5),
             ),

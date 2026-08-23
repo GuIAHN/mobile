@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -10,7 +11,7 @@ import '../../../../core/utils/validators.dart';
 import '../../../../core/utils/venezuelan_phone_number.dart';
 import '../../../../shared/widgets/api_error_message.dart';
 import '../../../catalog/domain/entities/category.dart';
-import '../../../catalog/presentation/providers/catalog_providers.dart';
+import '../../../home/presentation/widgets/spare_part_wizard/category_subcategory_selector_sheet.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
 import '../providers/social_registration_state.dart';
@@ -23,6 +24,7 @@ import '../widgets/store_catalog_step.dart';
 import '../widgets/store_profile_step.dart';
 import '../widgets/store_summary_step.dart';
 import '../widgets/terms_acceptance_step.dart';
+import '../widgets/provider_documents_step.dart';
 import '../widgets/workshop_location_step.dart';
 
 class RegisterStorePage extends ConsumerStatefulWidget {
@@ -33,8 +35,8 @@ class RegisterStorePage extends ConsumerStatefulWidget {
 }
 
 class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
-  static const _totalSteps = 6;
-  static const _completedStep = 7;
+  static const _totalSteps = 7;
+  static const _completedStep = 8;
 
   int _paso = 1;
   final _scrollController = ScrollController();
@@ -55,6 +57,8 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
   LatLng _location = const LatLng(10.4806, -66.9036);
   bool _ubicacionConfirmada = false;
   bool _termsAccepted = false;
+  XFile? _rifPhoto;
+  XFile? _mercantilRegistry;
 
   @override
   void initState() {
@@ -107,16 +111,31 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     return null;
   }
 
-  /* ───────── Bottom sheet de marcas por categoría ───────── */
-  Future<void> _abrirSheetMarcas(Category category) async {
-    final existente = _buscarLinea(category.id);
+  /* ───────── Marcas compartidas por categoría raíz ───────── */
+  Future<void> _configurarCategoria(
+    Category parentCategory, {
+    Category? newSubcategory,
+  }) async {
+    final lineasDeCategoria = _catalogo
+        .where((line) => line.parentCategory.id == parentCategory.id)
+        .toList();
+    final existente = lineasDeCategoria.firstOrNull;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     final resultado = await showModalBottomSheet<ResultadoSheet>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.48),
+      sheetAnimationStyle: AnimationStyle(
+        duration:
+            reduceMotion ? Duration.zero : const Duration(milliseconds: 280),
+        reverseDuration:
+            reduceMotion ? Duration.zero : const Duration(milliseconds: 180),
+      ),
       builder: (_) => SheetMarcas(
-        category: category,
+        category: parentCategory,
         seleccionInicial: existente?.brands ?? {},
         typesInicial: existente?.sparePartsTypes ?? {'ORIGINAL'},
         existia: existente != null,
@@ -129,18 +148,70 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       if (resultado.eliminar ||
           resultado.brands.isEmpty ||
           resultado.sparePartsTypes.isEmpty) {
-        _catalogo.removeWhere((l) => l.category.id == category.id);
-      } else if (existente != null) {
-        existente.brands = resultado.brands;
-        existente.sparePartsTypes = resultado.sparePartsTypes;
-      } else {
-        _catalogo.add(LineaCatalogo(
-          category: category,
-          brands: resultado.brands,
-          sparePartsTypes: resultado.sparePartsTypes,
-        ));
+        _catalogo.removeWhere(
+          (line) => line.parentCategory.id == parentCategory.id,
+        );
+        return;
+      }
+
+      for (final line in lineasDeCategoria) {
+        line.brands = Set.of(resultado.brands);
+        line.sparePartsTypes = Set.of(resultado.sparePartsTypes);
+      }
+      if (newSubcategory != null && _buscarLinea(newSubcategory.id) == null) {
+        _catalogo.add(
+          LineaCatalogo(
+            category: newSubcategory,
+            parentCategory: parentCategory,
+            brands: Set.of(resultado.brands),
+            sparePartsTypes: Set.of(resultado.sparePartsTypes),
+          ),
+        );
       }
     });
+  }
+
+  Future<void> _editarCategoria(LineaCatalogo line) {
+    return _configurarCategoria(line.parentCategory);
+  }
+
+  Future<void> _agregarSubcategoria() async {
+    final selection = await CategorySubcategorySelectorSheet.show(context);
+    if (selection == null || !mounted) return;
+    if (_buscarLinea(selection.subcategory.id) != null) {
+      await _configurarCategoria(selection.category);
+      return;
+    }
+
+    final existingCategory = _catalogo
+        .where((line) => line.parentCategory.id == selection.category.id)
+        .firstOrNull;
+    if (existingCategory == null) {
+      await _configurarCategoria(
+        selection.category,
+        newSubcategory: selection.subcategory,
+      );
+      return;
+    }
+
+    setState(() {
+      _catalogo.add(
+        LineaCatalogo(
+          category: selection.subcategory,
+          parentCategory: selection.category,
+          brands: Set.of(existingCategory.brands),
+          sparePartsTypes: Set.of(existingCategory.sparePartsTypes),
+        ),
+      );
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${selection.subcategory.name} usa las marcas de ${selection.category.name}.',
+        ),
+        backgroundColor: AppColors.success,
+      ),
+    );
   }
 
   bool get _passwordValida {
@@ -170,6 +241,8 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       case 5:
         return _ubicacionConfirmada;
       case 6:
+        return _rifPhoto != null && _mercantilRegistry != null;
+      case 7:
         return _termsAccepted;
       default:
         return false;
@@ -192,7 +265,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
 
     final catalogConfigs = _catalogo.map((l) {
       return StoreCategoryConfig(
-        categoryId: l.category.id,
+        subcategoryId: l.category.id,
         servesAllBrands: false,
         brandIds: l.brands.map((b) => b.id).toList(),
         sparePartsTypes: l.sparePartsTypes.toList(),
@@ -221,6 +294,9 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
           hasDelivery: _hasDelivery,
           idToken: socialData?.idToken,
           provider: socialData?.provider,
+          acceptedTerms: _termsAccepted,
+          rifPhotoPath: _rifPhoto!.path,
+          mercantilRegistryPath: _mercantilRegistry!.path,
         );
   }
 
@@ -248,9 +324,6 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     final authState = ref.watch(authProvider);
     final socialData = ref.watch(socialRegistrationProvider);
     final isSocial = socialData != null;
-    final categoriesAsync = ref.watch(categoriesProvider);
-    final categories = categoriesAsync.valueOrNull ?? [];
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -323,16 +396,13 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                                     ),
                                   3 => StoreCatalogStep(
                                       catalogo: _catalogo,
-                                      categories: categories,
-                                      onAbrirSheetMarcas: _abrirSheetMarcas,
-                                      isLoading: categoriesAsync.isLoading,
-                                      loadError: categoriesAsync.error,
-                                      onRetry: () =>
-                                          ref.invalidate(categoriesProvider),
+                                      onAbrirSheetMarcas: _editarCategoria,
+                                      onAgregarSubcategoria:
+                                          _agregarSubcategoria,
                                     ),
                                   4 => StoreSummaryStep(
                                       catalogo: _catalogo,
-                                      onAbrirSheetMarcas: _abrirSheetMarcas,
+                                      onAbrirSheetMarcas: _editarCategoria,
                                     ),
                                   5 => WorkshopLocationStep(
                                       location: _location,
@@ -342,12 +412,20 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                                       onUbicacionConfirmadaChanged: (c) =>
                                           setState(
                                               () => _ubicacionConfirmada = c),
-                                      searchHint:
-                                          'Buscar dirección de la tienda...',
                                       helperText:
-                                          'Toca el mapa para ajustar la ubicación exacta de la tienda',
+                                          'Usa tu ubicación actual o mueve el mapa para marcar la tienda.',
                                     ),
-                                  6 => TermsAcceptanceStep(
+                                  6 => ProviderDocumentsStep(
+                                      rifPhoto: _rifPhoto,
+                                      mercantilRegistry: _mercantilRegistry,
+                                      onRifPhotoChanged: (file) =>
+                                          setState(() => _rifPhoto = file),
+                                      onMercantilRegistryChanged: (file) =>
+                                          setState(
+                                        () => _mercantilRegistry = file,
+                                      ),
+                                    ),
+                                  7 => TermsAcceptanceStep(
                                       audience: TermsAudience.serviceProvider,
                                       isAccepted: _termsAccepted,
                                       onAcceptedChanged: (accepted) => setState(
@@ -370,7 +448,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                                           icon: Icons.storefront_outlined,
                                           label: 'Catálogo de Repuestos',
                                           title:
-                                              '${_catalogo.length} ${_catalogo.length == 1 ? 'categoría' : 'categorías'}',
+                                              '${_catalogo.length} ${_catalogo.length == 1 ? 'subcategoría' : 'subcategorías'}',
                                         ),
                                       ],
                                       onFinish: () {
@@ -476,7 +554,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     switch (_paso) {
       case 1:
         titulo = 'Perfil de la Tienda';
-        subtitulo = 'Paso 1 de 6: Información básica';
+        subtitulo = 'Paso 1 de 7: Información básica';
         break;
       case 2:
         titulo = 'Protege tu Cuenta';
@@ -485,21 +563,25 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       case 3:
         titulo = 'Catálogo';
         subtitulo =
-            'Selecciona las categorías de repuestos que manejas y asócialas a sus marcas.';
+            'Explora las categorías, selecciona las subcategorías que manejas y configura sus marcas.';
         break;
       case 4:
         titulo = 'Catálogo Seleccionado';
         subtitulo =
-            'Paso 4 de 6: Revisa las categorías registradas. Toca una tarjeta para modificar sus marcas.';
+            'Paso 4 de 7: Revisa las subcategorías registradas. Toca una tarjeta para modificar sus marcas.';
         break;
       case 5:
         titulo = 'Ubicación';
-        subtitulo = 'Paso 5 de 6: Confirma la dirección física de la tienda.';
+        subtitulo = 'Paso 5 de 7: Confirma la dirección física de la tienda.';
         break;
       case 6:
+        titulo = 'Documentos de la Tienda';
+        subtitulo = 'Paso 6 de 7: Adjunta el RIF y el registro mercantil.';
+        break;
+      case 7:
         titulo = 'Términos y Condiciones';
         subtitulo =
-            'Paso 6 de 6: Revisa y acepta el documento para registrarte.';
+            'Paso 7 de 7: Revisa y acepta el documento para registrarte.';
         break;
     }
 
@@ -639,12 +721,14 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
               _passwordCtrl.text,
             );
       case 3:
-        return 'Agrega al menos una categoría y sus marcas al catálogo.';
+        return 'Agrega al menos una subcategoría y sus marcas al catálogo.';
       case 4:
-        return 'El catálogo quedó vacío. Vuelve atrás y agrega una categoría.';
+        return 'El catálogo quedó vacío. Vuelve atrás y agrega una subcategoría.';
       case 5:
         return 'Confirma la ubicación exacta de la tienda para continuar.';
       case 6:
+        return 'Adjunta el RIF y el registro mercantil para continuar.';
+      case 7:
         return 'Abre el documento y acepta los términos y condiciones para registrarte.';
     }
     return null;
@@ -664,6 +748,13 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       return 1;
     }
     if (normalized.contains('categor')) return 3;
+    if (normalized.contains('document') ||
+        normalized.contains('rifphoto') ||
+        normalized.contains('mercantil') ||
+        normalized.contains('image') ||
+        normalized.contains('file')) {
+      return 6;
+    }
     return _paso;
   }
 

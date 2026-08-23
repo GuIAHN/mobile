@@ -115,6 +115,7 @@ class MetricResult extends Equatable {
   final String unit;
   final String availability;
   final Map<String, dynamic> payload;
+  final String? computedAt;
 
   const MetricResult({
     required this.id,
@@ -123,10 +124,19 @@ class MetricResult extends Equatable {
     required this.unit,
     required this.availability,
     required this.payload,
+    this.computedAt,
   });
 
   @override
-  List<Object?> get props => [id, title, subtitle, unit, availability, payload];
+  List<Object?> get props => [
+        id,
+        title,
+        subtitle,
+        unit,
+        availability,
+        payload,
+        computedAt,
+      ];
 
   factory MetricResult.fromJson(Map<String, dynamic> json) {
     return MetricResult(
@@ -136,6 +146,59 @@ class MetricResult extends Equatable {
       unit: json['unit'] as String? ?? '',
       availability: json['availability'] as String? ?? '',
       payload: json['payload'] as Map<String, dynamic>? ?? {},
+      computedAt: json['computedAt'] as String?,
     );
   }
+}
+
+class StoreResponseStatus extends Equatable {
+  final bool blocked;
+  final num? sampleSize;
+  final num? medianMinutes;
+  final num? thresholdMinutes;
+  final num? minSample;
+  final num? windowDays;
+
+  const StoreResponseStatus({
+    required this.blocked,
+    this.sampleSize,
+    this.medianMinutes,
+    this.thresholdMinutes,
+    this.minSample,
+    this.windowDays,
+  });
+
+  factory StoreResponseStatus.fromJson(Map<String, dynamic> json) {
+    return StoreResponseStatus(
+      blocked: json['blocked'] as bool? ?? true,
+      sampleSize: json['sampleSize'] as num?,
+      medianMinutes: json['medianMinutes'] as num?,
+      thresholdMinutes: json['thresholdMinutes'] as num?,
+      minSample: json['minSample'] as num?,
+      windowDays: json['windowDays'] as num?,
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+        blocked,
+        sampleSize,
+        medianMinutes,
+        thresholdMinutes,
+        minSample,
+        windowDays,
+      ];
+}
+
+class StoreMetricsBlockedException implements Exception {
+  final String message;
+  final StoreResponseStatus status;
+
+  const StoreMetricsBlockedException({
+    required this.message,
+    required this.status,
+  });
+
+  @override
+  String toString() => message;
 }

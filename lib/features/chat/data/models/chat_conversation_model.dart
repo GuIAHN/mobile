@@ -12,9 +12,14 @@ class ChatConversationModel extends ChatConversation {
     required super.lastMessageAt,
     super.offerId,
     super.offerStatus,
+    super.cancelledAt,
+    super.cancelSource,
+    super.cancelReason,
     super.hasQuote,
     super.isInquiry,
     super.price,
+    super.deliveryCost,
+    super.totalCost,
     super.spareBrand,
     super.sparePhotoUrl,
     super.storeLogoUrl,
@@ -65,10 +70,17 @@ class ChatConversationModel extends ChatConversation {
           : DateTime.now(),
       offerId: json['offerId'] as String?,
       offerStatus: json['offerStatus'] as String?,
+      cancelledAt: json['cancelledAt'] != null
+          ? DateTime.tryParse(json['cancelledAt'].toString())
+          : null,
+      cancelSource: json['cancelSource'] as String?,
+      cancelReason: json['cancelReason'] as String?,
       hasQuote: json['hasQuote'] as bool? ?? false,
       isInquiry: json['isInquiry'] as bool? ??
           (json['offerStatus'] as String?) == 'INQUIRY',
       price: parseDouble(json['price']),
+      deliveryCost: parseDouble(json['deliveryCost']),
+      totalCost: parseDouble(json['totalCost']),
       spareBrand: json['spareBrand'] as String?,
       sparePhotoUrl: json['sparePhotoUrl'] as String?,
       storeUserId: json['storeUserId'] as String?,
@@ -86,6 +98,8 @@ class ChatConversationModel extends ChatConversation {
       partType: json['partType'] as String?,
       requestDetails: json['requestDetails'] as String?,
       offerMessage: json['offerMessage'] as String?,
+      storeRating: parseDouble(json['storeRating']),
+      storeReviewCount: parseInt(json['storeRatingCount']) ?? 0,
     );
   }
 
@@ -100,10 +114,17 @@ class ChatConversationModel extends ChatConversation {
         'lastMessageAt': lastMessageAt.toIso8601String(),
         'offerId': offerId,
         'offerStatus': offerStatus,
+        'cancelledAt': cancelledAt?.toIso8601String(),
+        'cancelSource': cancelSource,
+        'cancelReason': cancelReason,
         'hasQuote': hasQuote,
         'isInquiry': isInquiry,
         'price': price,
+        'deliveryCost': deliveryCost,
+        'totalCost': totalCost,
         'spareBrand': spareBrand,
         'sparePhotoUrl': sparePhotoUrl,
+        'storeRating': storeRating,
+        'storeRatingCount': storeReviewCount,
       };
 }

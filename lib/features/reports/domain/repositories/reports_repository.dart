@@ -9,5 +9,7 @@ abstract class ReportsRepository {
     String? to,
   });
 
+  Future<StoreResponseStatus> getStoreResponseStatus();
+
   Future<DashboardResponse> getProviderDashboard({String? from, String? to});
 }
