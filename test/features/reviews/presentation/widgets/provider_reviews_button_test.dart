@@ -5,14 +5,22 @@ import 'package:guiautomotriz_mobile/core/router/route_names.dart';
 import 'package:guiautomotriz_mobile/features/reviews/presentation/widgets/provider_reviews_button.dart';
 
 void main() {
-  testWidgets('opens the public provider reviews route', (tester) async {
+  testWidgets('presents reviews clearly and opens the public reviews route',
+      (tester) async {
     final router = GoRouter(
       initialLocation: '/',
       routes: [
         GoRoute(
           path: '/',
           builder: (_, __) => const Scaffold(
-            body: ProviderReviewsButton(targetId: 'provider-user-1'),
+            body: Padding(
+              padding: EdgeInsets.all(24),
+              child: ProviderReviewsButton(
+                targetId: 'provider-user-1',
+                rating: 4.8,
+                reviewCount: 24,
+              ),
+            ),
           ),
         ),
         GoRoute(
@@ -28,7 +36,9 @@ void main() {
 
     final button = find.byKey(const Key('open-provider-reviews'));
     expect(button, findsOneWidget);
-    expect(tester.getSize(button).height, greaterThanOrEqualTo(48));
+    expect(tester.getSize(button).height, greaterThanOrEqualTo(56));
+    expect(find.text('Ver reseñas de clientes'), findsOneWidget);
+    expect(find.text('4.8 de 5 · 24 opiniones'), findsOneWidget);
 
     await tester.tap(button);
     await tester.pumpAndSettle();
@@ -57,7 +67,11 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
-      expect(find.text('VER RESEÑAS DE CLIENTES'), findsOneWidget);
+      expect(find.text('Ver reseñas de clientes'), findsOneWidget);
+      expect(
+        tester.getSize(find.byKey(const Key('open-provider-reviews'))).height,
+        greaterThanOrEqualTo(56),
+      );
     });
   }
 }

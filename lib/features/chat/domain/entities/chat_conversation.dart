@@ -13,6 +13,10 @@ class ChatConversation extends Equatable {
   final String participantName;
   final String? participantAvatarUrl;
   final String lastMessage;
+
+  /// Autoría del último mensaje cuando el API o el canal en tiempo real la
+  /// conocen. `null` conserva compatibilidad con respuestas antiguas.
+  final bool? lastMessageIsFromMe;
   final int unreadCount;
   final DateTime lastMessageAt;
 
@@ -67,6 +71,7 @@ class ChatConversation extends Equatable {
     required this.participantName,
     this.participantAvatarUrl,
     required this.lastMessage,
+    this.lastMessageIsFromMe,
     required this.unreadCount,
     required this.lastMessageAt,
     this.offerId,
@@ -147,6 +152,7 @@ class ChatConversation extends Equatable {
 
   ChatConversation withRealtimePreview({
     required String lastMessage,
+    required bool lastMessageIsFromMe,
     required int unreadCount,
     required DateTime lastMessageAt,
   }) {
@@ -157,6 +163,7 @@ class ChatConversation extends Equatable {
       participantName: participantName,
       participantAvatarUrl: participantAvatarUrl,
       lastMessage: lastMessage,
+      lastMessageIsFromMe: lastMessageIsFromMe,
       unreadCount: unreadCount,
       lastMessageAt: lastMessageAt,
       offerId: offerId,
@@ -207,6 +214,7 @@ class ChatConversation extends Equatable {
         participantName,
         participantAvatarUrl,
         lastMessage,
+        lastMessageIsFromMe,
         unreadCount,
         lastMessageAt,
         offerId,
@@ -225,6 +233,12 @@ class ChatConversation extends Equatable {
         spareBrand,
         sparePhotoUrl,
         storeLogoUrl,
+        storeUserId,
+        storeId,
+        storePhone,
+        storeAddress,
+        storeLat,
+        storeLng,
         verified,
         hasDelivery,
         distanceKm,
@@ -232,5 +246,13 @@ class ChatConversation extends Equatable {
         storeReviewCount,
         note,
         hasConversation,
+        hasReviewed,
+        reviewRating,
+        reviewComment,
+        vehicleTitle,
+        subcategoryName,
+        partType,
+        requestDetails,
+        offerMessage,
       ];
 }

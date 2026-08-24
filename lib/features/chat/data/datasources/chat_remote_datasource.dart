@@ -13,6 +13,17 @@ class ChatRemoteDataSource {
 
   ChatRemoteDataSource(this._dioClient, this.getCurrentUserId);
 
+  bool? _lastMessageIsFromMe(Map<String, dynamic> json) {
+    final explicit = json['lastMessageIsFromMe'];
+    if (explicit is bool) return explicit;
+
+    final senderId =
+        (json['lastMessageSenderId'] ?? json['lastMessageSender']?['id'])
+            ?.toString();
+    if (senderId == null || senderId.isEmpty) return null;
+    return senderId == getCurrentUserId();
+  }
+
   Future<ChatThreadsResult> getChatThreads(
     UserRole role, {
     String? statusFilter,
@@ -198,6 +209,7 @@ class ChatRemoteDataSource {
         participantName: store?['name'] ?? 'Tienda',
         participantAvatarUrl: store?['logoUrl'] as String?,
         lastMessage: (json['lastMessage'] ?? json['message'] ?? '').toString(),
+        lastMessageIsFromMe: _lastMessageIsFromMe(json),
         unreadCount: json['unreadCount'] as int? ?? 0,
         lastMessageAt: DateTime.parse(
           (json['lastMessageAt'] ?? json['createdAt']).toString(),
@@ -251,6 +263,20 @@ class ChatRemoteDataSource {
         .toList();
   }
 
+  /// Recupera sólo el mensaje más reciente para completar previews cuya
+  /// respuesta de bandeja todavía no incluye la autoría.
+  Future<ChatMessageModel?> getLatestMessage(String conversationId) async {
+    final response =
+        await _dioClient.get('conversations/$conversationId/messages?limit=1');
+    final data = response.data as List;
+    if (data.isEmpty) return null;
+
+    return ChatMessageModel.fromJson(
+      Map<String, dynamic>.from(data.first as Map),
+      getCurrentUserId(),
+    );
+  }
+
   Future<ChatMessageModel> sendMessage(
       String conversationId, String content, UserRole role) async {
     // Handled by sockets now
@@ -266,45 +292,15 @@ class ChatRemoteDataSource {
   Future<List<ChatConversationModel>> getMyConversations() async {
     final response = await _dioClient.get('conversations/me');
     final data = response.data as List;
-    return data.map((json) {
-      return ChatConversationModel(
-        id: json['id'],
-        threadId: json['offerId'] ?? 'DIRECT', // Fallback for direct chats
-        participantName: json['participantName'],
-        participantAvatarUrl: json['participantAvatarUrl'],
-        lastMessage: json['lastMessage'] ?? '',
-        unreadCount: json['unreadCount'] ?? 0,
-        lastMessageAt: json['lastMessageAt'] != null
-            ? DateTime.parse(json['lastMessageAt'])
-            : DateTime.now(),
-        offerId: json['offerId'],
-        offerStatus: json['offerStatus'],
-        searchMatchId: json['searchMatchId'] as String?,
-        declinedAt: json['declinedAt'] != null
-            ? DateTime.tryParse(json['declinedAt'].toString())
-            : null,
-        declineReason: json['declineReason'] as String?,
-        cancelledAt: json['cancelledAt'] != null
-            ? DateTime.tryParse(json['cancelledAt'].toString())
-            : null,
-        cancelSource: json['cancelSource'] as String?,
-        cancelReason: json['cancelReason'] as String?,
-        hasQuote: json['hasQuote'] ?? false,
-        isInquiry: json['isInquiry'] ?? false,
-        price: json['price'] != null
-            ? double.tryParse(json['price'].toString())
-            : null,
-        spareBrand: json['spareBrand'],
-        sparePhotoUrl: json['sparePhotoUrl'],
-        storeRating: json['storeRating'] != null
-            ? double.tryParse(json['storeRating'].toString())
-            : null,
-        storeReviewCount: json['storeRatingCount'] is num
-            ? (json['storeRatingCount'] as num).toInt()
-            : int.tryParse(json['storeRatingCount']?.toString() ?? '') ?? 0,
-        note: json['note'] as String?,
-      );
-    }).toList();
+    final currentUserId = getCurrentUserId();
+    return data
+        .map(
+          (json) => ChatConversationModel.fromJson(
+            Map<String, dynamic>.from(json as Map),
+            currentUserId: currentUserId,
+          ),
+        )
+        .toList();
   }
 
   Future<ChatConversationModel> getConversationDetails(
@@ -313,7 +309,10 @@ class ChatRemoteDataSource {
     final json = response.data is Map
         ? Map<String, dynamic>.from(response.data as Map)
         : response.data as Map<String, dynamic>;
-    return ChatConversationModel.fromJson(json);
+    return ChatConversationModel.fromJson(
+      json,
+      currentUserId: getCurrentUserId(),
+    );
   }
 
   Future<void> markAsRead(String conversationId) async {

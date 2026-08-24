@@ -18,6 +18,8 @@ abstract class ChatRepository {
 
   Future<Either<Failure, List<ChatMessage>>> getMessages(String conversationId);
 
+  Future<Either<Failure, ChatMessage?>> getLatestMessage(String conversationId);
+
   Future<Either<Failure, ChatMessage>> sendMessage(
       String conversationId, String content);
 

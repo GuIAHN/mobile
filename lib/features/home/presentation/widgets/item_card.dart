@@ -89,11 +89,9 @@ class _ItemCardState extends State<ItemCard> {
                         child: ProviderPhoto(
                           photoUrl: item.photo,
                           providerName: item.name,
-                          isWorkshop: item.type == ServiceType.workshops,
                           networkKey: Key('provider-list-photo-${item.id}'),
-                          previewKey:
-                              Key('provider-list-preview-photo-${item.id}'),
                           fallback: ColoredBox(
+                            key: Key('provider-list-fallback-${item.id}'),
                             color: AppColors.primaryMuted,
                             child: Center(
                               child: AppLineIcon(

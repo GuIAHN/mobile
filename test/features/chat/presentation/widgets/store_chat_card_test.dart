@@ -13,6 +13,8 @@ void main() {
     String lastMessage = 'La pieza está lista para retirar.',
     String offerStatus = 'BOUGHT',
     String? participantAvatarUrl,
+    int unreadCount = 3,
+    bool? lastMessageIsFromMe,
   }) {
     return ChatConversation(
       id: 'conversation-1',
@@ -20,7 +22,8 @@ void main() {
       participantName: 'Repuestos Central',
       participantAvatarUrl: participantAvatarUrl,
       lastMessage: lastMessage,
-      unreadCount: 3,
+      lastMessageIsFromMe: lastMessageIsFromMe,
+      unreadCount: unreadCount,
       lastMessageAt: DateTime.utc(2026, 8, 14),
       offerStatus: offerStatus,
       hasQuote: hasQuote,
@@ -128,4 +131,37 @@ void main() {
     expect(find.byKey(const Key('generic-store-avatar')), findsOneWidget);
     expect(find.byKey(const Key('participant-avatar')), findsNothing);
   });
+
+  testWidgets('identifies the author after the latest message was read',
+      (tester) async {
+    await pumpCard(
+      tester,
+      value: conversation(
+        lastMessage: 'Ya lo revisé',
+        unreadCount: 0,
+        lastMessageIsFromMe: true,
+      ),
+    );
+
+    expect(
+      find.text('Tú: Ya lo revisé', findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+        find.bySemanticsLabel(RegExp('último mensaje de tú')), findsOneWidget);
+
+    await pumpCard(
+      tester,
+      value: conversation(
+        lastMessage: 'Perfecto, confirmado',
+        unreadCount: 0,
+        lastMessageIsFromMe: false,
+      ),
+    );
+
+    expect(
+      find.text('Repuestos Central: Perfecto, confirmado', findRichText: true),
+      findsOneWidget,
+    );
+  }, semanticsEnabled: true);
 }

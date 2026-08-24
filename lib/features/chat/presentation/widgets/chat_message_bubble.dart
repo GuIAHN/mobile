@@ -46,8 +46,13 @@ class ChatMessageBubble extends StatelessWidget {
               ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: maxWidth),
                 child: DecoratedBox(
+                  key: Key(
+                    isMe
+                        ? 'outgoing-message-bubble'
+                        : 'incoming-message-bubble',
+                  ),
                   decoration: BoxDecoration(
-                    color: isMe ? AppColors.primaryMuted : AppColors.surface,
+                    color: isMe ? AppColors.primary : AppColors.surface,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(22),
                       topRight: const Radius.circular(22),
@@ -55,9 +60,7 @@ class ChatMessageBubble extends StatelessWidget {
                       bottomRight: Radius.circular(isMe ? 6 : 22),
                     ),
                     border: Border.all(
-                      color: isMe
-                          ? AppColors.primary.withValues(alpha: 0.22)
-                          : AppColors.border,
+                      color: isMe ? AppColors.primary : AppColors.border,
                     ),
                     boxShadow: [
                       BoxShadow(
@@ -86,7 +89,8 @@ class ChatMessageBubble extends StatelessWidget {
                             message.content,
                             style: GoogleFonts.hankenGrotesk(
                               fontSize: 15.5,
-                              fontWeight: FontWeight.w500,
+                              fontWeight:
+                                  isMe ? FontWeight.w600 : FontWeight.w500,
                               color: AppColors.textPrimary,
                               height: 1.42,
                             ),
@@ -124,10 +128,26 @@ class _SystemMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final normalized = message.content.toLowerCase();
-    final isPurchase =
-        normalized.contains('compra') || normalized.contains('comprado');
-    final foreground =
-        isPurchase ? AppColors.successInk : AppColors.textSecondary;
+    final isCancellation = normalized.contains('cancel') ||
+        normalized.contains('anulad') ||
+        normalized.contains('anuló');
+    final isPurchase = !isCancellation &&
+        (normalized.contains('compra') || normalized.contains('comprado'));
+    final foreground = isCancellation
+        ? AppColors.errorInk
+        : isPurchase
+            ? AppColors.successInk
+            : AppColors.textSecondary;
+    final background = isCancellation
+        ? AppColors.errorLight
+        : isPurchase
+            ? AppColors.successLight
+            : AppColors.grey100;
+    final border = isCancellation
+        ? AppColors.error.withValues(alpha: 0.3)
+        : isPurchase
+            ? AppColors.success.withValues(alpha: 0.28)
+            : AppColors.border;
 
     return Semantics(
       container: true,
@@ -136,21 +156,28 @@ class _SystemMessage extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 24),
         child: DecoratedBox(
+          key: Key(
+            isCancellation
+                ? 'cancelled-system-message'
+                : isPurchase
+                    ? 'success-system-message'
+                    : 'neutral-system-message',
+          ),
           decoration: BoxDecoration(
-            color: isPurchase ? AppColors.successLight : AppColors.grey100,
+            color: background,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: isPurchase
-                  ? AppColors.success.withValues(alpha: 0.28)
-                  : AppColors.border,
-            ),
+            border: Border.all(color: border),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             child: Row(
               children: [
                 AppLineIcon(
-                  isPurchase ? AppIcons.success : AppIcons.info,
+                  isCancellation
+                      ? AppIcons.cancellation
+                      : isPurchase
+                          ? AppIcons.success
+                          : AppIcons.info,
                   size: AppIconSize.inline,
                   color: foreground,
                 ),

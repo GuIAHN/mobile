@@ -24,6 +24,7 @@ ChatConversation _conversation({
   required bool isInquiry,
   double? price,
   String lastMessage = '',
+  bool? lastMessageIsFromMe,
 }) {
   return ChatConversation(
     id: 'offer-1',
@@ -32,6 +33,7 @@ ChatConversation _conversation({
     participantName: 'Tienda RC-A1B2C3',
     participantAvatarUrl: 'https://example.com/private-profile.jpg',
     lastMessage: lastMessage,
+    lastMessageIsFromMe: lastMessageIsFromMe,
     unreadCount: 0,
     lastMessageAt: DateTime.utc(2026, 8, 24),
     offerStatus: status,
@@ -73,5 +75,24 @@ void main() {
     expect(find.text('Ver cotización'), findsOneWidget);
     expect(find.byKey(const Key('generic-store-avatar')), findsOneWidget);
     expect(find.byKey(const Key('revealed-store-avatar')), findsNothing);
+  });
+
+  testWidgets('labels a read outgoing preview with Tú', (tester) async {
+    await tester.pumpWidget(
+      _subject(
+        _conversation(
+          status: 'SENT',
+          isInquiry: false,
+          price: 1250,
+          lastMessage: 'Gracias, quedo atento',
+          lastMessageIsFromMe: true,
+        ),
+      ),
+    );
+
+    expect(
+      find.text('Tú: Gracias, quedo atento', findRichText: true),
+      findsOneWidget,
+    );
   });
 }

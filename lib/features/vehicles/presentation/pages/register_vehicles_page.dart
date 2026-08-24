@@ -15,7 +15,8 @@ class RegisterVehiclesPage extends ConsumerStatefulWidget {
   const RegisterVehiclesPage({super.key});
 
   @override
-  ConsumerState<RegisterVehiclesPage> createState() => _RegisterVehiclesPageState();
+  ConsumerState<RegisterVehiclesPage> createState() =>
+      _RegisterVehiclesPageState();
 }
 
 class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
@@ -41,10 +42,13 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
       );
       result.fold(
         (failure) {
-          print('Error al guardar vehículo ${v.brand} ${v.model}: ${failure.message}');
+          debugPrint(
+            'Error al guardar vehículo ${v.brand} ${v.model}: '
+            '${failure.message}',
+          );
         },
         (success) {
-          print('Vehículo guardado exitosamente: ${success.id}');
+          debugPrint('Vehículo guardado exitosamente: ${success.id}');
         },
       );
     }
@@ -77,7 +81,8 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
             child: LayoutBuilder(
               builder: (context, viewportConstraints) {
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       minHeight: viewportConstraints.maxHeight - 32,
@@ -103,7 +108,8 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
                             children: [
                               const _FieldLabel('TUS VEHÍCULOS'),
                               const SizedBox(width: 8),
-                              if (vehiculos.isNotEmpty) _BadgeCount(vehiculos.length),
+                              if (vehiculos.isNotEmpty)
+                                _BadgeCount(vehiculos.length),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -116,7 +122,9 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
                                 model: entry.value.model,
                                 year: entry.value.year,
                                 onDelete: () {
-                                  ref.read(registerVehiclesProvider.notifier).removeUserCar(entry.key);
+                                  ref
+                                      .read(registerVehiclesProvider.notifier)
+                                      .removeUserCar(entry.key);
                                 },
                               );
                             }),
@@ -228,7 +236,7 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
       onTap: () async {
         // Muestra el modal interactivo
         final result = await VehicleSelectionModal.show(context);
-        
+
         if (result != null) {
           // Si el usuario completó la selección, agregamos el vehículo
           ref.read(registerVehiclesProvider.notifier).addUserCar(
@@ -331,7 +339,8 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
                     : const Icon(Icons.check_circle_outline, size: 18),
@@ -364,6 +373,7 @@ class _FieldLabel extends StatelessWidget {
     );
   }
 }
+
 class _UserCarItemCard extends StatelessWidget {
   final String brand;
   final String model;

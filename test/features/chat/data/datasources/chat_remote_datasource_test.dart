@@ -9,6 +9,72 @@ import 'package:mocktail/mocktail.dart';
 class _MockDioClient extends Mock implements DioClient {}
 
 void main() {
+  test('loads only the latest message and resolves its authorship', () async {
+    final client = _MockDioClient();
+    const endpoint = 'conversations/conversation-1/messages?limit=1';
+    when(() => client.get(endpoint)).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: endpoint),
+        statusCode: 200,
+        data: const [
+          {
+            '_id': 'message-1',
+            'conversationId': 'conversation-1',
+            'senderId': 'consumer-1',
+            'senderName': 'Carlos',
+            'content': 'Ya lo revisé',
+            'type': 'text',
+            'createdAt': '2026-08-20T12:05:00.000Z',
+            'read': true,
+          },
+        ],
+      ),
+    );
+    final dataSource = ChatRemoteDataSource(client, () => 'consumer-1');
+
+    final result = await dataSource.getLatestMessage('conversation-1');
+
+    expect(result?.content, 'Ya lo revisé');
+    expect(result?.isFromMe, isTrue);
+    expect(result?.isRead, isTrue);
+    verify(() => client.get(endpoint)).called(1);
+  });
+
+  test('keeps latest-message authorship after the conversation is read',
+      () async {
+    final client = _MockDioClient();
+    when(() => client.get('conversations/me')).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: 'conversations/me'),
+        statusCode: 200,
+        data: const [
+          {
+            'id': 'conversation-1',
+            'offerId': 'offer-1',
+            'participantName': 'Repuestos Central',
+            'lastMessage': 'Ya lo revisé',
+            'lastMessageSenderId': 'consumer-1',
+            'unreadCount': 0,
+            'lastMessageAt': '2026-08-20T12:05:00.000Z',
+            'hasQuote': true,
+            'price': 125,
+            'deliveryCost': 25,
+            'totalCost': 150,
+          },
+        ],
+      ),
+    );
+    final dataSource = ChatRemoteDataSource(client, () => 'consumer-1');
+
+    final result = await dataSource.getMyConversations();
+
+    expect(result.single.unreadCount, 0);
+    expect(result.single.lastMessageIsFromMe, isTrue);
+    expect(result.single.price, 125);
+    expect(result.single.deliveryCost, 25);
+    expect(result.single.totalCost, 150);
+  });
+
   test('offer card uses the latest chat message and its timestamp', () async {
     final client = _MockDioClient();
     final endpoint = ApiEndpoints.searchOffers('request-1');

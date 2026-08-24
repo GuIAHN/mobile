@@ -59,12 +59,13 @@ class NotificationCard extends StatelessWidget {
                     AppSpacing.lg,
                   ),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       SizedBox(
+                        key: const Key('notification-leading-icon'),
                         width: AppIconSize.feature,
                         child: Align(
-                          alignment: Alignment.topLeft,
+                          alignment: Alignment.centerLeft,
                           child: isMarking
                               ? SizedBox.square(
                                   dimension: AppIconSize.leading,
@@ -108,13 +109,10 @@ class NotificationCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
-                      const Padding(
-                        padding: EdgeInsets.only(top: AppSpacing.xs),
-                        child: AppLineIcon(
-                          AppIcons.next,
-                          size: AppIconSize.inline,
-                          color: AppColors.textMeta,
-                        ),
+                      const AppLineIcon(
+                        AppIcons.next,
+                        size: AppIconSize.inline,
+                        color: AppColors.textMeta,
                       ),
                     ],
                   ),

@@ -8,7 +8,6 @@ import 'interceptors/auth_interceptor.dart';
 import 'interceptors/logging_interceptor.dart';
 import 'interceptors/response_unwrap_interceptor.dart';
 
-
 /// Global provider for the configured Dio client.
 final dioClientProvider = Provider<DioClient>((ref) {
   return DioClient(ref);
@@ -24,9 +23,11 @@ class DioClient {
     _dio = Dio(
       BaseOptions(
         baseUrl: AppConfig.apiBaseUrl,
-        connectTimeout: Duration(milliseconds: AppConfig.connectTimeoutMs),
-        receiveTimeout: Duration(milliseconds: AppConfig.receiveTimeoutMs),
-        sendTimeout: Duration(milliseconds: AppConfig.sendTimeoutMs),
+        connectTimeout:
+            const Duration(milliseconds: AppConfig.connectTimeoutMs),
+        receiveTimeout:
+            const Duration(milliseconds: AppConfig.receiveTimeoutMs),
+        sendTimeout: const Duration(milliseconds: AppConfig.sendTimeoutMs),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -50,14 +51,16 @@ class DioClient {
 
   // ── Convenience methods ──────────────────────────────────────────────
 
-  String _cleanPath(String path) => path.startsWith('/') ? path.substring(1) : path;
+  String _cleanPath(String path) =>
+      path.startsWith('/') ? path.substring(1) : path;
 
   Future<Response<T>> get<T>(
     String path, {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) =>
-      _dio.get<T>(_cleanPath(path), queryParameters: queryParameters, options: options);
+      _dio.get<T>(_cleanPath(path),
+          queryParameters: queryParameters, options: options);
 
   Future<Response<T>> post<T>(
     String path, {
@@ -65,7 +68,8 @@ class DioClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) =>
-      _dio.post<T>(_cleanPath(path), data: data, queryParameters: queryParameters, options: options);
+      _dio.post<T>(_cleanPath(path),
+          data: data, queryParameters: queryParameters, options: options);
 
   Future<Response<T>> put<T>(
     String path, {
@@ -73,7 +77,8 @@ class DioClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) =>
-      _dio.put<T>(_cleanPath(path), data: data, queryParameters: queryParameters, options: options);
+      _dio.put<T>(_cleanPath(path),
+          data: data, queryParameters: queryParameters, options: options);
 
   Future<Response<T>> patch<T>(
     String path, {
@@ -81,7 +86,8 @@ class DioClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) =>
-      _dio.patch<T>(_cleanPath(path), data: data, queryParameters: queryParameters, options: options);
+      _dio.patch<T>(_cleanPath(path),
+          data: data, queryParameters: queryParameters, options: options);
 
   Future<Response<T>> delete<T>(
     String path, {
@@ -89,7 +95,8 @@ class DioClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) =>
-      _dio.delete<T>(_cleanPath(path), data: data, queryParameters: queryParameters, options: options);
+      _dio.delete<T>(_cleanPath(path),
+          data: data, queryParameters: queryParameters, options: options);
 
   DioMediaType _getMediaType(String filename) {
     final ext = filename.split('.').last.toLowerCase();
@@ -135,9 +142,10 @@ class DioClient {
     required String endpoint,
   }) async {
     final rawFileName = filePath.split('/').last.split('\\').last;
-    final String fileName = rawFileName.isEmpty || rawFileName.startsWith('blob:')
-        ? 'image_${DateTime.now().millisecondsSinceEpoch}.jpg'
-        : rawFileName;
+    final String fileName =
+        rawFileName.isEmpty || rawFileName.startsWith('blob:')
+            ? 'image_${DateTime.now().millisecondsSinceEpoch}.jpg'
+            : rawFileName;
 
     final mediaType = _getMediaType(fileName);
     final MultipartFile multipartFile;
@@ -169,7 +177,6 @@ class DioClient {
       );
     }
 
-
     final formData = FormData.fromMap({
       'file': multipartFile,
     });
@@ -189,4 +196,3 @@ class DioClient {
     throw Exception('Error al subir imagen: la respuesta no contiene la URL');
   }
 }
-

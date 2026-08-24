@@ -34,11 +34,27 @@ class RealtimeStoreChatCard extends ConsumerWidget {
     final currentUserId = ref.watch(
       currentUserProvider.select((user) => user?.id ?? ''),
     );
-    final resolved = applyRealtimeConversationUpdate(
+    var resolved = applyRealtimeConversationUpdate(
       conversation,
       update,
       currentUserId: currentUserId,
     );
+    if (currentUserId.isNotEmpty &&
+        resolved.lastMessageIsFromMe == null &&
+        resolved.lastMessage.trim().isNotEmpty) {
+      final latestMessage = ref
+          .watch(
+            latestConversationMessageProvider(
+              (
+                conversationId: conversation.realtimeConversationId,
+                lastMessageAt: resolved.lastMessageAt,
+                lastMessage: resolved.lastMessage,
+              ),
+            ),
+          )
+          .valueOrNull;
+      resolved = applyLatestMessageAuthorship(resolved, latestMessage);
+    }
 
     return StoreChatCard(
       conversation: resolved,
@@ -109,7 +125,14 @@ class StoreChatCard extends StatelessWidget {
           ', ${conv.unreadCount} mensaje${conv.unreadCount > 1 ? 's' : ''} sin leer');
     }
     if (message.isNotEmpty) {
-      semanticLabel.write(', último mensaje: $message');
+      final sender = conv.lastMessageIsFromMe == true
+          ? 'tú'
+          : conv.lastMessageIsFromMe == false
+              ? conv.participantName
+              : null;
+      semanticLabel.write(
+        ', último mensaje${sender == null ? '' : ' de $sender'}: $message',
+      );
     }
 
     return Semantics(
@@ -258,11 +281,27 @@ class StoreChatCard extends StatelessWidget {
                                 ),
                               ),
                             Expanded(
-                              child: Text(
+                              child: Text.rich(
                                 key: const Key('chat-card-latest-message'),
-                                message.isNotEmpty
-                                    ? message
-                                    : 'Sin mensajes todavía',
+                                TextSpan(
+                                  children: [
+                                    if (message.isNotEmpty &&
+                                        conv.lastMessageIsFromMe != null)
+                                      TextSpan(
+                                        text: conv.lastMessageIsFromMe!
+                                            ? 'Tú: '
+                                            : '${conv.participantName}: ',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    TextSpan(
+                                      text: message.isNotEmpty
+                                          ? message
+                                          : 'Sin mensajes todavía',
+                                    ),
+                                  ],
+                                ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: message.isEmpty

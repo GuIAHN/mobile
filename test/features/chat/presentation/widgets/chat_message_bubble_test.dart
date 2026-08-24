@@ -52,6 +52,21 @@ void main() {
     );
   });
 
+  testWidgets('uses the solid brand orange for outgoing text messages',
+      (tester) async {
+    await pumpBubble(tester, message());
+
+    final bubble = tester.widget<DecoratedBox>(
+      find.byKey(const Key('outgoing-message-bubble')),
+    );
+    final decoration = bubble.decoration as BoxDecoration;
+    expect(decoration.color, AppColors.primary);
+    expect(decoration.color, isNot(AppColors.primaryMuted));
+
+    final text = tester.widget<Text>(find.text('¿Todavía está disponible?'));
+    expect(text.style?.color, AppColors.textPrimary);
+  });
+
   testWidgets('opens a chat image in the zoom viewer', (tester) async {
     await pumpBubble(
       tester,
@@ -135,5 +150,24 @@ void main() {
       tester.getSize(systemSurface).height,
       lessThan(84),
     );
+  });
+
+  testWidgets('renders a consumer cancellation as destructive, not success',
+      (tester) async {
+    const content = 'La compra fue cancelada por el consumidor';
+    await pumpBubble(
+      tester,
+      message(
+        type: MessageType.system,
+        isFromMe: false,
+        content: content,
+      ),
+    );
+
+    final cancelled = tester.widget<DecoratedBox>(
+      find.byKey(const Key('cancelled-system-message')),
+    );
+    expect((cancelled.decoration as BoxDecoration).color, AppColors.errorLight);
+    expect(find.byKey(const Key('success-system-message')), findsNothing);
   });
 }

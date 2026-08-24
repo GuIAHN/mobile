@@ -98,6 +98,11 @@ void main() {
       tester.getSize(find.byKey(const Key('notification-card-n-1'))).height,
       greaterThanOrEqualTo(80),
     );
+    final cardRect =
+        tester.getRect(find.byKey(const Key('notification-card-n-1')));
+    final iconRect =
+        tester.getRect(find.byKey(const Key('notification-leading-icon')));
+    expect(iconRect.center.dy, closeTo(cardRect.center.dy, 1));
     expect(tester.takeException(), isNull);
 
     await tester.tap(action);

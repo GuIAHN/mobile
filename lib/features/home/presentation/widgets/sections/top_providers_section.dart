@@ -542,8 +542,6 @@ class _WorkshopProviderMedia extends StatelessWidget {
             child: ProviderPhoto(
               photoUrl: item.photo,
               providerName: item.name,
-              isWorkshop: true,
-              previewKey: Key('top-provider-workshop-preview-$id'),
               networkKey: Key('top-provider-workshop-network-$id'),
               fallback: fallback,
             ),
@@ -591,7 +589,6 @@ class _MechanicProviderMedia extends StatelessWidget {
             child: ProviderPhoto(
               photoUrl: item.photo,
               providerName: item.name,
-              isWorkshop: false,
               networkKey: Key('top-provider-mechanic-network-$id'),
               fallback: fallback,
             ),

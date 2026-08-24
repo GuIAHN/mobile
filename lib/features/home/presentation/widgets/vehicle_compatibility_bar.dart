@@ -61,8 +61,7 @@ class VehicleCompatibilityBar extends ConsumerWidget {
                 style: TextButton.styleFrom(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  minimumSize: const Size(48, 48),
                   backgroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
@@ -111,7 +110,7 @@ class VehicleCompatibilityBar extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'COMPATIBILIDAD:',
+                      'TU VEHÍCULO:',
                       style: GoogleFonts.hankenGrotesk(
                         fontSize: 9.5,
                         fontWeight: FontWeight.w900,
@@ -136,8 +135,7 @@ class VehicleCompatibilityBar extends ConsumerWidget {
                 style: TextButton.styleFrom(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  minimumSize: const Size(48, 48),
                   backgroundColor: AppColors.primaryMuted,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),

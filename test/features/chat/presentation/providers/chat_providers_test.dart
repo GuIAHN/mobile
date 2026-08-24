@@ -42,6 +42,7 @@ void main() {
       socketService: socketService,
       conversationId: 'conversation-1',
       currentUserId: 'current-user',
+      onLatestLoaded: (_) {},
     );
   });
 

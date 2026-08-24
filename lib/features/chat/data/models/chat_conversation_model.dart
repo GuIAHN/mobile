@@ -8,6 +8,7 @@ class ChatConversationModel extends ChatConversation {
     required super.participantName,
     super.participantAvatarUrl,
     required super.lastMessage,
+    super.lastMessageIsFromMe,
     required super.unreadCount,
     required super.lastMessageAt,
     super.offerId,
@@ -49,7 +50,10 @@ class ChatConversationModel extends ChatConversation {
     super.offerMessage,
   });
 
-  factory ChatConversationModel.fromJson(Map<String, dynamic> json) {
+  factory ChatConversationModel.fromJson(
+    Map<String, dynamic> json, {
+    String? currentUserId,
+  }) {
     // Helper para parsear campos numéricos que Prisma puede enviar como String o num
     double? parseDouble(dynamic v) => v == null
         ? null
@@ -57,6 +61,11 @@ class ChatConversationModel extends ChatConversation {
     int? parseInt(dynamic v) => v == null
         ? null
         : (v is int ? v : (v is num ? v.toInt() : int.tryParse(v.toString())));
+
+    final lastMessageSenderId =
+        (json['lastMessageSenderId'] ?? json['lastMessageSender']?['id'])
+            ?.toString();
+    final explicitAuthorship = json['lastMessageIsFromMe'];
 
     return ChatConversationModel(
       id: json['id'] as String,
@@ -66,6 +75,13 @@ class ChatConversationModel extends ChatConversation {
       participantName: json['participantName'] as String? ?? 'Usuario',
       participantAvatarUrl: json['participantAvatarUrl'] as String?,
       lastMessage: json['lastMessage'] as String? ?? '',
+      lastMessageIsFromMe: explicitAuthorship is bool
+          ? explicitAuthorship
+          : currentUserId != null &&
+                  currentUserId.isNotEmpty &&
+                  lastMessageSenderId != null
+              ? lastMessageSenderId == currentUserId
+              : null,
       unreadCount: parseInt(json['unreadCount']) ?? 0,
       lastMessageAt: json['lastMessageAt'] != null
           ? DateTime.tryParse(json['lastMessageAt'].toString()) ??
@@ -91,13 +107,18 @@ class ChatConversationModel extends ChatConversation {
       totalCost: parseDouble(json['totalCost']),
       spareBrand: json['spareBrand'] as String?,
       sparePhotoUrl: json['sparePhotoUrl'] as String?,
+      storeLogoUrl: json['storeLogoUrl'] as String?,
       storeUserId: json['storeUserId'] as String?,
       storeId: json['storeId'] as String?,
       storePhone: json['storePhone'] as String?,
       storeAddress: json['storeAddress'] as String?,
       hasDelivery: json['hasDelivery'] as bool? ?? false,
+      verified: json['verified'] as bool? ?? false,
       storeLat: parseDouble(json['storeLat']),
       storeLng: parseDouble(json['storeLng']),
+      distanceKm: parseDouble(json['distanceKm']),
+      note: json['note'] as String?,
+      hasConversation: json['hasConversation'] as bool? ?? false,
       hasReviewed: json['hasReviewed'] as bool? ?? false,
       reviewRating: parseInt(json['reviewRating']),
       reviewComment: json['reviewComment'] as String?,
@@ -118,6 +139,7 @@ class ChatConversationModel extends ChatConversation {
         'participantName': participantName,
         'participantAvatarUrl': participantAvatarUrl,
         'lastMessage': lastMessage,
+        'lastMessageIsFromMe': lastMessageIsFromMe,
         'unreadCount': unreadCount,
         'lastMessageAt': lastMessageAt.toIso8601String(),
         'offerId': offerId,
@@ -135,7 +157,27 @@ class ChatConversationModel extends ChatConversation {
         'totalCost': totalCost,
         'spareBrand': spareBrand,
         'sparePhotoUrl': sparePhotoUrl,
+        'storeLogoUrl': storeLogoUrl,
+        'storeUserId': storeUserId,
+        'storeId': storeId,
+        'storePhone': storePhone,
+        'storeAddress': storeAddress,
+        'storeLat': storeLat,
+        'storeLng': storeLng,
+        'verified': verified,
+        'hasDelivery': hasDelivery,
+        'distanceKm': distanceKm,
         'storeRating': storeRating,
         'storeRatingCount': storeReviewCount,
+        'note': note,
+        'hasConversation': hasConversation,
+        'hasReviewed': hasReviewed,
+        'reviewRating': reviewRating,
+        'reviewComment': reviewComment,
+        'vehicleTitle': vehicleTitle,
+        'subcategoryName': subcategoryName,
+        'partType': partType,
+        'requestDetails': requestDetails,
+        'offerMessage': offerMessage,
       };
 }

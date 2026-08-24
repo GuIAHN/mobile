@@ -183,15 +183,24 @@ void main() {
       ),
     );
 
-    expect(find.text(r'$150.00'), findsWidgets);
-    expect(find.text('Total con delivery'), findsOneWidget);
+    expect(find.text('Producto'), findsOneWidget);
+    expect(find.text(r'$125.00'), findsOneWidget);
+    expect(find.text('Delivery'), findsOneWidget);
+    expect(find.text(r'$25.00'), findsOneWidget);
+    expect(find.text('Total'), findsOneWidget);
+    expect(find.byKey(const Key('offer-total-cost')), findsOneWidget);
 
-    final priceTop = tester.getTopLeft(find.text(r'$150.00').first).dy;
+    final priceTop =
+        tester.getTopLeft(find.byKey(const Key('offer-product-cost'))).dy;
     final titleTop = tester.getTopLeft(find.text('Pastillas de frenos')).dy;
     expect(
       (priceTop - titleTop).abs(),
       lessThan(56),
       reason: 'El precio debe compartir el bloque visual con la oferta.',
+    );
+    expect(
+      tester.getTopLeft(find.byKey(const Key('offer-total-cost'))).dy,
+      greaterThan(priceTop),
     );
   });
 

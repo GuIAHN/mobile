@@ -64,6 +64,17 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
+  Future<Either<Failure, ChatMessage?>> getLatestMessage(
+      String conversationId) async {
+    try {
+      final message = await remoteDataSource.getLatestMessage(conversationId);
+      return Right(message);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
   Future<Either<Failure, ChatMessage>> sendMessage(
       String conversationId, String content) async {
     try {

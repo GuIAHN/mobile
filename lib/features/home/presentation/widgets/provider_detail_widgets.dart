@@ -634,13 +634,36 @@ abstract class ContactActions {
     }
   }
 
-  static Future<void> whatsapp(BuildContext context, String phone) async {
+  static String providerInquiryMessage({String? vehicleDescription}) {
+    final vehicle = vehicleDescription?.trim();
+    if (vehicle == null || vehicle.isEmpty) {
+      return 'Hola, te contacto desde GuIA-HN';
+    }
+    return 'Hola, te contacto desde GuIA-HN. Quisiera consultar por servicios '
+        'para mi $vehicle.';
+  }
+
+  static Uri whatsappUri(
+    String phone, {
+    String? message,
+  }) {
     String cleanDigits = phone.replaceAll(RegExp(r'\D'), '');
     if (cleanDigits.length == 8) {
       cleanDigits = '504$cleanDigits';
     }
-    final message = Uri.encodeComponent('Hola, te contacto desde GuIA-HN');
-    final whatsappUrl = Uri.parse('https://wa.me/$cleanDigits?text=$message');
+    return Uri.https(
+      'wa.me',
+      '/$cleanDigits',
+      {'text': message ?? providerInquiryMessage()},
+    );
+  }
+
+  static Future<void> whatsapp(
+    BuildContext context,
+    String phone, {
+    String? message,
+  }) async {
+    final whatsappUrl = whatsappUri(phone, message: message);
 
     if (!await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication)) {
       if (!context.mounted) return;

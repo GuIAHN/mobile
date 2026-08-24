@@ -27,12 +27,13 @@ ProviderDetail _fixture({
   bool isWorkshop = false,
   bool empty = false,
   List<String>? specialties,
+  String? description,
 }) {
   return ProviderDetail(
     id: isWorkshop ? 'workshop-1' : 'mechanic-1',
     nombre: isWorkshop ? 'Taller Auto-Sport' : 'Carlos Mendoza',
     esTaller: isWorkshop,
-    descripcion: empty ? null : _description,
+    descripcion: empty ? null : description ?? _description,
     rating: empty ? null : 4.8,
     ratingCount: empty ? 0 : 24,
     tarifa: empty ? null : 35,
@@ -144,6 +145,13 @@ void main() {
       tester.getSize(find.byKey(const Key('provider-detail-sheet'))).height,
       lessThan(420),
     );
+    final sheetRect =
+        tester.getRect(find.byKey(const Key('provider-detail-sheet')));
+    final closeRect = tester.getRect(
+      find.byKey(const Key('provider-detail-sheet-close')),
+    );
+    expect(sheetRect.right - closeRect.right, lessThanOrEqualTo(1));
+    expect(closeRect.shortestSide, greaterThanOrEqualTo(48));
     expect(tester.takeException(), isNull);
   });
 
@@ -198,9 +206,10 @@ void main() {
     expect(find.text('Taller Auto-Sport'), findsOneWidget);
     expect(find.text('Taller mecánico'), findsOneWidget);
     expect(
-      find.byKey(const Key('service-provider-hero-preview-photo')),
+      find.byKey(const Key('service-provider-hero-fallback')),
       findsOneWidget,
     );
+    expect(find.byType(Image), findsNothing);
     expect(
       find.byKey(const Key('service-provider-overview-card')),
       findsOneWidget,
@@ -311,5 +320,28 @@ void main() {
       isEmpty,
     );
     expect(flutterErrors, isEmpty);
+  });
+
+  testWidgets('offers the full presentation whenever five lines overflow',
+      (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(320, 720));
+    await _pumpResolved(
+      tester,
+      _subject(
+        load: (_) async => _fixture(
+          description:
+              'Diagnóstico claro, mantenimiento preventivo y atención cercana para explicar cada reparación antes de comenzar.',
+        ),
+        size: const Size(320, 720),
+        textScale: 2,
+      ),
+    );
+
+    expect(
+      find.byKey(const Key('service-provider-read-more')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
   });
 }

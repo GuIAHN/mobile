@@ -13,6 +13,7 @@ import '../../../reviews/presentation/providers/reviews_providers.dart';
 import '../../../reviews/presentation/widgets/provider_review_action_card.dart';
 import '../../../reviews/presentation/widgets/provider_reviews_button.dart';
 import '../../domain/entities/provider_detail.dart';
+import '../providers/home_providers.dart';
 import 'provider_detail_widgets.dart';
 import 'provider_photo.dart';
 
@@ -36,6 +37,11 @@ class ServiceProviderDetailView extends ConsumerWidget {
     final phone = detail.telefono?.trim();
     final hasPhone = phone != null && phone.isNotEmpty;
     final compactHero = MediaQuery.sizeOf(context).height < 760;
+    final selectedVehicle = ref.watch(searchVehicleProvider);
+    final vehicleDescription = selectedVehicle == null
+        ? null
+        : '${selectedVehicle.brand} ${selectedVehicle.model} '
+            '(${selectedVehicle.year})';
 
     Future<void> contact(String channel) async {
       HapticFeedback.lightImpact();
@@ -48,7 +54,13 @@ class ServiceProviderDetailView extends ConsumerWidget {
       if (channel == 'PHONE') {
         await ContactActions.call(context, phone!);
       } else {
-        await ContactActions.whatsapp(context, phone!);
+        await ContactActions.whatsapp(
+          context,
+          phone!,
+          message: ContactActions.providerInquiryMessage(
+            vehicleDescription: vehicleDescription,
+          ),
+        );
       }
     }
 
@@ -91,7 +103,11 @@ class ServiceProviderDetailView extends ConsumerWidget {
                       _ProviderOverviewCard(detail: detail),
                       if (detail.userId != null) ...[
                         const SizedBox(height: AppSpacing.md),
-                        ProviderReviewsButton(targetId: detail.userId!),
+                        ProviderReviewsButton(
+                          targetId: detail.userId!,
+                          rating: detail.rating,
+                          reviewCount: detail.ratingCount,
+                        ),
                         const SizedBox(height: AppSpacing.md),
                         ProviderReviewActionCard(
                           targetId: detail.userId!,
@@ -136,21 +152,19 @@ class _ProviderHero extends StatelessWidget {
           child: ProviderPhoto(
             photoUrl: photo,
             providerName: detail.nombre,
-            isWorkshop: detail.esTaller,
             networkKey: const Key('service-provider-hero-photo'),
-            previewKey: const Key('service-provider-hero-preview-photo'),
             loadingFallback: _HeroFallback(
               icon: detail.esTaller ? AppIcons.workshop : AppIcons.mechanic,
               showProgress: true,
             ),
             fallback: _HeroFallback(
+              key: const Key('service-provider-hero-fallback'),
               icon: detail.esTaller ? AppIcons.workshop : AppIcons.mechanic,
             ),
           ),
         ),
         if (showsProviderImage(
           photoUrl: photo,
-          isWorkshop: detail.esTaller,
         ))
           const DecoratedBox(
             decoration: BoxDecoration(
@@ -206,7 +220,11 @@ class _HeroFallback extends StatelessWidget {
   final IconData icon;
   final bool showProgress;
 
-  const _HeroFallback({required this.icon, this.showProgress = false});
+  const _HeroFallback({
+    super.key,
+    required this.icon,
+    this.showProgress = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -321,48 +339,13 @@ class _ProviderOverviewCard extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Presentación', style: AppTypography.label),
-                      const SizedBox(height: AppSpacing.xs),
-                      Semantics(
-                        label: hasDescription
-                            ? description
-                            : 'Este proveedor aún no agregó una presentación.',
-                        child: Text(
-                          hasDescription
-                              ? description
-                              : 'Este proveedor aún no agregó una presentación.',
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.bodySm,
-                        ),
-                      ),
-                      if (hasDescription && description.length > 130)
-                        TextButton(
-                          key: const Key('service-provider-read-more'),
-                          onPressed: () => _showAboutSheet(
-                            context,
-                            detail.esTaller
-                                ? 'Sobre el taller'
-                                : 'Sobre el mecánico',
-                            description,
-                          ),
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size(48, 48),
-                            padding: EdgeInsets.zero,
-                            foregroundColor: AppColors.primaryInk,
-                            alignment: Alignment.centerLeft,
-                          ),
-                          child: Text(
-                            'Leer más',
-                            style: AppTypography.label.copyWith(
-                              color: AppColors.primaryInk,
-                            ),
-                          ),
-                        ),
-                    ],
+                  child: _ExpandablePresentation(
+                    description: hasDescription ? description : null,
+                    onReadMore: () => _showAboutSheet(
+                      context,
+                      detail.esTaller ? 'Sobre el taller' : 'Sobre el mecánico',
+                      description!,
+                    ),
                   ),
                 ),
               ],
@@ -389,6 +372,71 @@ class _ProviderOverviewCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _ExpandablePresentation extends StatelessWidget {
+  const _ExpandablePresentation({
+    required this.description,
+    required this.onReadMore,
+  });
+
+  static const _emptyMessage = 'Este proveedor aún no agregó una presentación.';
+
+  final String? description;
+  final VoidCallback onReadMore;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = description ?? _emptyMessage;
+    final style = AppTypography.bodySm;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final painter = TextPainter(
+          text: TextSpan(text: text, style: style),
+          maxLines: 5,
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+          locale: Localizations.maybeLocaleOf(context),
+        )..layout(maxWidth: constraints.maxWidth);
+        final canExpand = description != null && painter.didExceedMaxLines;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Presentación', style: AppTypography.label),
+            const SizedBox(height: AppSpacing.xs),
+            Semantics(
+              label: text,
+              child: Text(
+                text,
+                maxLines: 5,
+                overflow: TextOverflow.ellipsis,
+                style: style,
+              ),
+            ),
+            if (canExpand)
+              TextButton(
+                key: const Key('service-provider-read-more'),
+                onPressed: onReadMore,
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(48, 48),
+                  padding: EdgeInsets.zero,
+                  foregroundColor: AppColors.primaryInk,
+                  alignment: Alignment.centerLeft,
+                ),
+                child: Text(
+                  'Ver presentación completa',
+                  style: AppTypography.label.copyWith(
+                    color: AppColors.primaryInk,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -844,6 +892,7 @@ Future<void> _showDetailSheet(
     builder: (context) => ConstrainedBox(
       key: const Key('provider-detail-sheet'),
       constraints: BoxConstraints(
+        minWidth: MediaQuery.sizeOf(context).width,
         maxHeight: MediaQuery.sizeOf(context).height * maxHeightFactor,
       ),
       child: Material(
@@ -863,6 +912,7 @@ Future<void> _showDetailSheet(
               ),
             ),
             SizedBox(
+              width: double.infinity,
               height: 64,
               child: Stack(
                 alignment: Alignment.center,
@@ -877,8 +927,9 @@ Future<void> _showDetailSheet(
                     ),
                   ),
                   Positioned(
-                    right: AppSpacing.sm,
+                    right: 0,
                     child: IconButton(
+                      key: const Key('provider-detail-sheet-close'),
                       onPressed: () => Navigator.pop(context),
                       tooltip: 'Cerrar',
                       constraints: const BoxConstraints(

@@ -1,6 +1,6 @@
-/// Excepciones de la capa de datos (conocen Dio, HTTP, JSON).
-/// Son capturadas en los repositorios y mapeadas a [Failure].
-/// NO deben salir de la capa data.
+// Excepciones de la capa de datos (conocen Dio, HTTP, JSON).
+// Son capturadas en los repositorios y mapeadas a Failure.
+// NO deben salir de la capa data.
 
 class ServerException implements Exception {
   final String message;

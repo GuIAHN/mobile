@@ -401,19 +401,19 @@ void main() {
     expect(shape.side.color, isNot(Colors.transparent));
   });
 
-  testWidgets('previews workshop photos and keeps mechanic fallback shape',
+  testWidgets('uses honest provider fallbacks with the intended shapes',
       (tester) async {
     await tester.pumpWidget(subject(AsyncValue.data([fixture()])));
 
-    final workshopPreview =
-        find.byKey(const Key('top-provider-workshop-preview-workshop-1'));
-    expect(workshopPreview, findsOneWidget);
+    final workshopFallback =
+        find.byKey(const Key('top-provider-workshop-fallback-workshop-1'));
+    expect(workshopFallback, findsOneWidget);
     expect(
-      tester.getSize(workshopPreview).height,
-      closeTo(tester.getSize(workshopPreview).width * 9 / 16, 0.1),
+      tester.getSize(workshopFallback).height,
+      closeTo(tester.getSize(workshopFallback).width * 9 / 16, 0.1),
     );
     expect(
-      tester.getSize(workshopPreview).width,
+      tester.getSize(workshopFallback).width,
       tester
           .getSize(find.bySemanticsLabel('Ver detalles de Taller Norte'))
           .width,
@@ -442,7 +442,7 @@ void main() {
     );
   }, semanticsEnabled: true);
 
-  testWidgets('uses the uploaded workshop photo before the dev preview',
+  testWidgets('uses the uploaded workshop photo instead of the fallback',
       (tester) async {
     await tester.pumpWidget(
       subject(
@@ -464,7 +464,7 @@ void main() {
       ),
     );
     expect(
-      find.byKey(const Key('top-provider-workshop-preview-workshop-1')),
+      find.byKey(const Key('top-provider-workshop-fallback-workshop-1')),
       findsNothing,
     );
   });

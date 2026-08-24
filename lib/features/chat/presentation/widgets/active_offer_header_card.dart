@@ -6,6 +6,7 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/media_url.dart';
 import '../../../../shared/widgets/image_viewer_dialog.dart';
 import '../../domain/entities/chat_conversation.dart';
+import '_atoms/offer_price_breakdown.dart';
 import 'store_contact_sheet.dart';
 
 class ActiveOfferHeaderCard extends StatefulWidget {
@@ -822,31 +823,11 @@ class _OfferPriceSummary extends StatelessWidget {
     return Column(
       crossAxisAlignment: alignment,
       children: [
-        Text(
-          (details.totalCost ?? details.price) != null
-              ? Formatters.currency(details.totalCost ?? details.price!)
-              : 'A convenir',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 17,
-            fontWeight: FontWeight.w900,
-            color: AppColors.primary,
-          ),
+        OfferPriceBreakdown(
+          productCost: details.price,
+          deliveryCost: details.deliveryCost,
+          totalCost: details.totalCost,
         ),
-        if (details.deliveryCost != null)
-          Text(
-            details.deliveryCost == 0
-                ? 'Total · delivery gratis'
-                : 'Total con delivery',
-            textAlign: alignment == CrossAxisAlignment.end
-                ? TextAlign.end
-                : TextAlign.start,
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-              height: 1.25,
-            ),
-          ),
         if (details.partType != null) ...[
           const SizedBox(height: 2),
           DecoratedBox(

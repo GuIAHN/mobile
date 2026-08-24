@@ -33,18 +33,18 @@ void main() {
     return MaterialApp.router(routerConfig: router);
   }
 
-  testWidgets('shows the workshop preview in the results list', (tester) async {
+  testWidgets('uses an honest fallback when a workshop has no photo',
+      (tester) async {
     await tester.pumpWidget(subject(workshop()));
 
-    final preview = find.byKey(
-      const Key('provider-list-preview-photo-workshop-1'),
+    expect(
+      find.byKey(const Key('provider-list-fallback-workshop-1')),
+      findsOneWidget,
     );
-    expect(preview, findsOneWidget);
-    expect(tester.widget<Image>(preview).image, isA<AssetImage>());
+    expect(find.byType(Image), findsNothing);
   });
 
-  testWidgets('uses an uploaded photo before the workshop preview',
-      (tester) async {
+  testWidgets('uses an uploaded workshop photo when available', (tester) async {
     await tester.pumpWidget(
       subject(workshop(photo: 'https://example.com/workshop.jpg')),
     );
@@ -59,9 +59,7 @@ void main() {
         'https://example.com/workshop.jpg',
       ),
     );
-    expect(
-      find.byKey(const Key('provider-list-preview-photo-workshop-1')),
-      findsNothing,
-    );
+    expect(find.byKey(const Key('provider-list-fallback-workshop-1')),
+        findsNothing);
   });
 }

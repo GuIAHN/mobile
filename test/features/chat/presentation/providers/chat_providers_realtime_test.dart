@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
 import 'package:guiautomotriz_mobile/core/services/socket_service.dart';
 import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_conversation.dart';
+import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_message.dart';
 import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_threads_result.dart';
 import 'package:guiautomotriz_mobile/features/chat/domain/usecases/get_chat_threads_usecase.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/providers/chat_providers.dart';
@@ -17,6 +18,38 @@ class _MockGetChatThreadsUseCase extends Mock
     implements GetChatThreadsUseCase {}
 
 void main() {
+  test('hydrates authorship only for the exact current preview', () {
+    final timestamp = DateTime.parse('2026-08-20T12:00:00.000Z');
+    final conversation = ChatConversation(
+      id: 'conversation-1',
+      threadId: 'DIRECT',
+      participantName: 'Repuestos Central',
+      lastMessage: 'Mensaje leído',
+      unreadCount: 0,
+      lastMessageAt: timestamp,
+    );
+    ChatMessage latest({String content = 'Mensaje leído'}) => ChatMessage(
+          id: 'message-1',
+          conversationId: 'conversation-1',
+          senderId: 'consumer-user',
+          senderName: 'Carlos',
+          isFromMe: true,
+          content: content,
+          createdAt: timestamp,
+          isRead: true,
+        );
+
+    final hydrated = applyLatestMessageAuthorship(conversation, latest());
+    final stale = applyLatestMessageAuthorship(
+      conversation,
+      latest(content: 'Mensaje anterior'),
+    );
+
+    expect(hydrated.lastMessageIsFromMe, isTrue);
+    expect(hydrated.unreadCount, 0);
+    expect(stale.lastMessageIsFromMe, isNull);
+  });
+
   test('store sales refresh automatically after the socket reconnects',
       () async {
     final socket = _MockSocketService();
@@ -191,11 +224,28 @@ void main() {
     );
 
     expect(resolved.lastMessage, 'Último mensaje');
+    expect(resolved.lastMessageIsFromMe, isFalse);
     expect(resolved.unreadCount, 3);
     expect(
       resolved.lastMessageAt,
       DateTime.parse('2026-08-20T12:03:00.000Z'),
     );
+
+    final refreshedReadConversation = applyRealtimeConversationUpdate(
+      ChatConversation(
+        id: 'offer-1',
+        conversationId: 'conversation-1',
+        threadId: 'request-1',
+        participantName: 'Repuestos Central',
+        lastMessage: 'Último mensaje',
+        unreadCount: 0,
+        lastMessageAt: DateTime.parse('2026-08-20T12:03:00.000Z'),
+      ),
+      update,
+      currentUserId: 'consumer-user',
+    );
+    expect(refreshedReadConversation.lastMessageIsFromMe, isFalse);
+    expect(refreshedReadConversation.unreadCount, 0);
 
     verify(
       () => getThreads(

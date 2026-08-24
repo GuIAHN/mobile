@@ -34,11 +34,29 @@ class RealtimeChatConversationCard extends ConsumerWidget {
     final currentUserId = ref.watch(
       currentUserProvider.select((user) => user?.id ?? ''),
     );
-    final resolved = applyRealtimeConversationUpdate(
+    var resolved = applyRealtimeConversationUpdate(
       conversation,
       update,
       currentUserId: currentUserId,
     );
+    final conversationId = conversation.conversationId;
+    if (conversationId != null &&
+        currentUserId.isNotEmpty &&
+        resolved.lastMessageIsFromMe == null &&
+        resolved.lastMessage.trim().isNotEmpty) {
+      final latestMessage = ref
+          .watch(
+            latestConversationMessageProvider(
+              (
+                conversationId: conversationId,
+                lastMessageAt: resolved.lastMessageAt,
+                lastMessage: resolved.lastMessage,
+              ),
+            ),
+          )
+          .valueOrNull;
+      resolved = applyLatestMessageAuthorship(resolved, latestMessage);
+    }
 
     return ChatConversationCard(
       conversation: resolved,
@@ -69,7 +87,8 @@ class ChatConversationCard extends StatelessWidget {
     final distance = conv.formattedDistance;
     final hasUnread = conv.unreadCount > 0;
     final hasFormalQuote = conv.hasFormalQuote;
-    final message = conv.lastMessage.trim().isNotEmpty
+    final hasLastMessage = conv.lastMessage.trim().isNotEmpty;
+    final message = hasLastMessage
         ? conv.lastMessage
         : (conv.note ??
             (hasFormalQuote
@@ -199,8 +218,19 @@ class ChatConversationCard extends StatelessWidget {
                 const SizedBox(width: 8),
               ],
               Expanded(
-                child: Text(
-                  message,
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      if (hasLastMessage && conv.lastMessageIsFromMe != null)
+                        TextSpan(
+                          text: conv.lastMessageIsFromMe!
+                              ? 'Tú: '
+                              : '${conv.participantName}: ',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      TextSpan(text: message),
+                    ],
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: hasUnread ? CardTokens.bodyUnread : CardTokens.body,

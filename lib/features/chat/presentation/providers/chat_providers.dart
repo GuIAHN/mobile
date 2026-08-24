@@ -19,6 +19,7 @@ import '../../domain/usecases/cancel_offer_usecase.dart';
 import '../../domain/usecases/decline_match_usecase.dart';
 import '../../domain/usecases/undo_decline_usecase.dart';
 import '../../../../core/providers/current_user_provider.dart';
+import '../../../../core/providers/cache_for.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/services/socket_service.dart';
 
@@ -227,6 +228,32 @@ final conversationRealtimeUpdateProvider =
   );
 });
 
+typedef LatestMessagePreviewKey = ({
+  String conversationId,
+  DateTime lastMessageAt,
+  String lastMessage,
+});
+
+/// Completa la autoría que el endpoint de bandeja aún no entrega. Es
+/// auto-dispose, se solicita sólo desde cards visibles que la necesitan y se
+/// retiene brevemente para no repetir la petición al hacer scroll o cambiar de
+/// pestaña. La identidad completa del preview forma parte de la clave para que
+/// un refresh REST no reutilice la respuesta de un mensaje anterior.
+final latestConversationMessageProvider = FutureProvider.autoDispose
+    .family<ChatMessage?, LatestMessagePreviewKey>((ref, preview) async {
+  final repository = ref.watch(chatRepositoryProvider);
+  final result = await repository.getLatestMessage(preview.conversationId);
+  return result.fold(
+    (failure) => throw Exception(failure.message),
+    (message) {
+      // Los fallos no quedan cacheados: al volver a materializar el card se
+      // reintenta. Sólo una respuesta válida recibe la ventana de retención.
+      ref.cacheFor(const Duration(minutes: 5));
+      return message;
+    },
+  );
+});
+
 class _ConversationRealtimeUpdatesNotifier
     extends StateNotifier<Map<String, ConversationRealtimeUpdate>> {
   _ConversationRealtimeUpdatesNotifier(SocketService socketService)
@@ -254,11 +281,8 @@ class _ConversationRealtimeUpdatesNotifier
       return;
     }
 
-    final previous = state[conversationId]?.messages ?? const [];
-    if (previous.any((message) => message.id == id)) return;
-
-    final messages = <ConversationRealtimeMessage>[
-      ...previous,
+    _record(
+      conversationId,
       ConversationRealtimeMessage(
         id: id,
         senderId: senderId,
@@ -266,7 +290,33 @@ class _ConversationRealtimeUpdatesNotifier
         createdAt: createdAt,
         isRead: data['read'] == true,
       ),
-    ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    );
+  }
+
+  /// Conserva la autoría al volver de un chat ya leído sin disparar otra
+  /// consulta HTTP por cada card de la bandeja.
+  void seedReadMessage(ChatMessage message) {
+    _record(
+      message.conversationId,
+      ConversationRealtimeMessage(
+        id: message.id,
+        senderId: message.senderId,
+        content: message.content,
+        createdAt: message.createdAt,
+        isRead: true,
+      ),
+    );
+  }
+
+  void _record(
+    String conversationId,
+    ConversationRealtimeMessage message,
+  ) {
+    final previous = state[conversationId]?.messages ?? const [];
+    if (previous.any((current) => current.id == message.id)) return;
+
+    final messages = <ConversationRealtimeMessage>[...previous, message]
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
     if (messages.length > _maxMessagesPerConversation) {
       messages.removeRange(0, messages.length - _maxMessagesPerConversation);
@@ -300,7 +350,21 @@ ChatConversation applyRealtimeConversationUpdate(
         (message) => message.createdAt.isAfter(conversation.lastMessageAt),
       )
       .toList();
-  if (freshMessages.isEmpty) return conversation;
+  if (freshMessages.isEmpty) {
+    final latestKnown = update.messages.isEmpty ? null : update.messages.last;
+    if (latestKnown == null ||
+        latestKnown.createdAt.isBefore(conversation.lastMessageAt) ||
+        latestKnown.content != conversation.lastMessage) {
+      return conversation;
+    }
+
+    return conversation.withRealtimePreview(
+      lastMessage: conversation.lastMessage,
+      lastMessageIsFromMe: latestKnown.senderId == currentUserId,
+      unreadCount: conversation.unreadCount,
+      lastMessageAt: conversation.lastMessageAt,
+    );
+  }
 
   final latest = freshMessages.last;
   final unreadDelta = freshMessages
@@ -311,8 +375,37 @@ ChatConversation applyRealtimeConversationUpdate(
 
   return conversation.withRealtimePreview(
     lastMessage: latest.content,
+    lastMessageIsFromMe: latest.senderId == currentUserId,
     unreadCount: conversation.unreadCount + unreadDelta,
     lastMessageAt: latest.createdAt,
+  );
+}
+
+/// Aplica la autoría hidratada únicamente si corresponde al preview actual.
+/// Comparar id lógico, contenido y fecha evita etiquetar un mensaje obsoleto
+/// cuando REST y el socket se cruzan.
+ChatConversation applyLatestMessageAuthorship(
+  ChatConversation conversation,
+  ChatMessage? latestMessage,
+) {
+  if (conversation.lastMessageIsFromMe != null || latestMessage == null) {
+    return conversation;
+  }
+
+  final sameConversation =
+      latestMessage.conversationId == conversation.realtimeConversationId;
+  final sameContent = latestMessage.content == conversation.lastMessage;
+  final sameTimestamp =
+      latestMessage.createdAt.isAtSameMomentAs(conversation.lastMessageAt);
+  if (!sameConversation || !sameContent || !sameTimestamp) {
+    return conversation;
+  }
+
+  return conversation.withRealtimePreview(
+    lastMessage: conversation.lastMessage,
+    lastMessageIsFromMe: latestMessage.isFromMe,
+    unreadCount: conversation.unreadCount,
+    lastMessageAt: conversation.lastMessageAt,
   );
 }
 
@@ -437,6 +530,7 @@ class ChatMessagesNotifier
   final SocketService _socketService;
   final String _conversationId;
   final String _currentUserId;
+  final void Function(ChatMessage) _onLatestLoaded;
   StreamSubscription? _msgSub;
   StreamSubscription? _reconnectSub;
 
@@ -445,10 +539,12 @@ class ChatMessagesNotifier
     required SocketService socketService,
     required String conversationId,
     required String currentUserId,
+    required void Function(ChatMessage) onLatestLoaded,
   })  : _getMessagesUseCase = getMessagesUseCase,
         _socketService = socketService,
         _conversationId = conversationId,
         _currentUserId = currentUserId,
+        _onLatestLoaded = onLatestLoaded,
         super(const AsyncValue.loading()) {
     loadMessages();
     _socketService.joinConversation(_conversationId);
@@ -477,6 +573,16 @@ class ChatMessagesNotifier
       (messages) {
         if (mounted) {
           state = AsyncValue.data(messages);
+          if (messages.isNotEmpty) {
+            final latest = messages.reduce(
+              (current, candidate) => candidate.createdAt.isAfter(
+                current.createdAt,
+              )
+                  ? candidate
+                  : current,
+            );
+            _onLatestLoaded(latest);
+          }
         }
       },
     );
@@ -542,5 +648,7 @@ final chatMessagesProvider = StateNotifierProvider.family
     socketService: ref.watch(socketServiceProvider),
     conversationId: conversationId,
     currentUserId: ref.watch(currentUserProvider)?.id ?? '',
+    onLatestLoaded:
+        ref.read(_conversationRealtimeUpdatesProvider.notifier).seedReadMessage,
   );
 });
