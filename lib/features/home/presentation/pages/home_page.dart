@@ -124,6 +124,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     final isDashboardSelected = selectedType == ServiceType.storeDashboard;
     final currentRole = ref.watch(currentRoleProvider);
     final isConsumer = currentRole.isConsumer;
+    final nearbyLabel = currentRole.usesSavedLocationForSearch
+        ? 'cerca de tu negocio'
+        : 'cerca de ti';
     final allowedTypes = currentRole.allowedServiceTypes;
     final unreadNotifications = ref.watch(unreadNotificationsCountProvider);
     final hasUnreadNotifications = (unreadNotifications.valueOrNull ?? 0) > 0;
@@ -215,11 +218,11 @@ class _HomePageState extends ConsumerState<HomePage> {
           // ── Top mecánicos cercanos ────────────────────────────────
           if (allowedTypes.contains(ServiceType.mechanic)) ...[
             const SizedBox(height: _kSectionGap),
-            const HomeSectionSurface(
-              key: Key('home-provider-section-mechanics'),
+            HomeSectionSurface(
+              key: const Key('home-provider-section-mechanics'),
               child: TopProvidersSection(
                 serviceType: ServiceType.mechanic,
-                title: 'Mecánicos cerca de ti',
+                title: 'Mecánicos $nearbyLabel',
                 routePath: RouteNames.mechanics,
               ),
             ),
@@ -228,11 +231,11 @@ class _HomePageState extends ConsumerState<HomePage> {
           // ── Top talleres cercanos ─────────────────────────────────
           if (allowedTypes.contains(ServiceType.workshops)) ...[
             const SizedBox(height: _kSectionGap),
-            const HomeSectionSurface(
-              key: Key('home-provider-section-workshops'),
+            HomeSectionSurface(
+              key: const Key('home-provider-section-workshops'),
               child: TopProvidersSection(
                 serviceType: ServiceType.workshops,
-                title: 'Talleres cerca de ti',
+                title: 'Talleres $nearbyLabel',
                 routePath: RouteNames.workshops,
               ),
             ),

@@ -71,6 +71,12 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
   }
 
   Future<void> _checkInitialLocationPermission() async {
+    final role = ref.read(authProvider).user?.role;
+    if (role?.usesSavedLocationForSearch ?? false) {
+      _clearTemporaryLocation();
+      return;
+    }
+
     final isShared = ref.read(isLocationSharedProvider);
     if (!isShared) return;
 
@@ -116,6 +122,9 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
   }
 
   Future<void> _handleLocationToggle(BuildContext context) async {
+    final role = ref.read(authProvider).user?.role;
+    if (role?.usesSavedLocationForSearch ?? false) return;
+
     final service = ref.read(locationServiceProvider);
     final isShared = ref.read(isLocationSharedProvider);
 
@@ -173,6 +182,18 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
     }
   }
 
+  void _clearTemporaryLocation() {
+    if (ref.read(isLocationSharedProvider)) {
+      ref.read(isLocationSharedProvider.notifier).state = false;
+    }
+    if (ref.read(userLocationProvider).valueOrNull != null) {
+      ref.read(userLocationProvider.notifier).clear();
+    }
+    if (mounted && _resolvedLocationName != null) {
+      setState(() => _resolvedLocationName = null);
+    }
+  }
+
   void _showLocationSettingsDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -224,6 +245,13 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
     final locationAsync = ref.watch(userLocationProvider);
     final authState = ref.watch(authProvider);
     final user = authState.user;
+    final usesSavedLocation = user?.role.usesSavedLocationForSearch ?? false;
+    if (usesSavedLocation &&
+        (isLocationShared || locationAsync.valueOrNull != null)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _clearTemporaryLocation();
+      });
+    }
     final userName =
         user == null ? null : _headerDisplayName(user.name, user.role);
     final isLoadingAuth = authState.status == AuthStatus.loading ||
@@ -312,80 +340,85 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Fila superior: ubicación chip + notificaciones ───────────
+                  // ── Fila superior: ubicación móvil + notificaciones ─────────
                   Padding(
                     padding:
                         const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Flexible(
-                          child: Semantics(
-                            button: true,
-                            excludeSemantics: true,
-                            label: isLocationShared
-                                ? 'Desactivar ubicación. Ubicación actual: $locationText'
-                                : 'Activar ubicación',
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                key: const Key('home-location-control'),
-                                onTap: () => _handleLocationToggle(context),
-                                borderRadius: BorderRadius.circular(
-                                    AppSpacing.radiusFull),
-                                child: Container(
-                                  height: 36,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.18),
-                                    borderRadius: BorderRadius.circular(
-                                        AppSpacing.radiusFull),
-                                    border: Border.all(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.35),
-                                      width: 1.0,
+                        if (!usesSavedLocation)
+                          Flexible(
+                            child: Semantics(
+                              button: true,
+                              excludeSemantics: true,
+                              label: isLocationShared
+                                  ? 'Desactivar ubicación. Ubicación actual: $locationText'
+                                  : 'Activar ubicación',
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  key: const Key('home-location-control'),
+                                  onTap: () => _handleLocationToggle(context),
+                                  borderRadius: BorderRadius.circular(
+                                      AppSpacing.radiusFull),
+                                  child: Container(
+                                    constraints:
+                                        const BoxConstraints(minHeight: 48),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
                                     ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        isLocationShared
-                                            ? Icons.location_on_rounded
-                                            : Icons.location_off_rounded,
-                                        color: Colors.white,
-                                        size: 16,
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(
+                                          AppSpacing.radiusFull),
+                                      border: Border.all(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.35),
+                                        width: 1.0,
                                       ),
-                                      const SizedBox(width: 5),
-                                      Flexible(
-                                        child: Text(
-                                          locationText,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: GoogleFonts.hankenGrotesk(
-                                            fontSize: 12.5,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.white,
-                                            letterSpacing: -0.1,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          isLocationShared
+                                              ? Icons.location_on_rounded
+                                              : Icons.location_off_rounded,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Flexible(
+                                          child: Text(
+                                            locationText,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.hankenGrotesk(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white,
+                                              letterSpacing: -0.1,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 3),
-                                      const Icon(
-                                        Icons.keyboard_arrow_down_rounded,
-                                        color: Colors.white,
-                                        size: 16,
-                                      ),
-                                    ],
+                                        const SizedBox(width: 3),
+                                        const Icon(
+                                          Icons.keyboard_arrow_down_rounded,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
+                          )
+                        else
+                          const Spacer(),
                         if (widget.onNotificationsTap != null) ...[
                           const SizedBox(width: AppSpacing.sm),
                           _NotificationButton(

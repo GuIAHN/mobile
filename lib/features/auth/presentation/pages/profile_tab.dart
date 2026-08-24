@@ -10,6 +10,7 @@ import '../../../../shared/widgets/error_view.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../../shared/widgets/staggered_entrance.dart';
+import '../../../provider_profile/presentation/widgets/provider_location_card.dart';
 import '../../../provider_profile/presentation/widgets/provider_specialties_card.dart';
 import '../../../provider_profile/presentation/widgets/store_catalog_card.dart';
 import '../../../vehicles/presentation/widgets/profile_garage.dart';
@@ -18,6 +19,7 @@ import '../widgets/profile_action_card.dart';
 import '../widgets/profile_header.dart';
 import '../widgets/security_section.dart';
 import '../../../home/presentation/widgets/navigation/bottom_nav_bar.dart';
+import '../../../reviews/presentation/providers/reviews_providers.dart';
 
 class ProfileTab extends ConsumerWidget {
   const ProfileTab({super.key});
@@ -46,6 +48,10 @@ class ProfileTab extends ConsumerWidget {
         user.role == UserRole.consumer || user.role == UserRole.unknown;
     final isProfessionalProvider =
         user.role == UserRole.mechanic || user.role == UserRole.workshop;
+    final isPlaceProvider = user.role.isWorkshop || user.role.isStore;
+    final pendingReviewCount = isConsumer
+        ? ref.watch(pendingReviewsProvider).valueOrNull?.length ?? 0
+        : 0;
 
     final sections = <Widget>[
       ProfileHeader(user: user),
@@ -53,7 +59,9 @@ class ProfileTab extends ConsumerWidget {
         isConsumer: isConsumer,
         isProvider: user.role.isProvider,
         userId: user.id,
+        pendingReviewCount: pendingReviewCount,
       ),
+      if (isPlaceProvider) ProviderLocationCard(user: user),
       if (isConsumer) const ProfileGarage(),
       if (isProfessionalProvider) const ProviderSpecialtiesCard(),
       if (user.role.isStore) const StoreCatalogCard(),
@@ -225,17 +233,19 @@ class _AccountActionsSection extends StatelessWidget {
   final bool isConsumer;
   final bool isProvider;
   final String userId;
+  final int pendingReviewCount;
 
   const _AccountActionsSection({
     required this.isConsumer,
     required this.isProvider,
     required this.userId,
+    required this.pendingReviewCount,
   });
 
   @override
   Widget build(BuildContext context) {
     final reviewAction = isConsumer
-        ? const _PendingReviewsSection()
+        ? _PendingReviewsSection(count: pendingReviewCount)
         : isProvider
             ? _ReceivedReviewsSection(targetId: userId)
             : null;
@@ -253,17 +263,34 @@ class _AccountActionsSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Expanded(child: SecuritySection()),
-              if (reviewAction != null) ...[
-                const SizedBox(width: 12),
-                Expanded(child: reviewAction),
-              ],
-            ],
-          ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (reviewAction == null) return const SecuritySection();
+
+            final scaledBody = MediaQuery.textScalerOf(context).scale(13);
+            final stackCards = constraints.maxWidth < 320 || scaledBody >= 18;
+            if (stackCards) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SecuritySection(),
+                  const SizedBox(height: 12),
+                  reviewAction,
+                ],
+              );
+            }
+
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Expanded(child: SecuritySection()),
+                  const SizedBox(width: 12),
+                  Expanded(child: reviewAction),
+                ],
+              ),
+            );
+          },
         ),
       ],
     );
@@ -271,17 +298,22 @@ class _AccountActionsSection extends StatelessWidget {
 }
 
 class _PendingReviewsSection extends StatelessWidget {
-  const _PendingReviewsSection();
+  final int count;
+
+  const _PendingReviewsSection({required this.count});
 
   @override
   Widget build(BuildContext context) {
     return ProfileActionCard(
       actionKey: const Key('open-pending-reviews'),
-      semanticsLabel: 'Abrir reseñas pendientes',
+      semanticsLabel: count == 0
+          ? 'Abrir reseñas pendientes'
+          : 'Abrir reseñas pendientes, $count pendiente${count == 1 ? '' : 's'}',
       eyebrow: 'OPINIONES',
       title: 'Reseñas pendientes',
       subtitle: 'Valora las compras que recibiste.',
       icon: Icons.rate_review_outlined,
+      badgeCount: count,
       onTap: () => context.push(RouteNames.pendingReviews),
     );
   }

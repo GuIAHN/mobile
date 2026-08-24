@@ -8,7 +8,7 @@ import '../../../../core/storage/secure_storage.dart';
 import '../../../../core/network/token_refresh_coordinator.dart';
 import '../../../../features/notifications/services/push_notifications_service.dart';
 import '../../domain/entities/user.dart';
-import '../../domain/entities/store_category_config.dart';
+import '../../domain/entities/store_coverage_config.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
@@ -333,7 +333,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required double longitude,
     required String address,
     required String rif,
-    required List<StoreCategoryConfig> catalog,
+    required StoreCoverageConfig coverage,
     required bool hasDelivery,
     String? idToken,
     String? provider,
@@ -351,7 +351,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         longitude: longitude,
         address: address,
         rif: rif,
-        catalog: catalog,
+        coverage: coverage,
         hasDelivery: hasDelivery,
         idToken: idToken,
         provider: provider,
@@ -448,9 +448,58 @@ class AuthNotifier extends StateNotifier<AuthState> {
       (updatedUser) {
         state = state.copyWith(
           status: AuthStatus.authenticated,
-          user: updatedUser,
+          user: _mergeUpdatedProfile(
+            updatedUser,
+            latitude: latitude,
+            longitude: longitude,
+          ),
         );
       },
+    );
+  }
+
+  /// Updates the geographic point used by place-based provider profiles.
+  ///
+  /// This operation deliberately keeps its loading and failure state local to
+  /// the location card so editing a map point does not block the whole profile.
+  /// The endpoint response currently omits the PostGIS location, therefore the
+  /// submitted coordinates are merged back into the authenticated user cache.
+  Future<Failure?> updateLocation({
+    required double latitude,
+    required double longitude,
+  }) async {
+    final result = await _updateProfileUseCase(
+      latitude: latitude,
+      longitude: longitude,
+    );
+
+    return result.fold(
+      (failure) => failure,
+      (updatedUser) {
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          user: _mergeUpdatedProfile(
+            updatedUser,
+            latitude: latitude,
+            longitude: longitude,
+          ),
+          errorMessage: null,
+        );
+        return null;
+      },
+    );
+  }
+
+  User _mergeUpdatedProfile(
+    User updatedUser, {
+    double? latitude,
+    double? longitude,
+  }) {
+    final cachedUser = state.user;
+    return updatedUser.copyWith(
+      latitude: latitude ?? updatedUser.latitude ?? cachedUser?.latitude,
+      longitude: longitude ?? updatedUser.longitude ?? cachedUser?.longitude,
+      cars: updatedUser.cars ?? cachedUser?.cars,
     );
   }
 

@@ -198,6 +198,10 @@ void main() {
     expect(find.text('Taller Auto-Sport'), findsOneWidget);
     expect(find.text('Taller mecánico'), findsOneWidget);
     expect(
+      find.byKey(const Key('service-provider-hero-preview-photo')),
+      findsOneWidget,
+    );
+    expect(
       find.byKey(const Key('service-provider-overview-card')),
       findsOneWidget,
     );

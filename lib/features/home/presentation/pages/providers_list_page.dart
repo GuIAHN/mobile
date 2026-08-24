@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../domain/entities/home_filters.dart';
@@ -36,8 +37,11 @@ class ProvidersListPage extends ConsumerStatefulWidget {
 }
 
 class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
+  static const int _itemsPerPage = 6;
+
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
+  int _currentPage = 1;
 
   @override
   void initState() {
@@ -80,7 +84,26 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
 
     if (result != null) {
       ref.read(homeFiltersProvider.notifier).state = result;
+      setState(() => _currentPage = 1);
     }
+  }
+
+  void _changePage(int page) {
+    if (page == _currentPage) return;
+    setState(() => _currentPage = page);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      final reduceMotion = MediaQuery.disableAnimationsOf(context);
+      if (reduceMotion) {
+        _scrollController.jumpTo(0);
+      } else {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   Future<void> _handleRefresh() async {
@@ -128,8 +151,12 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
                   hintText: widget.serviceType.hint,
                   activeFilters: filters.activeCount,
                   onFilterTap: _openFilters,
-                  onChanged: (value) =>
-                      ref.read(searchQueryProvider.notifier).state = value,
+                  onChanged: (value) {
+                    ref.read(searchQueryProvider.notifier).state = value;
+                    if (_currentPage != 1) {
+                      setState(() => _currentPage = 1);
+                    }
+                  },
                 ),
               ),
             ),
@@ -151,22 +178,65 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
                       onClearQuery: () {
                         _searchController.clear();
                         ref.read(searchQueryProvider.notifier).state = '';
+                        setState(() => _currentPage = 1);
                       },
-                      onClearFilters: () => ref
-                          .read(homeFiltersProvider.notifier)
-                          .state = const HomeFilters(),
+                      onClearFilters: () {
+                        ref.read(homeFiltersProvider.notifier).state =
+                            const HomeFilters();
+                        setState(() => _currentPage = 1);
+                      },
                     ),
                   );
                 }
-                return SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-                  sliver: SliverList.builder(
-                    itemCount: items.length,
-                    itemBuilder: (context, index) => StaggeredEntrance(
-                      index: index,
-                      child: ItemCard(item: items[index]),
+                final totalPages = (items.length / _itemsPerPage).ceil();
+                final page = _currentPage.clamp(1, totalPages);
+                final start = (page - 1) * _itemsPerPage;
+                final pageItems = items
+                    .skip(start)
+                    .take(_itemsPerPage)
+                    .toList(growable: false);
+                final textScale =
+                    MediaQuery.textScalerOf(context).scale(14) / 14;
+                final useSingleColumn =
+                    MediaQuery.sizeOf(context).width < 360 || textScale > 1.35;
+                final cardExtent = useSingleColumn
+                    ? (330 + ((textScale - 1).clamp(0, 1) * 90)).toDouble()
+                    : 258.0;
+
+                return SliverMainAxisGroup(
+                  slivers: [
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                      sliver: SliverGrid(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: useSingleColumn ? 1 : 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          mainAxisExtent: cardExtent,
+                        ),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => StaggeredEntrance(
+                            index: index,
+                            child: ItemCard(item: pageItems[index]),
+                          ),
+                          childCount: pageItems.length,
+                        ),
+                      ),
                     ),
-                  ),
+                    if (totalPages > 1)
+                      SliverToBoxAdapter(
+                        child: _PaginationBar(
+                          currentPage: page,
+                          totalPages: totalPages,
+                          onPrevious:
+                              page > 1 ? () => _changePage(page - 1) : null,
+                          onNext: page < totalPages
+                              ? () => _changePage(page + 1)
+                              : null,
+                        ),
+                      ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 40)),
+                  ],
                 );
               },
               loading: () => const SliverPadding(
@@ -208,6 +278,92 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
     return math.max(
       _kTitleRowHeight,
       _kTitleTopPadding + math.max(_kBackButtonSize, scaledLineHeight),
+    );
+  }
+}
+
+class _PaginationBar extends StatelessWidget {
+  final int currentPage;
+  final int totalPages;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+
+  const _PaginationBar({
+    required this.currentPage,
+    required this.totalPages,
+    required this.onPrevious,
+    required this.onNext,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Semantics(
+        container: true,
+        label: 'Página $currentPage de $totalPages',
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 64),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              _PageButton(
+                tooltip: 'Página anterior',
+                icon: AppIcons.back,
+                onPressed: onPrevious,
+              ),
+              Expanded(
+                child: Text(
+                  'Página $currentPage de $totalPages',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodySm.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              _PageButton(
+                tooltip: 'Página siguiente',
+                icon: AppIcons.next,
+                onPressed: onNext,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PageButton extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  const _PageButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: 48,
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: AppLineIcon(
+          icon,
+          size: AppIconSize.action,
+          color: onPressed == null ? AppColors.textDisabled : AppColors.primary,
+        ),
+      ),
     );
   }
 }

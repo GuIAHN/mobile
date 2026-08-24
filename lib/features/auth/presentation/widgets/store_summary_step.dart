@@ -5,12 +5,12 @@ import 'store_catalog_helper.dart';
 
 class StoreSummaryStep extends StatelessWidget {
   final List<LineaCatalogo> catalogo;
-  final ValueChanged<LineaCatalogo> onAbrirSheetMarcas;
+  final VoidCallback onConfigurarCatalogo;
 
   const StoreSummaryStep({
     super.key,
     required this.catalogo,
-    required this.onAbrirSheetMarcas,
+    required this.onConfigurarCatalogo,
   });
 
   @override
@@ -18,16 +18,87 @@ class StoreSummaryStep extends StatelessWidget {
     final marcasUnicas =
         catalogo.expand((l) => l.brands.map((b) => b.name)).toSet();
     final marcasStr = marcasUnicas.join(', ');
+    final configured = catalogo.isNotEmpty &&
+        catalogo.first.brands.isNotEmpty &&
+        catalogo.first.sparePartsTypes.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: configured ? AppColors.primary : AppColors.border,
+              width: configured ? 1.5 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'CONFIGURACIÓN GENERAL',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                configured
+                    ? 'Marcas y tipos configurados'
+                    : 'Define lo que maneja tu tienda',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Esta selección se aplicará automáticamente a todas las subcategorías elegidas.',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 13.5,
+                  height: 1.45,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                key: const Key('configure-general-store-catalog'),
+                onPressed: onConfigurarCatalogo,
+                icon: const Icon(Icons.tune_rounded),
+                label: Text(configured ? 'EDITAR CONFIGURACIÓN' : 'CONFIGURAR'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(32),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
         ...catalogo.map((l) {
           final icon = getCategoryIcon(l.category.name);
           return _CardLinea(
             linea: l,
             icono: icon,
-            onTap: () => onAbrirSheetMarcas(l),
+            onTap: onConfigurarCatalogo,
           );
         }),
         const SizedBox(height: 8),
@@ -87,129 +158,87 @@ class _CardLinea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brandNames = linea.brands.map((b) => b.name).join(', ');
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 12,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            /* Icono */
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: AppColors.primaryMuted,
-                borderRadius: BorderRadius.circular(14),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
               ),
-              child: Icon(
-                icono,
-                color: AppColors.primary,
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              /* Icono */
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryMuted,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  icono,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              /* Detalles */
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      linea.category.name,
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Categoría: ${linea.parentCategory.name}',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Usa la configuración general',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 12.5,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right,
+                color: AppColors.textDisabled,
                 size: 22,
               ),
-            ),
-            const SizedBox(width: 14),
-            /* Detalles */
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    linea.category.name,
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'Marcas: $brandNames',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Calidad: ${linea.sparePartsTypes.map((t) {
-                      switch (t) {
-                        case 'ORIGINAL':
-                          return 'Original';
-                        case 'GENERIC':
-                          return 'Genérico';
-                        case 'PERFORMANCE':
-                          return 'Performance';
-                        default:
-                          return t;
-                      }
-                    }).join(", ")}',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 12.5,
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            /* Badge de conteo */
-            _Badge(
-              '${linea.brands.length} ${linea.brands.length == 1 ? 'marca' : 'marcas'}',
-              suave: true,
-            ),
-            const SizedBox(width: 6),
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.textDisabled,
-              size: 22,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Badge extends StatelessWidget {
-  final String texto;
-  final bool suave;
-
-  const _Badge(this.texto, {this.suave = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: suave ? AppColors.primaryMuted : AppColors.primary,
-        borderRadius: BorderRadius.circular(99),
-      ),
-      child: Text(
-        texto,
-        style: GoogleFonts.hankenGrotesk(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w700,
-          color: suave ? AppColors.primary : Colors.white,
+            ],
+          ),
         ),
       ),
     );

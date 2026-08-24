@@ -212,6 +212,18 @@ void main() {
     );
   });
 
+  testWidgets('keeps the temporary location action at least 48dp high',
+      (tester) async {
+    final container = containerWithCars(const []);
+    addTearDown(container.dispose);
+
+    await pumpHeader(tester, container);
+
+    final locationControl = find.byKey(const Key('home-location-control'));
+    expect(locationControl, findsOneWidget);
+    expect(tester.getSize(locationControl).height, greaterThanOrEqualTo(48));
+  });
+
   testWidgets('omits the user role suffix from the greeting', (tester) async {
     const store = User(
       id: 'store-1',
@@ -239,7 +251,44 @@ void main() {
 
     expect(find.text('Hola, Multirepuestos El Pana'), findsOneWidget);
     expect(find.textContaining('(Tienda)'), findsNothing);
+    expect(find.byKey(const Key('home-location-control')), findsNothing);
+    expect(find.bySemanticsLabel('Activar ubicación'), findsNothing);
   });
+
+  testWidgets('workshop cannot activate a temporary location', (tester) async {
+    const workshop = User(
+      id: 'workshop-1',
+      email: 'workshop@example.com',
+      name: 'Taller Norte',
+      role: UserRole.workshop,
+      latitude: 10.4806,
+      longitude: -66.9036,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        authProvider.overrideWith(
+          (ref) => _TestAuthNotifier(
+            const AuthState(
+              status: AuthStatus.authenticated,
+              user: workshop,
+            ),
+          ),
+        ),
+        userCarsProvider.overrideWith((ref) async => const <UserCar>[]),
+        locationServiceProvider.overrideWithValue(_EnabledLocationService()),
+        isLocationSharedProvider.overrideWith((ref) => true),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await pumpHeader(tester, container);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('home-location-control')), findsNothing);
+    expect(find.bySemanticsLabel('Activar ubicación'), findsNothing);
+    expect(container.read(isLocationSharedProvider), isFalse);
+    expect(container.read(userLocationProvider).valueOrNull, isNull);
+  }, semanticsEnabled: true);
 
   testWidgets('shows honest empty-garage and location states', (tester) async {
     final container = containerWithCars([]);

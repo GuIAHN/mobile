@@ -73,4 +73,42 @@ void main() {
     ).called(1);
     verifyNoMoreInteractions(client);
   });
+
+  test('loads store-wide coverage and projects it over subcategories',
+      () async {
+    when(
+      () => client.get<Map<String, dynamic>>(
+        ApiEndpoints.storeOwnCoverage,
+      ),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: ApiEndpoints.storeOwnCoverage),
+        statusCode: 200,
+        data: const {
+          'servesAllBrands': false,
+          'brands': [
+            {'id': 'brand-1', 'name': 'Toyota'},
+          ],
+          'sparePartsTypes': ['ORIGINAL', 'GENERIC'],
+          'subcategories': [
+            {'subcategoryId': 'subcategory-1', 'name': 'Pastillas'},
+          ],
+        },
+      ),
+    );
+
+    final result = await dataSource.getOwnCatalog();
+
+    expect(result, hasLength(1));
+    expect(result.single.id, 'subcategory-1');
+    expect(result.single.categoryName, 'Pastillas');
+    expect(result.single.brands, ['Toyota']);
+    expect(result.single.sparePartsTypes, ['ORIGINAL', 'GENERIC']);
+    verify(
+      () => client.get<Map<String, dynamic>>(
+        ApiEndpoints.storeOwnCoverage,
+      ),
+    ).called(1);
+    verifyNoMoreInteractions(client);
+  });
 }

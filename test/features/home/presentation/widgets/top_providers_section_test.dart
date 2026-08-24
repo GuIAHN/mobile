@@ -401,19 +401,19 @@ void main() {
     expect(shape.side.color, isNot(Colors.transparent));
   });
 
-  testWidgets('keeps each missing provider photo in its intended shape',
+  testWidgets('previews workshop photos and keeps mechanic fallback shape',
       (tester) async {
     await tester.pumpWidget(subject(AsyncValue.data([fixture()])));
 
-    final workshopFallback =
-        find.byKey(const Key('top-provider-workshop-fallback-workshop-1'));
-    expect(workshopFallback, findsOneWidget);
+    final workshopPreview =
+        find.byKey(const Key('top-provider-workshop-preview-workshop-1'));
+    expect(workshopPreview, findsOneWidget);
     expect(
-      tester.getSize(workshopFallback).height,
-      closeTo(tester.getSize(workshopFallback).width * 9 / 16, 0.1),
+      tester.getSize(workshopPreview).height,
+      closeTo(tester.getSize(workshopPreview).width * 9 / 16, 0.1),
     );
     expect(
-      tester.getSize(workshopFallback).width,
+      tester.getSize(workshopPreview).width,
       tester
           .getSize(find.bySemanticsLabel('Ver detalles de Taller Norte'))
           .width,
@@ -441,6 +441,33 @@ void main() {
       findsOneWidget,
     );
   }, semanticsEnabled: true);
+
+  testWidgets('uses the uploaded workshop photo before the dev preview',
+      (tester) async {
+    await tester.pumpWidget(
+      subject(
+        AsyncValue.data([
+          fixture(photo: 'https://example.com/workshop.jpg'),
+        ]),
+      ),
+    );
+
+    final networkPhoto =
+        find.byKey(const Key('top-provider-workshop-network-workshop-1'));
+    expect(networkPhoto, findsOneWidget);
+    expect(
+      tester.widget<Image>(networkPhoto).image,
+      isA<NetworkImage>().having(
+        (image) => image.url,
+        'url',
+        'https://example.com/workshop.jpg',
+      ),
+    );
+    expect(
+      find.byKey(const Key('top-provider-workshop-preview-workshop-1')),
+      findsNothing,
+    );
+  });
 
   testWidgets('overlays workshop availability in the lower media corner',
       (tester) async {

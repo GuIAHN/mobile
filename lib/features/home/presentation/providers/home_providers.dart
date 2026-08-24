@@ -244,9 +244,14 @@ final homeItemsProvider = FutureProvider.family
 
   // Mecánicos y Talleres: usar búsqueda real con filtros actuales
   var filters = ref.watch(homeFiltersProvider);
+  final role = ref.watch(currentRoleProvider);
 
   final isLocationShared = ref.watch(isLocationSharedProvider);
-  if (isLocationShared) {
+  if (role.usesSavedLocationForSearch) {
+    // El backend resuelve la ubicación guardada del usuario autenticado
+    // cuando lat/lng no vienen en el query.
+    filters = filters.copyWith(clearLocation: true);
+  } else if (isLocationShared) {
     final locationAsync = ref.watch(userLocationProvider);
     var location = locationAsync.valueOrNull;
 
@@ -281,7 +286,9 @@ final homeItemsProvider = FutureProvider.family
 final homeTopProvidersProvider =
     FutureProvider.autoDispose<TopProvidersResult>((ref) async {
   ref.cacheFor(const Duration(minutes: 30));
-  final isLocationShared = ref.watch(isLocationSharedProvider);
+  final role = ref.watch(currentRoleProvider);
+  final isLocationShared =
+      !role.usesSavedLocationForSearch && ref.watch(isLocationSharedProvider);
   var location =
       isLocationShared ? ref.read(userLocationProvider).valueOrNull : null;
 

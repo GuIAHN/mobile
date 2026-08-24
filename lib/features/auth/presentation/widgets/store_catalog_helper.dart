@@ -25,11 +25,13 @@ class LineaCatalogo {
 
 class ResultadoSheet {
   final bool eliminar;
+  final bool servesAllBrands;
   final Set<Brand> brands;
   final Set<String> sparePartsTypes;
 
   const ResultadoSheet({
     this.eliminar = false,
+    this.servesAllBrands = false,
     this.brands = const {},
     this.sparePartsTypes = const {},
   });
@@ -508,6 +510,8 @@ class _SheetMarcasState extends ConsumerState<SheetMarcas> {
                                 ? () => Navigator.pop(
                                       context,
                                       ResultadoSheet(
+                                        servesAllBrands:
+                                            _allBrandsSelected(allBrands),
                                         brands: _tempSeleccion,
                                         sparePartsTypes: _tempTypes,
                                       ),
@@ -544,7 +548,9 @@ class _SheetMarcasState extends ConsumerState<SheetMarcas> {
                         const ResultadoSheet(eliminar: true),
                       ),
                       child: Text(
-                        'Quitar la categoría ${widget.category.name}',
+                        widget.category.id == 'general'
+                            ? 'Limpiar configuración general'
+                            : 'Quitar la categoría ${widget.category.name}',
                         style: GoogleFonts.hankenGrotesk(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,

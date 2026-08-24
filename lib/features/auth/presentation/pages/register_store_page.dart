@@ -11,11 +11,10 @@ import '../../../../core/utils/validators.dart';
 import '../../../../core/utils/venezuelan_phone_number.dart';
 import '../../../../shared/widgets/api_error_message.dart';
 import '../../../catalog/domain/entities/category.dart';
-import '../../../home/presentation/widgets/spare_part_wizard/category_subcategory_selector_sheet.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
 import '../providers/social_registration_state.dart';
-import '../../domain/entities/store_category_config.dart';
+import '../../domain/entities/store_coverage_config.dart';
 import '../widgets/account_security_step.dart';
 import '../widgets/registration_completed_step.dart';
 import '../widgets/registration_step_feedback.dart';
@@ -52,6 +51,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
 
   // ===== Paso 2: Catálogo =====
   final List<LineaCatalogo> _catalogo = [];
+  bool _servesAllBrands = false;
 
   // ===== Paso 4: Ubicación =====
   LatLng _location = const LatLng(10.4806, -66.9036);
@@ -104,22 +104,29 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     }
   }
 
-  LineaCatalogo? _buscarLinea(String categoryId) {
-    for (final l in _catalogo) {
-      if (l.category.id == categoryId) return l;
-    }
-    return null;
+  void _toggleSubcategory(Category parentCategory, Category subcategory) {
+    setState(() {
+      final index = _catalogo.indexWhere(
+        (line) => line.category.id == subcategory.id,
+      );
+      if (index >= 0) {
+        _catalogo.removeAt(index);
+        return;
+      }
+      final general = _catalogo.firstOrNull;
+      _catalogo.add(
+        LineaCatalogo(
+          category: subcategory,
+          parentCategory: parentCategory,
+          brands: Set.of(general?.brands ?? {}),
+          sparePartsTypes: Set.of(general?.sparePartsTypes ?? {}),
+        ),
+      );
+    });
   }
 
-  /* ───────── Marcas compartidas por categoría raíz ───────── */
-  Future<void> _configurarCategoria(
-    Category parentCategory, {
-    Category? newSubcategory,
-  }) async {
-    final lineasDeCategoria = _catalogo
-        .where((line) => line.parentCategory.id == parentCategory.id)
-        .toList();
-    final existente = lineasDeCategoria.firstOrNull;
+  Future<void> _configurarCatalogoGeneral() async {
+    final existente = _catalogo.firstOrNull;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     final resultado = await showModalBottomSheet<ResultadoSheet>(
@@ -135,10 +142,10 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
             reduceMotion ? Duration.zero : const Duration(milliseconds: 180),
       ),
       builder: (_) => SheetMarcas(
-        category: parentCategory,
+        category: const Category(id: 'general', name: 'Todo tu catálogo'),
         seleccionInicial: existente?.brands ?? {},
         typesInicial: existente?.sparePartsTypes ?? {'ORIGINAL'},
-        existia: existente != null,
+        existia: existente?.brands.isNotEmpty ?? false,
       ),
     );
 
@@ -148,70 +155,19 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       if (resultado.eliminar ||
           resultado.brands.isEmpty ||
           resultado.sparePartsTypes.isEmpty) {
-        _catalogo.removeWhere(
-          (line) => line.parentCategory.id == parentCategory.id,
-        );
+        _servesAllBrands = false;
+        for (final line in _catalogo) {
+          line.brands = {};
+          line.sparePartsTypes = {};
+        }
         return;
       }
-
-      for (final line in lineasDeCategoria) {
+      _servesAllBrands = resultado.servesAllBrands;
+      for (final line in _catalogo) {
         line.brands = Set.of(resultado.brands);
         line.sparePartsTypes = Set.of(resultado.sparePartsTypes);
       }
-      if (newSubcategory != null && _buscarLinea(newSubcategory.id) == null) {
-        _catalogo.add(
-          LineaCatalogo(
-            category: newSubcategory,
-            parentCategory: parentCategory,
-            brands: Set.of(resultado.brands),
-            sparePartsTypes: Set.of(resultado.sparePartsTypes),
-          ),
-        );
-      }
     });
-  }
-
-  Future<void> _editarCategoria(LineaCatalogo line) {
-    return _configurarCategoria(line.parentCategory);
-  }
-
-  Future<void> _agregarSubcategoria() async {
-    final selection = await CategorySubcategorySelectorSheet.show(context);
-    if (selection == null || !mounted) return;
-    if (_buscarLinea(selection.subcategory.id) != null) {
-      await _configurarCategoria(selection.category);
-      return;
-    }
-
-    final existingCategory = _catalogo
-        .where((line) => line.parentCategory.id == selection.category.id)
-        .firstOrNull;
-    if (existingCategory == null) {
-      await _configurarCategoria(
-        selection.category,
-        newSubcategory: selection.subcategory,
-      );
-      return;
-    }
-
-    setState(() {
-      _catalogo.add(
-        LineaCatalogo(
-          category: selection.subcategory,
-          parentCategory: selection.category,
-          brands: Set.of(existingCategory.brands),
-          sparePartsTypes: Set.of(existingCategory.sparePartsTypes),
-        ),
-      );
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${selection.subcategory.name} usa las marcas de ${selection.category.name}.',
-        ),
-        backgroundColor: AppColors.success,
-      ),
-    );
   }
 
   bool get _passwordValida {
@@ -236,8 +192,11 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                         _confirmPasswordCtrl.text, _passwordCtrl.text) ==
                     null);
       case 3:
-      case 4:
         return _catalogo.isNotEmpty;
+      case 4:
+        return _catalogo.isNotEmpty &&
+            _catalogo.first.brands.isNotEmpty &&
+            _catalogo.first.sparePartsTypes.isNotEmpty;
       case 5:
         return _ubicacionConfirmada;
       case 6:
@@ -263,14 +222,13 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     final authState = ref.read(authProvider);
     if (authState.isLoading || !_termsAccepted) return;
 
-    final catalogConfigs = _catalogo.map((l) {
-      return StoreCategoryConfig(
-        subcategoryId: l.category.id,
-        servesAllBrands: false,
-        brandIds: l.brands.map((b) => b.id).toList(),
-        sparePartsTypes: l.sparePartsTypes.toList(),
-      );
-    }).toList();
+    final generalConfig = _catalogo.first;
+    final coverage = StoreCoverageConfig(
+      servesAllBrands: _servesAllBrands,
+      brandIds: generalConfig.brands.map((brand) => brand.id).toList(),
+      sparePartsTypes: generalConfig.sparePartsTypes.toList(),
+      subcategoryIds: _catalogo.map((line) => line.category.id).toList(),
+    );
 
     final sanitizedPhone = VenezuelanPhoneNumber.toApi(_telefonoCtrl.text)!;
 
@@ -290,7 +248,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
           longitude: _location.longitude,
           address: 'Dirección física de la tienda.',
           rif: 'J$rif',
-          catalog: catalogConfigs,
+          coverage: coverage,
           hasDelivery: _hasDelivery,
           idToken: socialData?.idToken,
           provider: socialData?.provider,
@@ -330,155 +288,153 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
-            child: LayoutBuilder(
-              builder: (context, viewportConstraints) {
-                return SingleChildScrollView(
-                  controller: _scrollController,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: viewportConstraints.maxHeight - 32,
-                    ),
-                    child: IntrinsicHeight(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _appBar(),
-                          if (_paso < _completedStep) ...[
-                            const SizedBox(height: 16),
-                            _indicadorPasos(),
-                            const SizedBox(height: 16),
-                            _tituloPaso(),
-                            const SizedBox(height: 16),
-                            ApiErrorMessage(
-                              message: authState.errorMessage,
-                              onClose: () =>
-                                  ref.read(authProvider.notifier).clearError(),
-                            ),
-                          ],
-                          const SizedBox(height: 8),
-                          Expanded(
-                            child: AnimatedSwitcher(
-                              duration: MediaQuery.disableAnimationsOf(context)
-                                  ? Duration.zero
-                                  : const Duration(milliseconds: 350),
-                              transitionBuilder: (child, anim) =>
-                                  FadeTransition(
-                                opacity: anim,
-                                child: SlideTransition(
-                                  position: Tween<Offset>(
-                                    begin: const Offset(0.06, 0),
-                                    end: Offset.zero,
-                                  ).animate(anim),
-                                  child: child,
+            child: CustomScrollView(
+              controller: _scrollController,
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+                  sliver: SliverList.list(
+                    children: [
+                      _appBar(),
+                      if (_paso < _completedStep) ...[
+                        const SizedBox(height: 16),
+                        _indicadorPasos(),
+                        const SizedBox(height: 16),
+                        _tituloPaso(),
+                        const SizedBox(height: 16),
+                        ApiErrorMessage(
+                          message: authState.errorMessage,
+                          onClose: () =>
+                              ref.read(authProvider.notifier).clearError(),
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      AnimatedSwitcher(
+                        duration: MediaQuery.disableAnimationsOf(context)
+                            ? Duration.zero
+                            : const Duration(milliseconds: 350),
+                        transitionBuilder: (child, anim) => FadeTransition(
+                          opacity: anim,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0.06, 0),
+                              end: Offset.zero,
+                            ).animate(anim),
+                            child: child,
+                          ),
+                        ),
+                        child: Container(
+                          key: ValueKey(_paso),
+                          child: switch (_paso) {
+                            1 => StoreProfileStep(
+                                nombreController: _nombreCtrl,
+                                emailController: _emailCtrl,
+                                telefonoController: _telefonoCtrl,
+                                rifController: _rifCtrl,
+                                hasDelivery: _hasDelivery,
+                                onHasDeliveryChanged: (v) =>
+                                    setState(() => _hasDelivery = v),
+                                isSocial: isSocial,
+                              ),
+                            2 => AccountSecurityStep(
+                                passwordController: _passwordCtrl,
+                                confirmPasswordController: _confirmPasswordCtrl,
+                                isSocial: isSocial,
+                                socialProvider: socialData?.provider,
+                              ),
+                            3 => StoreCatalogStep(
+                                catalogo: _catalogo,
+                                onSubcategoryToggled: _toggleSubcategory,
+                              ),
+                            4 => StoreSummaryStep(
+                                catalogo: _catalogo,
+                                onConfigurarCatalogo:
+                                    _configurarCatalogoGeneral,
+                              ),
+                            5 => WorkshopLocationStep(
+                                location: _location,
+                                onLocationChanged: (location) =>
+                                    setState(() => _location = location),
+                                ubicacionConfirmada: _ubicacionConfirmada,
+                                onUbicacionConfirmadaChanged: (c) =>
+                                    setState(() => _ubicacionConfirmada = c),
+                                helperText:
+                                    'Usa tu ubicación actual o mueve el mapa para marcar la tienda.',
+                              ),
+                            6 => ProviderDocumentsStep(
+                                rifPhoto: _rifPhoto,
+                                mercantilRegistry: _mercantilRegistry,
+                                onRifPhotoChanged: (file) =>
+                                    setState(() => _rifPhoto = file),
+                                onMercantilRegistryChanged: (file) => setState(
+                                  () => _mercantilRegistry = file,
                                 ),
                               ),
-                              child: Container(
-                                key: ValueKey(_paso),
-                                child: switch (_paso) {
-                                  1 => StoreProfileStep(
-                                      nombreController: _nombreCtrl,
-                                      emailController: _emailCtrl,
-                                      telefonoController: _telefonoCtrl,
-                                      rifController: _rifCtrl,
-                                      hasDelivery: _hasDelivery,
-                                      onHasDeliveryChanged: (v) =>
-                                          setState(() => _hasDelivery = v),
-                                      isSocial: isSocial,
-                                    ),
-                                  2 => AccountSecurityStep(
-                                      passwordController: _passwordCtrl,
-                                      confirmPasswordController:
-                                          _confirmPasswordCtrl,
-                                      isSocial: isSocial,
-                                      socialProvider: socialData?.provider,
-                                    ),
-                                  3 => StoreCatalogStep(
-                                      catalogo: _catalogo,
-                                      onAbrirSheetMarcas: _editarCategoria,
-                                      onAgregarSubcategoria:
-                                          _agregarSubcategoria,
-                                    ),
-                                  4 => StoreSummaryStep(
-                                      catalogo: _catalogo,
-                                      onAbrirSheetMarcas: _editarCategoria,
-                                    ),
-                                  5 => WorkshopLocationStep(
-                                      location: _location,
-                                      onLocationChanged: (location) =>
-                                          setState(() => _location = location),
-                                      ubicacionConfirmada: _ubicacionConfirmada,
-                                      onUbicacionConfirmadaChanged: (c) =>
-                                          setState(
-                                              () => _ubicacionConfirmada = c),
-                                      helperText:
-                                          'Usa tu ubicación actual o mueve el mapa para marcar la tienda.',
-                                    ),
-                                  6 => ProviderDocumentsStep(
-                                      rifPhoto: _rifPhoto,
-                                      mercantilRegistry: _mercantilRegistry,
-                                      onRifPhotoChanged: (file) =>
-                                          setState(() => _rifPhoto = file),
-                                      onMercantilRegistryChanged: (file) =>
-                                          setState(
-                                        () => _mercantilRegistry = file,
-                                      ),
-                                    ),
-                                  7 => TermsAcceptanceStep(
-                                      audience: TermsAudience.serviceProvider,
-                                      isAccepted: _termsAccepted,
-                                      onAcceptedChanged: (accepted) => setState(
-                                        () => _termsAccepted = accepted,
-                                      ),
-                                    ),
-                                  _ => RegistrationCompletedStep(
-                                      title: '¡Solicitud\nRecibida!',
-                                      description:
-                                          'Hemos recibido la solicitud para registrar ${_nombreCtrl.text} de forma exitosa.',
-                                      buttonLabel: 'Finalizar Registro',
-                                      buttonIcon: Icons.check_circle_outline,
-                                      cards: [
-                                        const CompletedStepCardItem(
-                                          icon: Icons.timer_outlined,
-                                          label: 'Aprobación Estimada',
-                                          title: 'Entre 24 y 48 horas',
-                                        ),
-                                        CompletedStepCardItem(
-                                          icon: Icons.storefront_outlined,
-                                          label: 'Catálogo de Repuestos',
-                                          title:
-                                              '${_catalogo.length} ${_catalogo.length == 1 ? 'subcategoría' : 'subcategorías'}',
-                                        ),
-                                      ],
-                                      onFinish: () {
-                                        ref
-                                            .read(authProvider.notifier)
-                                            .finishProviderRegistration();
-                                        ref
-                                            .read(socialRegistrationProvider
-                                                .notifier)
-                                            .clear();
-                                        context.go(RouteNames.login);
-                                      },
-                                    ),
+                            7 => TermsAcceptanceStep(
+                                audience: TermsAudience.serviceProvider,
+                                isAccepted: _termsAccepted,
+                                onAcceptedChanged: (accepted) => setState(
+                                  () => _termsAccepted = accepted,
+                                ),
+                              ),
+                            _ => RegistrationCompletedStep(
+                                title: '¡Solicitud\nRecibida!',
+                                description:
+                                    'Hemos recibido la solicitud para registrar ${_nombreCtrl.text} de forma exitosa.',
+                                buttonLabel: 'Finalizar Registro',
+                                buttonIcon: Icons.check_circle_outline,
+                                cards: [
+                                  const CompletedStepCardItem(
+                                    icon: Icons.timer_outlined,
+                                    label: 'Aprobación Estimada',
+                                    title: 'Entre 24 y 48 horas',
+                                  ),
+                                  CompletedStepCardItem(
+                                    icon: Icons.storefront_outlined,
+                                    label: 'Catálogo de Repuestos',
+                                    title:
+                                        '${_catalogo.length} ${_catalogo.length == 1 ? 'subcategoría' : 'subcategorías'}',
+                                  ),
+                                ],
+                                onFinish: () {
+                                  ref
+                                      .read(authProvider.notifier)
+                                      .finishProviderRegistration();
+                                  ref
+                                      .read(socialRegistrationProvider.notifier)
+                                      .clear();
+                                  context.go(RouteNames.login);
                                 },
                               ),
-                            ),
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_paso < _completedStep)
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                    sliver: SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          const SizedBox(height: 32),
+                          RegistrationStepFeedback(
+                            message: _validationFeedback,
                           ),
-                          if (_paso < _completedStep) ...[
-                            const SizedBox(height: 32),
-                            RegistrationStepFeedback(
-                              message: _validationFeedback,
-                            ),
-                            _footer(),
-                          ],
+                          _footer(),
                         ],
                       ),
                     ),
                   ),
-                );
-              },
+                if (_paso >= _completedStep)
+                  const SliverPadding(
+                    padding: EdgeInsets.only(bottom: 16),
+                  ),
+              ],
             ),
           ),
         ),
@@ -500,15 +456,16 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
             size: 22,
           ),
         ),
-        Text(
-          'Registro de Tienda',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
+        Expanded(
+          child: Text(
+            'Registro de Tienda',
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
-        const Spacer(),
       ],
     );
   }
@@ -563,12 +520,12 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       case 3:
         titulo = 'Catálogo';
         subtitulo =
-            'Explora las categorías, selecciona las subcategorías que manejas y configura sus marcas.';
+            'Paso 3 de 7: Abre las categorías y selecciona las subcategorías que maneja tu tienda.';
         break;
       case 4:
-        titulo = 'Catálogo Seleccionado';
+        titulo = 'Marcas y Repuestos';
         subtitulo =
-            'Paso 4 de 7: Revisa las subcategorías registradas. Toca una tarjeta para modificar sus marcas.';
+            'Paso 4 de 7: Configura una sola vez las marcas y tipos de repuesto para todo tu catálogo.';
         break;
       case 5:
         titulo = 'Ubicación';
@@ -653,6 +610,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                     : [],
               ),
               child: ElevatedButton(
+                key: const Key('register-store-continue'),
                 onPressed:
                     _pasoValido && !authState.isLoading ? _avanzar : null,
                 style: ElevatedButton.styleFrom(
@@ -669,12 +627,15 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      _paso == _totalSteps ? 'FINALIZAR' : 'CONTINUAR',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
+                    Flexible(
+                      child: Text(
+                        _paso == _totalSteps ? 'FINALIZAR' : 'CONTINUAR',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -721,9 +682,9 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
               _passwordCtrl.text,
             );
       case 3:
-        return 'Agrega al menos una subcategoría y sus marcas al catálogo.';
+        return 'Selecciona al menos una subcategoría para continuar.';
       case 4:
-        return 'El catálogo quedó vacío. Vuelve atrás y agrega una subcategoría.';
+        return 'Selecciona las marcas y al menos un tipo de repuesto para todo tu catálogo.';
       case 5:
         return 'Confirma la ubicación exacta de la tienda para continuar.';
       case 6:

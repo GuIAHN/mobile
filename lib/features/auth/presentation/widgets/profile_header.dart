@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../../core/config/env.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../core/utils/media_url.dart';
 import '../../../../core/utils/venezuelan_phone_number.dart';
 import '../../../../shared/widgets/app_phone_field.dart';
 import '../../../../shared/widgets/image_source_selector_sheet.dart';
@@ -113,17 +113,7 @@ class ProfileHeader extends ConsumerWidget {
     final roleStyle = _RoleStyle.of(user.role);
 
     // Resolver URL completa del avatar si existe
-    final String? avatarUrl = user.avatarUrl;
-    String? fullAvatarUrl;
-    if (avatarUrl != null && avatarUrl.isNotEmpty) {
-      if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
-        fullAvatarUrl = avatarUrl;
-      } else {
-        final uri = Uri.parse(Env.baseUrl);
-        final hostUrl = '${uri.scheme}://${uri.host}:${uri.port}';
-        fullAvatarUrl = '$hostUrl$avatarUrl';
-      }
-    }
+    final fullAvatarUrl = resolveMediaUrl(user.avatarUrl);
 
     Widget avatarChild;
     if (fullAvatarUrl != null) {
@@ -237,7 +227,8 @@ class ProfileHeader extends ConsumerWidget {
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.15),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.15),
                                       blurRadius: 6,
                                       offset: const Offset(0, 2),
                                     ),
@@ -307,14 +298,16 @@ class ProfileHeader extends ConsumerWidget {
                           color: roleStyle.textColor,
                         ),
                         const SizedBox(width: 6),
-                        Text(
-                          roleStyle.label.toUpperCase(),
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                            color: roleStyle.textColor,
+                        Flexible(
+                          child: Text(
+                            roleStyle.label.toUpperCase(),
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.8,
+                              color: roleStyle.textColor,
+                            ),
                           ),
                         ),
                       ],
@@ -484,8 +477,9 @@ class _ContactInfoRow extends StatelessWidget {
                       fontSize: 14,
                       height: 1.3,
                       fontWeight: FontWeight.w700,
-                      color:
-                          isMuted ? AppColors.textSecondary : AppColors.textPrimary,
+                      color: isMuted
+                          ? AppColors.textSecondary
+                          : AppColors.textPrimary,
                     ),
                   ),
                 ],
@@ -518,8 +512,8 @@ class _EditProfileButton extends StatelessWidget {
           onTap: onTap,
           customBorder: const CircleBorder(),
           child: SizedBox(
-            width: 40,
-            height: 40,
+            width: 48,
+            height: 48,
             child: Icon(
               Icons.edit_outlined,
               size: 22,

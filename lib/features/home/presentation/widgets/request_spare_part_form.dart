@@ -207,7 +207,10 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
 
     double? lat;
     double? lon;
-    if (ref.read(isLocationSharedProvider)) {
+    final user = ref.read(authProvider).user;
+    final canUseTemporaryLocation =
+        !(user?.role.usesSavedLocationForSearch ?? false);
+    if (canUseTemporaryLocation && ref.read(isLocationSharedProvider)) {
       final location = ref.read(userLocationProvider).valueOrNull;
       if (location != null) {
         lat = location.latitude;

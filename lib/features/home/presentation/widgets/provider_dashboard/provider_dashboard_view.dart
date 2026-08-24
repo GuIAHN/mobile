@@ -2,16 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../../core/theme/app_colors.dart';
+import '../../../../../../core/theme/app_icons.dart';
 import '../../../../../../core/theme/app_spacing.dart';
 import '../../../../../../core/theme/app_typography.dart';
+import '../../../../../../shared/widgets/dashboard/dashboard.dart';
 import '../../../../../../shared/widgets/empty_state.dart';
 import '../../../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../reports/domain/entities/store_dashboard.dart';
 import '../../../../reports/presentation/providers/reports_provider.dart';
-import '../store_dashboard/app_tokens.dart';
-import '../store_dashboard/metric_card.dart';
-import '../store_dashboard/section_header.dart';
-import '../store_dashboard/store_funnel_chart.dart';
 
 class ProviderDashboardView extends ConsumerWidget {
   const ProviderDashboardView({super.key});
@@ -50,18 +48,14 @@ class _ProviderDashboardData extends ConsumerWidget {
     final channels = _contactChannels(dashboard.metricById('M-M06'));
     final funnel = _contactFunnel(dashboard.metricById('M-M07'));
     final currentDays = ref.watch(dashboardFilterProvider.notifier).currentDays;
-    final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
-    final normalizedScale = (scale - 1).clamp(0.0, 1.0);
-    final metricHeight = 142 + normalizedScale * 200;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _ProfileSummaryCard(summary: profile),
         const SizedBox(height: AppSpacing.xl),
-        SectionHeader(
+        DashboardSectionHeader(
           title: 'Resumen de rendimiento',
-          trailing: PeriodSelector(
+          trailing: DashboardPeriodSelector(
             label: '$currentDays días',
             onTap: () async {
               final days = await showDashboardPeriodBottomSheet(
@@ -75,88 +69,61 @@ class _ProviderDashboardData extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: EdgeInsets.zero,
+        DashboardMetricGrid(
+          baseItemExtent: 142,
+          scaledItemGrowth: 200,
           mainAxisSpacing: AppSpacing.sm,
           crossAxisSpacing: AppSpacing.sm,
-          mainAxisExtent: metricHeight,
           children: [
-            MetricCard(
-              icon: const Icon(
-                Icons.touch_app_outlined,
-                size: 20,
-                color: AppColors.celesteInk,
-              ),
+            DashboardMetricCard(
+              icon: AppIcons.contacts,
               label: 'Contactos',
               value: contacts?.toString() ?? '—',
-              themeColor: AppColors.celesteInk,
-              iconColor: AppColors.celesteInk,
-              iconBgColor: AppColors.celesteMuted,
+              accentColor: AppColors.celesteInk,
               helperText: contacts == null
                   ? 'Dato no disponible'
                   : 'En el período seleccionado',
             ),
-            MetricCard(
-              icon: const Icon(
-                Icons.rate_review_outlined,
-                size: 20,
-                color: AppColors.primary,
-              ),
+            DashboardMetricCard(
+              icon: AppIcons.reviews,
               label: 'Reseñas por contacto',
               value: reviewRate == null ? '—' : '${_compact(reviewRate)}%',
-              themeColor: AppColors.primary,
-              iconColor: AppColors.primary,
-              iconBgColor: AppColors.primaryMuted,
+              accentColor: AppColors.primary,
               helperText: reviewRate == null
                   ? 'Dato no disponible'
                   : 'De contactos a reseñas',
             ),
-            MetricCard(
-              icon: const Icon(
-                Icons.star_outline_rounded,
-                size: 21,
-                color: AppColors.warning,
-              ),
+            DashboardMetricCard(
+              icon: AppIcons.rating,
               label: 'Calificación',
               value: rating?.toStringAsFixed(1) ?? '—',
-              themeColor: AppColors.warning,
-              iconColor: AppColors.warning,
-              iconBgColor: AppColors.warningLight,
+              accentColor: AppColors.warningInk,
               helperText:
                   rating == null ? 'Sin reseñas todavía' : 'Mediana de reseñas',
             ),
-            MetricCard(
-              icon: const Icon(
-                Icons.sentiment_satisfied_alt_rounded,
-                size: 20,
-                color: AppColors.successInk,
-              ),
+            DashboardMetricCard(
+              icon: AppIcons.satisfaction,
               label: 'NPS',
               value: nps == null ? '—' : _compact(nps),
-              themeColor: AppColors.successInk,
-              iconColor: AppColors.successInk,
-              iconBgColor: AppColors.successLight,
+              accentColor: AppColors.successInk,
               helperText:
                   nps == null ? 'Dato no disponible' : 'Reputación estimada',
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.xl),
-        const SectionHeader(title: 'Cómo te contactan'),
+        const DashboardSectionHeader(title: 'Cómo te contactan'),
         const SizedBox(height: AppSpacing.md),
         _ContactChannelsCard(channels: channels),
         const SizedBox(height: AppSpacing.xl),
-        const SectionHeader(title: 'De contacto a reseña'),
+        const DashboardSectionHeader(title: 'De contacto a reseña'),
         const SizedBox(height: AppSpacing.md),
         if (funnel.isEmpty)
           const _InlineEmptyCard(
             message: 'Aún no hay interacciones para mostrar esta conversión.',
           )
         else
-          StoreFunnelChart(steps: funnel),
+          DashboardFunnelChart(steps: funnel),
         const SizedBox(height: AppSpacing.xl3),
       ],
     );
@@ -234,19 +201,10 @@ class _ProfileSummaryCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: isVerified
-                    ? AppColors.successLight
-                    : AppColors.primaryMuted,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              ),
-              child: Icon(
-                isVerified ? Icons.verified_outlined : Icons.badge_outlined,
-                color: isVerified ? AppColors.successInk : AppColors.primaryInk,
-              ),
+            AppLineIcon(
+              isVerified ? AppIcons.verified : AppIcons.info,
+              size: AppIconSize.leading,
+              color: isVerified ? AppColors.successInk : AppColors.primaryInk,
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -294,9 +252,9 @@ class _ContactChannelsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppTokens.surface,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        border: Border.all(color: AppTokens.border),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: [
@@ -367,35 +325,26 @@ class _ProviderDashboardLoading extends StatelessWidget {
   const _ProviderDashboardLoading();
 
   @override
-  Widget build(BuildContext context) => Column(
-        key: const Key('provider-dashboard-skeleton'),
+  Widget build(BuildContext context) => const Column(
+        key: Key('provider-dashboard-skeleton'),
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SkeletonBox(
+          SkeletonBox(
             height: 112,
             width: double.infinity,
             borderRadius: AppSpacing.radiusXl,
           ),
-          const SizedBox(height: AppSpacing.xl),
-          const SkeletonBox(height: 28, width: 220),
-          const SizedBox(height: AppSpacing.md),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+          SizedBox(height: AppSpacing.xl),
+          SkeletonBox(height: 28, width: 220),
+          SizedBox(height: AppSpacing.md),
+          DashboardMetricSkeletonGrid(
+            itemCount: 4,
+            keyPrefix: 'provider-kpi-skeleton',
+            itemExtent: 140,
             crossAxisSpacing: AppSpacing.sm,
             mainAxisSpacing: AppSpacing.sm,
-            childAspectRatio: 1.12,
-            children: List.generate(
-              4,
-              (_) => const SkeletonBox(
-                height: 140,
-                width: double.infinity,
-                borderRadius: AppSpacing.radiusLg,
-              ),
-            ),
           ),
-          const SizedBox(height: AppSpacing.xl),
+          SizedBox(height: AppSpacing.xl),
         ],
       );
 }
@@ -411,7 +360,7 @@ class _ProviderDashboardError extends StatelessWidget {
         child: EmptyState(
           title: 'No pudimos cargar tus estadísticas',
           subtitle: 'Revisa tu conexión e inténtalo de nuevo.',
-          icon: Icons.query_stats_rounded,
+          icon: AppIcons.dashboard,
           action: ElevatedButton(
             onPressed: onRetry,
             style: ElevatedButton.styleFrom(
@@ -435,7 +384,7 @@ class _ProviderDashboardEmptyState extends StatelessWidget {
           title: 'Aún no hay estadísticas disponibles',
           subtitle:
               'Tu actividad aparecerá aquí a medida que recibas contactos.',
-          icon: Icons.query_stats_rounded,
+          icon: AppIcons.dashboard,
         ),
       );
 }
@@ -504,13 +453,13 @@ List<_ContactChannel> _contactChannels(MetricResult? metric) {
   }).toList();
 }
 
-List<FunnelStep> _contactFunnel(MetricResult? metric) {
+List<DashboardFunnelStep> _contactFunnel(MetricResult? metric) {
   final stages = _listPayload(metric, 'stages');
   if (stages == null) return const [];
   return stages.map((stage) {
     final map = _asMap(stage) ?? const <String, dynamic>{};
     final isReview = map['key'] == 'REVIEW';
-    return FunnelStep(
+    return DashboardFunnelStep(
       name: map['label']?.toString() ?? '',
       count: (map['value'] as num?)?.toInt() ?? 0,
       color: isReview ? AppColors.success : AppColors.primary,

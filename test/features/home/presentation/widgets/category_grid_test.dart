@@ -13,6 +13,8 @@ import 'package:guiautomotriz_mobile/core/theme/app_colors.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/navigation/category_grid.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/spare_part_wizard_page.dart';
+import 'package:guiautomotriz_mobile/features/reviews/domain/entities/pending_review.dart';
+import 'package:guiautomotriz_mobile/features/reviews/presentation/providers/reviews_providers.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/domain/entities/user_car.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/presentation/providers/vehicle_providers.dart';
 
@@ -42,6 +44,7 @@ void main() {
     double width = 375,
     double textScale = 1,
     bool disableAnimations = false,
+    List<PendingReview> pendingReviews = const [],
   }) {
     final router = GoRouter(
       initialLocation: '/',
@@ -75,6 +78,12 @@ void main() {
             body: Text('mechanics-route'),
           ),
         ),
+        GoRoute(
+          path: RouteNames.pendingReviews,
+          builder: (_, __) => const Scaffold(
+            body: Text('pending-reviews-route'),
+          ),
+        ),
       ],
     );
 
@@ -86,6 +95,7 @@ void main() {
           (ref) => selectedVariantId,
         ),
         userCarsProvider.overrideWith((ref) async => const [fixtureCar]),
+        pendingReviewsProvider.overrideWith((ref) async => pendingReviews),
       ],
       child: MediaQuery(
         data: MediaQueryData(
@@ -122,6 +132,36 @@ void main() {
     await tester.tap(find.text('Buscar mecánico'));
     await tester.pumpAndSettle();
     expect(find.text('mechanics-route'), findsOneWidget);
+  });
+
+  testWidgets('blocks a new parts request and links to pending reviews',
+      (tester) async {
+    const pending = [
+      PendingReview(
+        targetId: 'store-user-1',
+        providerProfileId: 'store-1',
+        providerName: 'Tienda 1',
+        conversationId: 'conversation-1',
+      ),
+      PendingReview(
+        targetId: 'store-user-2',
+        providerProfileId: 'store-2',
+        providerName: 'Tienda 2',
+        conversationId: 'conversation-2',
+      ),
+    ];
+
+    await tester.pumpWidget(subject(pendingReviews: pending));
+    await tester.tap(find.text('Pedir repuesto'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tienes valoraciones pendientes'), findsOneWidget);
+    expect(find.textContaining('Tienes 2 reseñas pendientes'), findsOneWidget);
+
+    await tester.tap(find.text('IR A RESEÑAS PENDIENTES'));
+    await tester.pumpAndSettle();
+    expect(find.text('pending-reviews-route'), findsOneWidget);
+    expect(find.byType(SparePartWizardPage), findsNothing);
   });
 
   testWidgets('uses centered icons, subtle borders and no arrow affordances',

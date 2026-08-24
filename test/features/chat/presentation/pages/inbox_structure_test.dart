@@ -62,6 +62,7 @@ void main() {
     WidgetTester tester, {
     required UserRole role,
     required Widget page,
+    ChatThreadsResult? storeResult,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -72,7 +73,7 @@ void main() {
             (ref) async => resultFor(consumerRequest),
           ),
           storeSalesRequestsProvider.overrideWith(
-            (ref) async => resultFor(storeRequest),
+            (ref) async => storeResult ?? resultFor(storeRequest),
           ),
         ],
         child: MaterialApp(home: page),
@@ -116,7 +117,34 @@ void main() {
     expect(find.text('Administra tus solicitudes y compara ofertas'),
         findsNothing);
     expect(find.text('Motor BMW N55'), findsOneWidget);
-    expect(find.text('Con ofertas'), findsOneWidget);
+    expect(find.text('Activas'), findsOneWidget);
+    expect(find.text('Cotizadas'), findsOneWidget);
+    expect(find.text('Canceladas'), findsOneWidget);
+    expect(find.text('Todas'), findsNothing);
+    expect(find.text('Compradas'), findsNothing);
+    expect(find.text('Cerradas'), findsNothing);
+    expect(
+      tester
+          .getCenter(
+            find.byKey(const Key('consumer-purchase-filter-group')),
+          )
+          .dx,
+      closeTo(tester.view.physicalSize.width / tester.view.devicePixelRatio / 2,
+          0.5),
+    );
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(ConsumerPurchasesPage)),
+    );
+    expect(container.read(consumerStatusFilterProvider), 'OPEN');
+
+    await tester.tap(find.text('Cotizadas'));
+    await tester.pump();
+    expect(container.read(consumerStatusFilterProvider), 'WITH_OFFER');
+
+    await tester.tap(find.text('Canceladas'));
+    await tester.pump();
+    expect(container.read(consumerStatusFilterProvider), 'CANCELLED');
   });
 
   testWidgets('store Chats and Ventas are independent sections',
@@ -143,6 +171,128 @@ void main() {
         findsNothing);
     expect(find.text('Bomba de gasolina'), findsOneWidget);
     expect(find.text('Pendientes'), findsAtLeastNWidgets(1));
+    expect(find.text('Cotizadas'), findsOneWidget);
+    expect(find.text('Canceladas'), findsOneWidget);
+    expect(find.text('Entregadas'), findsOneWidget);
+    expect(find.text('Consultas'), findsNothing);
+    expect(find.text('Declinadas'), findsNothing);
+    expect(find.text('Vendidas'), findsNothing);
+    expect(find.text('Descartadas'), findsNothing);
+    expect(find.text('Todas'), findsNothing);
+  });
+
+  testWidgets('Ventas exposes all four filters without horizontal scrolling',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await pumpPage(
+      tester,
+      role: UserRole.store,
+      page: const StoreSalesPage(),
+    );
+
+    final group = find.byKey(const Key('store-sales-filter-group'));
+    expect(group, findsOneWidget);
+    expect(
+      find.ancestor(
+        of: group,
+        matching: find.byType(SingleChildScrollView),
+      ),
+      findsNothing,
+    );
+
+    final pending = tester.getCenter(find.text('Pendientes'));
+    final quoted = tester.getCenter(find.text('Cotizadas'));
+    final cancelled = tester.getCenter(find.text('Canceladas'));
+    final delivered = tester.getCenter(find.text('Entregadas'));
+
+    expect(pending.dy, closeTo(quoted.dy, 1));
+    expect(cancelled.dy, closeTo(delivered.dy, 1));
+    expect(pending.dy, closeTo(cancelled.dy, 1));
+
+    final deliveredTarget = find
+        .ancestor(
+          of: find.text('Entregadas'),
+          matching: find.byType(InkWell),
+        )
+        .first;
+    expect(tester.getSize(deliveredTarget).height, greaterThanOrEqualTo(48));
+  });
+
+  testWidgets('store keeps cancelled and delivered requests until expiration',
+      (tester) async {
+    ChatThread sale({
+      required String id,
+      required String title,
+      required String status,
+      required bool isExpired,
+    }) =>
+        ChatThread(
+          id: id,
+          title: title,
+          requestType: ServiceType.spareParts,
+          unreadCount: 0,
+          conversationCount: 0,
+          lastActivityAt: DateTime.utc(2026, 8, 14),
+          offerStatus: status,
+          matchState: status == 'QUOTED' ? 'QUOTED' : 'PENDING',
+          isExpired: isExpired,
+        );
+
+    final result = ChatThreadsResult(
+      threads: [
+        sale(
+          id: 'cancelled-current',
+          title: 'Cancelada vigente',
+          status: 'CANCELLED',
+          isExpired: false,
+        ),
+        sale(
+          id: 'cancelled-expired',
+          title: 'Cancelada expirada',
+          status: 'CANCELLED',
+          isExpired: true,
+        ),
+        sale(
+          id: 'delivered-current',
+          title: 'Entregada vigente',
+          status: 'DELIVERED',
+          isExpired: false,
+        ),
+        sale(
+          id: 'delivered-expired',
+          title: 'Entregada expirada',
+          status: 'DELIVERED',
+          isExpired: true,
+        ),
+      ],
+      counts: const {'cancelled': 2, 'delivered': 2},
+      total: 4,
+    );
+
+    await pumpPage(
+      tester,
+      role: UserRole.store,
+      page: const StoreSalesPage(),
+      storeResult: result,
+    );
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(StoreSalesPage)),
+    );
+
+    await tester.tap(find.text('Canceladas'));
+    await tester.pump();
+    expect(container.read(storeStatusFilterProvider), 'CANCELLED');
+    expect(find.text('Cancelada vigente'), findsOneWidget);
+    expect(find.text('Cancelada expirada'), findsNothing);
+
+    await tester.tap(find.text('Entregadas'));
+    await tester.pump();
+    expect(container.read(storeStatusFilterProvider), 'DELIVERED');
+    expect(find.text('Entregada vigente'), findsOneWidget);
+    expect(find.text('Entregada expirada'), findsNothing);
   });
 
   testWidgets('Ventas search field does not draw an inner border',

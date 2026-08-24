@@ -13,6 +13,26 @@ abstract class AppIcons {
   static const IconData next = LucideIcons.chevronRight;
   static const IconData externalLink = LucideIcons.externalLink;
   static const IconData retry = LucideIcons.refreshCw;
+  static const IconData time = LucideIcons.clock3;
+  static const IconData offer = LucideIcons.tag;
+  static const IconData store = LucideIcons.store;
+  static const IconData dashboard = LucideIcons.chartNoAxesColumnIncreasing;
+  static const IconData period = LucideIcons.calendarDays;
+  static const IconData expand = LucideIcons.chevronDown;
+
+  static const IconData sales = LucideIcons.dollarSign;
+  static const IconData opportunity = LucideIcons.target;
+  static const IconData conversion = LucideIcons.trendingUp;
+  static const IconData cancellation = LucideIcons.circleSlash2;
+  static const IconData declined = LucideIcons.circleMinus;
+  static const IconData balance = LucideIcons.wallet;
+  static const IconData receipt = LucideIcons.receiptText;
+  static const IconData trendUp = LucideIcons.trendingUp;
+  static const IconData trendDown = LucideIcons.trendingDown;
+  static const IconData info = LucideIcons.info;
+  static const IconData success = LucideIcons.checkCircle;
+  static const IconData contacts = LucideIcons.mousePointerClick;
+  static const IconData satisfaction = LucideIcons.smile;
 
   static const IconData workshop = LucideIcons.warehouse;
   static const IconData mechanic = LucideIcons.wrench;
@@ -28,6 +48,8 @@ abstract class AppIcons {
   static const IconData reviews = LucideIcons.messageSquareText;
   static const IconData edit = LucideIcons.pencil;
   static const IconData selected = LucideIcons.check;
+  static const IconData favorite = LucideIcons.heart;
+  static const IconData favoriteFilled = LucideIcons.heart;
 
   static const IconData call = LucideIcons.phoneCall;
   static const IconData message = LucideIcons.messageCircle;

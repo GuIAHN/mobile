@@ -96,8 +96,9 @@ final undoDeclineUseCaseProvider = Provider<UndoDeclineUseCase>((ref) {
 /// Filtro activo para solicitudes de tiendas. `UNQUOTED` ya no es válido.
 final storeStatusFilterProvider = StateProvider<String>((ref) => 'PENDING');
 
-/// Filtro activo del consumidor, incluido el historial cancelado.
-final consumerStatusFilterProvider = StateProvider<String>((ref) => 'ALL');
+/// Mis compras abre en solicitudes activas. El usuario puede cambiar a las
+/// vistas simplificadas `WITH_OFFER` o `CANCELLED` desde los filtros visibles.
+final consumerStatusFilterProvider = StateProvider<String>((ref) => 'OPEN');
 
 /// Stable, targeted revisions for chat queries. Subscriptions live outside the
 /// FutureProviders, so an event cannot be lost while a query invalidates and

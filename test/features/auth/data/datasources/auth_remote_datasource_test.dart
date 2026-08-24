@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:guiautomotriz_mobile/core/network/api_endpoints.dart';
 import 'package:guiautomotriz_mobile/core/network/dio_client.dart';
 import 'package:guiautomotriz_mobile/features/auth/data/datasources/auth_remote_datasource.dart';
-import 'package:guiautomotriz_mobile/features/auth/domain/entities/store_category_config.dart';
+import 'package:guiautomotriz_mobile/features/auth/domain/entities/store_coverage_config.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockDioClient extends Mock implements DioClient {}
@@ -120,6 +120,49 @@ void main() {
     verifyNoMoreInteractions(client);
   });
 
+  test('updateProfile sends the location contract to users/me', () async {
+    final client = _MockDioClient();
+    final datasource = AuthRemoteDataSource(client);
+    const payload = {
+      'location': {
+        'lat': 14.0723,
+        'lon': -87.1921,
+      },
+    };
+
+    when(
+      () => client.patch<Map<String, dynamic>>(
+        ApiEndpoints.me,
+        data: payload,
+      ),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: ApiEndpoints.me),
+        statusCode: 200,
+        data: const {
+          'id': 'store-1',
+          'email': 'store@example.com',
+          'name': 'Repuestos Centro',
+          'userType': 'STORE',
+        },
+      ),
+    );
+
+    final user = await datasource.updateProfile(
+      latitude: 14.0723,
+      longitude: -87.1921,
+    );
+
+    expect(user.id, 'store-1');
+    verify(
+      () => client.patch<Map<String, dynamic>>(
+        ApiEndpoints.me,
+        data: payload,
+      ),
+    ).called(1);
+    verifyNoMoreInteractions(client);
+  });
+
   test('registerStore omits the removed category startingPrice field',
       () async {
     final client = _MockDioClient();
@@ -157,13 +200,12 @@ void main() {
       longitude: -66.9036,
       address: 'Tegucigalpa',
       rif: 'J123456789',
-      catalog: const [
-        StoreCategoryConfig(
-          subcategoryId: '9b80f867-9dae-4d0f-b019-831d81ff60b0',
-          brandIds: ['bd8d35f4-3f99-4d23-a7ad-314a5547abf4'],
-          sparePartsTypes: ['ORIGINAL'],
-        ),
-      ],
+      coverage: const StoreCoverageConfig(
+        servesAllBrands: false,
+        subcategoryIds: ['9b80f867-9dae-4d0f-b019-831d81ff60b0'],
+        brandIds: ['bd8d35f4-3f99-4d23-a7ad-314a5547abf4'],
+        sparePartsTypes: ['ORIGINAL'],
+      ),
       hasDelivery: true,
       acceptedTerms: true,
       rifPhotoPath: rifPhoto.path,
@@ -180,16 +222,13 @@ void main() {
     final payload = jsonDecode(
       formData.fields.singleWhere((field) => field.key == 'payload').value,
     ) as Map<String, dynamic>;
-    final category =
-        (payload['categories'] as List).single as Map<String, dynamic>;
-
-    expect(category, {
-      'subcategoryId': '9b80f867-9dae-4d0f-b019-831d81ff60b0',
+    expect(payload['coverage'], {
       'servesAllBrands': false,
       'brandIds': ['bd8d35f4-3f99-4d23-a7ad-314a5547abf4'],
       'sparePartsTypes': ['ORIGINAL'],
+      'subcategoryIds': ['9b80f867-9dae-4d0f-b019-831d81ff60b0'],
     });
-    expect(category, isNot(contains('startingPrice')));
+    expect(payload, isNot(contains('categories')));
     expect(payload['hasDelivery'], isTrue);
     expect(payload['acceptedTerms'], isTrue);
     expect(payload['password'], 'Lego1234!');

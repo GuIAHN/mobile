@@ -76,11 +76,9 @@ void main() {
     );
 
     expect(find.text('BUSCANDO'), findsOneWidget);
-    expect(find.text('Esperando respuestas'), findsOneWidget);
-    expect(
-      find.text('Te avisaremos cuando una tienda responda'),
-      findsOneWidget,
-    );
+    expect(find.text('0 cotizaciones'), findsOneWidget);
+    expect(find.text('COTIZACIONES'), findsNothing);
+    expect(find.text('Esperando respuestas'), findsNothing);
     expect(find.textContaining('Expira en'), findsOneWidget);
 
     final action = find.bySemanticsLabel(
@@ -90,6 +88,13 @@ void main() {
     await tester.tap(action);
     expect(taps, 1);
     expect(tester.takeException(), isNull);
+
+    final card = find.bySemanticsLabel(
+      RegExp(r'Solicitud BMW 5 Series.*buscando.*Expira en'),
+    );
+    final thumbnail = find.byKey(const Key('consumer-request-thumbnail'));
+    expect(tester.getSize(thumbnail), const Size(112, 112));
+    expect(tester.getSize(card).height, lessThan(200));
   }, semanticsEnabled: true);
 
   testWidgets('keeps the best offer readable without turning it into a hero',
@@ -105,12 +110,9 @@ void main() {
     );
 
     expect(find.text('OFERTAS RECIBIDAS'), findsOneWidget);
-    expect(find.text('MEJOR OFERTA'), findsOneWidget);
+    expect(find.text('MEJOR OFERTA'), findsNothing);
     expect(find.textContaining('1,250'), findsOneWidget);
-    expect(
-      find.textContaining('Repuestos El Pana', findRichText: true),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Repuestos El Pana'), findsNothing);
     expect(
       find.textContaining('2 cotizaciones', findRichText: true),
       findsOneWidget,
@@ -132,7 +134,8 @@ void main() {
     );
 
     expect(find.text('COMPRADA'), findsOneWidget);
-    expect(find.text('OFERTA COMPRADA'), findsOneWidget);
+    expect(find.text('OFERTA COMPRADA'), findsNothing);
+    expect(find.text('1 cotización'), findsOneWidget);
     expect(find.textContaining('Expira en'), findsNothing);
     expect(tester.takeException(), isNull);
   });
@@ -142,8 +145,8 @@ void main() {
     await tester.pumpWidget(_subject(_thread(isOpen: false)));
 
     expect(find.text('CERRADA'), findsOneWidget);
-    expect(find.text('RESULTADO'), findsOneWidget);
-    expect(find.text('Sin cotizaciones'), findsOneWidget);
+    expect(find.text('RESULTADO'), findsNothing);
+    expect(find.text('0 cotizaciones'), findsOneWidget);
     expect(find.text('Esperando respuestas'), findsNothing);
     expect(find.textContaining('Expira en'), findsNothing);
     expect(tester.takeException(), isNull);

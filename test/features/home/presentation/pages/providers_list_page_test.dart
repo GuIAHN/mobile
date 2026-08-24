@@ -91,6 +91,7 @@ void main() {
       await tester.pump();
 
       expect(tester.takeException(), isNull);
+      expect(find.text('Talleres cerca de tu negocio'), findsOneWidget);
 
       final backButton = find.ancestor(
         of: find.byIcon(Icons.arrow_back_rounded),
@@ -178,5 +179,52 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Taller Norte'), findsOneWidget);
+  });
+
+  testWidgets('changes provider pages without replacing the screen',
+      (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+
+    final items = List.generate(
+      7,
+      (index) => HomeItem(
+        id: 'workshop-$index',
+        name: 'Taller ${index + 1}',
+        detail: 'Diagnóstico y frenos',
+        rating: 4.8,
+        reviews: 24,
+        distanceKm: 2.4,
+        isOpen: true,
+        iconName: 'warehouse_outlined',
+        type: ServiceType.workshops,
+      ),
+    );
+
+    await tester.pumpWidget(
+      _subject(
+        state: AsyncValue.data(items),
+        size: const Size(430, 932),
+        padding: const EdgeInsets.only(top: 59, bottom: 34),
+        disableAnimations: true,
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Taller 1'), findsOneWidget);
+    expect(find.text('Taller 7'), findsNothing);
+
+    await tester.scrollUntilVisible(
+      find.byTooltip('Página siguiente'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Página 1 de 2'), findsOneWidget);
+    await tester.tap(find.byTooltip('Página siguiente'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ItemCardSkeleton), findsNothing);
+    expect(find.text('Taller 1'), findsNothing);
+    expect(find.text('Taller 7'), findsOneWidget);
   });
 }

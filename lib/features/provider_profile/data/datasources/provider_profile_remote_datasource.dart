@@ -42,15 +42,25 @@ class ProviderProfileRemoteDataSource {
   }
 
   Future<List<StoreCatalogLineModel>> getOwnCatalog() async {
-    final response = await _client.get<List<dynamic>>(
-      ApiEndpoints.storeOwnCategories,
+    final response = await _client.get<Map<String, dynamic>>(
+      ApiEndpoints.storeOwnCoverage,
     );
     final data = response.data;
     if (data == null) throw const ParseException();
-    return data
+    final subcategories = data['subcategories'];
+    if (subcategories is! List) throw const ParseException();
+    final brands = data['brands'] as List<dynamic>? ?? const [];
+    final types = data['sparePartsTypes'] as List<dynamic>? ?? const [];
+    final servesAllBrands = data['servesAllBrands'] as bool? ?? false;
+    return subcategories
         .map(
-          (json) => StoreCatalogLineModel.fromJson(
-            Map<String, dynamic>.from(json as Map),
+          (subcategory) => StoreCatalogLineModel.fromJson(
+            {
+              ...Map<String, dynamic>.from(subcategory as Map),
+              'servesAllBrands': servesAllBrands,
+              'brands': brands,
+              'sparePartsTypes': types,
+            },
           ),
         )
         .toList(growable: false);

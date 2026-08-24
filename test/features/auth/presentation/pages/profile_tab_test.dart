@@ -17,7 +17,10 @@ import 'package:guiautomotriz_mobile/features/auth/presentation/providers/auth_s
 import 'package:guiautomotriz_mobile/features/auth/presentation/widgets/profile_header.dart';
 import 'package:guiautomotriz_mobile/features/catalog/domain/entities/specialty.dart';
 import 'package:guiautomotriz_mobile/features/provider_profile/presentation/providers/provider_profile_providers.dart';
+import 'package:guiautomotriz_mobile/features/provider_profile/presentation/widgets/provider_location_card.dart';
 import 'package:guiautomotriz_mobile/features/provider_profile/presentation/widgets/provider_specialties_card.dart';
+import 'package:guiautomotriz_mobile/features/reviews/domain/entities/pending_review.dart';
+import 'package:guiautomotriz_mobile/features/reviews/presentation/providers/reviews_providers.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/presentation/providers/vehicle_providers.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -62,6 +65,16 @@ void main() {
         overrides: [
           authProvider.overrideWith((ref) => _TestAuthNotifier(user)),
           userCarsProvider.overrideWith((ref) async => const []),
+          pendingReviewsProvider.overrideWith(
+            (ref) async => const [
+              PendingReview(
+                targetId: 'store-user-1',
+                providerProfileId: 'store-1',
+                providerName: 'Elio’s Shop',
+                conversationId: 'conversation-1',
+              ),
+            ],
+          ),
         ],
         child: const MaterialApp(home: Scaffold(body: ProfileTab())),
       ),
@@ -129,6 +142,7 @@ void main() {
         overrides: [
           authProvider.overrideWith((ref) => _TestAuthNotifier(user)),
           userCarsProvider.overrideWith((ref) async => const []),
+          pendingReviewsProvider.overrideWith((ref) async => const []),
         ],
         child: const MaterialApp(
           home: MediaQuery(
@@ -163,6 +177,16 @@ void main() {
         overrides: [
           authProvider.overrideWith((ref) => _TestAuthNotifier(user)),
           userCarsProvider.overrideWith((ref) async => const []),
+          pendingReviewsProvider.overrideWith(
+            (ref) async => const [
+              PendingReview(
+                targetId: 'store-user-1',
+                providerProfileId: 'store-1',
+                providerName: 'Elio’s Shop',
+                conversationId: 'conversation-1',
+              ),
+            ],
+          ),
         ],
         child: const MaterialApp(home: Scaffold(body: ProfileTab())),
       ),
@@ -179,6 +203,8 @@ void main() {
     expect(pendingSize.height, securitySize.height);
     expect(pendingSize.width, securitySize.width);
     expect(find.byKey(const Key('open-received-reviews')), findsNothing);
+    expect(find.byKey(const Key('profile-action-badge')), findsOneWidget);
+    expect(find.text('1'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -197,6 +223,7 @@ void main() {
         overrides: [
           authProvider.overrideWith((ref) => _TestAuthNotifier(user)),
           userCarsProvider.overrideWith((ref) async => const []),
+          pendingReviewsProvider.overrideWith((ref) async => const []),
         ],
         child: const MaterialApp(home: Scaffold(body: ProfileTab())),
       ),
@@ -218,7 +245,7 @@ void main() {
     expect(contactTop, lessThan(accountTop));
     expect(find.text('+504 9999 1111'), findsOneWidget);
     expect(find.text('consumer@gmail.com'), findsOneWidget);
-    expect(find.text('Consumidor'), findsOneWidget);
+    expect(find.text('CONSUMIDOR'), findsOneWidget);
   });
 
   testWidgets('supports small and large phones with scaled profile text',
@@ -244,6 +271,7 @@ void main() {
           overrides: [
             authProvider.overrideWith((ref) => _TestAuthNotifier(user)),
             userCarsProvider.overrideWith((ref) async => const []),
+            pendingReviewsProvider.overrideWith((ref) async => const []),
           ],
           child: MaterialApp(
             builder: (context, child) => MediaQuery(
@@ -350,6 +378,52 @@ void main() {
 
     expect(find.byType(ProviderSpecialtiesCard), findsOneWidget);
     expect(find.text('Aún no has agregado especialidades.'), findsOneWidget);
+  });
+
+  testWidgets('shows exact location only to workshops and stores',
+      (tester) async {
+    for (final role in const [
+      UserRole.workshop,
+      UserRole.store,
+      UserRole.mechanic,
+      UserRole.consumer,
+    ]) {
+      final user = User(
+        id: '${role.name}-location',
+        email: '${role.name}@example.com',
+        name: role.name,
+        role: role,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authProvider.overrideWith((ref) => _TestAuthNotifier(user)),
+            if (role == UserRole.workshop || role == UserRole.mechanic)
+              providerSpecialtiesProvider.overrideWith(
+                (ref) async => const [],
+              ),
+            if (role == UserRole.store)
+              storeCatalogProvider.overrideWith((ref) async => const []),
+            if (role == UserRole.consumer)
+              userCarsProvider.overrideWith((ref) async => const []),
+            if (role == UserRole.consumer)
+              pendingReviewsProvider.overrideWith((ref) async => const []),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ProfileTab())),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.byType(ProviderLocationCard),
+        role == UserRole.workshop || role == UserRole.store
+            ? findsOneWidget
+            : findsNothing,
+        reason: 'El rol ${role.name} no debe configurar un punto comercial.',
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
   });
 
   testWidgets('providers can open the reviews received by their own user id',

@@ -1,7 +1,8 @@
 import '../../domain/entities/store_catalog_line.dart';
 
 /// Data model for [StoreCatalogLine] with JSON support.
-/// Parses the response of `GET /stores/me/categories`.
+/// Maps one subcategory from `GET /stores/me/coverage` while reusing the
+/// store-wide brands and spare-part types in the existing presentation model.
 class StoreCatalogLineModel extends StoreCatalogLine {
   const StoreCatalogLineModel({
     required super.id,
@@ -16,8 +17,9 @@ class StoreCatalogLineModel extends StoreCatalogLine {
     final rawTypes = json['sparePartsTypes'] as List<dynamic>? ?? const [];
 
     return StoreCatalogLineModel(
-      id: json['id'] as String,
-      categoryName: json['categoryName']?.toString() ?? 'Categoría',
+      id: (json['subcategoryId'] ?? json['id']).toString(),
+      categoryName:
+          (json['name'] ?? json['categoryName'])?.toString() ?? 'Subcategoría',
       servesAllBrands: json['servesAllBrands'] as bool? ?? false,
       brands: rawBrands
           .map((b) => b is Map ? b['name'].toString() : b.toString())

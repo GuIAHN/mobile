@@ -1,12 +1,16 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
+import '../../../../../core/router/route_names.dart';
 import '../../../../../core/domain/enums/part_type.dart';
 import '../../../../../shared/widgets/image_source_selector_sheet.dart';
 import '../../../../../shared/widgets/error_view.dart';
@@ -19,6 +23,7 @@ import '../../../../vehicles/presentation/widgets/vehicle_selection_modal.dart';
 import '../../../../vehicles/presentation/widgets/_atoms/vehicle_type_illustration.dart';
 import '../../../../catalog/domain/entities/category.dart';
 import '../../../../chat/presentation/providers/chat_providers.dart';
+import '../../../../reviews/presentation/providers/reviews_providers.dart';
 import '../../providers/home_providers.dart';
 import '../form_parts/form_part_type_selector.dart';
 import 'category_subcategory_selector_sheet.dart';
@@ -52,8 +57,55 @@ class SparePartWizardPage extends ConsumerStatefulWidget {
     UserCar? initialVehicle,
     String? initialVariantId,
     VoidCallback? onSubmitted,
-  }) {
-    return Navigator.push(
+  }) async {
+    final container = ProviderScope.containerOf(context);
+    final pendingState = container.read(pendingReviewsProvider);
+    var loadingVisible = false;
+
+    if (!pendingState.hasValue) {
+      loadingVisible = true;
+      unawaited(
+        showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
+        ),
+      );
+    }
+
+    var pendingCount = 0;
+    try {
+      final cachedItems = pendingState.valueOrNull;
+      if (cachedItems != null) {
+        pendingCount = cachedItems.length;
+      } else {
+        final pendingItems =
+            await container.read(pendingReviewsProvider.future);
+        pendingCount = pendingItems.length;
+      }
+    } catch (_) {
+      // Una falla al consultar recordatorios no debe bloquear una solicitud.
+      // El backend repite esta validación antes de crearla.
+    } finally {
+      if (loadingVisible && context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
+
+    if (!context.mounted) return;
+    if (pendingCount > 1) {
+      await showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (_) => _PendingReviewsGateSheet(count: pendingCount),
+      );
+      return;
+    }
+
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => SparePartWizardPage(
@@ -68,6 +120,97 @@ class SparePartWizardPage extends ConsumerStatefulWidget {
   @override
   ConsumerState<SparePartWizardPage> createState() =>
       _SparePartWizardPageState();
+}
+
+class _PendingReviewsGateSheet extends StatelessWidget {
+  final int count;
+
+  const _PendingReviewsGateSheet({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.grey300,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const AppLineIcon(
+              AppIcons.rating,
+              size: AppIconSize.feature,
+              color: AppColors.primary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Tienes valoraciones pendientes',
+              textAlign: TextAlign.center,
+              style: AppTypography.h2,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Antes de pedir otro repuesto, ayúdanos a cerrar tus compras anteriores. Tienes $count reseñas pendientes y completarlas solo te tomará un momento.',
+              textAlign: TextAlign.center,
+              style: AppTypography.body.copyWith(
+                color: AppColors.textSecondary,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.push(RouteNames.pendingReviews);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(32),
+                  ),
+                ),
+                child: Text(
+                  'IR A RESEÑAS PENDIENTES',
+                  style: AppTypography.label.copyWith(color: Colors.white),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'AHORA NO',
+                  style: AppTypography.label.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
@@ -214,10 +357,14 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
     final isShared = ref.read(isLocationSharedProvider);
     final current = ref.read(userLocationProvider).valueOrNull;
     final user = ref.read(authProvider).user;
+    final canUseTemporaryLocation =
+        !(user?.role.usesSavedLocationForSearch ?? false);
     return resolveRequestLocationSeed(
       requestSelection: _requestLocation,
-      gpsLatitude: isShared ? current?.latitude : null,
-      gpsLongitude: isShared ? current?.longitude : null,
+      gpsLatitude:
+          canUseTemporaryLocation && isShared ? current?.latitude : null,
+      gpsLongitude:
+          canUseTemporaryLocation && isShared ? current?.longitude : null,
       profileLatitude: user?.latitude,
       profileLongitude: user?.longitude,
     );

@@ -112,202 +112,220 @@ class StoreChatCard extends StatelessWidget {
     return Semantics(
       label: semanticLabel.toString(),
       button: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Avatar con badge de no leídos ──────────────────────────
-              if (!usesLargeText) ...[
-                _ClientAvatar(
-                  url: conv.participantAvatarUrl,
-                  name: conv.participantName,
-                  unreadCount: conv.unreadCount,
-                ),
-                const SizedBox(width: 14),
-              ],
-
-              // ── Columna principal ──────────────────────────────────────
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Nombre + hora
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            conv.participantName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.hankenGrotesk(
-                              fontSize: 15,
-                              fontWeight:
-                                  hasUnread ? FontWeight.w800 : FontWeight.w600,
-                              letterSpacing: -0.2,
-                              height: 1.2,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          timeStr,
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: hasUnread
-                                ? AppColors.primary
-                                : AppColors.textMeta,
-                          ),
-                        ),
-                      ],
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border, width: 0.8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Material(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Avatar con badge de no leídos ──────────────────────────
+                  if (!usesLargeText) ...[
+                    _ClientAvatar(
+                      url: conv.participantAvatarUrl,
+                      name: conv.participantName,
+                      unreadCount: conv.unreadCount,
                     ),
-                    if (consumerPerspective && conv.storeRating != null) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.star_rounded,
-                            size: 15,
-                            color: Color(0xFFF59E0B),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${conv.storeRating!.toStringAsFixed(1)} (${conv.storeReviewCount})',
-                            style: GoogleFonts.hankenGrotesk(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textSecondary,
+                    const SizedBox(width: 14),
+                  ],
+
+                  // ── Columna principal ──────────────────────────────────────
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Nombre + hora
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                conv.participantName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 15,
+                                  fontWeight: hasUnread
+                                      ? FontWeight.w800
+                                      : FontWeight.w600,
+                                  letterSpacing: -0.2,
+                                  height: 1.2,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
                             ),
+                            const SizedBox(width: 8),
+                            Text(
+                              timeStr,
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: hasUnread
+                                    ? AppColors.primary
+                                    : AppColors.textMeta,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (consumerPerspective &&
+                            conv.storeRating != null) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.star_rounded,
+                                size: 15,
+                                color: Color(0xFFF59E0B),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${conv.storeRating!.toStringAsFixed(1)} (${conv.storeReviewCount})',
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
-                      ),
-                    ],
-                    const SizedBox(height: 4),
+                        const SizedBox(height: 4),
 
-                    // Preview del último mensaje
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        if (hasUnread)
-                          Container(
-                            width: 8,
-                            height: 8,
-                            margin: const EdgeInsets.only(right: 7, top: 1),
-                            decoration: const BoxDecoration(
-                              color: AppColors.primary,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        Expanded(
-                          child: Text(
-                            key: const Key('chat-card-latest-message'),
-                            message.isNotEmpty
-                                ? message
-                                : 'Sin mensajes todavía',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: message.isEmpty
-                                ? GoogleFonts.hankenGrotesk(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w400,
-                                    height: 1.4,
-                                    color: AppColors.textMeta,
-                                    fontStyle: FontStyle.italic,
-                                  )
-                                : hasUnread
+                        // Preview del último mensaje
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            if (hasUnread)
+                              Container(
+                                width: 8,
+                                height: 8,
+                                margin: const EdgeInsets.only(right: 7, top: 1),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            Expanded(
+                              child: Text(
+                                key: const Key('chat-card-latest-message'),
+                                message.isNotEmpty
+                                    ? message
+                                    : 'Sin mensajes todavía',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: message.isEmpty
                                     ? GoogleFonts.hankenGrotesk(
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.w600,
-                                        height: 1.4,
-                                        color: AppColors.textPrimary,
-                                      )
-                                    : GoogleFonts.hankenGrotesk(
                                         fontSize: 13.5,
                                         fontWeight: FontWeight.w400,
                                         height: 1.4,
-                                        color: AppColors.textSecondary,
-                                      ),
-                          ),
+                                        color: AppColors.textMeta,
+                                        fontStyle: FontStyle.italic,
+                                      )
+                                    : hasUnread
+                                        ? GoogleFonts.hankenGrotesk(
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w600,
+                                            height: 1.4,
+                                            color: AppColors.textPrimary,
+                                          )
+                                        : GoogleFonts.hankenGrotesk(
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w400,
+                                            height: 1.4,
+                                            color: AppColors.textSecondary,
+                                          ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
 
-                    // Pie comercial: estado izquierda + precio naranja derecha
-                    if (status != OfferStatus.noQuoteYet || conv.hasQuote) ...[
-                      const SizedBox(height: 8),
-                      LayoutBuilder(
-                        key: const Key('chat-card-commercial-summary'),
-                        builder: (context, constraints) {
-                          final statusWidget = status != OfferStatus.noQuoteYet
-                              ? StatusBadge(
-                                  key: const Key('chat-card-status-badge'),
-                                  status: status,
-                                  labelOverride: consumerPerspective
-                                      ? status.consumerLabel
-                                      : null,
-                                )
-                              : null;
-                          final priceWidget =
-                              conv.hasQuote && conv.price != null
-                                  ? Text(
-                                      key: const Key('chat-card-price'),
-                                      conv.formattedTotalCost,
-                                      style: GoogleFonts.hankenGrotesk(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: -0.5,
-                                        color: AppColors.primary,
-                                        fontFeatures: const [
-                                          FontFeature.tabularFigures(),
-                                        ],
-                                      ),
+                        // Pie comercial: estado izquierda + precio naranja derecha
+                        if (status != OfferStatus.noQuoteYet ||
+                            conv.hasQuote) ...[
+                          const SizedBox(height: 8),
+                          LayoutBuilder(
+                            key: const Key('chat-card-commercial-summary'),
+                            builder: (context, constraints) {
+                              final statusWidget = status !=
+                                      OfferStatus.noQuoteYet
+                                  ? StatusBadge(
+                                      key: const Key('chat-card-status-badge'),
+                                      status: status,
+                                      labelOverride: consumerPerspective
+                                          ? status.consumerLabel
+                                          : null,
                                     )
                                   : null;
-                          final shouldStack = constraints.maxWidth < 240 ||
-                              MediaQuery.textScalerOf(context).scale(14) > 19;
+                              final priceWidget =
+                                  conv.hasQuote && conv.price != null
+                                      ? Text(
+                                          key: const Key('chat-card-price'),
+                                          conv.formattedTotalCost,
+                                          style: GoogleFonts.hankenGrotesk(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: -0.5,
+                                            color: AppColors.primary,
+                                            fontFeatures: const [
+                                              FontFeature.tabularFigures(),
+                                            ],
+                                          ),
+                                        )
+                                      : null;
+                              final shouldStack = constraints.maxWidth < 240 ||
+                                  MediaQuery.textScalerOf(context).scale(14) >
+                                      19;
 
-                          if (shouldStack) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (statusWidget != null) statusWidget,
-                                if (statusWidget != null && priceWidget != null)
-                                  const SizedBox(height: 8),
-                                if (priceWidget != null) priceWidget,
-                              ],
-                            );
-                          }
+                              if (shouldStack) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (statusWidget != null) statusWidget,
+                                    if (statusWidget != null &&
+                                        priceWidget != null)
+                                      const SizedBox(height: 8),
+                                    if (priceWidget != null) priceWidget,
+                                  ],
+                                );
+                              }
 
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              if (statusWidget != null) statusWidget,
-                              if (statusWidget != null && priceWidget != null)
-                                const SizedBox(width: 12),
-                              if (priceWidget != null) priceWidget,
-                            ],
-                          );
-                        },
-                      ),
-                    ],
-
-                    // Separador inferior
-                    const SizedBox(height: 10),
-                    const Divider(
-                      height: 1,
-                      thickness: 0.6,
-                      color: AppColors.border,
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  if (statusWidget != null) statusWidget,
+                                  if (statusWidget != null &&
+                                      priceWidget != null)
+                                    const SizedBox(width: 12),
+                                  if (priceWidget != null) priceWidget,
+                                ],
+                              );
+                            },
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

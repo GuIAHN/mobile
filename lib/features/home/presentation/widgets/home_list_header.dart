@@ -6,6 +6,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../../../core/services/location_service.dart';
+import '../../../../core/providers/current_user_provider.dart';
 import '../../domain/entities/home_filters.dart';
 import '../../domain/entities/sort_option.dart';
 import '../providers/home_providers.dart';
@@ -28,9 +29,13 @@ class HomeListHeader extends ConsumerWidget {
     final selectedType = ref.watch(selectedServiceTypeProvider);
     final filters = ref.watch(homeFiltersProvider);
     final isLocationShared = ref.watch(isLocationSharedProvider);
-    final title = isLocationShared
-        ? '${selectedType.label} cerca de ti'
-        : '${selectedType.label} disponibles';
+    final usesSavedLocation =
+        ref.watch(currentRoleProvider).usesSavedLocationForSearch;
+    final title = usesSavedLocation
+        ? '${selectedType.label} cerca de tu negocio'
+        : isLocationShared
+            ? '${selectedType.label} cerca de ti'
+            : '${selectedType.label} disponibles';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

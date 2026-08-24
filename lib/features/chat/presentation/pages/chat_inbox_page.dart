@@ -46,7 +46,7 @@ class RequestManagementPage extends ConsumerStatefulWidget {
 class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
   final _searchController = TextEditingController();
   String _query = '';
-  _StatusFilter _statusFilter = _StatusFilter.all;
+  _StatusFilter _statusFilter = _StatusFilter.active;
   bool _initializedProviderFilter = false;
 
   @override
@@ -98,11 +98,14 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
                     t.bestOfferStatus == 'CANCELLED')
             .toList();
       case _StatusFilter.delivered:
-        return threads.where((t) => t.offerStatus == 'DELIVERED').toList();
+        return threads
+            .where((t) =>
+                t.offerStatus == 'DELIVERED' && (!isStore || !t.isExpired))
+            .toList();
       case _StatusFilter.cancelled:
         return threads
             .where((t) => isStore
-                ? t.offerStatus == 'CANCELLED'
+                ? t.offerStatus == 'CANCELLED' && !t.isExpired
                 : t.bestOfferStatus == 'CANCELLED')
             .toList();
       case _StatusFilter.discarded:
@@ -169,6 +172,10 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
       body: SafeArea(
         bottom: false,
         child: threadsAsync.when(
+          // Al cambiar un filtro, Riverpod conserva el último resultado mientras
+          // solicita el nuevo. Así no reemplazamos toda la pantalla por el
+          // skeleton ni hacemos desaparecer los controles.
+          skipLoadingOnReload: true,
           loading: () => _buildLoadingState(isStore),
           error: (err, _) => _buildErrorState(err.toString(), isStore),
           data: (res) => _buildThreadsList(res.threads, isStore, res.counts),
@@ -435,33 +442,50 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
 
           if (!isLoading) ...[
             const SizedBox(height: 12),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: _StatusFilterChips(
-                isProvider: isProvider,
-                selected: _statusFilter,
-                allCount: allCount,
-                activeCount: activeCount,
-                closedCount: closedCount,
-                pendingCount: pendingCount,
-                inquiringCount: inquiringCount,
-                declinedCount: declinedCount,
-                quotedCount: quotedCount,
-                boughtCount: boughtCount,
-                deliveredCount: deliveredCount,
-                cancelledCount: cancelledCount,
-                discardedCount: discardedCount,
-                onChanged: (f) {
-                  setState(() => _statusFilter = f);
-                  final param = _mapFilterToParam(f, isProvider);
-                  if (isProvider) {
-                    ref.read(storeStatusFilterProvider.notifier).state = param;
-                  } else {
-                    ref.read(consumerStatusFilterProvider.notifier).state =
-                        param;
-                  }
-                },
-              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final filters = _StatusFilterChips(
+                  isProvider: isProvider,
+                  selected: _statusFilter,
+                  allCount: allCount,
+                  activeCount: activeCount,
+                  closedCount: closedCount,
+                  pendingCount: pendingCount,
+                  inquiringCount: inquiringCount,
+                  declinedCount: declinedCount,
+                  quotedCount: quotedCount,
+                  boughtCount: boughtCount,
+                  deliveredCount: deliveredCount,
+                  cancelledCount: cancelledCount,
+                  discardedCount: discardedCount,
+                  onChanged: (f) {
+                    setState(() => _statusFilter = f);
+                    final param = _mapFilterToParam(f, isProvider);
+                    if (isProvider) {
+                      ref.read(storeStatusFilterProvider.notifier).state =
+                          param;
+                    } else {
+                      ref.read(consumerStatusFilterProvider.notifier).state =
+                          param;
+                    }
+                  },
+                );
+
+                // Ventas siempre muestra los cuatro estados. En Compras se
+                // conserva el grupo compacto y centrado de tres opciones.
+                if (isProvider) return filters;
+
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: Align(
+                      alignment: Alignment.center,
+                      child: filters,
+                    ),
+                  ),
+                );
+              },
             ),
           ],
         ],
@@ -541,8 +565,8 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
   }
 }
 
-/// Fila de chips segmentados para filtrar por estado (Todas / Activas / Cerradas),
-/// con contador por segmento. Patrón estándar para listas activas-vs-pasadas.
+/// Fila de chips segmentados con contadores. Consumidor y tienda ven solo los
+/// estados que corresponden a decisiones claras dentro de cada flujo.
 class _StatusFilterChips extends StatelessWidget {
   final bool isProvider;
   final _StatusFilter selected;
@@ -579,83 +603,57 @@ class _StatusFilterChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isProvider) {
-      return Row(
-        children: [
-          _StatusChip(
-            label: 'Pendientes',
-            count: pendingCount,
-            isSelected: selected == _StatusFilter.pending,
-            onTap: () => onChanged(_StatusFilter.pending),
-          ),
-          const SizedBox(width: 8),
-          _StatusChip(
-            label: 'Consultas',
-            count: inquiringCount,
-            isSelected: selected == _StatusFilter.inquiring,
-            onTap: () => onChanged(_StatusFilter.inquiring),
-          ),
-          const SizedBox(width: 8),
-          _StatusChip(
-            label: 'Declinadas',
-            count: declinedCount,
-            isSelected: selected == _StatusFilter.declined,
-            onTap: () => onChanged(_StatusFilter.declined),
-          ),
-          const SizedBox(width: 8),
-          _StatusChip(
-            label: 'Cotizadas',
-            count: quotedCount,
-            isSelected: selected == _StatusFilter.quoted,
-            onTap: () => onChanged(_StatusFilter.quoted),
-          ),
-          const SizedBox(width: 8),
-          _StatusChip(
-            label: 'Vendidas',
-            count: boughtCount,
-            isSelected: selected == _StatusFilter.bought,
-            onTap: () => onChanged(_StatusFilter.bought),
-          ),
-          const SizedBox(width: 8),
-          _StatusChip(
-            label: 'Entregadas',
-            count: deliveredCount,
-            isSelected: selected == _StatusFilter.delivered,
-            onTap: () => onChanged(_StatusFilter.delivered),
-          ),
-          const SizedBox(width: 8),
-          _StatusChip(
-            label: 'Canceladas',
-            count: cancelledCount,
-            isSelected: selected == _StatusFilter.cancelled,
-            onTap: () => onChanged(_StatusFilter.cancelled),
-          ),
-          const SizedBox(width: 8),
-          _StatusChip(
-            label: 'Descartadas',
-            count: discardedCount,
-            isSelected: selected == _StatusFilter.discarded,
-            onTap: () => onChanged(_StatusFilter.discarded),
-          ),
-          const SizedBox(width: 8),
-          _StatusChip(
-            label: 'Todas',
-            count: allCount,
-            isSelected: selected == _StatusFilter.all,
-            onTap: () => onChanged(_StatusFilter.all),
-          ),
-        ],
+      return Container(
+        key: const Key('store-sales-filter-group'),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _SalesStatusTab(
+                label: 'Pendientes',
+                count: pendingCount,
+                isSelected: selected == _StatusFilter.pending,
+                onTap: () => onChanged(_StatusFilter.pending),
+              ),
+            ),
+            Expanded(
+              child: _SalesStatusTab(
+                label: 'Cotizadas',
+                count: quotedCount,
+                isSelected: selected == _StatusFilter.quoted,
+                onTap: () => onChanged(_StatusFilter.quoted),
+              ),
+            ),
+            Expanded(
+              child: _SalesStatusTab(
+                label: 'Canceladas',
+                count: cancelledCount,
+                isSelected: selected == _StatusFilter.cancelled,
+                onTap: () => onChanged(_StatusFilter.cancelled),
+              ),
+            ),
+            Expanded(
+              child: _SalesStatusTab(
+                label: 'Entregadas',
+                count: deliveredCount,
+                isSelected: selected == _StatusFilter.delivered,
+                showDivider: false,
+                onTap: () => onChanged(_StatusFilter.delivered),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
     return Row(
+      key: const Key('consumer-purchase-filter-group'),
       children: [
-        _StatusChip(
-          label: 'Todas',
-          count: allCount,
-          isSelected: selected == _StatusFilter.all,
-          onTap: () => onChanged(_StatusFilter.all),
-        ),
-        const SizedBox(width: 8),
         _StatusChip(
           label: 'Activas',
           count: activeCount,
@@ -664,17 +662,10 @@ class _StatusFilterChips extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         _StatusChip(
-          label: 'Con ofertas',
+          label: 'Cotizadas',
           count: quotedCount,
           isSelected: selected == _StatusFilter.quoted,
           onTap: () => onChanged(_StatusFilter.quoted),
-        ),
-        const SizedBox(width: 8),
-        _StatusChip(
-          label: 'Compradas',
-          count: boughtCount,
-          isSelected: selected == _StatusFilter.bought,
-          onTap: () => onChanged(_StatusFilter.bought),
         ),
         const SizedBox(width: 8),
         _StatusChip(
@@ -683,14 +674,88 @@ class _StatusFilterChips extends StatelessWidget {
           isSelected: selected == _StatusFilter.cancelled,
           onTap: () => onChanged(_StatusFilter.cancelled),
         ),
-        const SizedBox(width: 8),
-        _StatusChip(
-          label: 'Cerradas',
-          count: closedCount,
-          isSelected: selected == _StatusFilter.closed,
-          onTap: () => onChanged(_StatusFilter.closed),
-        ),
       ],
+    );
+  }
+}
+
+class _SalesStatusTab extends StatelessWidget {
+  final String label;
+  final int count;
+  final bool isSelected;
+  final bool showDivider;
+  final VoidCallback onTap;
+
+  const _SalesStatusTab({
+    required this.label,
+    required this.count,
+    required this.isSelected,
+    this.showDivider = true,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: '$label, $count',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            constraints: const BoxConstraints(minHeight: 64),
+            padding: const EdgeInsets.fromLTRB(3, 9, 3, 7),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppColors.primary.withValues(alpha: 0.08)
+                  : Colors.transparent,
+              border: Border(
+                right: showDivider
+                    ? const BorderSide(color: AppColors.border, width: 0.7)
+                    : BorderSide.none,
+                bottom: BorderSide(
+                  color: isSelected ? AppColors.primary : Colors.transparent,
+                  width: 3,
+                ),
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  label,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.visible,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 11.5,
+                    height: 1.05,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$count',
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 11,
+                    height: 1,
+                    fontWeight: FontWeight.w800,
+                    color:
+                        isSelected ? AppColors.primary : AppColors.textDisabled,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -720,6 +785,8 @@ class _StatusChip extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
+          constraints: const BoxConstraints(minHeight: 48),
+          alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           decoration: BoxDecoration(
             color: isSelected ? AppColors.primary : Colors.white,
@@ -728,8 +795,11 @@ class _StatusChip extends StatelessWidget {
               color: isSelected ? AppColors.primary : AppColors.border,
             ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 6,
+            runSpacing: 2,
             children: [
               Text(
                 label,
@@ -739,7 +809,6 @@ class _StatusChip extends StatelessWidget {
                   color: isSelected ? Colors.white : AppColors.textSecondary,
                 ),
               ),
-              const SizedBox(width: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                 decoration: BoxDecoration(

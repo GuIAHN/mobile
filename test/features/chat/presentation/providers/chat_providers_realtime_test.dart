@@ -106,7 +106,7 @@ void main() {
     when(
       () => getThreads(
         role: UserRole.consumer,
-        statusFilter: 'ALL',
+        statusFilter: 'OPEN',
       ),
     ).thenAnswer(
       (_) async => const Right(
@@ -200,7 +200,7 @@ void main() {
     verify(
       () => getThreads(
         role: UserRole.consumer,
-        statusFilter: 'ALL',
+        statusFilter: 'OPEN',
       ),
     ).called(1);
   });

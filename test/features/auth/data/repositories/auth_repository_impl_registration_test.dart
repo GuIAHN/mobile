@@ -3,7 +3,7 @@ import 'package:guiautomotriz_mobile/core/storage/secure_storage.dart';
 import 'package:guiautomotriz_mobile/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:guiautomotriz_mobile/features/auth/data/models/user_model.dart';
 import 'package:guiautomotriz_mobile/features/auth/data/repositories/auth_repository_impl.dart';
-import 'package:guiautomotriz_mobile/features/auth/domain/entities/store_category_config.dart';
+import 'package:guiautomotriz_mobile/features/auth/domain/entities/store_coverage_config.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockAuthRemoteDataSource extends Mock implements AuthRemoteDataSource {}
@@ -14,6 +14,17 @@ void main() {
   late _MockAuthRemoteDataSource remoteDataSource;
   late _MockSecureStorage secureStorage;
   late AuthRepositoryImpl repository;
+
+  setUpAll(() {
+    registerFallbackValue(
+      const StoreCoverageConfig(
+        servesAllBrands: false,
+        brandIds: [],
+        sparePartsTypes: [],
+        subcategoryIds: [],
+      ),
+    );
+  });
 
   setUp(() {
     remoteDataSource = _MockAuthRemoteDataSource();
@@ -41,7 +52,7 @@ void main() {
         longitude: any(named: 'longitude'),
         address: any(named: 'address'),
         rif: any(named: 'rif'),
-        catalog: any(named: 'catalog'),
+        coverage: any(named: 'coverage'),
         hasDelivery: any(named: 'hasDelivery'),
         idToken: any(named: 'idToken'),
         provider: any(named: 'provider'),
@@ -60,13 +71,12 @@ void main() {
       longitude: -66.9036,
       address: 'Caracas',
       rif: 'J123456789',
-      catalog: const [
-        StoreCategoryConfig(
-          subcategoryId: 'category-id',
-          brandIds: ['brand-id'],
-          sparePartsTypes: ['ORIGINAL'],
-        ),
-      ],
+      coverage: const StoreCoverageConfig(
+        servesAllBrands: false,
+        subcategoryIds: ['category-id'],
+        brandIds: ['brand-id'],
+        sparePartsTypes: ['ORIGINAL'],
+      ),
       hasDelivery: true,
       acceptedTerms: true,
       rifPhotoPath: '/tmp/rif.jpg',

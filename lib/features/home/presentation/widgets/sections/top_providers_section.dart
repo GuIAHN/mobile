@@ -13,6 +13,7 @@ import '../../../../../core/router/route_names.dart';
 import '../../../domain/entities/home_item.dart';
 import '../../providers/home_providers.dart';
 import '../icon_mapper.dart';
+import '../provider_photo.dart';
 import '../../../../../shared/widgets/section_header.dart';
 import '../../../../chat/presentation/widgets/_atoms/card_tokens.dart';
 
@@ -536,7 +537,17 @@ class _WorkshopProviderMedia extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          _ProviderPhoto(photo: item.photo, fallback: fallback),
+          Hero(
+            tag: 'provider-avatar-$id',
+            child: ProviderPhoto(
+              photoUrl: item.photo,
+              providerName: item.name,
+              isWorkshop: true,
+              previewKey: Key('top-provider-workshop-preview-$id'),
+              networkKey: Key('top-provider-workshop-network-$id'),
+              fallback: fallback,
+            ),
+          ),
           Positioned(
             left: 12,
             right: 12,
@@ -575,30 +586,18 @@ class _MechanicProviderMedia extends StatelessWidget {
           key: Key('top-provider-mechanic-avatar-$id'),
           width: 76,
           height: 76,
-          child: _ProviderPhoto(photo: item.photo, fallback: fallback),
+          child: Hero(
+            tag: 'provider-avatar-$id',
+            child: ProviderPhoto(
+              photoUrl: item.photo,
+              providerName: item.name,
+              isWorkshop: false,
+              networkKey: Key('top-provider-mechanic-network-$id'),
+              fallback: fallback,
+            ),
+          ),
         ),
       ),
-    );
-  }
-}
-
-class _ProviderPhoto extends StatelessWidget {
-  final String? photo;
-  final Widget fallback;
-
-  const _ProviderPhoto({required this.photo, required this.fallback});
-
-  @override
-  Widget build(BuildContext context) {
-    if (photo == null || photo!.isEmpty) return fallback;
-
-    return Image.network(
-      photo!,
-      fit: BoxFit.cover,
-      alignment: Alignment.center,
-      loadingBuilder: (context, child, progress) =>
-          progress == null ? child : fallback,
-      errorBuilder: (_, __, ___) => fallback,
     );
   }
 }
@@ -657,8 +656,6 @@ class _AvailabilityPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (isOpen == null) return const SizedBox.shrink();
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -678,15 +675,15 @@ class _AvailabilityLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (isOpen == null) return const SizedBox.shrink();
-
-    final color = switch (isOpen!) {
+    final color = switch (isOpen) {
       true => AppColors.successInk,
       false => AppColors.textMeta,
+      null => AppColors.textMeta,
     };
-    final label = switch (isOpen!) {
+    final label = switch (isOpen) {
       true => 'Abierto',
       false => 'Cerrado',
+      null => 'Horario no disponible',
     };
 
     return Row(

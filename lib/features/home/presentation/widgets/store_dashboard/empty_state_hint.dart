@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'app_tokens.dart';
+
+import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_spacing.dart';
+import '../../../../../core/theme/app_typography.dart';
 
 class EmptyStateHint extends StatelessWidget {
   final String message;
@@ -16,32 +19,36 @@ class EmptyStateHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
-        color: AppTokens.accentSoft,
-        borderRadius: BorderRadius.circular(10),
+        color: AppColors.primaryMuted,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
       ),
       child: Row(
         children: [
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppTokens.accentDark,
-                height: 1.4,
+              style: AppTypography.bodySm.copyWith(
+                color: AppColors.primaryInk,
               ),
             ),
           ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: onAction,
+          const SizedBox(width: AppSpacing.sm),
+          TextButton(
+            onPressed: onAction,
+            style: TextButton.styleFrom(
+              minimumSize: const Size(48, 48),
+              foregroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            ),
             child: Text(
               '$actionLabel →',
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppTokens.accent,
+              style: AppTypography.label.copyWith(
+                color: AppColors.primary,
               ),
             ),
           ),

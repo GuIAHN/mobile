@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:flutter_svg/flutter_svg.dart';
-
 import '../../../../../../core/theme/app_colors.dart';
+import '../../../../../../core/theme/app_decorations.dart';
+import '../../../../../../core/theme/app_icons.dart';
+import '../../../../../../core/theme/app_spacing.dart';
+import '../../../../../../core/theme/app_typography.dart';
 import '../../../../../../shared/widgets/empty_state.dart';
+import '../../../../../../shared/widgets/dashboard/dashboard.dart';
 import '../../../../../../shared/widgets/skeleton_loader.dart';
+import '../../../../../../shared/widgets/staggered_entrance.dart';
 import '../../../../reports/presentation/providers/reports_provider.dart';
 import '../../../../reports/domain/entities/store_dashboard.dart';
-import 'metric_card.dart';
-import 'store_funnel_chart.dart';
-import 'section_header.dart';
 import 'billing_balance_card.dart';
 
 class StoreDashboardView extends ConsumerWidget {
@@ -21,10 +22,10 @@ class StoreDashboardView extends ConsumerWidget {
     final dashboardAsync = ref.watch(storeDashboardProvider);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl2),
       child: dashboardAsync.when(
         data: (dashboard) => _buildDashboard(context, ref, dashboard),
-        loading: () => _buildLoadingState(),
+        loading: () => _buildLoadingState(context),
         error: (err, stack) => _buildErrorState(context, err, ref),
       ),
     );
@@ -47,7 +48,7 @@ class StoreDashboardView extends ConsumerWidget {
     final outstandingBalanceMetric = dashboard.metricById('M-T10');
     final outstandingBalance = _metricValue(outstandingBalanceMetric);
 
-    List<FunnelStep> funnelSteps = [];
+    List<DashboardFunnelStep> funnelSteps = [];
     if (funnelMetric != null) {
       final stagesRaw = funnelMetric.payload['stages'] as List<dynamic>? ?? [];
       final stages = stagesRaw.cast<Map<String, dynamic>>();
@@ -56,35 +57,99 @@ class StoreDashboardView extends ConsumerWidget {
         final label = stage['label'] as String? ?? '';
         final key = stage['key'] as String? ?? '';
 
-        Color stepColor = const Color(0xFF3A86FF); // Enviadas (Azul)
+        Color stepColor = AppColors.tertiary;
         if (key == 'BOUGHT') {
-          stepColor = const Color(0xFFF25C05); // Compradas (Naranja)
+          stepColor = AppColors.primary;
         }
         if (key == 'DELIVERED') {
-          stepColor = const Color(0xFF10B981); // Entregadas (Verde)
+          stepColor = AppColors.successInk;
         }
         if (key == 'DISCARDED') {
-          stepColor = const Color(0xFF9CA3AF); // Descartadas (Gris)
+          stepColor = AppColors.textMeta;
         }
 
         funnelSteps.add(
-            FunnelStep(name: label, count: value.toInt(), color: stepColor));
+          DashboardFunnelStep(
+            name: label,
+            count: value.toInt(),
+            color: stepColor,
+          ),
+        );
       }
     }
 
     final currentDays =
         ref.watch(storeDashboardFilterProvider.notifier).currentDays;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+    final metrics = <Widget>[
+      DashboardMetricCard(
+        key: const Key('store-kpi-sales'),
+        label: 'Ventas',
+        value: _currencyDisplayValue(salesMetric),
+        icon: AppIcons.sales,
+        accentColor: AppColors.successInk,
+        deltaPct: _deltaValue(salesMetric),
+      ),
+      DashboardMetricCard(
+        key: const Key('store-kpi-opportunities'),
+        label: 'Oportunidades',
+        value: _displayValue(opportunitiesMetric),
+        icon: AppIcons.opportunity,
+        accentColor: AppColors.tertiary,
+        deltaPct: _deltaValue(opportunitiesMetric),
+      ),
+      DashboardMetricCard(
+        key: const Key('store-kpi-quotes'),
+        label: 'Cotizaciones',
+        value: _displayValue(quotesMetric),
+        icon: AppIcons.send,
+        accentColor: AppColors.primary,
+        deltaPct: _deltaValue(quotesMetric),
+      ),
+      DashboardMetricCard(
+        key: const Key('store-kpi-conversion'),
+        label: 'Conversión',
+        value: _percentageValue(conversionMetric),
+        icon: AppIcons.conversion,
+        accentColor: AppColors.celesteInk,
+        deltaPct: _deltaValue(conversionMetric),
+      ),
+      DashboardMetricCard(
+        key: const Key('store-kpi-cancellation'),
+        label: 'Cancelación',
+        value: _percentageValue(
+          cancellationMetric,
+          forceOneDecimal: true,
+        ),
+        icon: AppIcons.cancellation,
+        accentColor: AppColors.errorInk,
+      ),
+      DashboardMetricCard(
+        key: const Key('store-kpi-declined'),
+        label: 'Declinadas',
+        value: _percentageValue(
+          declineMetric,
+          forceOneDecimal: true,
+        ),
+        icon: AppIcons.declined,
+        accentColor: AppColors.warningInk,
+      ),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          BillingBalanceCard(amount: outstandingBalance),
-          const SizedBox(height: 20),
-          SectionHeader(
-            title: 'Resumen de Actividad',
-            trailing: PeriodSelector(
+          StaggeredEntrance(
+            index: 0,
+            child: BillingBalanceCard(amount: outstandingBalance),
+          ),
+          const SizedBox(height: AppSpacing.xl2),
+          DashboardSectionHeader(
+            title: 'Resumen de actividad',
+            subtitle: '6 indicadores del período',
+            trailing: DashboardPeriodSelector(
               label: '$currentDays días',
               onTap: () async {
                 final days = await showDashboardPeriodBottomSheet(
@@ -97,128 +162,35 @@ class StoreDashboardView extends ConsumerWidget {
               },
             ),
           ),
-          const SizedBox(height: 12),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: EdgeInsets.zero,
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.4,
-            children: [
-              if (salesMetric != null)
-                MetricCard(
-                  label: 'Ventas',
-                  value: '\$ ${salesMetric.payload['value'] ?? '0.00'}',
-                  icon: SvgPicture.string(
-                    _svgDollarSign,
-                    width: 18,
-                    height: 18,
-                    colorFilter: const ColorFilter.mode(
-                        Color(0xFF059669), BlendMode.srcIn),
-                  ),
-                  themeColor: const Color(0xFF059669),
-                  iconColor: const Color(0xFF059669),
-                  iconBgColor: const Color(0xFFECFDF5),
-                  deltaPct: salesMetric.payload['deltaPct'] != null
-                      ? (salesMetric.payload['deltaPct'] as num).toDouble()
-                      : null,
-                ),
-              if (opportunitiesMetric != null)
-                MetricCard(
-                  label: 'Oportunidades',
-                  value: '${opportunitiesMetric.payload['value'] ?? 0}',
-                  icon: SvgPicture.string(
-                    _svgTarget,
-                    width: 18,
-                    height: 18,
-                    colorFilter: const ColorFilter.mode(
-                        Color(0xFF7C3AED), BlendMode.srcIn),
-                  ),
-                  themeColor: const Color(0xFF7C3AED),
-                  iconColor: const Color(0xFF7C3AED),
-                  iconBgColor: const Color(0xFFF5F3FF),
-                  deltaPct: opportunitiesMetric.payload['deltaPct'] != null
-                      ? (opportunitiesMetric.payload['deltaPct'] as num)
-                          .toDouble()
-                      : null,
-                ),
-              if (quotesMetric != null)
-                MetricCard(
-                  label: 'Cotizaciones',
-                  value: '${quotesMetric.payload['value'] ?? 0}',
-                  icon: SvgPicture.string(
-                    _svgSend,
-                    width: 18,
-                    height: 18,
-                    colorFilter: const ColorFilter.mode(
-                        AppColors.primary, BlendMode.srcIn),
-                  ),
-                  themeColor: AppColors.primary,
-                  iconColor: AppColors.primary,
-                  iconBgColor: AppColors.primaryMuted,
-                  deltaPct: quotesMetric.payload['deltaPct'] != null
-                      ? (quotesMetric.payload['deltaPct'] as num).toDouble()
-                      : null,
-                ),
-              if (conversionMetric != null)
-                MetricCard(
-                  label: 'Conversión',
-                  value: '${conversionMetric.payload['value'] ?? 0}%',
-                  icon: SvgPicture.string(
-                    _svgTrendingUp,
-                    width: 18,
-                    height: 18,
-                    colorFilter: const ColorFilter.mode(
-                        Color(0xFF0D9488), BlendMode.srcIn),
-                  ),
-                  themeColor: const Color(0xFF0D9488),
-                  iconColor: const Color(0xFF0D9488),
-                  iconBgColor: const Color(0xFFF0FDFA),
-                  deltaPct: conversionMetric.payload['deltaPct'] != null
-                      ? (conversionMetric.payload['deltaPct'] as num).toDouble()
-                      : null,
-                ),
-              if (cancellationMetric != null)
-                MetricCard(
-                  label: 'Cancelación',
-                  value: _percentageValue(cancellationMetric),
-                  icon: const Icon(
-                    Icons.block_rounded,
-                    size: 20,
-                    color: AppColors.errorInk,
-                  ),
-                  themeColor: AppColors.error,
-                  iconColor: AppColors.errorInk,
-                  iconBgColor: AppColors.errorLight,
-                ),
-              if (declineMetric != null)
-                MetricCard(
-                  label: 'Declinadas',
-                  value: _percentageValue(declineMetric),
-                  icon: const Icon(
-                    Icons.remove_circle_outline_rounded,
-                    size: 20,
-                    color: Color(0xFF7C3AED),
-                  ),
-                  themeColor: const Color(0xFF7C3AED),
-                  iconColor: const Color(0xFF7C3AED),
-                  iconBgColor: const Color(0xFFF5F3FF),
-                ),
-            ],
+          const SizedBox(height: AppSpacing.md),
+          StaggeredEntrance(
+            index: 1,
+            child: DashboardMetricGrid(children: metrics),
           ),
-          const SizedBox(height: 12),
-          const SectionHeader(title: 'Flujo de Ventas'),
-          const SizedBox(height: 12),
-          if (funnelSteps.isNotEmpty) StoreFunnelChart(steps: funnelSteps),
-          if (declineReasonsMetric != null) ...[
-            const SizedBox(height: 20),
-            const SectionHeader(title: 'Motivos de solicitudes declinadas'),
-            const SizedBox(height: 12),
-            _DeclineReasonsCard(metric: declineReasonsMetric),
-          ],
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xl2),
+          const DashboardSectionHeader(
+            title: 'Flujo de ventas',
+            subtitle: 'Avance por etapa del proceso',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          StaggeredEntrance(
+            index: 2,
+            child: DashboardFunnelChart(
+              steps: funnelSteps,
+              emptyMessage:
+                  'Aún no hay movimientos en el flujo de ventas para este período.',
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl2),
+          const DashboardSectionHeader(
+            title: 'Motivos de solicitudes declinadas',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          StaggeredEntrance(
+            index: 3,
+            child: _DeclineReasonsCard(metric: declineReasonsMetric),
+          ),
+          const SizedBox(height: AppSpacing.xl3),
         ],
       ),
     );
@@ -233,46 +205,79 @@ class StoreDashboardView extends ConsumerWidget {
     return null;
   }
 
-  String _percentageValue(MetricResult metric) {
-    final value = metric.payload['value'];
-    if (value == null) return '—';
-    if (value is num) return '${value.toStringAsFixed(1)}%';
+  String _displayValue(MetricResult? metric) {
+    if (!_hasDisplayValue(metric)) return '—';
+    return '${metric!.payload['value']}';
+  }
+
+  String _currencyDisplayValue(MetricResult? metric) {
+    final value = _displayValue(metric);
+    return value == '—' ? value : '\$ $value';
+  }
+
+  String _percentageValue(
+    MetricResult? metric, {
+    bool forceOneDecimal = false,
+  }) {
+    if (!_hasDisplayValue(metric)) return '—';
+    final value = metric!.payload['value'];
+    if (value is num) {
+      return forceOneDecimal ? '${value.toStringAsFixed(1)}%' : '$value%';
+    }
     return '$value%';
   }
 
-  Widget _buildLoadingState() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 16),
-        const SkeletonBox(
-          key: Key('store-billing-balance-skeleton'),
-          height: 136,
-          width: double.infinity,
-          borderRadius: 20,
-        ),
-        const SizedBox(height: 20),
-        const Center(child: CircularProgressIndicator()),
-        const SizedBox(height: 24),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          padding: EdgeInsets.zero,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.1,
-          children: List.generate(
-              4,
-              (_) => const SkeletonBox(
-                  height: 120, width: double.infinity, borderRadius: 20)),
-        ),
-        const SizedBox(height: 24),
-        const SkeletonBox(height: 24, width: 180),
-        const SizedBox(height: 16),
-        const SkeletonBox(
-            height: 200, width: double.infinity, borderRadius: 20),
-      ],
+  bool _hasDisplayValue(MetricResult? metric) {
+    return metric != null &&
+        metric.availability != 'BLOCKED' &&
+        metric.payload['value'] != null;
+  }
+
+  double? _deltaValue(MetricResult? metric) {
+    if (metric == null || metric.availability == 'BLOCKED') return null;
+    final delta = metric.payload['deltaPct'];
+    return delta is num ? delta.toDouble() : null;
+  }
+
+  Widget _buildLoadingState(BuildContext context) {
+    return TickerMode(
+      enabled: !MediaQuery.disableAnimationsOf(context),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(height: AppSpacing.sm),
+          SkeletonBox(
+            key: Key('store-billing-balance-skeleton'),
+            height: 184,
+            width: double.infinity,
+            borderRadius: AppSpacing.radiusXl,
+          ),
+          SizedBox(height: AppSpacing.xl2),
+          SkeletonBox(height: 24, width: 208, borderRadius: 8),
+          SizedBox(height: AppSpacing.md),
+          DashboardMetricSkeletonGrid(
+            itemCount: 6,
+            keyPrefix: 'store-kpi-skeleton',
+          ),
+          SizedBox(height: AppSpacing.xl2),
+          SkeletonBox(height: 24, width: 156, borderRadius: 8),
+          SizedBox(height: AppSpacing.md),
+          SkeletonBox(
+            height: 220,
+            width: double.infinity,
+            borderRadius: AppSpacing.radiusLg,
+          ),
+          SizedBox(height: AppSpacing.xl2),
+          SkeletonBox(height: 24, width: 244, borderRadius: 8),
+          SizedBox(height: AppSpacing.md),
+          SkeletonBox(
+            height: 96,
+            width: double.infinity,
+            borderRadius: AppSpacing.radiusLg,
+          ),
+          SizedBox(height: AppSpacing.xl3),
+        ],
+      ),
     );
   }
 
@@ -289,13 +294,13 @@ class StoreDashboardView extends ConsumerWidget {
       final minSample = status.minSample?.toStringAsFixed(0) ?? '—';
 
       return Padding(
-        padding: const EdgeInsets.only(top: 32),
+        padding: const EdgeInsets.only(top: AppSpacing.xl3),
         child: EmptyState(
           title: 'Dashboard temporalmente bloqueado',
           subtitle: '${error.message}\n\n'
               'Mediana: $median min · Límite: $threshold min\n'
               'Muestra: $sample de $minSample respuestas requeridas',
-          icon: Icons.speed_rounded,
+          icon: AppIcons.dashboard,
           action: ElevatedButton.icon(
             onPressed: () async {
               try {
@@ -322,7 +327,10 @@ class StoreDashboardView extends ConsumerWidget {
                 );
               }
             },
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const AppLineIcon(
+              AppIcons.retry,
+              size: AppIconSize.action,
+            ),
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(48, 48),
               backgroundColor: AppColors.primary,
@@ -335,18 +343,23 @@ class StoreDashboardView extends ConsumerWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(top: 32.0),
+      padding: const EdgeInsets.only(top: AppSpacing.xl3),
       child: EmptyState(
         title: 'Error al cargar dashboard',
-        subtitle: error.toString(),
-        icon: Icons.error_outline_rounded,
-        action: ElevatedButton(
+        subtitle: 'Revisa tu conexión e inténtalo de nuevo.',
+        icon: AppIcons.connectivityError,
+        action: ElevatedButton.icon(
           onPressed: () => ref.invalidate(storeDashboardProvider),
           style: ElevatedButton.styleFrom(
+            minimumSize: const Size(48, 48),
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
           ),
-          child: const Text('Reintentar'),
+          icon: const AppLineIcon(
+            AppIcons.retry,
+            size: AppIconSize.action,
+          ),
+          label: const Text('Reintentar'),
         ),
       ),
     );
@@ -354,131 +367,270 @@ class StoreDashboardView extends ConsumerWidget {
 }
 
 class _DeclineReasonsCard extends StatelessWidget {
-  final MetricResult metric;
-
   const _DeclineReasonsCard({required this.metric});
+
+  static const _chartColors = [
+    AppColors.primary,
+    AppColors.tertiary,
+    AppColors.successInk,
+    AppColors.warningInk,
+    AppColors.celesteInk,
+  ];
+
+  final MetricResult? metric;
 
   @override
   Widget build(BuildContext context) {
-    final rawSlices = metric.payload['slices'] as List<dynamic>? ?? const [];
+    final rawSlices =
+        metric?.payload['slices'] as List<dynamic>? ?? const <dynamic>[];
     final slices = rawSlices.whereType<Map<String, dynamic>>().toList();
-    final rawTotal = metric.payload['total'];
+    final rawTotal = metric?.payload['total'];
     final total = rawTotal is num
         ? rawTotal.toDouble()
         : slices.fold<double>(
             0,
             (sum, item) => sum + ((item['y'] as num?)?.toDouble() ?? 0),
           );
+    final reasons = [
+      for (var index = 0; index < slices.length; index++)
+        _DeclineReason(
+          label: slices[index]['label'] as String? ??
+              slices[index]['x']?.toString() ??
+              'Otro',
+          count: (slices[index]['y'] as num?)?.toInt() ?? 0,
+          color: _chartColors[index % _chartColors.length],
+        ),
+    ];
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.surface,
+        borderRadius: AppDecorations.card,
         border: Border.all(color: AppColors.border),
+        boxShadow: AppDecorations.soft,
       ),
-      child: slices.isEmpty
-          ? const Text(
-              'Aún no hay solicitudes declinadas en este período.',
-              style: TextStyle(color: AppColors.textSecondary),
+      child: reasons.isEmpty
+          ? Semantics(
+              container: true,
+              label: metric == null
+                  ? 'Los motivos de solicitudes declinadas no están disponibles'
+                  : 'Aún no hay solicitudes declinadas en este período',
+              child: ExcludeSemantics(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const AppLineIcon(
+                      AppIcons.declined,
+                      size: AppIconSize.leading,
+                      color: AppColors.textMeta,
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Text(
+                        metric == null
+                            ? 'Los motivos no están disponibles en este momento.'
+                            : 'Aún no hay solicitudes declinadas en este período.',
+                        style: AppTypography.bodySm,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             )
-          : Column(
-              children: [
-                for (var index = 0; index < slices.length; index++) ...[
-                  _DeclineReasonRow(
-                    label: slices[index]['label'] as String? ??
-                        slices[index]['x']?.toString() ??
-                        'Otro',
-                    count: (slices[index]['y'] as num?)?.toInt() ?? 0,
-                    total: total,
-                  ),
-                  if (index != slices.length - 1) const SizedBox(height: 14),
-                ],
-              ],
-            ),
+          : _DeclineReasonsVisualization(reasons: reasons, total: total),
     );
   }
 }
 
-class _DeclineReasonRow extends StatelessWidget {
-  final String label;
-  final int count;
-  final double total;
-
-  const _DeclineReasonRow({
+class _DeclineReason {
+  const _DeclineReason({
     required this.label,
     required this.count,
+    required this.color,
+  });
+
+  final String label;
+  final int count;
+  final Color color;
+}
+
+class _DeclineReasonsVisualization extends StatelessWidget {
+  const _DeclineReasonsVisualization({
+    required this.reasons,
     required this.total,
   });
 
+  final List<_DeclineReason> reasons;
+  final double total;
+
   @override
   Widget build(BuildContext context) {
-    final ratio = total > 0 ? count / total : 0.0;
+    final totalText = total == total.roundToDouble()
+        ? total.toInt().toString()
+        : total.toStringAsFixed(1);
+    final summary = reasons
+        .map(
+          (reason) =>
+              '${reason.label}, ${reason.count}, ${_percentage(reason.count, total)} por ciento',
+        )
+        .join('. ');
+
     return Semantics(
-      label: '$label, $count, ${(ratio * 100).toStringAsFixed(0)} por ciento',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+      container: true,
+      label: '$totalText solicitudes declinadas. $summary.',
+      child: ExcludeSemantics(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+            final showDistributionChart = reasons.length <= 5;
+            final stackContent = constraints.maxWidth < 270 || textScale > 1.3;
+            final legend = _DeclineReasonsLegend(
+              reasons: reasons,
+              total: total,
+            );
+
+            if (!showDistributionChart) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    totalText,
+                    style: AppTypography.display.copyWith(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
                   ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text('SOLICITUDES DECLINADAS', style: AppTypography.overline),
+                  const SizedBox(height: AppSpacing.xl),
+                  legend,
+                ],
+              );
+            }
+
+            final chart = DashboardRadialChart(
+              key: const Key('decline-reasons-distribution-chart'),
+              size: 128,
+              strokeWidth: 14,
+              maxValue: total <= 0 ? 1 : total,
+              segments: [
+                for (final reason in reasons)
+                  DashboardRadialSegment(
+                    value: reason.count.toDouble(),
+                    color: reason.color,
+                  ),
+              ],
+              semanticLabel: 'Distribución de motivos declinados. $summary',
+              center: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    totalText,
+                    maxLines: 1,
+                    style: AppTypography.display.copyWith(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'DECLINADAS',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.overline.copyWith(
+                      color: AppColors.textMeta,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ],
+              ),
+            );
+
+            if (stackContent) {
+              return Column(
+                children: [
+                  chart,
+                  const SizedBox(height: AppSpacing.xl),
+                  legend,
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                chart,
+                const SizedBox(width: AppSpacing.xl),
+                Expanded(child: legend),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  static int _percentage(int count, double total) {
+    return total <= 0 ? 0 : ((count / total) * 100).round();
+  }
+}
+
+class _DeclineReasonsLegend extends StatelessWidget {
+  const _DeclineReasonsLegend({
+    required this.reasons,
+    required this.total,
+  });
+
+  final List<_DeclineReason> reasons;
+  final double total;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (var index = 0; index < reasons.length; index++) ...[
+          if (index > 0) const SizedBox(height: AppSpacing.lg),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: AppSpacing.sm,
+                height: AppSpacing.sm,
+                margin: const EdgeInsets.only(top: AppSpacing.xs),
+                decoration: BoxDecoration(
+                  color: reasons[index].color,
+                  shape: BoxShape.circle,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(reasons[index].label, style: AppTypography.label),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      '${_percentage(reasons[index].count)}% del total',
+                      style: AppTypography.meta.copyWith(
+                        color: AppColors.textMeta,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
               Text(
-                '$count',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                '${reasons[index].count}',
+                style: AppTypography.title.copyWith(
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 7),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(
-              value: ratio.clamp(0, 1),
-              minHeight: 7,
-              color: AppColors.primary,
-              backgroundColor: AppColors.primaryMuted,
-            ),
-          ),
         ],
-      ),
+      ],
     );
   }
+
+  int _percentage(int count) {
+    return total <= 0 ? 0 : ((count / total) * 100).round();
+  }
 }
-
-// Lucide SVG Icons constants
-const _svgDollarSign =
-    '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <line x1="12" y1="1" x2="12" y2="23"></line>
-  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-</svg>''';
-
-const _svgTarget =
-    '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <circle cx="12" cy="12" r="10"></circle>
-  <circle cx="12" cy="12" r="6"></circle>
-  <circle cx="12" cy="12" r="2"></circle>
-</svg>''';
-
-const _svgSend =
-    '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <line x1="22" y1="2" x2="11" y2="13"></line>
-  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-</svg>''';
-
-const _svgTrendingUp =
-    '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-  <polyline points="17 6 23 6 23 12"></polyline>
-</svg>''';

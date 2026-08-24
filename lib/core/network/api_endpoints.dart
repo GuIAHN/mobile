@@ -32,7 +32,7 @@ abstract class ApiEndpoints {
   static const String storeSearchRequests = 'stores/me/search-requests';
   static String storeSearchRequestDecline(String searchMatchId) =>
       'stores/me/search-requests/$searchMatchId/decline';
-  static const String storeOwnCategories = 'stores/me/categories';
+  static const String storeOwnCoverage = 'stores/me/coverage';
 
   // ── Home / Dashboard ──────────────────────────────────────────────────────
   static const String dashboard = 'dashboard';

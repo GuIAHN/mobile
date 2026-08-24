@@ -1,7 +1,7 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/user.dart';
-import '../entities/store_category_config.dart';
+import '../entities/store_coverage_config.dart';
 
 /// Authentication repository contract (pure domain).
 /// The implementation resides in the data layer.
@@ -61,7 +61,7 @@ abstract class AuthRepository {
     required double longitude,
     required String address,
     required String rif,
-    required List<StoreCategoryConfig> catalog,
+    required StoreCoverageConfig coverage,
     required bool hasDelivery,
     String? idToken,
     String? provider,

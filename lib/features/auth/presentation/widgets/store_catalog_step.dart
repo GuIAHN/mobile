@@ -1,128 +1,219 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../core/theme/app_colors.dart';
-import '../../../../shared/widgets/catalog_summary_card.dart';
 import '../../../catalog/domain/entities/category.dart';
+import '../../../catalog/domain/entities/category_node.dart';
+import '../../../catalog/presentation/providers/catalog_providers.dart';
 import 'store_catalog_helper.dart';
 
-class StoreCatalogStep extends StatelessWidget {
-  final List<LineaCatalogo> catalogo;
-  final ValueChanged<LineaCatalogo> onAbrirSheetMarcas;
-  final VoidCallback onAgregarSubcategoria;
-
+class StoreCatalogStep extends ConsumerWidget {
   const StoreCatalogStep({
     super.key,
     required this.catalogo,
-    required this.onAbrirSheetMarcas,
-    required this.onAgregarSubcategoria,
+    required this.onSubcategoryToggled,
   });
 
+  final List<LineaCatalogo> catalogo;
+  final void Function(Category category, Category subcategory)
+      onSubcategoryToggled;
+
+  bool _isSelected(String id) => catalogo.any((line) => line.category.id == id);
+
+  List<CategoryNode> _descendants(CategoryNode root) {
+    final result = <CategoryNode>[];
+    void collect(CategoryNode node) {
+      for (final child in node.children) {
+        result.add(child);
+        collect(child);
+      }
+    }
+
+    collect(root);
+    return result;
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final treeAsync = ref.watch(categoryTreeProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 16, top: 4),
-          child: Text(
-            'SUBCATEGORÍAS QUE MANEJA TU TIENDA',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.5,
-              color: AppColors.textSecondary,
-            ),
+        Text(
+          'CATEGORÍAS Y SUBCATEGORÍAS',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.5,
+            color: AppColors.textSecondary,
           ),
         ),
-        if (catalogo.isEmpty) const _EmptyCatalogState(),
-        ...catalogo.map((linea) {
-          final cat = linea.category;
-          return _CardCategoria(
-            category: cat,
-            linea: linea,
-            onTap: () => onAbrirSheetMarcas(linea),
-          );
-        }),
-        const SizedBox(height: 4),
-        Semantics(
-          button: true,
-          label: 'Agregar una subcategoría al catálogo de la tienda',
-          child: OutlinedButton.icon(
-            key: const Key('add-store-subcategory'),
-            onPressed: onAgregarSubcategoria,
-            icon: const Icon(Icons.add_rounded, size: 22),
-            label: Text(
-              catalogo.isEmpty
-                  ? 'SELECCIONAR SUBCATEGORÍA'
-                  : 'AGREGAR OTRA SUBCATEGORÍA',
-            ),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(52),
-              foregroundColor: AppColors.primary,
-              side: const BorderSide(color: AppColors.primary, width: 1.5),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(32),
-              ),
-              textStyle: GoogleFonts.hankenGrotesk(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.1,
-              ),
-            ),
+        const SizedBox(height: 8),
+        Text(
+          'Abre una categoría y selecciona todas las subcategorías que maneja tu tienda.',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 13.5,
+            height: 1.45,
+            color: AppColors.textSecondary,
           ),
+        ),
+        const SizedBox(height: 16),
+        treeAsync.when(
+          loading: () => const _CatalogState.loading(),
+          error: (_, __) => _CatalogState.error(
+            onRetry: () => ref.invalidate(categoryTreeProvider),
+          ),
+          data: (roots) => roots.isEmpty
+              ? const _CatalogState.empty()
+              : Column(
+                  children: roots.map((root) {
+                    final descendants = _descendants(root);
+                    final selectedCount = descendants
+                        .where((node) => _isSelected(node.id))
+                        .length;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _CategoryAccordion(
+                        root: root,
+                        descendants: descendants,
+                        selectedCount: selectedCount,
+                        isSelected: _isSelected,
+                        onToggle: (node) => onSubcategoryToggled(
+                          Category(id: root.id, name: root.name),
+                          Category(
+                            id: node.id,
+                            name: node.name,
+                            parentId: node.parentId,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
         ),
       ],
     );
   }
 }
 
-/* ───────────────── Widgets de Soporte Local ───────────────── */
-
-class _CardCategoria extends StatelessWidget {
-  final Category category;
-  final LineaCatalogo? linea;
-  final VoidCallback onTap;
-
-  const _CardCategoria({
-    required this.category,
-    required this.linea,
-    required this.onTap,
+class _CategoryAccordion extends StatelessWidget {
+  const _CategoryAccordion({
+    required this.root,
+    required this.descendants,
+    required this.selectedCount,
+    required this.isSelected,
+    required this.onToggle,
   });
+
+  final CategoryNode root;
+  final List<CategoryNode> descendants;
+  final int selectedCount;
+  final bool Function(String id) isSelected;
+  final ValueChanged<CategoryNode> onToggle;
 
   @override
   Widget build(BuildContext context) {
-    final marcas = linea?.brands ?? {};
-    final sparePartTypes = linea?.sparePartsTypes ?? {};
-    final configured = marcas.isNotEmpty && sparePartTypes.isNotEmpty;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: CatalogSummaryCard(
-        key: ValueKey('store-catalog-category-${category.id}'),
-        title: category.name,
-        icon: getCategoryIcon(category.name),
-        brandSummary: marcas.isEmpty
-            ? 'Sin marcas seleccionadas'
-            : '${marcas.length} ${marcas.length == 1 ? 'marca' : 'marcas'}',
-        sparePartTypes: sparePartTypes,
-        configured: configured,
-        actionLabel: configured ? 'Editar' : 'Configurar',
-        onTap: onTap,
+    return Material(
+      color: Colors.white,
+      elevation: 1,
+      shadowColor: Colors.black.withValues(alpha: 0.08),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: selectedCount > 0 ? AppColors.primary : AppColors.border,
+          width: selectedCount > 0 ? 1.5 : 1,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        key: PageStorageKey('store-category-${root.id}'),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+        iconColor: AppColors.primary,
+        collapsedIconColor: AppColors.textSecondary,
+        leading: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: AppColors.primaryMuted,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(
+            getCategoryIcon(root.name),
+            color: AppColors.primary,
+            size: 24,
+          ),
+        ),
+        title: Text(
+          root.name,
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        subtitle: Text(
+          selectedCount == 0
+              ? '${descendants.length} disponibles'
+              : '$selectedCount seleccionadas',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color:
+                selectedCount > 0 ? AppColors.primary : AppColors.textSecondary,
+          ),
+        ),
+        children: descendants.map((node) {
+          final selected = isSelected(node.id);
+          return CheckboxListTile(
+            key: Key('store-subcategory-${node.id}'),
+            value: selected,
+            onChanged: (_) => onToggle(node),
+            controlAffinity: ListTileControlAffinity.trailing,
+            activeColor: AppColors.primary,
+            checkboxShape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(5),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+            title: Text(
+              node.name,
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 14,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 }
 
-class _EmptyCatalogState extends StatelessWidget {
-  const _EmptyCatalogState();
+class _CatalogState extends StatelessWidget {
+  const _CatalogState.loading()
+      : message = 'Cargando categorías…',
+        icon = null,
+        onRetry = null;
+  const _CatalogState.empty()
+      : message = 'No hay categorías disponibles.',
+        icon = Icons.inventory_2_outlined,
+        onRetry = null;
+  const _CatalogState.error({required this.onRetry})
+      : message = 'No pudimos cargar las categorías.',
+        icon = Icons.cloud_off_outlined;
+
+  final String message;
+  final IconData? icon;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Todavía no has seleccionado subcategorías',
+      liveRegion: true,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -130,31 +221,28 @@ class _EmptyCatalogState extends StatelessWidget {
         ),
         child: Column(
           children: [
-            const Icon(
-              Icons.account_tree_outlined,
-              color: AppColors.primary,
-              size: 36,
-            ),
-            const SizedBox(height: 16),
+            if (icon == null)
+              const CircularProgressIndicator(color: AppColors.primary)
+            else
+              Icon(icon, color: AppColors.textSecondary, size: 36),
+            const SizedBox(height: 12),
             Text(
-              'Selecciona lo que vendes',
+              message,
               textAlign: TextAlign.center,
               style: GoogleFonts.hankenGrotesk(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              'Explora las categorías y elige una subcategoría para configurar sus marcas y tipos de repuesto.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.hankenGrotesk(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-                height: 1.4,
+            if (onRetry != null) ...[
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('REINTENTAR'),
               ),
-            ),
+            ],
           ],
         ),
       ),

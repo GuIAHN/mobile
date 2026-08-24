@@ -4,7 +4,7 @@ import 'package:dio/dio.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/dio_client.dart';
-import '../../domain/entities/store_category_config.dart';
+import '../../domain/entities/store_coverage_config.dart';
 import '../models/user_model.dart';
 
 /// Remote data source for authentication.
@@ -247,7 +247,7 @@ class AuthRemoteDataSource {
     required double longitude,
     required String address,
     required String rif,
-    required List<StoreCategoryConfig> catalog,
+    required StoreCoverageConfig coverage,
     required bool hasDelivery,
     String? idToken,
     String? provider,
@@ -264,14 +264,12 @@ class AuthRemoteDataSource {
         'location': {'lat': latitude, 'lon': longitude},
         'address': address,
         'rif': rif,
-        'categories': catalog
-            .map((c) => {
-                  'subcategoryId': c.subcategoryId,
-                  'servesAllBrands': c.servesAllBrands,
-                  'brandIds': c.brandIds,
-                  'sparePartsTypes': c.sparePartsTypes,
-                })
-            .toList(),
+        'coverage': {
+          'servesAllBrands': coverage.servesAllBrands,
+          if (!coverage.servesAllBrands) 'brandIds': coverage.brandIds,
+          'sparePartsTypes': coverage.sparePartsTypes,
+          'subcategoryIds': coverage.subcategoryIds,
+        },
         'hasDelivery': hasDelivery,
         if (idToken != null) 'idToken': idToken,
         if (provider != null) 'provider': provider,
@@ -307,28 +305,6 @@ class AuthRemoteDataSource {
       filePath,
       filename: filename.isEmpty ? 'document.jpg' : filename,
     );
-  }
-
-  /// Calls POST /stores/me/categories to register a store catalog line.
-  Future<void> configureStoreCategory({
-    required String subcategoryId,
-    required bool servesAllBrands,
-    required List<String> brandIds,
-    required List<String> sparePartsTypes,
-  }) async {
-    try {
-      await _client.post<Map<String, dynamic>>(
-        'stores/me/categories',
-        data: {
-          'subcategoryId': subcategoryId,
-          'servesAllBrands': servesAllBrands,
-          'brandIds': brandIds,
-          'sparePartsTypes': sparePartsTypes,
-        },
-      );
-    } catch (e) {
-      rethrow;
-    }
   }
 
   /// Uploads or replaces the current user's profile photo (avatar).

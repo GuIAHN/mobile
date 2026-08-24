@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/entities/pending_review.dart';
+import '../../../../core/utils/media_url.dart';
 import '../providers/reviews_providers.dart';
 import '../widgets/write_review_bottom_sheet.dart';
 import '../../../home/presentation/providers/home_providers.dart';
@@ -109,6 +110,7 @@ class _PendingReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final photoUrl = resolveMediaUrl(item.providerPhoto);
     return Semantics(
       container: true,
       label: 'Reseña pendiente para ${item.providerName}',
@@ -123,16 +125,29 @@ class _PendingReviewCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: AppColors.primaryMuted,
-                  backgroundImage: item.providerPhoto?.isNotEmpty == true
-                      ? NetworkImage(item.providerPhoto!)
-                      : null,
-                  child: item.providerPhoto?.isNotEmpty == true
-                      ? null
-                      : const Icon(Icons.storefront_rounded,
-                          color: AppColors.primaryInk),
+                ClipOval(
+                  child: SizedBox.square(
+                    dimension: 56,
+                    child: photoUrl == null
+                        ? const ColoredBox(
+                            color: AppColors.primaryMuted,
+                            child: Icon(
+                              Icons.storefront_rounded,
+                              color: AppColors.primaryInk,
+                            ),
+                          )
+                        : Image.network(
+                            photoUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const ColoredBox(
+                              color: AppColors.primaryMuted,
+                              child: Icon(
+                                Icons.storefront_rounded,
+                                color: AppColors.primaryInk,
+                              ),
+                            ),
+                          ),
+                  ),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(

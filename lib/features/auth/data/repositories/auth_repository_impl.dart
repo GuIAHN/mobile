@@ -3,7 +3,7 @@ import '../../../../core/error/error_mapper.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../domain/entities/user.dart';
-import '../../domain/entities/store_category_config.dart';
+import '../../domain/entities/store_coverage_config.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
 import '../models/user_model.dart';
@@ -186,7 +186,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required double longitude,
     required String address,
     required String rif,
-    required List<StoreCategoryConfig> catalog,
+    required StoreCoverageConfig coverage,
     required bool hasDelivery,
     String? idToken,
     String? provider,
@@ -204,7 +204,7 @@ class AuthRepositoryImpl implements AuthRepository {
         longitude: longitude,
         address: address,
         rif: rif,
-        catalog: catalog,
+        coverage: coverage,
         hasDelivery: hasDelivery,
         idToken: idToken,
         provider: provider,

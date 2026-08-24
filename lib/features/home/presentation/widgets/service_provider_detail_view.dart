@@ -14,6 +14,7 @@ import '../../../reviews/presentation/widgets/provider_review_action_card.dart';
 import '../../../reviews/presentation/widgets/provider_reviews_button.dart';
 import '../../domain/entities/provider_detail.dart';
 import 'provider_detail_widgets.dart';
+import 'provider_photo.dart';
 
 /// Detalle compacto para mecánicos y talleres.
 ///
@@ -125,7 +126,6 @@ class _ProviderHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final photo = detail.photo?.trim();
-    final hasPhoto = photo != null && photo.isNotEmpty;
 
     return Stack(
       key: const Key('service-provider-hero'),
@@ -133,31 +133,25 @@ class _ProviderHero extends StatelessWidget {
       children: [
         Hero(
           tag: heroTag,
-          child: hasPhoto
-              ? Image.network(
-                  photo,
-                  key: const Key('service-provider-hero-photo'),
-                  fit: BoxFit.cover,
-                  semanticLabel: 'Foto de ${detail.nombre}',
-                  loadingBuilder: (context, child, progress) {
-                    if (progress == null) return child;
-                    return _HeroFallback(
-                      icon: detail.esTaller
-                          ? AppIcons.workshop
-                          : AppIcons.mechanic,
-                      showProgress: true,
-                    );
-                  },
-                  errorBuilder: (_, __, ___) => _HeroFallback(
-                    icon:
-                        detail.esTaller ? AppIcons.workshop : AppIcons.mechanic,
-                  ),
-                )
-              : _HeroFallback(
-                  icon: detail.esTaller ? AppIcons.workshop : AppIcons.mechanic,
-                ),
+          child: ProviderPhoto(
+            photoUrl: photo,
+            providerName: detail.nombre,
+            isWorkshop: detail.esTaller,
+            networkKey: const Key('service-provider-hero-photo'),
+            previewKey: const Key('service-provider-hero-preview-photo'),
+            loadingFallback: _HeroFallback(
+              icon: detail.esTaller ? AppIcons.workshop : AppIcons.mechanic,
+              showProgress: true,
+            ),
+            fallback: _HeroFallback(
+              icon: detail.esTaller ? AppIcons.workshop : AppIcons.mechanic,
+            ),
+          ),
         ),
-        if (hasPhoto)
+        if (showsProviderImage(
+          photoUrl: photo,
+          isWorkshop: detail.esTaller,
+        ))
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(

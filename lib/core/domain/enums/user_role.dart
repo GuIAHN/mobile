@@ -34,11 +34,9 @@ enum UserRole {
   bool get isMechanic => this == UserRole.mechanic;
   bool get isWorkshop => this == UserRole.workshop;
 
-  /// Tipos de servicio visibles en el CategorySelector del home según el rol.
-  /// La STORE puede buscar mecánicos y talleres, pero no repuestos.
-  /// El MECHANIC puede buscar repuestos y talleres, pero no otros mecánicos.
-  /// El WORKSHOP puede buscar repuestos y mecánicos, pero no otros talleres.
-  /// Consumidores pueden ver y buscar todo.
+
+  bool get usesSavedLocationForSearch => isStore || isWorkshop;
+
   List<ServiceType> get allowedServiceTypes {
     if (isStore) {
       return const [
