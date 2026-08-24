@@ -374,7 +374,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                       Expanded(
                         child: SizedBox(
                           height: 48,
-                          child: TextButton.icon(
+                          child: OutlinedButton.icon(
                             key: const Key('decline-inquiry-button'),
                             onPressed: _isQuoting || _isDeclining
                                 ? null
@@ -405,11 +405,15 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            style: TextButton.styleFrom(
+                            style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.textSecondary,
                               disabledForegroundColor: AppColors.textDisabled,
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 8),
+                              side: const BorderSide(
+                                color: AppColors.border,
+                                width: 1.5,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(32),
                               ),

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
 import 'package:guiautomotriz_mobile/core/providers/current_user_provider.dart';
 import 'package:guiautomotriz_mobile/core/services/socket_service.dart';
+import 'package:guiautomotriz_mobile/core/theme/app_colors.dart';
 import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_conversation.dart';
 import 'package:guiautomotriz_mobile/features/chat/domain/repositories/chat_repository.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/pages/chat_conversation_page.dart';
@@ -88,6 +89,8 @@ void main() {
       final quoteButton = find.byKey(const Key('quote-inquiry-button'));
       final declineRect = tester.getRect(declineButton);
       final quoteRect = tester.getRect(quoteButton);
+      final declineWidget = tester.widget<OutlinedButton>(declineButton);
+      final declineBorder = declineWidget.style?.side?.resolve(<WidgetState>{});
 
       expect(declineRect.center.dx, lessThan(quoteRect.center.dx));
       expect(
@@ -96,6 +99,8 @@ void main() {
       );
       expect(declineRect.height, greaterThanOrEqualTo(48));
       expect(quoteRect.height, greaterThanOrEqualTo(48));
+      expect(declineBorder?.color, AppColors.border);
+      expect(declineBorder?.width, 1.5);
       expect(
         tester.getSize(find.byKey(const Key('inquiry-actions-bar'))).height,
         lessThanOrEqualTo(60),
