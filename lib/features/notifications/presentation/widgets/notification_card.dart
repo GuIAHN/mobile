@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_decorations.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/entities/user_notification.dart';
@@ -60,27 +61,23 @@ class NotificationCard extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: visual.background,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        alignment: Alignment.center,
-                        child: isMarking
-                            ? SizedBox.square(
-                                dimension: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
+                      SizedBox(
+                        width: AppIconSize.feature,
+                        child: Align(
+                          alignment: Alignment.topLeft,
+                          child: isMarking
+                              ? SizedBox.square(
+                                  dimension: AppIconSize.leading,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: visual.foreground,
+                                  ),
+                                )
+                              : AppLineIcon(
+                                  visual.icon,
                                   color: visual.foreground,
                                 ),
-                              )
-                            : Icon(
-                                visual.icon,
-                                color: visual.foreground,
-                                size: AppSpacing.iconMd,
-                              ),
+                        ),
                       ),
                       const SizedBox(width: AppSpacing.md),
                       Expanded(
@@ -108,6 +105,15 @@ class NotificationCard extends StatelessWidget {
                               ),
                             ),
                           ],
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      const Padding(
+                        padding: EdgeInsets.only(top: AppSpacing.xs),
+                        child: AppLineIcon(
+                          AppIcons.next,
+                          size: AppIconSize.inline,
+                          color: AppColors.textMeta,
                         ),
                       ),
                     ],

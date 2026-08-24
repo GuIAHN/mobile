@@ -4,8 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../providers/home_providers.dart';
-import '../../../vehicles/domain/entities/user_car.dart';
-import '../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../../../vehicles/presentation/widgets/garage_vehicle_selector_sheet.dart';
 
 class VehicleCompatibilityBar extends ConsumerWidget {

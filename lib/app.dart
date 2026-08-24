@@ -11,6 +11,10 @@ import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/presentation/providers/auth_state.dart';
 import 'core/services/socket_service.dart';
 import 'core/notifications/foreground_notification_toast_provider.dart';
+import 'core/notifications/notification_model.dart';
+import 'features/notifications/presentation/providers/notifications_providers.dart';
+import 'features/notifications/services/notification_route_resolver.dart';
+import 'features/notifications/services/push_notifications_service.dart';
 
 class GuiAutomotrizApp extends ConsumerStatefulWidget {
   const GuiAutomotrizApp({super.key});
@@ -22,7 +26,10 @@ class GuiAutomotrizApp extends ConsumerStatefulWidget {
 class _GuiAutomotrizAppState extends ConsumerState<GuiAutomotrizApp>
     with WidgetsBindingObserver {
   StreamSubscription<void>? _authenticationRecoverySub;
+  StreamSubscription<NotificationTap>? _notificationTapSub;
   bool _recoveringRealtime = false;
+  NotificationTap? _pendingNotificationTap;
+  String? _lastNotificationTapKey;
 
   @override
   void initState() {
@@ -32,6 +39,13 @@ class _GuiAutomotrizAppState extends ConsumerState<GuiAutomotrizApp>
         .read(socketServiceProvider)
         .onAuthenticationRequired
         .listen((_) => unawaited(_recoverRealtimeSession(verifySession: true)));
+    _notificationTapSub = PushNotificationsService.onNotificationTap
+        .listen(_queueNotificationTap);
+    final initialTap = PushNotificationsService.takeInitialNotificationTap();
+    if (initialTap != null) _pendingNotificationTap = initialTap;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _flushPendingNotificationTap();
+    });
   }
 
   @override
@@ -68,10 +82,73 @@ class _GuiAutomotrizAppState extends ConsumerState<GuiAutomotrizApp>
     }
   }
 
+  void _queueNotificationTap(NotificationTap tap) {
+    _pendingNotificationTap = tap;
+    _flushPendingNotificationTap();
+  }
+
+  void _flushPendingNotificationTap() {
+    if (!mounted ||
+        ref.read(authProvider).status != AuthStatus.authenticated ||
+        _pendingNotificationTap == null) {
+      return;
+    }
+
+    final tap = _pendingNotificationTap!;
+    final destination = NotificationRouteResolver.resolve(
+      type: tap.type,
+      data: tap.data,
+    );
+    _pendingNotificationTap = null;
+    final dedupeId = tap.notificationId ??
+        tap.data['messageId']?.toString() ??
+        tap.data['message_id']?.toString();
+    if (dedupeId != null) {
+      final tapKey = '$dedupeId|$destination';
+      if (_lastNotificationTapKey == tapKey) return;
+      _lastNotificationTapKey = tapKey;
+    }
+
+    if (tap.notificationId != null) {
+      unawaited(_markNotificationRead(tap.notificationId!));
+    }
+    _pushNotificationDestination(destination);
+  }
+
+  void _openInAppNotification(NotificationModel notification) {
+    final destination = notification.destinationPath;
+    if (destination == null) return;
+    if (notification.sourceId != null) {
+      unawaited(_markNotificationRead(notification.sourceId!));
+    }
+    _pushNotificationDestination(destination);
+  }
+
+  void _pushNotificationDestination(String destination) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final router = ref.read(appRouterProvider);
+      final current = router.routerDelegate.currentConfiguration.uri.toString();
+      if (current == destination) return;
+      unawaited(router.push<void>(destination));
+    });
+  }
+
+  Future<void> _markNotificationRead(String notificationId) async {
+    final result = await ref.read(markNotificationReadUseCaseProvider)(
+      notificationId,
+    );
+    result.fold(
+      (_) {},
+      (_) => ref.invalidate(unreadNotificationsCountProvider),
+    );
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _authenticationRecoverySub?.cancel();
+    _notificationTapSub?.cancel();
     super.dispose();
   }
 
@@ -92,6 +169,7 @@ class _GuiAutomotrizAppState extends ConsumerState<GuiAutomotrizApp>
         final socket = ref.read(socketServiceProvider);
         if (next == AuthStatus.authenticated) {
           socket.connect();
+          _flushPendingNotificationTap();
         } else if (next == AuthStatus.unauthenticated) {
           socket.disconnect();
         }
@@ -114,6 +192,7 @@ class _GuiAutomotrizAppState extends ConsumerState<GuiAutomotrizApp>
           );
         }
         return AppNotificationHost(
+          onNotificationTap: _openInAppNotification,
           child: child ?? const SizedBox.shrink(),
         );
       },

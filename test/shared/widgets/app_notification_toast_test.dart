@@ -12,6 +12,7 @@ void main() {
     bool disableAnimations = true,
     bool dismissible = true,
     VoidCallback? onDismissed,
+    VoidCallback? onTap,
   }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = Size(width, 700);
@@ -41,6 +42,7 @@ void main() {
                     isDismissible: dismissible,
                   ),
                   onDismissed: onDismissed ?? () {},
+                  onTap: onTap,
                 ),
               ),
             ),
@@ -85,4 +87,21 @@ void main() {
     expect(find.byKey(const Key('app-notification-close')), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('opens a routed notification and dismisses the toast',
+      (tester) async {
+    var taps = 0;
+    var dismissals = 0;
+    await pumpToast(
+      tester,
+      onTap: () => taps += 1,
+      onDismissed: () => dismissals += 1,
+    );
+
+    await tester.tap(find.bySemanticsLabel(RegExp(r'.*Abrir$')));
+    await tester.pump();
+
+    expect(taps, 1);
+    expect(dismissals, 1);
+  }, semanticsEnabled: true);
 }

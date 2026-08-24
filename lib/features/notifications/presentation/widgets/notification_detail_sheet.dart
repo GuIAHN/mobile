@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_decorations.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/entities/user_notification.dart';
@@ -73,17 +74,11 @@ class NotificationDetailSheet extends StatelessWidget {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: visual.background,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Icon(
+                          SizedBox(
+                            width: AppIconSize.feature,
+                            child: AppLineIcon(
                               visual.icon,
                               color: visual.foreground,
-                              size: AppSpacing.iconMd,
                             ),
                           ),
                           const SizedBox(width: AppSpacing.md),

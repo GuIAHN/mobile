@@ -1,82 +1,73 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 
 class NotificationVisualStyle {
   const NotificationVisualStyle({
     required this.label,
     required this.icon,
     required this.foreground,
-    required this.background,
   });
 
   final String label;
   final IconData icon;
   final Color foreground;
-  final Color background;
 
   factory NotificationVisualStyle.forType(String type) {
     if (type == 'offer.cancelled') {
       return const NotificationVisualStyle(
         label: 'Compra cancelada',
-        icon: Icons.block_rounded,
+        icon: AppIcons.cancellation,
         foreground: AppColors.errorInk,
-        background: AppColors.errorLight,
       );
     }
     if (type == 'search.no_store_available') {
       return const NotificationVisualStyle(
         label: 'Sin disponibilidad',
-        icon: Icons.storefront_outlined,
+        icon: AppIcons.store,
         foreground: AppColors.warningInk,
-        background: AppColors.warningLight,
       );
     }
     if (type.startsWith('offer.')) {
       return const NotificationVisualStyle(
         label: 'Oferta',
-        icon: Icons.local_offer_outlined,
+        icon: AppIcons.offer,
         foreground: AppColors.primaryInk,
-        background: AppColors.primaryMuted,
       );
     }
     if (type.startsWith('message.')) {
       return const NotificationVisualStyle(
         label: 'Mensaje',
-        icon: Icons.chat_bubble_outline_rounded,
+        icon: AppIcons.message,
         foreground: AppColors.info,
-        background: AppColors.infoLight,
       );
     }
     if (type.startsWith('search.')) {
       return const NotificationVisualStyle(
         label: 'Solicitud',
-        icon: Icons.manage_search_rounded,
+        icon: AppIcons.search,
         foreground: AppColors.celesteInk,
-        background: AppColors.celesteMuted,
       );
     }
     if (type.startsWith('user.')) {
       return const NotificationVisualStyle(
         label: 'Cuenta',
-        icon: Icons.account_circle_outlined,
+        icon: AppIcons.account,
         foreground: AppColors.successInk,
-        background: AppColors.successLight,
       );
     }
     if (type.startsWith('settlement.')) {
       return const NotificationVisualStyle(
         label: 'Pago',
-        icon: Icons.receipt_long_outlined,
+        icon: AppIcons.receipt,
         foreground: AppColors.warningInk,
-        background: AppColors.warningLight,
       );
     }
     return const NotificationVisualStyle(
       label: 'Notificación',
-      icon: Icons.notifications_none_rounded,
+      icon: AppIcons.notification,
       foreground: AppColors.primaryInk,
-      background: AppColors.primaryMuted,
     );
   }
 }

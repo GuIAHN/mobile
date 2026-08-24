@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
+import '../../../../core/utils/extensions.dart';
 import '../providers/chat_providers.dart';
 import '../widgets/chat_message_bubble.dart';
+import '../widgets/chat_message_composer.dart';
 import '../widgets/active_offer_header_card.dart';
 import '../widgets/confirm_purchase_dialog.dart';
 import '../widgets/cancel_purchase_dialog.dart';
@@ -35,6 +38,7 @@ class ChatConversationPage extends ConsumerStatefulWidget {
 
 class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
   final _messageController = TextEditingController();
+  final _messageFocusNode = FocusNode();
   final _scrollController = ScrollController();
   bool _canSend = false;
   bool _isSending = false;
@@ -45,6 +49,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
   void initState() {
     super.initState();
     _messageController.addListener(_handleTextChange);
+    _messageFocusNode.addListener(_handleFocusChange);
     // Mark as read in the background
     Future.microtask(() async {
       await ref.read(markAsReadUseCaseProvider).call(widget.conversationId);
@@ -61,16 +66,26 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
     }
   }
 
+  void _handleFocusChange() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
     _messageController.removeListener(_handleTextChange);
+    _messageFocusNode.removeListener(_handleFocusChange);
     _messageController.dispose();
+    _messageFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        return;
+      }
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 300),
@@ -99,17 +114,12 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
             ? e.message
             : e.toString().replaceAll('Exception:', '').trim();
         // Moderation rejections get a dedicated dialog (deliberate policy
-        // violation) instead of the generic SnackBar used for transient
+        // violation) instead of the generic notification used for transient
         // errors (disconnects, not-a-participant, etc.).
         if (e is RealtimeRequestException && e.code == 'CONTENT_REJECTED') {
           ModerationBlockedDialog.show(context);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: AppColors.error,
-            ),
-          );
+          context.showSnackBar(message, isError: true);
         }
       }
     }
@@ -120,7 +130,6 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
     if (result == null || !mounted) return;
 
     setState(() => _isQuoting = true);
-    final scaffold = ScaffoldMessenger.of(context);
     try {
       final useCase = ref.read(quoteOfferUseCaseProvider);
       final res = await useCase(
@@ -133,18 +142,14 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
       );
       res.fold(
         (failure) {
-          scaffold.showSnackBar(
-            SnackBar(
-              content: Text('Error al cotizar: ${failure.message}'),
-              backgroundColor: AppColors.error,
-            ),
-          );
+          if (mounted) {
+            context.showSnackBar(
+              'Error al cotizar: ${failure.message}',
+              isError: true,
+            );
+          }
         },
         (_) {
-          scaffold.showSnackBar(const SnackBar(
-            content: Text('¡Cotización enviada con éxito!'),
-            backgroundColor: AppColors.success,
-          ));
           ref.invalidate(
               chatConversationDetailsProvider(widget.conversationId));
           ref.invalidate(myConversationsProvider);
@@ -163,7 +168,6 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
     if (confirmation == null || !mounted) return;
 
     setState(() => _isCancelling = true);
-    final scaffold = ScaffoldMessenger.of(context);
     try {
       final result = await ref.read(cancelOfferUseCaseProvider)(
         details.offerId!,
@@ -172,25 +176,16 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
 
       result.fold(
         (failure) {
-          scaffold.showSnackBar(
-            SnackBar(
-              content: Text(
-                failure.code == 409
-                    ? 'La compra cambió de estado. Actualizamos la información.'
-                    : 'No se pudo cancelar: ${failure.message}',
-              ),
-              backgroundColor: AppColors.error,
-            ),
-          );
+          if (mounted) {
+            context.showSnackBar(
+              failure.code == 409
+                  ? 'La compra cambió de estado. Actualizamos la información.'
+                  : 'No se pudo cancelar: ${failure.message}',
+              isError: true,
+            );
+          }
         },
-        (_) {
-          scaffold.showSnackBar(
-            const SnackBar(
-              content: Text('Compra cancelada.'),
-              backgroundColor: AppColors.success,
-            ),
-          );
-        },
+        (_) {},
       );
 
       // También se refresca ante 409: el servidor es la fuente de verdad.
@@ -224,11 +219,10 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
         ref.watch(chatConversationDetailsProvider(widget.conversationId));
     final reviewHandledLocally =
         ref.watch(handledStoreReviewProvider(widget.conversationId));
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           tooltip: 'Volver',
@@ -242,11 +236,11 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
           data: (details) => Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   color: AppColors.grey200,
-                  borderRadius: BorderRadius.circular(8),
+                  shape: BoxShape.circle,
                   image: details.participantAvatarUrl != null
                       ? DecorationImage(
                           image: NetworkImage(details.participantAvatarUrl!),
@@ -274,27 +268,14 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: AppColors.success,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'En línea',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.success,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 1),
+                    Text(
+                      isStore ? 'Comprador' : 'Tienda',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -318,7 +299,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                 color: Colors.white,
                 child: SizedBox(
                   width: double.infinity,
-                  height: 44,
+                  height: 48,
                   child: ElevatedButton.icon(
                     onPressed: _isQuoting
                         ? null
@@ -347,7 +328,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(32),
                       ),
                     ),
                   ),
@@ -375,13 +356,18 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                   if (confirmed != true) return;
 
                   if (!context.mounted) return;
-                  final scaffold = ScaffoldMessenger.of(context);
                   final usecase = ref.read(buyOfferUseCaseProvider);
                   final result = await usecase(details.offerId!);
 
                   result.fold(
-                    (f) => scaffold.showSnackBar(
-                        SnackBar(content: Text('Error: ${f.message}'))),
+                    (f) {
+                      if (context.mounted) {
+                        context.showSnackBar(
+                          'Error: ${f.message}',
+                          isError: true,
+                        );
+                      }
+                    },
                     (_) async {
                       ref.invalidate(chatConversationDetailsProvider(
                           widget.conversationId));
@@ -406,15 +392,18 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                 },
                 onDeliverPressed: () async {
                   final details = detailsAsync.valueOrNull!;
-                  final scaffold = ScaffoldMessenger.of(context);
                   final usecase = ref.read(deliverOfferUseCaseProvider);
                   final result = await usecase(details.offerId!);
                   result.fold(
-                    (f) => scaffold.showSnackBar(
-                        SnackBar(content: Text('Error: ${f.message}'))),
+                    (f) {
+                      if (context.mounted) {
+                        context.showSnackBar(
+                          'Error: ${f.message}',
+                          isError: true,
+                        );
+                      }
+                    },
                     (_) {
-                      scaffold.showSnackBar(const SnackBar(
-                          content: Text('¡Oferta marcada como entregada!')));
                       ref.invalidate(chatConversationDetailsProvider(
                           widget.conversationId));
                       ref.invalidate(myConversationsProvider);
@@ -457,6 +446,8 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
               child: messagesAsync.when(
                 loading: () => ListView(
                   reverse: true,
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                   children: const [
@@ -465,25 +456,23 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                     MessageBubbleSkeleton(),
                   ],
                 ),
-                error: (err, _) => Center(
-                  child: Text(
-                    'Error al cargar mensajes: $err',
-                    style: GoogleFonts.hankenGrotesk(color: AppColors.error),
+                error: (_, __) => _ChatMessagesError(
+                  onRetry: () => ref.invalidate(
+                    chatMessagesProvider(widget.conversationId),
                   ),
                 ),
                 data: (messages) {
                   if (messages.isEmpty) {
-                    return Center(
-                      child: Text(
-                        'Escribe un mensaje para iniciar la conversación.',
-                        style: GoogleFonts.hankenGrotesk(
-                            color: AppColors.textSecondary),
-                      ),
+                    return _EmptyChatState(
+                      participantName:
+                          detailsAsync.valueOrNull?.participantName,
                     );
                   }
                   return ListView.builder(
                     controller: _scrollController,
                     reverse: true,
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
                     physics: const BouncingScrollPhysics(),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 18, vertical: 16),
@@ -497,88 +486,123 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
               ),
             ),
 
-            // ── Compose box ───────────────────────────────────────────────
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(top: BorderSide(color: AppColors.border)),
+            // Cápsula de escritura + acción circular, como un chat móvil.
+            ChatMessageComposer(
+              controller: _messageController,
+              focusNode: _messageFocusNode,
+              canSend: _canSend,
+              isSending: _isSending,
+              onSend: _sendMessage,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyChatState extends StatelessWidget {
+  final String? participantName;
+
+  const _EmptyChatState({this.participantName});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const AppLineIcon(
+              AppIcons.message,
+              size: AppIconSize.feature,
+              color: AppColors.primary,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Inicia la conversación',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: TextField(
-                            controller: _messageController,
-                            minLines: 1,
-                            maxLines: 5,
-                            textCapitalization: TextCapitalization.sentences,
-                            style: GoogleFonts.hankenGrotesk(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textPrimary,
-                            ),
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
-                              hintText: 'Escribe un mensaje...',
-                              hintStyle: GoogleFonts.hankenGrotesk(
-                                fontSize: 15,
-                                color: AppColors.textDisabled,
-                              ),
-                            ),
-                            onSubmitted: (_) => _sendMessage(),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      // Send Button
-                      Semantics(
-                        button: true,
-                        label: 'Enviar mensaje',
-                        child: GestureDetector(
-                          onTap:
-                              (_canSend && !_isSending) ? _sendMessage : null,
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: _canSend
-                                  ? AppColors.primary
-                                  : AppColors.grey300,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: _isSending
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : Icon(
-                                    Icons.send_rounded,
-                                    color: _canSend
-                                        ? Colors.white
-                                        : AppColors.textDisabled,
-                                    size: 18,
-                                  ),
-                          ),
-                        ),
-                      ),
-                    ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              participantName == null
+                  ? 'Escribe un mensaje para conversar sobre esta oferta.'
+                  : 'Escribe a $participantName para conversar sobre esta oferta.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 14,
+                height: 1.45,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatMessagesError extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _ChatMessagesError({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const AppLineIcon(
+              AppIcons.connectivityError,
+              size: AppIconSize.feature,
+              color: AppColors.errorInk,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No pudimos cargar los mensajes',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Revisa tu conexión e inténtalo de nuevo.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 14,
+                height: 1.4,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 48,
+              child: TextButton.icon(
+                onPressed: onRetry,
+                icon: const AppLineIcon(
+                  AppIcons.retry,
+                  size: AppIconSize.inline,
+                  color: AppColors.primary,
+                ),
+                label: Text(
+                  'Reintentar',
+                  style: GoogleFonts.hankenGrotesk(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
                   ),
-                ],
+                ),
               ),
             ),
           ],

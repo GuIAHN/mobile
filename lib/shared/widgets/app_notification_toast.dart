@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/notifications/notification_model.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_icons.dart';
 
 /// Notificación interna compacta alineada con el sistema visual de GuIA.
 ///
@@ -16,10 +17,12 @@ class AppNotificationToast extends StatefulWidget {
     super.key,
     required this.notification,
     required this.onDismissed,
+    this.onTap,
   });
 
   final NotificationModel notification;
   final VoidCallback onDismissed;
+  final VoidCallback? onTap;
 
   @override
   State<AppNotificationToast> createState() => _AppNotificationToastState();
@@ -116,6 +119,13 @@ class _AppNotificationToastState extends State<AppNotificationToast>
         : type.label;
     final semanticLabel = '${type.label}. $title. ${notification.message}';
 
+    void handleTap() {
+      final onTap = widget.onTap;
+      if (onTap == null) return;
+      onTap();
+      _triggerExit();
+    }
+
     return AnimatedBuilder(
       animation: Listenable.merge([_enterController, _exitController]),
       builder: (context, child) {
@@ -137,11 +147,8 @@ class _AppNotificationToastState extends State<AppNotificationToast>
           child: Container(
             key: const Key('app-notification-toast-card'),
             constraints: const BoxConstraints(minHeight: 76),
-            padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
             decoration: BoxDecoration(
-              color: AppColors.surface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.08),
@@ -150,93 +157,107 @@ class _AppNotificationToastState extends State<AppNotificationToast>
                 ),
               ],
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Semantics(
-                    liveRegion: true,
-                    label: semanticLabel,
-                    excludeSemantics: true,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: type.backgroundColor,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          alignment: Alignment.center,
-                          child: Icon(
-                            type.icon,
-                            color: type.accentColor,
-                            size: 22,
-                          ),
+            child: Material(
+              color: AppColors.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: const BorderSide(color: AppColors.border),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: widget.onTap == null ? null : handleTap,
+                      excludeFromSemantics: true,
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          14,
+                          12,
+                          notification.isDismissible ? 4 : 14,
+                          12,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Semantics(
+                          container: true,
+                          liveRegion: true,
+                          button: widget.onTap != null,
+                          onTap: widget.onTap == null ? null : handleTap,
+                          label: widget.onTap == null
+                              ? semanticLabel
+                              : '$semanticLabel. Abrir',
+                          excludeSemantics: true,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Text(
-                                title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.hankenGrotesk(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.textPrimary,
-                                  height: 1.2,
+                              SizedBox(
+                                width: 32,
+                                child: AppLineIcon(
+                                  type.icon,
+                                  color: type.accentColor,
                                 ),
                               ),
-                              const SizedBox(height: 3),
-                              Text(
-                                notification.message,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.hankenGrotesk(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.textSecondary,
-                                  height: 1.35,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.hankenGrotesk(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.textPrimary,
+                                        height: 1.2,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      notification.message,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.hankenGrotesk(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppColors.textSecondary,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-                if (notification.isDismissible)
-                  // El host vive en MaterialApp.builder, por encima del
-                  // Overlay del Navigator. La semántica explícita evita que
-                  // IconButton.tooltip intente insertar un RawTooltip allí.
-                  Semantics(
-                    button: true,
-                    label: 'Cerrar notificación',
-                    onTap: _triggerExit,
-                    excludeSemantics: true,
-                    child: IconButton(
-                      key: const Key('app-notification-close'),
-                      onPressed: _triggerExit,
-                      constraints: const BoxConstraints(
-                        minWidth: 48,
-                        minHeight: 48,
-                      ),
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        size: 19,
-                        color: AppColors.textMeta,
+                  if (notification.isDismissible)
+                    Semantics(
+                      container: true,
+                      button: true,
+                      label: 'Cerrar notificación',
+                      onTap: _triggerExit,
+                      excludeSemantics: true,
+                      child: IconButton(
+                        key: const Key('app-notification-close'),
+                        onPressed: _triggerExit,
+                        constraints: const BoxConstraints(
+                          minWidth: 48,
+                          minHeight: 48,
+                        ),
+                        icon: const AppLineIcon(
+                          AppIcons.close,
+                          size: AppIconSize.action,
+                          color: AppColors.textMeta,
+                        ),
                       ),
                     ),
-                  )
-                else
-                  const SizedBox(width: 8),
-              ],
+                ],
+              ),
             ),
           ),
         ),

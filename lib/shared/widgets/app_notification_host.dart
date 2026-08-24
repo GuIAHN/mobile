@@ -22,8 +22,13 @@ import 'app_notification_toast.dart';
 /// ```
 class AppNotificationHost extends ConsumerWidget {
   final Widget child;
+  final ValueChanged<NotificationModel>? onNotificationTap;
 
-  const AppNotificationHost({super.key, required this.child});
+  const AppNotificationHost({
+    super.key,
+    required this.child,
+    this.onNotificationTap,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -46,6 +51,7 @@ class AppNotificationHost extends ConsumerWidget {
                   child: _NotificationStack(
                     notifications: notifications,
                     ref: ref,
+                    onNotificationTap: onNotificationTap,
                   ),
                 ),
               ),
@@ -60,10 +66,12 @@ class AppNotificationHost extends ConsumerWidget {
 class _NotificationStack extends StatelessWidget {
   final List<NotificationModel> notifications;
   final WidgetRef ref;
+  final ValueChanged<NotificationModel>? onNotificationTap;
 
   const _NotificationStack({
     required this.notifications,
     required this.ref,
+    required this.onNotificationTap,
   });
 
   @override
@@ -80,6 +88,9 @@ class _NotificationStack extends StatelessWidget {
             onDismissed: () {
               ref.read(notificationProvider.notifier).dismiss(n.id);
             },
+            onTap: n.destinationPath == null || onNotificationTap == null
+                ? null
+                : () => onNotificationTap!(n),
           ),
         );
       }).toList(),

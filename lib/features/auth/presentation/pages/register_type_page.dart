@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -207,7 +206,7 @@ class _RegisterTypePageState extends State<RegisterTypePage> {
                     onTap: () => setState(() => _selectedRole = 'user'),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  
+
                   _ProfileTypeCard(
                     role: 'mechanic',
                     title: 'Mecánico Especializado',

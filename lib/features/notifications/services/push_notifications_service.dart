@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -18,8 +21,50 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint("Handling a background message: ${message.messageId}");
 }
 
+class NotificationTap {
+  const NotificationTap({
+    required this.type,
+    required this.data,
+    this.notificationId,
+  });
+
+  final String type;
+  final Map<String, dynamic> data;
+  final String? notificationId;
+
+  factory NotificationTap.fromRemoteMessage(RemoteMessage message) {
+    return NotificationTap.fromData(message.data);
+  }
+
+  factory NotificationTap.fromData(Map<String, dynamic> rawData) {
+    final data = Map<String, dynamic>.from(rawData);
+    final type = (data['tipo'] ?? data['type'])?.toString().trim() ?? '';
+    final rawId =
+        data['notificationId'] ?? data['notification_id'] ?? data['id'];
+    final notificationId = rawId?.toString().trim();
+    return NotificationTap(
+      type: type,
+      data: data,
+      notificationId:
+          notificationId?.isNotEmpty == true ? notificationId : null,
+    );
+  }
+
+  factory NotificationTap.fromPayload(String payload) {
+    final decoded = jsonDecode(payload);
+    if (decoded is! Map) {
+      return const NotificationTap(type: '', data: {});
+    }
+    return NotificationTap.fromData(Map<String, dynamic>.from(decoded));
+  }
+}
+
 class PushNotificationsService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  static final StreamController<NotificationTap> _notificationTapController =
+      StreamController<NotificationTap>.broadcast();
+  static NotificationTap? _initialNotificationTap;
+  static bool _initialized = false;
 
   // Canal de alta importancia (banner + sonido) para las notificaciones que
   // llegan con la app en background/cerrada. Debe existir en el sistema
@@ -42,28 +87,46 @@ class PushNotificationsService {
       FlutterLocalNotificationsPlugin();
 
   static Future<void> initializeApp() async {
+    if (_initialized) return;
+    _initialized = true;
+
     // Background handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     await requestPermission();
 
-    await _localNotifications
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(_highImportanceChannel);
+    if (!kIsWeb) {
+      await _localNotifications
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(_highImportanceChannel);
 
-    await _localNotifications.initialize(
-      settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        iOS: DarwinInitializationSettings(),
-      ),
-    );
+      await _localNotifications.initialize(
+        settings: const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          iOS: DarwinInitializationSettings(),
+        ),
+        onDidReceiveNotificationResponse: _handleLocalNotificationResponse,
+      );
 
-    // Habilitar notificaciones en primer plano para iOS
-    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-      alert: true,
+      final localLaunch =
+          await _localNotifications.getNotificationAppLaunchDetails();
+      final localPayload = localLaunch?.didNotificationLaunchApp == true
+          ? localLaunch?.notificationResponse?.payload
+          : null;
+      if (localPayload?.isNotEmpty == true) {
+        _initialNotificationTap = _decodeLocalPayload(localPayload!);
+      }
+    }
+
+    // Configurar la presentación de notificaciones en primer plano para iOS.
+    await FirebaseMessaging.instance
+        .setForegroundNotificationPresentationOptions(
+      // La app ya muestra el aviso navegable recibido por WebSocket. Evitar
+      // un segundo banner de sistema para el mismo evento en foreground.
+      alert: false,
       badge: true,
-      sound: true,
+      sound: false,
     );
 
     // Foreground messages: no mostramos un banner de sistema aquí para no
@@ -75,6 +138,43 @@ class PushNotificationsService {
       debugPrint('Got a message whilst in the foreground!');
       debugPrint('Message data: ${message.data}');
     });
+
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleRemoteMessageTap);
+    final initialRemoteMessage = await _messaging.getInitialMessage();
+    if (initialRemoteMessage != null) {
+      _initialNotificationTap =
+          NotificationTap.fromRemoteMessage(initialRemoteMessage);
+    }
+  }
+
+  static Stream<NotificationTap> get onNotificationTap =>
+      _notificationTapController.stream;
+
+  static NotificationTap? takeInitialNotificationTap() {
+    final initial = _initialNotificationTap;
+    _initialNotificationTap = null;
+    return initial;
+  }
+
+  static void _handleRemoteMessageTap(RemoteMessage message) {
+    _notificationTapController.add(NotificationTap.fromRemoteMessage(message));
+  }
+
+  static void _handleLocalNotificationResponse(
+    NotificationResponse response,
+  ) {
+    final payload = response.payload;
+    if (payload?.isEmpty != false) return;
+    _notificationTapController.add(_decodeLocalPayload(payload!));
+  }
+
+  static NotificationTap _decodeLocalPayload(String payload) {
+    try {
+      return NotificationTap.fromPayload(payload);
+    } catch (error) {
+      debugPrint('Invalid local notification payload: $error');
+      return const NotificationTap(type: '', data: {});
+    }
   }
 
   static Future<void> requestPermission() async {

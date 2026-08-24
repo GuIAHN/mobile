@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/utils/media_url.dart';
+import '../../../../shared/widgets/image_viewer_dialog.dart';
 import '../../domain/entities/chat_conversation.dart';
 import 'store_contact_sheet.dart';
 
@@ -49,6 +52,9 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
     final isBought = details.offerStatus == 'BOUGHT';
     final isDelivered = details.offerStatus == 'DELIVERED';
     final isCancelled = details.offerStatus == 'CANCELLED';
+    final canCancel = !isStore && isBought && !isDelivered && !isCancelled;
+    final usesStackedSummary = MediaQuery.sizeOf(context).width < 360 ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.25;
 
     return Container(
       decoration: const BoxDecoration(
@@ -72,72 +78,91 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Fila 1: Imagen del repuesto + Info Principal + Precio
+                if (canCancel) ...[
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 48),
+                      child: TextButton.icon(
+                        onPressed:
+                            widget.isCancelling ? null : widget.onCancelPressed,
+                        icon: widget.isCancelling
+                            ? const SizedBox.square(
+                                dimension: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.errorInk,
+                                ),
+                              )
+                            : const AppLineIcon(
+                                AppIcons.cancellation,
+                                size: AppIconSize.inline,
+                                color: AppColors.errorInk,
+                              ),
+                        label: Text(
+                          widget.isCancelling ? 'Cancelando…' : 'Cancelar',
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: widget.isCancelling
+                                ? AppColors.textDisabled
+                                : AppColors.errorInk,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.errorInk,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                ],
+                // Imagen, datos y precio comparten una sola línea en teléfonos
+                // regulares. En pantallas estrechas o con texto ampliado, el
+                // precio baja para conservar la legibilidad.
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Foto del repuesto o icono genérico
-                    Container(
-                      width: 58,
-                      height: 58,
-                      decoration: BoxDecoration(
-                        color: AppColors.grey100,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: details.sparePhotoUrl != null &&
-                              details.sparePhotoUrl!.isNotEmpty
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(11),
-                              child: Image.network(
-                                details.sparePhotoUrl!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Icon(
-                                  Icons.directions_car_rounded,
-                                  color: AppColors.textSecondary,
-                                  size: 26,
-                                ),
-                              ),
-                            )
-                          : const Icon(
-                              Icons.build_circle_outlined,
-                              color: AppColors.primary,
-                              size: 28,
-                            ),
+                    _OfferPhoto(
+                      imageUrl: details.sparePhotoUrl,
+                      title: details.spareBrand ??
+                          details.subcategoryName ??
+                          'Imagen de la oferta',
                     ),
                     const SizedBox(width: 12),
-
-                    // Título, Vehículo y Subcategoría
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: isCancelled
-                                      ? AppColors.errorLight
-                                      : AppColors.primaryMuted,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  isCancelled
-                                      ? 'COMPRA CANCELADA'
-                                      : isDelivered
-                                          ? 'OFERTA ENTREGADA'
-                                          : isBought
-                                              ? 'COMPRA CONFIRMADA'
-                                              : 'OFERTA COTIZADA',
-                                  style: GoogleFonts.hankenGrotesk(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w900,
+                              Flexible(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
                                     color: isCancelled
-                                        ? AppColors.errorInk
-                                        : AppColors.primary,
-                                    letterSpacing: 0.5,
+                                        ? AppColors.errorLight
+                                        : AppColors.primaryMuted,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    isCancelled
+                                        ? 'COMPRA CANCELADA'
+                                        : isDelivered
+                                            ? 'OFERTA ENTREGADA'
+                                            : isBought
+                                                ? 'COMPRA CONFIRMADA'
+                                                : 'OFERTA COTIZADA',
+                                    style: GoogleFonts.hankenGrotesk(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w900,
+                                      color: isCancelled
+                                          ? AppColors.errorInk
+                                          : AppColors.primary,
+                                      letterSpacing: 0.5,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -212,67 +237,34 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 10),
-
-                    // Precio destacado
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          (details.totalCost ?? details.price) != null
-                              ? Formatters.currency(
-                                  details.totalCost ?? details.price!,
-                                )
-                              : 'A convenir',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        if (details.deliveryCost != null)
-                          Text(
-                            details.deliveryCost == 0
-                                ? 'Total · delivery gratis'
-                                : 'Total con delivery',
-                            style: GoogleFonts.hankenGrotesk(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        if (details.partType != null) ...[
-                          const SizedBox(height: 2),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.grey100,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              details.partType!.toUpperCase(),
-                              style: GoogleFonts.hankenGrotesk(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                    if (!usesStackedSummary) ...[
+                      const SizedBox(width: 10),
+                      _OfferPriceSummary(
+                        details: details,
+                        alignment: CrossAxisAlignment.end,
+                      ),
+                    ],
                   ],
                 ),
+                if (usesStackedSummary) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: _OfferPriceSummary(
+                      details: details,
+                      alignment: CrossAxisAlignment.end,
+                    ),
+                  ),
+                ],
 
                 // Seccion Acordeón: Desplegar Notas / Solicitud original
                 if (hasDetails) ...[
                   const SizedBox(height: 8),
                   InkWell(
                     onTap: () => setState(() => _isExpanded = !_isExpanded),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+                    borderRadius: BorderRadius.circular(14),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 48),
                       child: Row(
                         children: [
                           Icon(
@@ -283,14 +275,17 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                             color: AppColors.primary,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            _isExpanded
-                                ? 'Ocultar detalles de la solicitud'
-                                : 'Ver detalles y notas de la solicitud',
-                            style: GoogleFonts.hankenGrotesk(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
+                          Expanded(
+                            child: Text(
+                              _isExpanded
+                                  ? 'Ocultar detalles de la solicitud'
+                                  : 'Ver detalles y notas de la solicitud',
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                                height: 1.3,
+                              ),
                             ),
                           ),
                         ],
@@ -376,7 +371,7 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                       (!isBought && !isDelivered && !isCancelled))
                     SizedBox(
                       width: double.infinity,
-                      height: 42,
+                      height: 48,
                       child: ElevatedButton.icon(
                         onPressed: widget.onBuyPressed,
                         icon: const Icon(Icons.shopping_cart_outlined,
@@ -395,7 +390,7 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                           backgroundColor: AppColors.primary,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(32),
                           ),
                         ),
                       ),
@@ -418,85 +413,55 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                                     AppColors.success.withValues(alpha: 0.3)),
                           ),
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const Icon(Icons.check_circle_outline_rounded,
-                                  size: 16, color: AppColors.success),
+                                  size: 16, color: AppColors.successInk),
                               const SizedBox(width: 6),
-                              Text(
-                                'Compra en proceso • Contacta a la tienda',
-                                style: GoogleFonts.hankenGrotesk(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.success,
+                              Expanded(
+                                child: Text(
+                                  'Compra en proceso • Contacta a la tienda',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.hankenGrotesk(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.successInk,
+                                    height: 1.3,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(height: 8),
-                        InkWell(
-                          onTap: () => StoreContactSheet.show(
-                            context,
-                            details: details,
-                            isPostPurchase: false,
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 9),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.info_outline_rounded,
-                                    size: 15, color: Colors.white),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Ver Datos de la Tienda',
-                                  style: GoogleFonts.hankenGrotesk(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
                         SizedBox(
                           height: 48,
                           child: OutlinedButton.icon(
-                            onPressed: widget.isCancelling
-                                ? null
-                                : widget.onCancelPressed,
-                            icon: widget.isCancelling
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: AppColors.error,
-                                    ),
-                                  )
-                                : const Icon(Icons.block_rounded, size: 18),
+                            onPressed: () => StoreContactSheet.show(
+                              context,
+                              details: details,
+                              isPostPurchase: false,
+                            ),
+                            icon: const AppLineIcon(
+                              AppIcons.store,
+                              size: AppIconSize.inline,
+                              color: AppColors.primary,
+                            ),
                             label: Text(
-                              widget.isCancelling
-                                  ? 'Cancelando...'
-                                  : 'Cancelar compra',
+                              'Ver datos de la tienda',
                               style: GoogleFonts.hankenGrotesk(
                                 fontSize: 13,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
                               ),
                             ),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.errorInk,
-                              side: const BorderSide(color: AppColors.error),
+                              foregroundColor: AppColors.primary,
+                              side: const BorderSide(
+                                color: AppColors.primary,
+                                width: 1.5,
+                              ),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(32),
                               ),
                             ),
                           ),
@@ -508,7 +473,7 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                   else if (isStore && isBought)
                     SizedBox(
                       width: double.infinity,
-                      height: 42,
+                      height: 48,
                       child: ElevatedButton.icon(
                         onPressed: widget.onDeliverPressed,
                         icon: const Icon(Icons.check_circle_outline_rounded,
@@ -525,7 +490,7 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                           backgroundColor: AppColors.success,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(32),
                           ),
                         ),
                       ),
@@ -705,7 +670,7 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
     if (!isStore) {
       return SizedBox(
         width: double.infinity,
-        height: 40,
+        height: 48,
         child: OutlinedButton.icon(
           onPressed: widget.onReviewPressed,
           icon: const Icon(Icons.star_outline_rounded,
@@ -721,7 +686,7 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
           style: OutlinedButton.styleFrom(
             side: BorderSide(color: Colors.amber.shade700),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(32),
             ),
           ),
         ),
@@ -729,5 +694,169 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
     }
 
     return const SizedBox.shrink();
+  }
+}
+
+class _OfferPhoto extends StatelessWidget {
+  final String? imageUrl;
+  final String title;
+
+  const _OfferPhoto({
+    required this.imageUrl,
+    required this.title,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final resolvedImageUrl = resolveMediaUrl(imageUrl);
+    final hasImage = resolvedImageUrl != null;
+    final content = SizedBox.square(
+      dimension: 58,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.grey100,
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: hasImage
+              ? Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.network(
+                      resolvedImageUrl,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) =>
+                          progress == null
+                              ? child
+                              : const Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: AppLineIcon(
+                          AppIcons.offer,
+                          size: AppIconSize.leading,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 4,
+                      bottom: 4,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: AppColors.textPrimary.withValues(alpha: 0.76),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4),
+                          child: AppLineIcon(
+                            AppIcons.externalLink,
+                            size: AppIconSize.inline,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : const Center(
+                  child: AppLineIcon(
+                    AppIcons.offer,
+                    size: AppIconSize.leading,
+                    color: AppColors.primary,
+                  ),
+                ),
+        ),
+      ),
+    );
+
+    if (!hasImage) return content;
+
+    return Semantics(
+      button: true,
+      label: 'Ampliar imagen de la oferta',
+      hint: 'Abre la imagen a pantalla completa con zoom',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => ImageViewerDialog.show(
+            context,
+            resolvedImageUrl,
+            title: title,
+          ),
+          child: content,
+        ),
+      ),
+    );
+  }
+}
+
+class _OfferPriceSummary extends StatelessWidget {
+  final ChatConversation details;
+  final CrossAxisAlignment alignment;
+
+  const _OfferPriceSummary({
+    required this.details,
+    required this.alignment,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: alignment,
+      children: [
+        Text(
+          (details.totalCost ?? details.price) != null
+              ? Formatters.currency(details.totalCost ?? details.price!)
+              : 'A convenir',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
+            color: AppColors.primary,
+          ),
+        ),
+        if (details.deliveryCost != null)
+          Text(
+            details.deliveryCost == 0
+                ? 'Total · delivery gratis'
+                : 'Total con delivery',
+            textAlign: alignment == CrossAxisAlignment.end
+                ? TextAlign.end
+                : TextAlign.start,
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+              height: 1.25,
+            ),
+          ),
+        if (details.partType != null) ...[
+          const SizedBox(height: 2),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.grey100,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              child: Text(
+                details.partType!.toUpperCase(),
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }

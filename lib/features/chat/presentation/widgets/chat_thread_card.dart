@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/domain/enums/offer_status.dart';
+import '../../../../core/utils/extensions.dart';
 import '../../domain/entities/chat_thread.dart';
 import '../../../reports/presentation/providers/reports_provider.dart';
 import '../providers/chat_providers.dart';
@@ -55,22 +56,14 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
       quoteRes.fold(
         (failure) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error al enviar cotización: ${failure.message}'),
-                backgroundColor: AppColors.error,
-              ),
+            context.showSnackBar(
+              'Error al enviar cotización: ${failure.message}',
+              isError: true,
             );
           }
         },
         (_) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('¡Cotización enviada con éxito!'),
-                backgroundColor: AppColors.success,
-              ),
-            );
             ref.invalidate(storeSalesRequestsProvider);
           }
         },
@@ -92,22 +85,14 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
       result.fold(
         (failure) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error al marcar entrega: ${failure.message}'),
-                backgroundColor: AppColors.error,
-              ),
+            context.showSnackBar(
+              'Error al marcar entrega: ${failure.message}',
+              isError: true,
             );
           }
         },
         (_) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('¡Oferta marcada como ENTREGADA!'),
-                backgroundColor: AppColors.success,
-              ),
-            );
             ref.invalidate(storeSalesRequestsProvider);
             ref.invalidate(storeDashboardProvider);
           }
@@ -132,16 +117,11 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
         reason,
       );
       result.fold(
-        (failure) => ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('No se pudo declinar: ${failure.message}'),
-            backgroundColor: AppColors.error,
-          ),
+        (failure) => context.showSnackBar(
+          'No se pudo declinar: ${failure.message}',
+          isError: true,
         ),
         (_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Solicitud declinada.')),
-          );
           ref.invalidate(storeSalesRequestsProvider);
           ref.invalidate(storeDashboardProvider);
         },
@@ -159,16 +139,11 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
     try {
       final result = await ref.read(undoDeclineUseCaseProvider)(searchMatchId);
       result.fold(
-        (failure) => ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('No se pudo restaurar: ${failure.message}'),
-            backgroundColor: AppColors.error,
-          ),
+        (failure) => context.showSnackBar(
+          'No se pudo restaurar: ${failure.message}',
+          isError: true,
         ),
         (_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Solicitud restaurada.')),
-          );
           ref.invalidate(storeSalesRequestsProvider);
           ref.invalidate(storeDashboardProvider);
         },

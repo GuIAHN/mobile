@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_icons.dart';
 
 /// Tipos de notificación soportados por el sistema AppNotification.
 enum NotificationType {
@@ -45,15 +46,15 @@ enum NotificationType {
   IconData get icon {
     switch (this) {
       case NotificationType.error:
-        return Icons.cancel_rounded;
+        return AppIcons.error;
       case NotificationType.success:
-        return Icons.check_circle_rounded;
+        return AppIcons.success;
       case NotificationType.info:
-        return Icons.info_rounded;
+        return AppIcons.info;
       case NotificationType.warning:
-        return Icons.warning_amber_rounded;
+        return AppIcons.warning;
       case NotificationType.message:
-        return Icons.chat_bubble_rounded;
+        return AppIcons.message;
     }
   }
 

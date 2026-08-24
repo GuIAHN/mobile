@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/socket_service.dart';
 import 'notification_provider.dart';
 import 'notification_type.dart';
+import '../../features/notifications/services/notification_route_resolver.dart';
 
 /// Escucha global del evento `notification.new` (WebSocket) para mostrar el
 /// toast interno [AppNotificationToast] cuando la app está en foreground.
@@ -17,6 +18,14 @@ final foregroundNotificationToastProvider = Provider<void>((ref) {
     var titulo = data['titulo']?.toString();
     var mensaje = cuerpo;
 
+    final rawPayload = data['data'];
+    final payload = rawPayload is Map
+        ? Map<String, dynamic>.from(rawPayload)
+        : const <String, dynamic>{};
+    final destinationPath = NotificationRouteResolver.resolve(
+      type: tipo,
+      data: payload,
+    );
 
     if (tipo == 'message.new') {
       final separator = cuerpo.indexOf(':');
@@ -30,6 +39,8 @@ final foregroundNotificationToastProvider = Provider<void>((ref) {
           type: _typeForTipo(tipo),
           title: titulo,
           message: mensaje,
+          sourceId: (data['id'] ?? data['_id'])?.toString(),
+          destinationPath: destinationPath,
         );
   });
 

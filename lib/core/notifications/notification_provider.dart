@@ -30,6 +30,8 @@ class NotificationNotifier extends StateNotifier<List<NotificationModel>> {
     String? title,
     Duration? duration,
     bool isDismissible = true,
+    String? sourceId,
+    String? destinationPath,
   }) {
     final notification = NotificationModel.create(
       type: type,
@@ -37,6 +39,8 @@ class NotificationNotifier extends StateNotifier<List<NotificationModel>> {
       title: title,
       duration: duration,
       isDismissible: isDismissible,
+      sourceId: sourceId,
+      destinationPath: destinationPath,
     );
 
     final current = List<NotificationModel>.from(state);

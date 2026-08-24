@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
+import '../../../../core/utils/extensions.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/guia_map.dart';
@@ -662,19 +663,7 @@ abstract class ContactActions {
       mapsUri = Uri.parse(
           'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Ubicación no disponible',
-            style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.w600),
-          ),
-          backgroundColor: AppColors.secondary,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-      );
+      context.showSnackBar('Ubicación no disponible');
       return;
     }
 
@@ -695,19 +684,10 @@ abstract class ContactActions {
   ) async {
     await Clipboard.setData(ClipboardData(text: value));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.w600),
-        ),
-        backgroundColor: AppColors.secondary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-        duration: const Duration(seconds: 2),
-      ),
+    context.showSnackBar(
+      message,
+      isSuccess: true,
+      duration: const Duration(seconds: 2),
     );
   }
 }

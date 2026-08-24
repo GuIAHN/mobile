@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/extensions.dart';
 import '../../../../shared/widgets/image_source_selector_sheet.dart';
 
 /// Formatea el texto con separadores de miles mientras se escribe
@@ -277,8 +278,9 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al seleccionar imagen: $e')),
+        context.showSnackBar(
+          'Error al seleccionar imagen: $e',
+          isError: true,
         );
       }
     }

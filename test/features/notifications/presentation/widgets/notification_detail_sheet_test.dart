@@ -67,7 +67,6 @@ void main() {
       expect(style.label, entry.value);
       expect(style.icon, isA<IconData>());
       expect(style.foreground, isA<Color>());
-      expect(style.background, isA<Color>());
     }
   });
 

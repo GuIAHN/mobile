@@ -57,21 +57,13 @@ class NotificationCardSkeleton extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (reduceMotion)
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: AppColors.grey200,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  )
-                else
-                  const SkeletonBox(
-                    width: 48,
-                    height: 48,
-                    borderRadius: 14,
+                SizedBox(
+                  width: AppSpacing.xl3,
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: shape(width: 24, height: 24),
                   ),
+                ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(

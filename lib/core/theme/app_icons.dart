@@ -14,6 +14,12 @@ abstract class AppIcons {
   static const IconData externalLink = LucideIcons.externalLink;
   static const IconData retry = LucideIcons.refreshCw;
   static const IconData time = LucideIcons.clock3;
+  static const IconData notification = LucideIcons.bell;
+  static const IconData notificationActive = LucideIcons.bellRing;
+  static const IconData error = LucideIcons.circleX;
+  static const IconData warning = LucideIcons.triangleAlert;
+  static const IconData account = LucideIcons.userRound;
+  static const IconData search = LucideIcons.search;
   static const IconData offer = LucideIcons.tag;
   static const IconData store = LucideIcons.store;
   static const IconData dashboard = LucideIcons.chartNoAxesColumnIncreasing;

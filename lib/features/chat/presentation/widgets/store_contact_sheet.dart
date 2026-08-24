@@ -40,9 +40,10 @@ class StoreContactSheet extends StatelessWidget {
     final lng = details.storeLng;
     final storeName = details.participantName;
 
-    final itemTitle = details.spareBrand != null && details.spareBrand!.isNotEmpty
-        ? details.spareBrand!
-        : (details.subcategoryName ?? 'Repuesto');
+    final itemTitle =
+        details.spareBrand != null && details.spareBrand!.isNotEmpty
+            ? details.spareBrand!
+            : (details.subcategoryName ?? 'Repuesto');
 
     return Container(
       decoration: const BoxDecoration(
@@ -215,13 +216,6 @@ class StoreContactSheet extends StatelessWidget {
                   Navigator.pop(context);
                   await Clipboard.setData(ClipboardData(text: phone));
                   HapticFeedback.mediumImpact();
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Teléfono copiado al portapapeles'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
                 },
               ),
 
