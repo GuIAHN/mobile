@@ -77,7 +77,11 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
       case _StatusFilter.closed:
         return threads.where((t) => !t.isOpen || t.isExpired).toList();
       case _StatusFilter.pending:
-        return threads.where((t) => t.matchState == 'PENDING').toList();
+        return threads
+            .where(
+              (t) => t.matchState == 'PENDING' || t.matchState == 'INQUIRING',
+            )
+            .toList();
       case _StatusFilter.inquiring:
         return threads.where((t) => t.matchState == 'INQUIRING').toList();
       case _StatusFilter.declined:
@@ -85,10 +89,7 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
       case _StatusFilter.quoted:
         return isStore
             ? threads.where((t) => t.matchState == 'QUOTED').toList()
-            : threads
-                .where(
-                    (t) => t.totalOffersCount > 0 || t.bestOfferPrice != null)
-                .toList();
+            : threads.where((t) => t.bestOfferPrice != null).toList();
       case _StatusFilter.bought:
         return threads
             .where((t) => isStore
@@ -255,18 +256,17 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
         searchFiltered.where((t) => t.isOpen && !t.isExpired).length;
     final closedCount =
         counts['closed'] ?? (searchFiltered.length - activeCount);
-    final pendingCount = counts['pending'] ??
-        searchFiltered.where((t) => t.matchState == 'PENDING').length;
     final inquiringCount = counts['inquiring'] ??
         searchFiltered.where((t) => t.matchState == 'INQUIRING').length;
+    final pendingCount = (counts['pending'] ??
+            searchFiltered.where((t) => t.matchState == 'PENDING').length) +
+        inquiringCount;
     final declinedCount = counts['declined'] ??
         searchFiltered.where((t) => t.matchState == 'DECLINED').length;
     final quotedCount = counts['quoted'] ??
         counts['withOffer'] ??
         searchFiltered
-            .where((t) => isProvider
-                ? t.hasOffer
-                : t.totalOffersCount > 0 || t.bestOfferPrice != null)
+            .where((t) => isProvider ? t.hasOffer : t.bestOfferPrice != null)
             .length;
     final boughtCount = counts['bought'] ??
         searchFiltered
@@ -442,49 +442,28 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
 
           if (!isLoading) ...[
             const SizedBox(height: 12),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final filters = _StatusFilterChips(
-                  isProvider: isProvider,
-                  selected: _statusFilter,
-                  allCount: allCount,
-                  activeCount: activeCount,
-                  closedCount: closedCount,
-                  pendingCount: pendingCount,
-                  inquiringCount: inquiringCount,
-                  declinedCount: declinedCount,
-                  quotedCount: quotedCount,
-                  boughtCount: boughtCount,
-                  deliveredCount: deliveredCount,
-                  cancelledCount: cancelledCount,
-                  discardedCount: discardedCount,
-                  onChanged: (f) {
-                    setState(() => _statusFilter = f);
-                    final param = _mapFilterToParam(f, isProvider);
-                    if (isProvider) {
-                      ref.read(storeStatusFilterProvider.notifier).state =
-                          param;
-                    } else {
-                      ref.read(consumerStatusFilterProvider.notifier).state =
-                          param;
-                    }
-                  },
-                );
-
-                // Ventas siempre muestra los cuatro estados. En Compras se
-                // conserva el grupo compacto y centrado de tres opciones.
-                if (isProvider) return filters;
-
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                    child: Align(
-                      alignment: Alignment.center,
-                      child: filters,
-                    ),
-                  ),
-                );
+            _StatusFilterChips(
+              isProvider: isProvider,
+              selected: _statusFilter,
+              allCount: allCount,
+              activeCount: activeCount,
+              closedCount: closedCount,
+              pendingCount: pendingCount,
+              inquiringCount: inquiringCount,
+              declinedCount: declinedCount,
+              quotedCount: quotedCount,
+              boughtCount: boughtCount,
+              deliveredCount: deliveredCount,
+              cancelledCount: cancelledCount,
+              discardedCount: discardedCount,
+              onChanged: (f) {
+                setState(() => _statusFilter = f);
+                final param = _mapFilterToParam(f, isProvider);
+                if (isProvider) {
+                  ref.read(storeStatusFilterProvider.notifier).state = param;
+                } else {
+                  ref.read(consumerStatusFilterProvider.notifier).state = param;
+                }
               },
             ),
           ],
@@ -602,79 +581,78 @@ class _StatusFilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (isProvider) {
-      return Container(
-        key: const Key('store-sales-filter-group'),
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: _SalesStatusTab(
-                label: 'Pendientes',
-                count: pendingCount,
-                isSelected: selected == _StatusFilter.pending,
-                onTap: () => onChanged(_StatusFilter.pending),
-              ),
+    final options = isProvider
+        ? <({String label, int count, _StatusFilter filter})>[
+            (
+              label: 'Pendientes',
+              count: pendingCount,
+              filter: _StatusFilter.pending,
             ),
-            Expanded(
-              child: _SalesStatusTab(
-                label: 'Cotizadas',
-                count: quotedCount,
-                isSelected: selected == _StatusFilter.quoted,
-                onTap: () => onChanged(_StatusFilter.quoted),
-              ),
+            (
+              label: 'Cotizadas',
+              count: quotedCount,
+              filter: _StatusFilter.quoted,
             ),
-            Expanded(
-              child: _SalesStatusTab(
-                label: 'Canceladas',
-                count: cancelledCount,
-                isSelected: selected == _StatusFilter.cancelled,
-                onTap: () => onChanged(_StatusFilter.cancelled),
-              ),
+            (
+              label: 'Canceladas',
+              count: cancelledCount,
+              filter: _StatusFilter.cancelled,
             ),
-            Expanded(
-              child: _SalesStatusTab(
-                label: 'Entregadas',
-                count: deliveredCount,
-                isSelected: selected == _StatusFilter.delivered,
-                showDivider: false,
-                onTap: () => onChanged(_StatusFilter.delivered),
-              ),
+            (
+              label: 'Entregadas',
+              count: deliveredCount,
+              filter: _StatusFilter.delivered,
             ),
-          ],
-        ),
-      );
-    }
+          ]
+        : <({String label, int count, _StatusFilter filter})>[
+            (
+              label: 'Activas',
+              count: activeCount,
+              filter: _StatusFilter.active,
+            ),
+            (
+              label: 'Cotizadas',
+              count: quotedCount,
+              filter: _StatusFilter.quoted,
+            ),
+            (
+              label: 'Compradas',
+              count: boughtCount,
+              filter: _StatusFilter.bought,
+            ),
+            (
+              label: 'Canceladas',
+              count: cancelledCount,
+              filter: _StatusFilter.cancelled,
+            ),
+          ];
 
-    return Row(
-      key: const Key('consumer-purchase-filter-group'),
-      children: [
-        _StatusChip(
-          label: 'Activas',
-          count: activeCount,
-          isSelected: selected == _StatusFilter.active,
-          onTap: () => onChanged(_StatusFilter.active),
-        ),
-        const SizedBox(width: 8),
-        _StatusChip(
-          label: 'Cotizadas',
-          count: quotedCount,
-          isSelected: selected == _StatusFilter.quoted,
-          onTap: () => onChanged(_StatusFilter.quoted),
-        ),
-        const SizedBox(width: 8),
-        _StatusChip(
-          label: 'Canceladas',
-          count: cancelledCount,
-          isSelected: selected == _StatusFilter.cancelled,
-          onTap: () => onChanged(_StatusFilter.cancelled),
-        ),
-      ],
+    return Container(
+      key: Key(
+        isProvider
+            ? 'store-sales-filter-group'
+            : 'consumer-purchase-filter-group',
+      ),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          for (var index = 0; index < options.length; index++)
+            Expanded(
+              child: _SalesStatusTab(
+                label: options[index].label,
+                count: options[index].count,
+                isSelected: selected == options[index].filter,
+                showDivider: index < options.length - 1,
+                onTap: () => onChanged(options[index].filter),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -753,80 +731,6 @@ class _SalesStatusTab extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  final String label;
-  final int count;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _StatusChip({
-    required this.label,
-    required this.count,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: isSelected,
-      label: '$label, $count',
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          constraints: const BoxConstraints(minHeight: 48),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.primary : Colors.white,
-            borderRadius: BorderRadius.circular(99),
-            border: Border.all(
-              color: isSelected ? AppColors.primary : AppColors.border,
-            ),
-          ),
-          child: Wrap(
-            alignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 6,
-            runSpacing: 2,
-            children: [
-              Text(
-                label,
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: isSelected ? Colors.white : AppColors.textSecondary,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? Colors.white.withValues(alpha: 0.22)
-                      : AppColors.grey100,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-                child: Text(
-                  '$count',
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: isSelected ? Colors.white : AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            ],
           ),
         ),
       ),

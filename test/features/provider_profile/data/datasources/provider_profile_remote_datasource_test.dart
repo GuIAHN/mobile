@@ -91,7 +91,12 @@ void main() {
           ],
           'sparePartsTypes': ['ORIGINAL', 'GENERIC'],
           'subcategories': [
-            {'subcategoryId': 'subcategory-1', 'name': 'Pastillas'},
+            {
+              'subcategoryId': 'subcategory-1',
+              'name': 'Pastillas',
+              'categoryId': 'category-1',
+              'categoryName': 'Frenos',
+            },
           ],
         },
       ),
@@ -99,11 +104,13 @@ void main() {
 
     final result = await dataSource.getOwnCatalog();
 
-    expect(result, hasLength(1));
-    expect(result.single.id, 'subcategory-1');
-    expect(result.single.categoryName, 'Pastillas');
-    expect(result.single.brands, ['Toyota']);
-    expect(result.single.sparePartsTypes, ['ORIGINAL', 'GENERIC']);
+    expect(result.subcategories, hasLength(1));
+    expect(result.subcategories.single.id, 'subcategory-1');
+    expect(result.subcategories.single.categoryId, 'category-1');
+    expect(result.subcategories.single.categoryName, 'Frenos');
+    expect(result.subcategories.single.subcategoryName, 'Pastillas');
+    expect(result.brands, ['Toyota']);
+    expect(result.sparePartsTypes, ['ORIGINAL', 'GENERIC']);
     verify(
       () => client.get<Map<String, dynamic>>(
         ApiEndpoints.storeOwnCoverage,

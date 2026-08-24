@@ -158,9 +158,11 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
     final globalVehicle = ref.read(searchVehicleProvider);
     final selectedSubcategory = _selectedSubcategory;
     final selectedPartType = _selectedPartType;
+    final details = _detailsController.text.trim();
     if (globalVehicle == null ||
         selectedSubcategory == null ||
-        selectedPartType == null) {
+        selectedPartType == null ||
+        details.isEmpty) {
       return;
     }
 
@@ -222,7 +224,7 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
     await ref.read(searchRequestNotifierProvider.notifier).submitSearch(
           userCarId: userCarId,
           subcategoryId: selectedSubcategory.id,
-          details: _detailsController.text,
+          details: details,
           partType: selectedPartType,
           fotoUrl: _selectedImagePath,
           lat: lat,
@@ -763,48 +765,33 @@ class _RequestSparePartFormState extends ConsumerState<RequestSparePartForm> {
   }
 
   Widget _buildStep3() {
-    final needsDetails = _isOtroCategory;
-    final hasRequiredDetails =
-        !needsDetails || _detailsController.text.trim().isNotEmpty;
+    final hasRequiredDetails = _detailsController.text.trim().isNotEmpty;
 
     return Column(
       key: const ValueKey('step3'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildLabel(
-          needsDetails
-              ? 'DETALLES ADICIONALES *'
-              : 'DETALLES ADICIONALES (OPCIONAL)',
-        ),
-        if (needsDetails) ...[
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              const Icon(Icons.info_outline_rounded,
-                  size: 13, color: AppColors.tertiary),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  'Cuéntanos qué repuesto necesitas, ya que no coincide con ninguna categoría del catálogo.',
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.tertiary,
-                    height: 1.3,
-                  ),
-                ),
-              ),
-            ],
+        _buildLabel('DETALLES DE LA SOLICITUD *'),
+        const SizedBox(height: 4),
+        Text(
+          _isOtroCategory
+              ? 'Describe el repuesto porque no coincide con una categoría del catálogo.'
+              : 'Incluye ubicación, medidas, versión o cualquier detalle útil.',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: AppColors.tertiary,
+            height: 1.3,
           ),
-        ],
+        ),
         const SizedBox(height: 6),
         _buildTextField(
           controller: _detailsController,
-          hint: needsDetails
+          hint: _isOtroCategory
               ? 'Ej. Kit de embrague completo para motor 2.0L turbo...'
               : 'Ej. Alternador para motor 1.8L, lado derecho, marca Denso...',
           maxLines: 2,
-          highlighted: needsDetails,
+          highlighted: true,
         ),
         const SizedBox(height: 16),
         _buildLabel('FOTOGRAFÍA DE REFERENCIA (OPCIONAL)'),

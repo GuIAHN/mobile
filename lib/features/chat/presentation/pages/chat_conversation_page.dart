@@ -16,6 +16,7 @@ import '../../../reviews/presentation/providers/reviews_providers.dart';
 import '../widgets/moderation_blocked_dialog.dart';
 import '../widgets/store_contact_sheet.dart';
 import '../widgets/quote_input_dialog.dart';
+import '../widgets/decline_match_dialog.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/services/socket_service.dart';
@@ -43,6 +44,8 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
   bool _canSend = false;
   bool _isSending = false;
   bool _isQuoting = false;
+  bool _isDeclining = false;
+  bool _declinedLocally = false;
   bool _isCancelling = false;
 
   @override
@@ -201,6 +204,49 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
     }
   }
 
+  Future<void> _declineFromChat(ChatConversation details) async {
+    final searchMatchId = details.searchMatchId;
+    if (searchMatchId == null || _isDeclining) return;
+
+    final reason = await DeclineMatchDialog.show(context);
+    if (reason == null || !mounted) return;
+
+    setState(() => _isDeclining = true);
+    try {
+      final result = await ref.read(declineMatchUseCaseProvider)(
+        searchMatchId,
+        reason,
+      );
+      var succeeded = false;
+      result.fold(
+        (failure) {
+          if (mounted) {
+            context.showSnackBar(
+              'No se pudo marcar como no atendida: ${failure.message}',
+              isError: true,
+            );
+          }
+        },
+        (_) => succeeded = true,
+      );
+      if (!succeeded || !mounted) return;
+
+      setState(() => _declinedLocally = true);
+      ref.invalidate(chatConversationDetailsProvider(widget.conversationId));
+      ref.invalidate(myConversationsProvider);
+      ref.invalidate(storeSalesRequestsProvider);
+      ref.invalidate(storeDashboardProvider);
+      await ref
+          .read(chatMessagesProvider(widget.conversationId).notifier)
+          .loadMessages();
+      if (mounted) {
+        context.showSnackBar('Marcaste esta solicitud como no atendida.');
+      }
+    } finally {
+      if (mounted) setState(() => _isDeclining = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final messagesAsync =
@@ -233,105 +279,201 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
         title: detailsAsync.when(
           loading: () => const Text('Cargando...'),
           error: (_, __) => const Text('Chat'),
-          data: (details) => Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.grey200,
-                  shape: BoxShape.circle,
-                  image: details.participantAvatarUrl != null
-                      ? DecorationImage(
-                          image: NetworkImage(details.participantAvatarUrl!),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
-                ),
-                child: details.participantAvatarUrl == null
-                    ? const Icon(Icons.person_rounded,
-                        color: AppColors.textSecondary, size: 18)
-                    : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      details.participantName,
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+          data: (details) {
+            final hideStoreIdentity = !isStore && !details.revealsStoreIdentity;
+            final avatarUrl =
+                hideStoreIdentity ? null : details.participantAvatarUrl;
+            return Row(
+              children: [
+                Semantics(
+                  image: true,
+                  label: hideStoreIdentity
+                      ? 'Perfil genérico de la tienda'
+                      : 'Foto de perfil de ${details.participantName}',
+                  child: Container(
+                    key: hideStoreIdentity
+                        ? const Key('generic-store-avatar')
+                        : const Key('participant-avatar'),
+                    width: 40,
+                    height: 40,
+                    clipBehavior: Clip.antiAlias,
+                    decoration: const BoxDecoration(
+                      color: AppColors.grey200,
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(height: 1),
-                    Text(
-                      isStore ? 'Comprador' : 'Tienda',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
+                    child: avatarUrl != null && avatarUrl.isNotEmpty
+                        ? Image.network(
+                            avatarUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const AppLineIcon(
+                              AppIcons.account,
+                              size: AppIconSize.action,
+                              color: AppColors.textSecondary,
+                            ),
+                          )
+                        : AppLineIcon(
+                            hideStoreIdentity
+                                ? AppIcons.store
+                                : AppIcons.account,
+                            size: AppIconSize.action,
+                            color: AppColors.textSecondary,
+                          ),
+                  ),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        details.participantName,
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        isStore ? 'Comprador' : 'Tienda',
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // ── Cotizar ahora (tienda, oferta en INQUIRY) ────────────────────
-            // Arriba y separado del compositor para evitar toques accidentales
-            // cerca del botón de enviar mensaje.
+            // ── Acciones de consulta (tienda, oferta en INQUIRY) ─────────────
+            // En una sola fila para conservar el espacio vertical del chat.
+            // Se mantiene lejos del compositor para evitar toques accidentales.
             if (isStore &&
                 detailsAsync.valueOrNull?.isInquiry == true &&
-                detailsAsync.valueOrNull?.offerId != null)
+                detailsAsync.valueOrNull?.offerId != null &&
+                detailsAsync.valueOrNull?.declinedAt == null &&
+                !_declinedLocally)
               Container(
+                key: const Key('inquiry-actions-bar'),
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
                 color: Colors.white,
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    onPressed: _isQuoting
-                        ? null
-                        : () => _quoteFromChat(
-                              detailsAsync.valueOrNull!.offerId!,
-                              detailsAsync.valueOrNull!.subcategoryName ??
-                                  'la solicitud',
+                child: Row(
+                  children: [
+                    if (detailsAsync.valueOrNull!.searchMatchId != null)
+                      Expanded(
+                        child: SizedBox(
+                          height: 48,
+                          child: TextButton.icon(
+                            key: const Key('decline-inquiry-button'),
+                            onPressed: _isQuoting || _isDeclining
+                                ? null
+                                : () => _declineFromChat(
+                                      detailsAsync.valueOrNull!,
+                                    ),
+                            icon: _isDeclining
+                                ? const SizedBox.square(
+                                    dimension: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  )
+                                : AppLineIcon(
+                                    AppIcons.declined,
+                                    size: AppIconSize.inline,
+                                    color: _isQuoting
+                                        ? AppColors.textDisabled
+                                        : AppColors.textSecondary,
+                                  ),
+                            label: Text(
+                              _isDeclining ? 'Declinando…' : 'Declinar',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                    icon: _isQuoting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.local_offer_rounded, size: 18),
-                    label: Text(
-                      'Cotizar ahora',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w800,
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.textSecondary,
+                              disabledForegroundColor: AppColors.textDisabled,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(32),
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      const Spacer(),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: OutlinedButton.icon(
+                          key: const Key('quote-inquiry-button'),
+                          onPressed: _isQuoting || _isDeclining
+                              ? null
+                              : () => _quoteFromChat(
+                                    detailsAsync.valueOrNull!.offerId!,
+                                    detailsAsync.valueOrNull!.subcategoryName ??
+                                        'la solicitud',
+                                  ),
+                          icon: _isQuoting
+                              ? const SizedBox.square(
+                                  dimension: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.primary,
+                                  ),
+                                )
+                              : AppLineIcon(
+                                  AppIcons.offer,
+                                  size: AppIconSize.inline,
+                                  color: _isDeclining
+                                      ? AppColors.textDisabled
+                                      : AppColors.primary,
+                                ),
+                          label: Text(
+                            _isQuoting ? 'Cotizando…' : 'Cotizar',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            disabledForegroundColor: AppColors.textDisabled,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            side: BorderSide(
+                              color: _isQuoting || _isDeclining
+                                  ? AppColors.border
+                                  : AppColors.primary,
+                              width: 1.5,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(32),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(32),
-                      ),
-                    ),
-                  ),
+                  ],
                 ),
               ),
 
@@ -508,42 +650,54 @@ class _EmptyChatState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const AppLineIcon(
-              AppIcons.message,
-              size: AppIconSize.feature,
-              color: AppColors.primary,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Inicia la conversación',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const verticalPadding = 48.0;
+        final minContentHeight = constraints.maxHeight > verticalPadding
+            ? constraints.maxHeight - verticalPadding
+            : 0.0;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: minContentHeight),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const AppLineIcon(
+                    AppIcons.message,
+                    size: AppIconSize.feature,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Inicia la conversación',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    participantName == null
+                        ? 'Escribe un mensaje para conversar sobre esta oferta.'
+                        : 'Escribe a $participantName para conversar sobre esta oferta.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 14,
+                      height: 1.45,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              participantName == null
-                  ? 'Escribe un mensaje para conversar sobre esta oferta.'
-                  : 'Escribe a $participantName para conversar sobre esta oferta.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 14,
-                height: 1.45,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

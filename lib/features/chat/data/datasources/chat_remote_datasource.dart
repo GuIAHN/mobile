@@ -204,6 +204,11 @@ class ChatRemoteDataSource {
         ),
         offerId: json['id'],
         offerStatus: json['status'],
+        searchMatchId: json['searchMatchId'] as String?,
+        declinedAt: json['declinedAt'] != null
+            ? DateTime.tryParse(json['declinedAt'].toString())
+            : null,
+        declineReason: json['declineReason'] as String?,
         cancelledAt: json['cancelledAt'] != null
             ? DateTime.tryParse(json['cancelledAt'].toString())
             : null,
@@ -274,6 +279,11 @@ class ChatRemoteDataSource {
             : DateTime.now(),
         offerId: json['offerId'],
         offerStatus: json['offerStatus'],
+        searchMatchId: json['searchMatchId'] as String?,
+        declinedAt: json['declinedAt'] != null
+            ? DateTime.tryParse(json['declinedAt'].toString())
+            : null,
+        declineReason: json['declineReason'] as String?,
         cancelledAt: json['cancelledAt'] != null
             ? DateTime.tryParse(json['cancelledAt'].toString())
             : null,
@@ -375,6 +385,7 @@ class ChatRemoteDataSource {
       lastMessageAt: DateTime.parse(json['createdAt']),
       offerId: offerId,
       offerStatus: json['status'],
+      searchMatchId: searchMatchId as String?,
       hasQuote: true,
       isInquiry: json['status'] == 'INQUIRY',
       price: json['price'] != null

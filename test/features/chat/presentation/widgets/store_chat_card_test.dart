@@ -11,15 +11,18 @@ void main() {
     bool hasQuote = true,
     double? price = 1250,
     String lastMessage = 'La pieza está lista para retirar.',
+    String offerStatus = 'BOUGHT',
+    String? participantAvatarUrl,
   }) {
     return ChatConversation(
       id: 'conversation-1',
       threadId: 'request-1',
       participantName: 'Repuestos Central',
+      participantAvatarUrl: participantAvatarUrl,
       lastMessage: lastMessage,
       unreadCount: 3,
       lastMessageAt: DateTime.utc(2026, 8, 14),
-      offerStatus: 'BOUGHT',
+      offerStatus: offerStatus,
       hasQuote: hasQuote,
       price: price,
     );
@@ -111,5 +114,18 @@ void main() {
     expect(find.text('Sin mensajes todavía'), findsOneWidget);
     expect(find.byKey(const Key('chat-card-price')), findsNothing);
     expect(find.text('COMPRADA'), findsOneWidget);
+  });
+
+  testWidgets('hides a store profile photo before purchase', (tester) async {
+    await pumpCard(
+      tester,
+      value: conversation(
+        offerStatus: 'SENT',
+        participantAvatarUrl: 'https://example.com/private-store.jpg',
+      ),
+    );
+
+    expect(find.byKey(const Key('generic-store-avatar')), findsOneWidget);
+    expect(find.byKey(const Key('participant-avatar')), findsNothing);
   });
 }

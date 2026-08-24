@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../shared/widgets/image_source_selector_sheet.dart';
 
@@ -60,20 +61,45 @@ class _DecimalFormatter extends TextInputFormatter {
 /// Devuelve `{price, deliveryCost?, updateDeliveryCost, brand?, photoPath?}`.
 class QuoteInputDialog extends StatefulWidget {
   final String requestTitle;
+  final ScrollController scrollController;
 
   const QuoteInputDialog({
     super.key,
     required this.requestTitle,
+    required this.scrollController,
   });
 
   static Future<Map<String, dynamic>?> show(
-      BuildContext context, String title) {
+    BuildContext context,
+    String title,
+  ) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      isDismissible: true,
+      enableDrag: true,
+      showDragHandle: false,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.5),
-      builder: (context) => QuoteInputDialog(requestTitle: title),
+      sheetAnimationStyle: AnimationStyle(
+        duration:
+            reduceMotion ? Duration.zero : const Duration(milliseconds: 280),
+        reverseDuration:
+            reduceMotion ? Duration.zero : const Duration(milliseconds: 180),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        minChildSize: 0.28,
+        initialChildSize: 0.92,
+        maxChildSize: 0.96,
+        shouldCloseOnMinExtent: true,
+        builder: (context, scrollController) => QuoteInputDialog(
+          requestTitle: title,
+          scrollController: scrollController,
+        ),
+      ),
     );
   }
 
@@ -91,14 +117,12 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
   final ImagePicker _picker = ImagePicker();
   String? _selectedImagePath;
   String? _errorMessage;
-  bool _includeDelivery = false;
 
   @override
   void initState() {
     super.initState();
     // Actualiza el estado del botón al escribir.
     _priceController.addListener(() => setState(() => _errorMessage = null));
-    _deliveryController.addListener(() => setState(() => _errorMessage = null));
   }
 
   @override
@@ -131,16 +155,11 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
       return;
     }
     final deliveryCost = _value(_deliveryController);
-    if (_includeDelivery && deliveryCost == null) {
-      setState(
-          () => _errorMessage = 'Ingresa el costo del delivery (puede ser 0).');
-      return;
-    }
     HapticFeedback.mediumImpact();
     Navigator.pop(context, {
       'price': price,
       'updateDeliveryCost': true,
-      'deliveryCost': _includeDelivery ? deliveryCost : null,
+      'deliveryCost': deliveryCost,
       if (brand.isNotEmpty) 'brand': brand,
       if (_selectedImagePath != null) 'photoPath': _selectedImagePath,
     });
@@ -159,32 +178,63 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(
+          controller: widget.scrollController,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.fromLTRB(24, 10, 24, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.grey300,
-                    borderRadius: BorderRadius.circular(99),
+                child: Semantics(
+                  label: 'Arrastra hacia abajo para cerrar la cotización',
+                  child: Container(
+                    key: const Key('quote-sheet-drag-handle'),
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.grey300,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
                   ),
                 ),
               ),
 
               // Encabezado
-              Text(
-                'Enviar oferta',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 48),
+                    child: Text(
+                      'Enviar oferta',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
+                      key: const Key('close-quote-sheet'),
+                      tooltip: 'Cerrar cotización',
+                      onPressed: () => Navigator.pop(context),
+                      constraints: const BoxConstraints(
+                        minWidth: 48,
+                        minHeight: 48,
+                      ),
+                      icon: const AppLineIcon(
+                        AppIcons.close,
+                        size: AppIconSize.action,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
               Text(
@@ -214,12 +264,7 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
               const SizedBox(height: 24),
 
               _DeliverySection(
-                includeDelivery: _includeDelivery,
                 controller: _deliveryController,
-                onChanged: (value) => setState(() {
-                  _includeDelivery = value;
-                  if (!value) _deliveryController.clear();
-                }),
               ),
               const SizedBox(height: 20),
 
@@ -384,80 +429,83 @@ class _ThinDivider extends StatelessWidget {
 
 class _DeliverySection extends StatelessWidget {
   const _DeliverySection({
-    required this.includeDelivery,
     required this.controller,
-    required this.onChanged,
   });
 
-  final bool includeDelivery;
   final TextEditingController controller;
-  final ValueChanged<bool> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: MediaQuery.disableAnimationsOf(context)
-          ? Duration.zero
-          : const Duration(milliseconds: 200),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: includeDelivery ? AppColors.primary : AppColors.border,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'PRECIO DEL DELIVERY (OPCIONAL)',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textSecondary,
+            letterSpacing: 1,
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            value: includeDelivery,
-            onChanged: onChanged,
-            activeTrackColor: AppColors.primary,
-            title: Text(
-              'Incluir delivery',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
+        const SizedBox(height: 8),
+        Semantics(
+          textField: true,
+          label: 'Precio del delivery, opcional',
+          child: TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [_DecimalFormatter()],
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
-            subtitle: Text(
-              'Desactívalo si el cliente debe retirar en tienda.',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 12.5,
+            decoration: InputDecoration(
+              hintText: '0.00',
+              helperText:
+                  'Déjalo vacío si no ofrecerás delivery. Escribe 0 si es gratis.',
+              helperMaxLines: 2,
+              prefixIcon: const Padding(
+                padding: EdgeInsets.only(left: 16, right: 12),
+                child: AppLineIcon(
+                  AppIcons.delivery,
+                  size: AppIconSize.action,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              prefixIconConstraints: const BoxConstraints(minWidth: 48),
+              prefixText: r'$ ',
+              filled: true,
+              fillColor: AppColors.surface,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide:
+                    const BorderSide(color: AppColors.borderFocus, width: 1.5),
+              ),
+              hintStyle: GoogleFonts.hankenGrotesk(
+                color: AppColors.textPlaceholder,
+                fontWeight: FontWeight.w400,
+              ),
+              helperStyle: GoogleFonts.hankenGrotesk(
+                fontSize: 12,
                 color: AppColors.textSecondary,
               ),
             ),
           ),
-          if (includeDelivery) ...[
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [_DecimalFormatter()],
-              style: GoogleFonts.hankenGrotesk(
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-              decoration: InputDecoration(
-                labelText: 'Costo del delivery',
-                helperText: 'Escribe 0 si el delivery es gratis.',
-                prefixText: r'$ ',
-                filled: true,
-                fillColor: AppColors.background,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -613,18 +661,25 @@ class _SubmitButton extends StatelessWidget {
           ),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              'ENVIAR OFERTA',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.5,
+            Expanded(
+              child: Text(
+                'ENVIAR OFERTA',
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                ),
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(Icons.send_rounded, size: 17),
+            const AppLineIcon(
+              AppIcons.send,
+              size: AppIconSize.inline,
+              color: Colors.white,
+            ),
           ],
         ),
       ),

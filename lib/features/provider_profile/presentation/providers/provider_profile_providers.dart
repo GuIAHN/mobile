@@ -4,7 +4,7 @@ import '../../../../core/network/dio_client.dart';
 import '../../../catalog/domain/entities/specialty.dart';
 import '../../data/datasources/provider_profile_remote_datasource.dart';
 import '../../data/repositories/provider_profile_repository_impl.dart';
-import '../../domain/entities/store_catalog_line.dart';
+import '../../domain/entities/store_catalog.dart';
 import '../../domain/repositories/provider_profile_repository.dart';
 import '../../domain/usecases/get_provider_specialties_usecase.dart';
 import '../../domain/usecases/get_store_catalog_usecase.dart';
@@ -40,11 +40,11 @@ final getStoreCatalogUseCaseProvider = Provider<GetStoreCatalogUseCase>((ref) {
 });
 
 final storeCatalogProvider =
-    FutureProvider.autoDispose<List<StoreCatalogLine>>((ref) async {
+    FutureProvider.autoDispose<StoreCatalog>((ref) async {
   final result = await ref.watch(getStoreCatalogUseCaseProvider)();
   return result.fold(
     (failure) => throw failure,
-    (lines) => lines,
+    (catalog) => catalog,
   );
 });
 

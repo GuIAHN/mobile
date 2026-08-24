@@ -63,6 +63,7 @@ void main() {
     required UserRole role,
     required Widget page,
     ChatThreadsResult? storeResult,
+    double textScale = 1,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -76,7 +77,15 @@ void main() {
             (ref) async => storeResult ?? resultFor(storeRequest),
           ),
         ],
-        child: MaterialApp(home: page),
+        child: MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(textScale),
+            ),
+            child: child!,
+          ),
+          home: page,
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -119,9 +128,9 @@ void main() {
     expect(find.text('Motor BMW N55'), findsOneWidget);
     expect(find.text('Activas'), findsOneWidget);
     expect(find.text('Cotizadas'), findsOneWidget);
+    expect(find.text('Compradas'), findsOneWidget);
     expect(find.text('Canceladas'), findsOneWidget);
     expect(find.text('Todas'), findsNothing);
-    expect(find.text('Compradas'), findsNothing);
     expect(find.text('Cerradas'), findsNothing);
     expect(
       tester
@@ -142,9 +151,45 @@ void main() {
     await tester.pump();
     expect(container.read(consumerStatusFilterProvider), 'WITH_OFFER');
 
+    await tester.tap(find.text('Compradas'));
+    await tester.pump();
+    expect(container.read(consumerStatusFilterProvider), 'BOUGHT');
+
     await tester.tap(find.text('Canceladas'));
     await tester.pump();
     expect(container.read(consumerStatusFilterProvider), 'CANCELLED');
+  });
+
+  testWidgets('Compras exposes all four filters without horizontal scrolling',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await pumpPage(
+      tester,
+      role: UserRole.consumer,
+      page: const ConsumerPurchasesPage(),
+      textScale: 2,
+    );
+
+    final group = find.byKey(const Key('consumer-purchase-filter-group'));
+    expect(group, findsOneWidget);
+    expect(
+      find.ancestor(
+        of: group,
+        matching: find.byType(SingleChildScrollView),
+      ),
+      findsNothing,
+    );
+
+    final active = tester.getCenter(find.text('Activas'));
+    final quoted = tester.getCenter(find.text('Cotizadas'));
+    final bought = tester.getCenter(find.text('Compradas'));
+    final cancelled = tester.getCenter(find.text('Canceladas'));
+    expect(active.dy, closeTo(quoted.dy, 1));
+    expect(quoted.dy, closeTo(bought.dy, 1));
+    expect(bought.dy, closeTo(cancelled.dy, 1));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('store Chats and Ventas are independent sections',
@@ -218,6 +263,43 @@ void main() {
         )
         .first;
     expect(tester.getSize(deliveredTarget).height, greaterThanOrEqualTo(48));
+  });
+
+  testWidgets('price-less inquiries remain visible in store Pendientes',
+      (tester) async {
+    final inquiry = ChatThread(
+      id: 'request-inquiry',
+      title: 'Consulta por alternador',
+      requestType: ServiceType.spareParts,
+      unreadCount: 0,
+      conversationCount: 1,
+      lastActivityAt: DateTime.utc(2026, 8, 14),
+      clientName: 'Ana',
+      searchMatchId: 'match-inquiry',
+      matchState: 'INQUIRING',
+      isInquiry: true,
+      hasOffer: true,
+      conversationId: 'conversation-inquiry',
+    );
+
+    await pumpPage(
+      tester,
+      role: UserRole.store,
+      page: const StoreSalesPage(),
+      storeResult: ChatThreadsResult(
+        threads: [storeRequest, inquiry],
+        counts: const {
+          'all': 2,
+          'pending': 1,
+          'inquiring': 1,
+        },
+        total: 2,
+      ),
+    );
+
+    expect(find.text('Bomba de gasolina'), findsOneWidget);
+    expect(find.text('Consulta por alternador'), findsOneWidget);
+    expect(find.text('2'), findsOneWidget);
   });
 
   testWidgets('store keeps cancelled and delivered requests until expiration',

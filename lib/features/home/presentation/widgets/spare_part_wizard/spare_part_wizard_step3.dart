@@ -82,11 +82,11 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
             ),
           ],
           const SizedBox(height: 32),
-          _WizardSectionHeader(
+          const _WizardSectionHeader(
             icon: Icons.notes_rounded,
             title: 'Describe la pieza',
-            helper: 'Agrega datos que ayuden a identificarla',
-            badge: widget.isOtroCategory ? 'Requerido' : 'Opcional',
+            helper: 'Indica características que ayuden a identificarla',
+            badge: 'Requerido',
           ),
           const SizedBox(height: 10),
           TextField(
@@ -111,9 +111,8 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
               hintStyle: AppTypography.body.copyWith(
                 color: AppColors.textPlaceholder,
               ),
-              helperText: widget.isOtroCategory
-                  ? 'Describe la pieza para que puedan identificarla.'
-                  : null,
+              helperText:
+                  'Incluye ubicación, medidas, versión o cualquier detalle útil.',
               filled: true,
               fillColor: AppColors.surface,
               contentPadding: const EdgeInsets.all(16),

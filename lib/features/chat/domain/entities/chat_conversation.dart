@@ -18,6 +18,9 @@ class ChatConversation extends Equatable {
 
   final String? offerId;
   final String? offerStatus;
+  final String? searchMatchId;
+  final DateTime? declinedAt;
+  final String? declineReason;
   final DateTime? cancelledAt;
   final String? cancelSource;
   final String? cancelReason;
@@ -68,6 +71,9 @@ class ChatConversation extends Equatable {
     required this.lastMessageAt,
     this.offerId,
     this.offerStatus,
+    this.searchMatchId,
+    this.declinedAt,
+    this.declineReason,
     this.cancelledAt,
     this.cancelSource,
     this.cancelReason,
@@ -128,6 +134,17 @@ class ChatConversation extends Equatable {
 
   String get realtimeConversationId => conversationId ?? id;
 
+  /// Una consulta sin precio abre un chat, pero todavía no es una cotización.
+  bool get hasFormalQuote => !isInquiry && price != null;
+
+  /// La identidad real de la tienda solo se revela después de registrar una
+  /// compra. CANCELLED conserva la identidad porque ese estado ocurre después
+  /// de BOUGHT y volver a ocultarla rompería el historial de la conversación.
+  bool get revealsStoreIdentity =>
+      offerStatus == 'BOUGHT' ||
+      offerStatus == 'DELIVERED' ||
+      offerStatus == 'CANCELLED';
+
   ChatConversation withRealtimePreview({
     required String lastMessage,
     required int unreadCount,
@@ -144,6 +161,9 @@ class ChatConversation extends Equatable {
       lastMessageAt: lastMessageAt,
       offerId: offerId,
       offerStatus: offerStatus,
+      searchMatchId: searchMatchId,
+      declinedAt: declinedAt,
+      declineReason: declineReason,
       cancelledAt: cancelledAt,
       cancelSource: cancelSource,
       cancelReason: cancelReason,
@@ -191,6 +211,9 @@ class ChatConversation extends Equatable {
         lastMessageAt,
         offerId,
         offerStatus,
+        searchMatchId,
+        declinedAt,
+        declineReason,
         cancelledAt,
         cancelSource,
         cancelReason,

@@ -358,7 +358,18 @@ void main() {
     expect(find.text('14.0723, -87.1921'), findsOneWidget);
     expect(find.text('Última ubicación guardada'), findsOneWidget);
 
-    final submitButton = tester.widget<ElevatedButton>(
+    var submitButton = tester.widget<ElevatedButton>(
+      find.widgetWithText(ElevatedButton, 'Enviar solicitud'),
+    );
+    expect(submitButton.onPressed, isNull);
+
+    await tester.enterText(
+      find.byType(TextField),
+      'Pastillas delanteras con sensor de desgaste',
+    );
+    await tester.pump();
+
+    submitButton = tester.widget<ElevatedButton>(
       find.widgetWithText(ElevatedButton, 'Enviar solicitud'),
     );
     expect(submitButton.onPressed, isNotNull);

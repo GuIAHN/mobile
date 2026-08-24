@@ -1,31 +1,24 @@
 import '../../domain/entities/store_catalog_line.dart';
 
-/// Data model for [StoreCatalogLine] with JSON support.
-/// Maps one subcategory from `GET /stores/me/coverage` while reusing the
-/// store-wide brands and spare-part types in the existing presentation model.
+/// Data model for one category/subcategory pair in the store coverage.
 class StoreCatalogLineModel extends StoreCatalogLine {
   const StoreCatalogLineModel({
     required super.id,
+    required super.categoryId,
     required super.categoryName,
-    required super.servesAllBrands,
-    super.brands = const [],
-    super.sparePartsTypes = const [],
+    required super.subcategoryName,
   });
 
   factory StoreCatalogLineModel.fromJson(Map<String, dynamic> json) {
-    final rawBrands = json['brands'] as List<dynamic>? ?? const [];
-    final rawTypes = json['sparePartsTypes'] as List<dynamic>? ?? const [];
+    final subcategoryId = (json['subcategoryId'] ?? json['id']).toString();
+    final subcategoryName =
+        (json['name'] ?? json['subcategoryName'])?.toString() ?? 'Subcategoría';
 
     return StoreCatalogLineModel(
-      id: (json['subcategoryId'] ?? json['id']).toString(),
-      categoryName:
-          (json['name'] ?? json['categoryName'])?.toString() ?? 'Subcategoría',
-      servesAllBrands: json['servesAllBrands'] as bool? ?? false,
-      brands: rawBrands
-          .map((b) => b is Map ? b['name'].toString() : b.toString())
-          .toList(growable: false),
-      sparePartsTypes:
-          rawTypes.map((t) => t.toString()).toList(growable: false),
+      id: subcategoryId,
+      categoryId: (json['categoryId'] ?? subcategoryId).toString(),
+      categoryName: json['categoryName']?.toString() ?? 'Otras categorías',
+      subcategoryName: subcategoryName,
     );
   }
 }

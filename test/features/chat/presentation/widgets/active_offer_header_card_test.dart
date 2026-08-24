@@ -195,6 +195,29 @@ void main() {
     );
   });
 
+  testWidgets('labels a price-less inquiry as open instead of quoted',
+      (tester) async {
+    await pumpCard(
+      tester,
+      ChatConversation(
+        id: 'conversation-1',
+        threadId: 'request-1',
+        participantName: 'Repuestos Central',
+        lastMessage: '',
+        unreadCount: 0,
+        lastMessageAt: DateTime.utc(2026, 8, 22),
+        offerId: 'offer-1',
+        offerStatus: 'INQUIRY',
+        hasQuote: true,
+        isInquiry: true,
+      ),
+    );
+
+    expect(find.text('CONSULTA ABIERTA'), findsOneWidget);
+    expect(find.text('OFERTA COTIZADA'), findsNothing);
+    expect(find.text('A convenir'), findsOneWidget);
+  });
+
   testWidgets('remains usable on a small phone with scaled text',
       (tester) async {
     tester.view.physicalSize = const Size(320, 800);

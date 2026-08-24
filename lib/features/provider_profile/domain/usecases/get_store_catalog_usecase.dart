@@ -1,7 +1,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failures.dart';
-import '../entities/store_catalog_line.dart';
+import '../entities/store_catalog.dart';
 import '../repositories/provider_profile_repository.dart';
 
 class GetStoreCatalogUseCase {
@@ -9,7 +9,7 @@ class GetStoreCatalogUseCase {
 
   const GetStoreCatalogUseCase(this._repository);
 
-  Future<Either<Failure, List<StoreCatalogLine>>> call() {
+  Future<Either<Failure, StoreCatalog>> call() {
     return _repository.getOwnCatalog();
   }
 }

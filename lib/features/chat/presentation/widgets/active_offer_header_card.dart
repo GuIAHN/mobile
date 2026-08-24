@@ -52,6 +52,19 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
     final isBought = details.offerStatus == 'BOUGHT';
     final isDelivered = details.offerStatus == 'DELIVERED';
     final isCancelled = details.offerStatus == 'CANCELLED';
+    final isDeclined = details.declinedAt != null;
+    final statusLabel = isCancelled
+        ? 'COMPRA CANCELADA'
+        : isDelivered
+            ? 'OFERTA ENTREGADA'
+            : isBought
+                ? 'COMPRA CONFIRMADA'
+                : isDeclined
+                    ? 'SOLICITUD DECLINADA'
+                    : details.isInquiry
+                        ? 'CONSULTA ABIERTA'
+                        : 'OFERTA COTIZADA';
+    final usesNeutralStatus = isDeclined || details.isInquiry;
     final canCancel = !isStore && isBought && !isDelivered && !isCancelled;
     final usesStackedSummary = MediaQuery.sizeOf(context).width < 360 ||
         MediaQuery.textScalerOf(context).scale(1) > 1.25;
@@ -144,23 +157,21 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                                   decoration: BoxDecoration(
                                     color: isCancelled
                                         ? AppColors.errorLight
-                                        : AppColors.primaryMuted,
+                                        : usesNeutralStatus
+                                            ? AppColors.grey100
+                                            : AppColors.primaryMuted,
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
-                                    isCancelled
-                                        ? 'COMPRA CANCELADA'
-                                        : isDelivered
-                                            ? 'OFERTA ENTREGADA'
-                                            : isBought
-                                                ? 'COMPRA CONFIRMADA'
-                                                : 'OFERTA COTIZADA',
+                                    statusLabel,
                                     style: GoogleFonts.hankenGrotesk(
                                       fontSize: 9.5,
                                       fontWeight: FontWeight.w900,
                                       color: isCancelled
                                           ? AppColors.errorInk
-                                          : AppColors.primary,
+                                          : usesNeutralStatus
+                                              ? AppColors.grey700
+                                              : AppColors.primary,
                                       letterSpacing: 0.5,
                                     ),
                                   ),

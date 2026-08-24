@@ -152,6 +152,36 @@ void main() {
     expect(conversation.storeReviewCount, 12);
   });
 
+  test('reads inquiry decline metadata from conversation details', () async {
+    final client = _MockDioClient();
+    when(() => client.get('conversations/conversation-1')).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: 'conversations/conversation-1'),
+        statusCode: 200,
+        data: const {
+          'id': 'conversation-1',
+          'offerId': 'offer-1',
+          'offerStatus': 'INQUIRY',
+          'searchMatchId': 'match-1',
+          'declinedAt': '2026-08-24T12:00:00.000Z',
+          'declineReason': 'SIN_STOCK',
+          'isInquiry': true,
+        },
+      ),
+    );
+    final dataSource = ChatRemoteDataSource(client, () => 'store-1');
+
+    final conversation =
+        await dataSource.getConversationDetails('conversation-1');
+
+    expect(conversation.searchMatchId, 'match-1');
+    expect(
+      conversation.declinedAt,
+      DateTime.parse('2026-08-24T12:00:00.000Z'),
+    );
+    expect(conversation.declineReason, 'SIN_STOCK');
+  });
+
   test('uses the cancellation and decline endpoints', () async {
     final client = _MockDioClient();
     final dataSource = ChatRemoteDataSource(client, () => 'consumer-1');

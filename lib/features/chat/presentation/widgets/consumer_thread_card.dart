@@ -38,8 +38,10 @@ class ConsumerThreadCard extends StatelessWidget {
     if (!thread.isOpen || thread.isExpired) {
       return (status: OfferStatus.discarded, labelOverride: 'CERRADA');
     }
-    final hasOffers =
-        thread.totalOffersCount > 0 || thread.bestOfferPrice != null;
+    // `bestOfferPrice` is the defensive signal that at least one formal
+    // quote exists. Older API responses counted price-less INQUIRY chats in
+    // totalOffersCount, which produced a phantom "1 cotización".
+    final hasOffers = _formalOffersCount > 0;
     if (hasOffers) {
       return (status: OfferStatus.offersReceived, labelOverride: null);
     }
@@ -47,10 +49,13 @@ class ConsumerThreadCard extends StatelessWidget {
   }
 
   String _offersLabel() {
-    final count = thread.totalOffersCount;
+    final count = _formalOffersCount;
     if (count == 0) return '0 cotizaciones';
     return '$count ${count == 1 ? 'cotización' : 'cotizaciones'}';
   }
+
+  int get _formalOffersCount =>
+      thread.bestOfferPrice == null ? 0 : thread.totalOffersCount;
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +83,7 @@ class ConsumerThreadCard extends StatelessWidget {
         ', mejor oferta ${thread.bestOfferPrice!.toStringAsFixed(0)} lempiras',
       );
     }
-    if (thread.totalOffersCount > 0) {
+    if (_formalOffersCount > 0) {
       semanticLabel.write(', ${_offersLabel()}');
     }
     if (!isTerminal && expiration.isNotEmpty) {

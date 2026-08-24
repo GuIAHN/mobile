@@ -114,10 +114,15 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
                 error: (_, __) => const SizedBox.shrink(),
                 data: (conversations) {
                   if (conversations.isEmpty) return const SizedBox.shrink();
+                  final quotedCount = conversations
+                      .where((conversation) => conversation.hasFormalQuote)
+                      .length;
+                  final inquiryCount = conversations.length - quotedCount;
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
                     child: _OffersCountHeader(
-                      count: conversations.length,
+                      quotedCount: quotedCount,
+                      inquiryCount: inquiryCount,
                       isStore: isStore,
                       currentSort: _currentSort,
                       onSortChanged: (val) {
@@ -662,13 +667,15 @@ class _RequestSummaryCard extends StatelessWidget {
 }
 
 class _OffersCountHeader extends StatelessWidget {
-  final int count;
+  final int quotedCount;
+  final int inquiryCount;
   final bool isStore;
   final _SortOption? currentSort;
   final ValueChanged<_SortOption>? onSortChanged;
 
   const _OffersCountHeader({
-    required this.count,
+    required this.quotedCount,
+    required this.inquiryCount,
     required this.isStore,
     this.currentSort,
     this.onSortChanged,
@@ -677,8 +684,15 @@ class _OffersCountHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = isStore
-        ? (count == 1 ? '1 cotización' : '$count cotizaciones')
-        : (count == 1 ? '1 Oferta recibida' : '$count Ofertas recibidas');
+        ? (quotedCount == 1 ? '1 cotización' : '$quotedCount cotizaciones')
+        : (quotedCount == 1
+            ? '1 cotización recibida'
+            : '$quotedCount cotizaciones recibidas');
+    final companionLabel = inquiryCount > 0
+        ? '$inquiryCount ${inquiryCount == 1 ? 'conversación' : 'conversaciones'}'
+        : quotedCount > 0
+            ? 'Compara y elige'
+            : null;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14, top: 4),
@@ -709,7 +723,7 @@ class _OffersCountHeader extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (!isStore) ...[
+                if (!isStore && companionLabel != null) ...[
                   const SizedBox(width: 8),
                   Container(
                     padding:
@@ -719,7 +733,7 @@ class _OffersCountHeader extends StatelessWidget {
                       borderRadius: BorderRadius.circular(99),
                     ),
                     child: Text(
-                      'Compara y elige',
+                      companionLabel,
                       style: GoogleFonts.hankenGrotesk(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w800,

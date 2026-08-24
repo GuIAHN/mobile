@@ -12,6 +12,9 @@ class ChatConversationModel extends ChatConversation {
     required super.lastMessageAt,
     super.offerId,
     super.offerStatus,
+    super.searchMatchId,
+    super.declinedAt,
+    super.declineReason,
     super.cancelledAt,
     super.cancelSource,
     super.cancelReason,
@@ -70,6 +73,11 @@ class ChatConversationModel extends ChatConversation {
           : DateTime.now(),
       offerId: json['offerId'] as String?,
       offerStatus: json['offerStatus'] as String?,
+      searchMatchId: json['searchMatchId'] as String?,
+      declinedAt: json['declinedAt'] != null
+          ? DateTime.tryParse(json['declinedAt'].toString())
+          : null,
+      declineReason: json['declineReason'] as String?,
       cancelledAt: json['cancelledAt'] != null
           ? DateTime.tryParse(json['cancelledAt'].toString())
           : null,
@@ -114,6 +122,9 @@ class ChatConversationModel extends ChatConversation {
         'lastMessageAt': lastMessageAt.toIso8601String(),
         'offerId': offerId,
         'offerStatus': offerStatus,
+        'searchMatchId': searchMatchId,
+        'declinedAt': declinedAt?.toIso8601String(),
+        'declineReason': declineReason,
         'cancelledAt': cancelledAt?.toIso8601String(),
         'cancelSource': cancelSource,
         'cancelReason': cancelReason,

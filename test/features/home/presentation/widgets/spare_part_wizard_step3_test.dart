@@ -5,18 +5,17 @@ import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_pa
 
 Widget _testApp({
   required RequestLocationSelection? selection,
-  required VoidCallback onSubmit,
+  TextEditingController? detailsController,
 }) {
   return MaterialApp(
     home: Scaffold(
       body: SparePartWizardStep3(
-        detailsController: TextEditingController(),
+        detailsController: detailsController ?? TextEditingController(),
         selectedImagePath: null,
         isOtroCategory: false,
         requestLocation: selection,
         onLocationTap: () {},
         onImagePicked: (_) {},
-        onSubmit: onSubmit,
       ),
     ),
   );
@@ -25,36 +24,39 @@ Widget _testApp({
 void main() {
   testWidgets('step 3 requires a request-local location', (tester) async {
     await tester.pumpWidget(
-      _testApp(selection: null, onSubmit: () {}),
+      _testApp(selection: null),
     );
 
-    final button = tester.widget<ElevatedButton>(
-      find.widgetWithText(ElevatedButton, 'Enviar solicitud'),
+    expect(find.text('Requerido'), findsNWidgets(2));
+    expect(
+      find.text(
+          'Incluye ubicación, medidas, versión o cualquier detalle útil.'),
+      findsOneWidget,
     );
-    expect(button.onPressed, isNull);
-    expect(find.text('Elige una ubicación para continuar.'), findsOneWidget);
+    expect(
+      find.text('Define dónde necesitas el repuesto'),
+      findsOneWidget,
+    );
     expect(find.text('Elegir ubicación'), findsOneWidget);
   });
 
-  testWidgets('step 3 submits with a confirmed manual location',
+  testWidgets('step 3 keeps details and a confirmed manual location visible',
       (tester) async {
-    var submits = 0;
+    final controller = TextEditingController(text: 'Con sensor, lado derecho');
+    addTearDown(controller.dispose);
     await tester.pumpWidget(
       _testApp(
+        detailsController: controller,
         selection: const RequestLocationSelection(
           latitude: 10.4806,
           longitude: -66.9036,
           label: 'Sabana Grande, Caracas',
           source: RequestLocationSource.mapTap,
         ),
-        onSubmit: () => submits++,
       ),
     );
 
-    await tester.ensureVisible(find.text('Enviar solicitud'));
-    await tester.tap(find.text('Enviar solicitud'));
-
-    expect(submits, 1);
+    expect(find.text('Con sensor, lado derecho'), findsOneWidget);
     expect(find.text('Sabana Grande, Caracas'), findsOneWidget);
     expect(find.text('Cambiar'), findsOneWidget);
   });

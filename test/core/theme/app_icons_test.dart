@@ -7,6 +7,9 @@ void main() {
     expect(AppIcons.services.fontFamily, isNot('MaterialIcons'));
     expect(AppIcons.location.fontFamily, AppIcons.services.fontFamily);
     expect(AppIcons.call.fontFamily, AppIcons.services.fontFamily);
+    expect(AppIcons.engine.fontFamily, AppIcons.services.fontFamily);
+    expect(AppIcons.brakes.fontFamily, AppIcons.services.fontFamily);
+    expect(AppIcons.audio.fontFamily, AppIcons.services.fontFamily);
   });
 
   testWidgets('AppLineIcon renders the glyph without a decorative container',

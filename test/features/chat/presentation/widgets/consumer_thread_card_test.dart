@@ -97,6 +97,17 @@ void main() {
     expect(tester.getSize(card).height, lessThan(200));
   }, semanticsEnabled: true);
 
+  testWidgets('does not count a price-less store inquiry as a quote',
+      (tester) async {
+    await tester.pumpWidget(
+      _subject(_thread(totalOffersCount: 1, bestOfferPrice: null)),
+    );
+
+    expect(find.text('BUSCANDO'), findsOneWidget);
+    expect(find.text('0 cotizaciones'), findsOneWidget);
+    expect(find.text('OFERTAS RECIBIDAS'), findsNothing);
+  });
+
   testWidgets('keeps the best offer readable without turning it into a hero',
       (tester) async {
     await tester.pumpWidget(

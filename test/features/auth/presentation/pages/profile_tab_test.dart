@@ -16,6 +16,7 @@ import 'package:guiautomotriz_mobile/features/auth/presentation/providers/auth_p
 import 'package:guiautomotriz_mobile/features/auth/presentation/providers/auth_state.dart';
 import 'package:guiautomotriz_mobile/features/auth/presentation/widgets/profile_header.dart';
 import 'package:guiautomotriz_mobile/features/catalog/domain/entities/specialty.dart';
+import 'package:guiautomotriz_mobile/features/provider_profile/domain/entities/store_catalog.dart';
 import 'package:guiautomotriz_mobile/features/provider_profile/presentation/providers/provider_profile_providers.dart';
 import 'package:guiautomotriz_mobile/features/provider_profile/presentation/widgets/provider_location_card.dart';
 import 'package:guiautomotriz_mobile/features/provider_profile/presentation/widgets/provider_specialties_card.dart';
@@ -404,7 +405,9 @@ void main() {
                 (ref) async => const [],
               ),
             if (role == UserRole.store)
-              storeCatalogProvider.overrideWith((ref) async => const []),
+              storeCatalogProvider.overrideWith(
+                (ref) async => const StoreCatalog(servesAllBrands: false),
+              ),
             if (role == UserRole.consumer)
               userCarsProvider.overrideWith((ref) async => const []),
             if (role == UserRole.consumer)

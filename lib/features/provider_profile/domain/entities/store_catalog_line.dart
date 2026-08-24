@@ -1,28 +1,24 @@
 import 'package:equatable/equatable.dart';
 
-/// Línea de catálogo configurada por la propia tienda: qué categoría vende,
-/// para qué marcas y bajo qué tipos de repuesto (original, genérico, etc.).
+/// Subcategoría atendida por una tienda y su categoría principal.
 class StoreCatalogLine extends Equatable {
   final String id;
+  final String categoryId;
   final String categoryName;
-  final bool servesAllBrands;
-  final List<String> brands;
-  final List<String> sparePartsTypes;
+  final String subcategoryName;
 
   const StoreCatalogLine({
     required this.id,
+    required this.categoryId,
     required this.categoryName,
-    required this.servesAllBrands,
-    this.brands = const [],
-    this.sparePartsTypes = const [],
+    required this.subcategoryName,
   });
 
   @override
   List<Object?> get props => [
         id,
+        categoryId,
         categoryName,
-        servesAllBrands,
-        brands,
-        sparePartsTypes,
+        subcategoryName,
       ];
 }

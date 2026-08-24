@@ -391,11 +391,13 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
     final vehicle = _selectedVehicle;
     final subcat = _selectedSubcategory;
     final partType = _selectedPartType;
+    final details = _detailsController.text.trim();
     final requestLocation = _resolveEffectiveRequestLocation().selection;
 
     if (vehicle == null ||
         subcat == null ||
         partType == null ||
+        details.isEmpty ||
         requestLocation == null) {
       return;
     }
@@ -436,7 +438,7 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
       await ref.read(searchRequestNotifierProvider.notifier).submitSearch(
             userCarId: userCarId,
             subcategoryId: subcat.id,
-            details: _detailsController.text.trim(),
+            details: details,
             partType: partType,
             fotoUrl: _selectedImagePath,
             lat: requestLocation.latitude,
@@ -591,11 +593,8 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
       case 2:
         return _selectedSubcategory != null && _selectedPartType != null;
       default:
-        final hasRequiredDetails =
-            _selectedSubcategory?.id != kOtherSubcategoryId ||
-                _detailsController.text.trim().isNotEmpty;
         return _resolveEffectiveRequestLocation().selection != null &&
-            hasRequiredDetails;
+            _detailsController.text.trim().isNotEmpty;
     }
   }
 

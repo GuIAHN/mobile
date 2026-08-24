@@ -21,7 +21,9 @@ abstract class AppIcons {
   static const IconData account = LucideIcons.userRound;
   static const IconData search = LucideIcons.search;
   static const IconData offer = LucideIcons.tag;
+  static const IconData delivery = LucideIcons.truck;
   static const IconData store = LucideIcons.store;
+  static const IconData catalog = LucideIcons.packageOpen;
   static const IconData dashboard = LucideIcons.chartNoAxesColumnIncreasing;
   static const IconData period = LucideIcons.calendarDays;
   static const IconData expand = LucideIcons.chevronDown;
@@ -46,6 +48,20 @@ abstract class AppIcons {
   static const IconData presentation = LucideIcons.quote;
   static const IconData location = LucideIcons.mapPin;
   static const IconData map = LucideIcons.mapPinned;
+
+  // Catálogo automotriz. Mantener estos alias semánticos evita que cada
+  // pantalla vuelva a inventar su propia mezcla de iconos.
+  static const IconData engine = LucideIcons.cog;
+  static const IconData transmission = LucideIcons.gitBranch;
+  static const IconData suspension = LucideIcons.moveVertical;
+  static const IconData brakes = LucideIcons.disc3;
+  static const IconData electrical = LucideIcons.plugZap;
+  static const IconData bodywork = LucideIcons.paintbrush;
+  static const IconData audio = LucideIcons.speaker;
+  static const IconData climate = LucideIcons.airVent;
+  static const IconData fuel = LucideIcons.fuel;
+  static const IconData wheels = LucideIcons.circleDot;
+  static const IconData lighting = LucideIcons.lightbulb;
 
   static const IconData rating = LucideIcons.star;
   static const IconData distance = LucideIcons.navigation;

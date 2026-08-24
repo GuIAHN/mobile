@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../domain/entities/chat_conversation.dart';
 import '../providers/chat_providers.dart';
 import '_atoms/card_shell.dart';
@@ -67,17 +68,27 @@ class ChatConversationCard extends StatelessWidget {
     final conv = conversation;
     final distance = conv.formattedDistance;
     final hasUnread = conv.unreadCount > 0;
+    final hasFormalQuote = conv.hasFormalQuote;
     final message = conv.lastMessage.trim().isNotEmpty
         ? conv.lastMessage
-        : (conv.note ?? 'Nueva oferta recibida');
+        : (conv.note ??
+            (hasFormalQuote
+                ? 'Nueva cotización recibida'
+                : 'La tienda inició una conversación'));
 
-    final semanticLabel = StringBuffer('Oferta de ${conv.participantName}');
+    final semanticLabel = StringBuffer(
+      hasFormalQuote
+          ? 'Cotización de ${conv.participantName}'
+          : 'Conversación con ${conv.participantName}, aún sin cotización',
+    );
     if (conv.verified) semanticLabel.write(', tienda verificada');
     if (conv.storeRating != null) {
       semanticLabel
           .write(', calificación ${conv.storeRating!.toStringAsFixed(1)} de 5');
     }
-    semanticLabel.write(', ${conv.formattedTotalCost}');
+    if (hasFormalQuote) {
+      semanticLabel.write(', ${conv.formattedTotalCost}');
+    }
     if (distance != null) semanticLabel.write(', a $distance');
     if (hasUnread) semanticLabel.write(', mensajes sin leer');
 
@@ -96,6 +107,7 @@ class ChatConversationCard extends StatelessWidget {
                 brand: conv.spareBrand,
                 logoUrl: conv.storeLogoUrl,
                 storeName: conv.participantName,
+                revealStoreIdentity: conv.revealsStoreIdentity,
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -144,11 +156,19 @@ class ChatConversationCard extends StatelessWidget {
                     const SizedBox(height: 10),
 
                     // Precio protagonista
-                    PriceText(
-                      amount: conv.totalCost ?? conv.price,
-                      style: CardTokens.priceHero,
-                    ),
-                    if (conv.deliveryCost != null) ...[
+                    if (hasFormalQuote)
+                      PriceText(
+                        amount: conv.totalCost ?? conv.price,
+                        style: CardTokens.priceHero,
+                      )
+                    else
+                      Text(
+                        'Aún sin cotización',
+                        style: CardTokens.metaStrong.copyWith(
+                          color: AppColors.textMeta,
+                        ),
+                      ),
+                    if (hasFormalQuote && conv.deliveryCost != null) ...[
                       const SizedBox(height: 2),
                       Text(
                         conv.deliveryCost == 0
@@ -201,7 +221,10 @@ class ChatConversationCard extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: Text('Ver oferta', style: CardTokens.button),
+                  child: Text(
+                    hasFormalQuote ? 'Ver cotización' : 'Ver chat',
+                    style: CardTokens.button,
+                  ),
                 ),
               ),
             ],
@@ -219,12 +242,14 @@ class _ProductThumb extends StatelessWidget {
   final String? brand;
   final String? logoUrl;
   final String storeName;
+  final bool revealStoreIdentity;
 
   const _ProductThumb({
     required this.photoUrl,
     required this.brand,
     required this.logoUrl,
     required this.storeName,
+    required this.revealStoreIdentity,
   });
 
   @override
@@ -289,7 +314,12 @@ class _ProductThumb extends StatelessWidget {
           Positioned(
             top: -5,
             left: -5,
-            child: _StoreAvatar(logoUrl: logoUrl, name: storeName, size: 30),
+            child: _StoreAvatar(
+              logoUrl: logoUrl,
+              name: storeName,
+              size: 30,
+              revealIdentity: revealStoreIdentity,
+            ),
           ),
         ],
       ),
@@ -306,53 +336,59 @@ class _StoreAvatar extends StatelessWidget {
   final String? logoUrl;
   final String name;
   final double size;
+  final bool revealIdentity;
 
   const _StoreAvatar({
     required this.logoUrl,
     required this.name,
     required this.size,
+    required this.revealIdentity,
   });
 
   @override
   Widget build(BuildContext context) {
-    final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
-
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+    return Semantics(
+      image: true,
+      label: revealIdentity
+          ? 'Foto de perfil de $name'
+          : 'Perfil genérico de la tienda',
+      child: Container(
+        key: revealIdentity
+            ? const Key('revealed-store-avatar')
+            : const Key('generic-store-avatar'),
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: revealIdentity && logoUrl != null && logoUrl!.isNotEmpty
+            ? Image.network(
+                logoUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _genericFallback(),
+              )
+            : _genericFallback(),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: logoUrl != null && logoUrl!.isNotEmpty
-          ? Image.network(
-              logoUrl!,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _initialFallback(initial),
-            )
-          : _initialFallback(initial),
     );
   }
 
-  Widget _initialFallback(String initial) => Container(
+  Widget _genericFallback() => Container(
         color: AppColors.grey100,
-        child: Center(
-          child: Text(
-            initial,
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: size * 0.44,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textSecondary,
-            ),
+        child: const Center(
+          child: AppLineIcon(
+            AppIcons.store,
+            size: AppIconSize.inline,
+            color: AppColors.textSecondary,
           ),
         ),
       );
