@@ -95,60 +95,80 @@ class ConsumerThreadCard extends StatelessWidget {
       accentColor: status.accentColor,
       semanticLabel: semanticLabel.toString(),
       padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
+        key: const Key('consumer-request-content'),
+        alignment: Alignment.centerRight,
         children: [
-          CardThumb(
-            key: const Key('consumer-request-thumbnail'),
-            url: thread.fotoUrl,
-            vehicleType: thread.vehicleType,
-            title: thread.title,
-            size: 112,
-            enableViewer: false,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
+          Padding(
+            padding: const EdgeInsets.only(right: 36),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _RequestHeader(
-                  status: status,
-                  labelOverride: resolved.labelOverride,
-                  expiration: !isTerminal ? expiration : '',
+                CardThumb(
+                  key: const Key('consumer-request-thumbnail'),
+                  url: thread.fotoUrl,
+                  vehicleType: thread.vehicleType,
+                  title: thread.title,
+                  size: 112,
+                  enableViewer: false,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  thread.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: CardTokens.title.copyWith(fontSize: 16),
-                ),
-                const SizedBox(height: CardTokens.tight),
-                MetaLine(
-                  items: [
-                    if (thread.subcategory != null)
-                      MetaItem(thread.subcategory!),
-                    if (thread.partType != null)
-                      MetaItem(_partTypeLabel(thread.partType!)),
-                  ],
-                ),
-                if (thread.details != null &&
-                    thread.details!.trim().isNotEmpty) ...[
-                  const SizedBox(height: CardTokens.tight),
-                  Text(
-                    thread.details!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: CardTokens.body,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _RequestHeader(
+                        status: status,
+                        labelOverride: resolved.labelOverride,
+                        expiration: !isTerminal ? expiration : '',
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        thread.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: CardTokens.title.copyWith(fontSize: 16),
+                      ),
+                      const SizedBox(height: CardTokens.tight),
+                      MetaLine(
+                        items: [
+                          if (thread.subcategory != null)
+                            MetaItem(thread.subcategory!),
+                          if (thread.partType != null)
+                            MetaItem(_partTypeLabel(thread.partType!)),
+                        ],
+                      ),
+                      if (thread.details != null &&
+                          thread.details!.trim().isNotEmpty) ...[
+                        const SizedBox(height: CardTokens.tight),
+                        Text(
+                          thread.details!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: CardTokens.body,
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      _OfferMeta(
+                        hasBestOffer: hasBestOffer,
+                        bestOfferPrice: thread.bestOfferPrice,
+                        offersLabel: _offersLabel(),
+                      ),
+                    ],
                   ),
-                ],
-                const SizedBox(height: 12),
-                _OfferMeta(
-                  hasBestOffer: hasBestOffer,
-                  bestOfferPrice: thread.bestOfferPrice,
-                  offersLabel: _offersLabel(),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(
+            key: Key('consumer-request-chevron-slot'),
+            width: 32,
+            child: Center(
+              child: AppLineIcon(
+                AppIcons.next,
+                size: AppIconSize.action,
+                color: AppColors.grey600,
+              ),
             ),
           ),
         ],
@@ -288,12 +308,6 @@ class _OfferMeta extends StatelessWidget {
               color: hasBestOffer ? AppColors.celesteInk : AppColors.textMeta,
             ),
           ),
-        ),
-        const SizedBox(width: 8),
-        const AppLineIcon(
-          AppIcons.next,
-          size: AppIconSize.action,
-          color: AppColors.grey600,
         ),
       ],
     );

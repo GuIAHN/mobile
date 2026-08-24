@@ -39,6 +39,7 @@ import 'package:guiautomotriz_mobile/features/notifications/presentation/provide
 import 'package:guiautomotriz_mobile/features/reviews/presentation/providers/reviews_providers.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/domain/entities/user_car.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/presentation/providers/vehicle_providers.dart';
+import 'package:guiautomotriz_mobile/features/reviews/presentation/providers/reviews_providers.dart';
 import 'package:guiautomotriz_mobile/shared/widgets/skeleton_loader.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -145,6 +146,7 @@ void main() {
             (ref) => initialServiceType,
           ),
         userCarsProvider.overrideWith((ref) async => const [car]),
+        pendingReviewsProvider.overrideWith((ref) async => const []),
         locationServiceProvider.overrideWithValue(_FakeLocationService()),
         adsAsPromosProvider.overrideWith(
           loadPromos ?? (ref, type) async => const [],
@@ -363,6 +365,7 @@ void main() {
 
     const orderedLabels = [
       '¿En qué podemos ayudarte hoy?',
+      'Revisión de frenos con descuento',
       'Pedir repuesto',
       'Talleres mejor valorados',
       'Mecánicos mejor valorados',
@@ -378,12 +381,8 @@ void main() {
     final promoFinder = find.text('Revisión de frenos con descuento');
     expect(promoFinder, findsOneWidget);
     expect(
-      tester.getTopLeft(find.text('Pedir repuesto')).dy,
-      lessThan(tester.getTopLeft(promoFinder).dy),
-    );
-    expect(
       tester.getTopLeft(promoFinder).dy,
-      lessThan(tester.getTopLeft(find.text('Talleres mejor valorados')).dy),
+      lessThan(tester.getTopLeft(find.text('Pedir repuesto')).dy),
     );
 
     final workshopsSurface =
@@ -397,8 +396,15 @@ void main() {
       lessThan(tester.getTopLeft(mechanicsSurface).dy),
     );
     expect(
-      tester.getTopLeft(promoFinder).dy,
+      tester.getTopLeft(find.text('Pedir repuesto')).dy,
       lessThan(tester.getTopLeft(workshopsSurface).dy),
+    );
+    expect(
+      tester.getTopLeft(workshopsSurface).dy -
+          tester
+              .getBottomLeft(find.byKey(const Key('home-category-section')))
+              .dy,
+      24,
     );
 
     expect(find.byKey(const Key('home-vehicle-chips-list')), findsNothing);
@@ -506,15 +512,17 @@ void main() {
     addTearDown(container.dispose);
 
     await pumpHome(tester, container);
+
+    expect(find.text('Estadísticas'), findsOneWidget);
+    expect(find.text('Pedir repuesto'), findsOneWidget);
+    expect(find.text('Buscar mecánico'), findsNothing);
+    expect(find.text('Mi garage'), findsNothing);
+
     await tester.fling(homeListView(), const Offset(0, -1600), 5000);
     await tester.pump();
 
     expect(find.text('Talleres cerca de ti'), findsOneWidget);
     expect(find.text('Mecánicos cerca de ti'), findsNothing);
-    expect(find.text('Estadísticas'), findsOneWidget);
-    expect(find.text('Pedir repuesto'), findsOneWidget);
-    expect(find.text('Buscar mecánico'), findsNothing);
-    expect(find.text('Mi garage'), findsNothing);
     expect(
       find.byKey(const Key('home-provider-section-workshops')),
       findsOneWidget,
@@ -551,6 +559,21 @@ void main() {
 
     expect(promoLoads, 0);
     expect(find.byType(PromoCarousel), findsNothing);
+  });
+
+  testWidgets('consumer Home collapses an empty advertising slot',
+      (tester) async {
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+
+    expect(find.byKey(const Key('home-promo-section')), findsNothing);
+    expect(find.byKey(const Key('home-category-section')), findsOneWidget);
+    expect(find.text('Pedir repuesto'), findsOneWidget);
   });
 
   for (final providerCase in const [
@@ -599,6 +622,10 @@ void main() {
 
     expect(find.byType(PromoSkeleton), findsOneWidget);
     expect(find.byType(PromoCarousel), findsNothing);
+    expect(
+      tester.getTopLeft(find.byType(PromoSkeleton)).dy,
+      lessThan(tester.getTopLeft(find.text('Pedir repuesto')).dy),
+    );
   });
 
   testWidgets('consumer Home keeps a retryable ad slot after promo errors',
@@ -627,13 +654,13 @@ void main() {
     expect(find.textContaining('private advertising secret'), findsNothing);
     expect(find.text('Talleres mejor valorados'), findsOneWidget);
 
-    final actionY = tester.getBottomLeft(find.text('Pedir repuesto')).dy;
+    final actionY = tester.getTopLeft(find.text('Pedir repuesto')).dy;
     final promoY =
         tester.getTopLeft(find.byKey(const Key('promo-error-card'))).dy;
     final workshopsY =
         tester.getTopLeft(find.text('Talleres mejor valorados')).dy;
-    expect(actionY, lessThan(promoY));
-    expect(promoY, lessThan(workshopsY));
+    expect(promoY, lessThan(actionY));
+    expect(actionY, lessThan(workshopsY));
 
     await tester.ensureVisible(find.text('Reintentar'));
     await tester.pump();

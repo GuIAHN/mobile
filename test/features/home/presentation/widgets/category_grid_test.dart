@@ -10,6 +10,7 @@ import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
 import 'package:guiautomotriz_mobile/core/providers/current_user_provider.dart';
 import 'package:guiautomotriz_mobile/core/router/route_names.dart';
 import 'package:guiautomotriz_mobile/core/theme/app_colors.dart';
+import 'package:guiautomotriz_mobile/core/theme/app_icons.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/navigation/category_grid.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/spare_part_wizard_page.dart';
@@ -108,7 +109,7 @@ void main() {
     );
   }
 
-  testWidgets('consumer actions keep action titles and short subtitles',
+  testWidgets('consumer actions keep titles without visible subtitles',
       (tester) async {
     await tester.pumpWidget(subject());
 
@@ -120,7 +121,7 @@ void main() {
       'Opciones cercanas',
       'Servicio a domicilio',
     ]) {
-      expect(find.text(subtitle), findsOneWidget);
+      expect(find.text(subtitle), findsNothing);
     }
 
     await tester.tap(find.text('Buscar taller'));
@@ -164,15 +165,22 @@ void main() {
     expect(find.byType(SparePartWizardPage), findsNothing);
   });
 
-  testWidgets('uses centered icons, subtle borders and no arrow affordances',
+  testWidgets('uses Lucide automotive icons and clear selection borders',
       (tester) async {
     await tester.pumpWidget(subject());
 
     expect(find.text('¿Qué buscas hoy?'), findsOneWidget);
     expect(find.byIcon(Icons.chevron_right_rounded), findsNothing);
-    expect(find.byIcon(Icons.handyman_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.storefront_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.engineering_rounded), findsOneWidget);
+    expect(find.byIcon(AppIcons.catalog), findsNWidgets(2));
+    expect(find.byIcon(AppIcons.workshop), findsNWidgets(2));
+    expect(find.byIcon(AppIcons.mechanic), findsNWidgets(2));
+    expect(find.byType(AppLineIcon), findsNWidgets(6));
+    for (final label in actionLabels) {
+      expect(
+        find.byKey(ValueKey<String>('category-watermark-$label')),
+        findsOneWidget,
+      );
+    }
     expect(find.byType(Image), findsNothing);
 
     for (final label in actionLabels) {
@@ -188,12 +196,10 @@ void main() {
           decorations.firstWhere((decoration) => decoration.boxShadow != null);
       final border = cardDecoration.border! as Border;
 
-      expect(border.top.width, isSelected ? 2 : 1.25);
+      expect(border.top.width, isSelected ? 1.5 : 1);
       expect(
         border.top.color,
-        isSelected
-            ? AppColors.primary
-            : AppColors.primary.withValues(alpha: 0.22),
+        isSelected ? AppColors.primary : AppColors.border,
       );
     }
   });
@@ -237,7 +243,7 @@ void main() {
     final border = cardDecoration.border! as Border;
 
     expect(border.top.color, AppColors.primary);
-    expect(border.top.width, 2);
+    expect(border.top.width, 1.5);
     expect(
       tester
           .getSemantics(selectedAction)
@@ -269,6 +275,7 @@ void main() {
         );
         expect(tester.getSize(action).width, greaterThanOrEqualTo(48));
         expect(tester.getSize(action).height, greaterThanOrEqualTo(48));
+        expect(tester.getSize(action).height, lessThan(148));
       }
     } finally {
       semantics.dispose();

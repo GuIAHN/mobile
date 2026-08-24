@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/domain/enums/service_type.dart';
@@ -34,8 +35,9 @@ const double _kSectionGap = 24;
 
 /// Home reestructurado: ya NO filtra contenido.
 /// Actúa como hub de navegación (estilo Mercado Libre / Pedidos Ya):
-/// - Header expandido con color sólido y publicidad integrada
-/// - Tarjetas grandes de categorías que REDIRIGEN a sus flujos
+/// - Header expandido con color sólido
+/// - Publicidad destacada antes de los accesos principales
+/// - Tarjetas de categorías que REDIRIGEN a sus flujos
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
@@ -133,28 +135,36 @@ class _HomePageState extends ConsumerState<HomePage> {
     Widget? promoSection;
     if (isConsumer) {
       final promosAsync = ref.watch(adsAsPromosProvider(selectedType));
-      promoSection = Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 260),
-          switchInCurve: Curves.easeOut,
-          switchOutCurve: Curves.easeIn,
-          child: KeyedSubtree(
-            key: ValueKey<bool>(promosAsync.isLoading),
-            child: promosAsync.when(
-              data: (promos) => PromoCarousel(promos: promos),
-              loading: () => const PromoSkeleton(),
-              error: (error, stack) => _PromoErrorCard(
-                onRetry: () {
-                  ref
-                      .refresh(adsAsPromosProvider(selectedType).future)
-                      .ignore();
-                },
+      final hasPromoSlot = promosAsync.isLoading ||
+          promosAsync.hasError ||
+          (promosAsync.valueOrNull?.isNotEmpty ?? false);
+      if (hasPromoSlot) {
+        promoSection = Padding(
+          key: const Key('home-promo-section'),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          child: AnimatedSwitcher(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 260),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            child: KeyedSubtree(
+              key: ValueKey<bool>(promosAsync.isLoading),
+              child: promosAsync.when(
+                data: (promos) => PromoCarousel(promos: promos),
+                loading: () => const PromoSkeleton(),
+                error: (error, stack) => _PromoErrorCard(
+                  onRetry: () {
+                    ref
+                        .refresh(adsAsPromosProvider(selectedType).future)
+                        .ignore();
+                  },
+                ),
               ),
             ),
           ),
-        ),
-      );
+        );
+      }
     }
 
     return ListView(
@@ -171,18 +181,23 @@ class _HomePageState extends ConsumerState<HomePage> {
           onNotificationsTap: () => context.push(RouteNames.notifications),
         ),
 
-        // ── Tarjetas de acción principales ──────────────────────────────────
-        const Padding(
+        // ── La publicidad abre el contenido principal ───────────────────────
+        if (promoSection != null) ...[
+          const SizedBox(height: _kSectionGap),
+          promoSection,
+        ],
+
+        // ── Accesos principales, inmediatamente debajo del banner ───────────
+        Padding(
+          key: const Key('home-category-section'),
           padding: EdgeInsets.fromLTRB(
             AppSpacing.xl,
-            _kSectionGap,
+            promoSection == null ? _kSectionGap : AppSpacing.xl,
             AppSpacing.xl,
-            16,
+            isConsumer ? 0 : AppSpacing.lg,
           ),
-          child: CategoryGrid(),
+          child: const CategoryGrid(),
         ),
-
-        if (promoSection != null) promoSection,
 
         if (isDashboardSelected && currentRole.isStore)
           // Dashboard para usuarios tipo tienda
@@ -271,13 +286,14 @@ class _PromoErrorCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryMuted,
+                  color: AppColors.errorLight,
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                 ),
-                child: const Icon(
-                  Icons.campaign_outlined,
-                  color: AppColors.primaryInk,
-                  size: 24,
+                child: const Center(
+                  child: AppLineIcon(
+                    AppIcons.connectivityError,
+                    color: AppColors.errorInk,
+                  ),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),

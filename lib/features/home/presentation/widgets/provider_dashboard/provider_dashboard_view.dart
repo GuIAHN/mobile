@@ -10,6 +10,7 @@ import '../../../../../../shared/widgets/empty_state.dart';
 import '../../../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../reports/domain/entities/store_dashboard.dart';
 import '../../../../reports/presentation/providers/reports_provider.dart';
+import 'contact_channels_chart.dart';
 
 class ProviderDashboardView extends ConsumerWidget {
   const ProviderDashboardView({super.key});
@@ -114,7 +115,7 @@ class _ProviderDashboardData extends ConsumerWidget {
         const SizedBox(height: AppSpacing.xl),
         const DashboardSectionHeader(title: 'Cómo te contactan'),
         const SizedBox(height: AppSpacing.md),
-        _ContactChannelsCard(channels: channels),
+        ContactChannelsChart(channels: channels),
         const SizedBox(height: AppSpacing.xl),
         const DashboardSectionHeader(title: 'De contacto a reseña'),
         const SizedBox(height: AppSpacing.md),
@@ -223,81 +224,6 @@ class _ProfileSummaryCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ContactChannel {
-  const _ContactChannel({required this.label, required this.value});
-
-  final String label;
-  final int value;
-}
-
-class _ContactChannelsCard extends StatelessWidget {
-  const _ContactChannelsCard({required this.channels});
-
-  final List<_ContactChannel> channels;
-
-  @override
-  Widget build(BuildContext context) {
-    if (channels.isEmpty) {
-      return const _InlineEmptyCard(
-        message: 'Los canales de contacto aparecerán cuando recibas clics.',
-      );
-    }
-
-    final total = channels.fold<int>(0, (sum, channel) => sum + channel.value);
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        children: [
-          for (var index = 0; index < channels.length; index++) ...[
-            if (index > 0) const SizedBox(height: AppSpacing.lg),
-            Semantics(
-              label:
-                  '${channels[index].label}: ${channels[index].value} contactos',
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          channels[index].label,
-                          style: AppTypography.bodySm.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        '${channels[index].value}',
-                        style: AppTypography.title.copyWith(
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
-                    child: LinearProgressIndicator(
-                      minHeight: 8,
-                      value: total == 0 ? 0 : channels[index].value / total,
-                      color: AppColors.primary,
-                      backgroundColor: AppColors.primaryMuted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
       ),
     );
   }
@@ -434,23 +360,50 @@ double? _ratingMedian(MetricResult? metric) {
   return median is num ? median.toDouble() : null;
 }
 
-List<_ContactChannel> _contactChannels(MetricResult? metric) {
+List<ContactChannelDatum> _contactChannels(MetricResult? metric) {
   final slices = _listPayload(metric, 'slices');
   if (slices == null) return const [];
-  return slices.map((slice) {
+
+  final values = <String, int>{
+    'PHONE': 0,
+    'WHATSAPP': 0,
+    'INSTAGRAM': 0,
+    'OTHER': 0,
+  };
+  for (final slice in slices) {
     final map = _asMap(slice) ?? const <String, dynamic>{};
     final key = map['x']?.toString().toUpperCase() ?? 'OTHER';
-    final label = switch (key) {
-      'PHONE' => 'Teléfono',
-      'WHATSAPP' => 'WhatsApp',
-      'INSTAGRAM' => 'Instagram',
-      _ => 'Otros',
-    };
-    return _ContactChannel(
-      label: label,
-      value: (map['y'] as num?)?.toInt() ?? 0,
-    );
-  }).toList();
+    final normalizedKey = values.containsKey(key) ? key : 'OTHER';
+    values[normalizedKey] =
+        values[normalizedKey]! + ((map['y'] as num?)?.toInt() ?? 0);
+  }
+
+  return [
+    ContactChannelDatum(
+      label: 'Teléfono',
+      value: values['PHONE']!,
+      icon: AppIcons.call,
+      color: AppColors.celesteInk,
+    ),
+    ContactChannelDatum(
+      label: 'WhatsApp',
+      value: values['WHATSAPP']!,
+      icon: AppIcons.message,
+      color: AppColors.successInk,
+    ),
+    ContactChannelDatum(
+      label: 'Instagram',
+      value: values['INSTAGRAM']!,
+      icon: AppIcons.socialContact,
+      color: AppColors.primary,
+    ),
+    ContactChannelDatum(
+      label: 'Otros',
+      value: values['OTHER']!,
+      icon: AppIcons.otherContact,
+      color: AppColors.textSecondary,
+    ),
+  ];
 }
 
 List<DashboardFunnelStep> _contactFunnel(MetricResult? metric) {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:guiautomotriz_mobile/core/error/failures.dart';
+import 'package:guiautomotriz_mobile/core/theme/app_icons.dart';
 import 'package:guiautomotriz_mobile/features/catalog/domain/entities/specialty.dart';
 import 'package:guiautomotriz_mobile/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:guiautomotriz_mobile/features/provider_profile/domain/entities/store_catalog.dart';
@@ -92,6 +93,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Frenos'), findsOneWidget);
+    expect(find.byIcon(AppIcons.brakes), findsOneWidget);
+    expect(find.byIcon(Icons.build_circle_outlined), findsNothing);
+    expect(
+      tester.getSize(find.byKey(const Key('edit-provider-specialties'))).height,
+      greaterThanOrEqualTo(48),
+    );
+    expect(
+      tester.getSize(find.byKey(const Key('provider-specialty-brakes'))).height,
+      greaterThanOrEqualTo(48),
+    );
     await tester.tap(find.byKey(const Key('edit-provider-specialties')));
     await tester.pumpAndSettle();
 
@@ -173,6 +184,44 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('secret'), findsNothing);
+  });
+
+  testWidgets('shows a useful empty state and semantic automotive icons',
+      (tester) async {
+    await tester.pumpWidget(
+      _testApp(
+        overrides: [
+          providerSpecialtiesProvider.overrideWith(
+            (ref) async => const <Specialty>[],
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Aún no has agregado especialidades.'), findsOneWidget);
+    expect(
+      find.text('Usa Editar para indicar los servicios que puedes atender.'),
+      findsOneWidget,
+    );
+    expect(find.byIcon(AppIcons.services), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(
+      _testApp(
+        overrides: [
+          providerSpecialtiesProvider.overrideWith(
+            (ref) async => const [_brakes, _electricity],
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(AppIcons.brakes), findsOneWidget);
+    expect(find.byIcon(AppIcons.electrical), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('fits a small phone with large text', (tester) async {

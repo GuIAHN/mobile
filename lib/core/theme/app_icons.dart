@@ -70,11 +70,14 @@ abstract class AppIcons {
   static const IconData reviews = LucideIcons.messageSquareText;
   static const IconData edit = LucideIcons.pencil;
   static const IconData selected = LucideIcons.check;
+  static const IconData unselected = LucideIcons.circle;
   static const IconData favorite = LucideIcons.heart;
   static const IconData favoriteFilled = LucideIcons.heart;
 
   static const IconData call = LucideIcons.phoneCall;
   static const IconData message = LucideIcons.messageCircle;
+  static const IconData socialContact = LucideIcons.atSign;
+  static const IconData otherContact = LucideIcons.circleEllipsis;
   static const IconData send = LucideIcons.send;
 
   static const IconData connectivityError = LucideIcons.wifiOff;

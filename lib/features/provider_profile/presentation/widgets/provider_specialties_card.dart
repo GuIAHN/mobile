@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/error/failures.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../shared/widgets/count_pill.dart';
 import '../../../catalog/domain/entities/specialty.dart';
@@ -18,19 +20,20 @@ class ProviderSpecialtiesCard extends ConsumerWidget {
     final specialtiesAsync = ref.watch(providerSpecialtiesProvider);
 
     return Container(
+      key: const Key('provider-specialties-card'),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(AppSpacing.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -41,12 +44,7 @@ class ProviderSpecialtiesCard extends ConsumerWidget {
                   'ESPECIALIDADES',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.5,
-                    color: AppColors.textSecondary,
-                  ),
+                  style: AppTypography.overline,
                 ),
               ),
               specialtiesAsync.maybeWhen(
@@ -70,18 +68,14 @@ class ProviderSpecialtiesCard extends ConsumerWidget {
             ],
           ),
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Divider(height: 1),
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Divider(height: 1, color: AppColors.border),
           ),
           Text(
             'Indica los servicios que ofreces para que los clientes puedan encontrarte.',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 13,
-              height: 1.4,
-              color: AppColors.textSecondary,
-            ),
+            style: AppTypography.bodySm,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: AppSpacing.lg),
           specialtiesAsync.when(
             loading: () => const _SpecialtiesLoading(),
             error: (error, _) => _SpecialtiesError(
@@ -90,14 +84,7 @@ class ProviderSpecialtiesCard extends ConsumerWidget {
             ),
             data: (specialties) => specialties.isEmpty
                 ? const _EmptySpecialties()
-                : Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: specialties
-                        .map(
-                            (specialty) => _SpecialtyChip(specialty: specialty))
-                        .toList(growable: false),
-                  ),
+                : _SpecialtiesList(specialties: specialties),
           ),
         ],
       ),
@@ -126,10 +113,7 @@ class ProviderSpecialtiesCard extends ConsumerWidget {
   }
 }
 
-/// Botón "Editar" discreto: solo texto + ícono sobre fondo transparente,
-/// sin pill relleno, para no competir visualmente con los chips de
-/// especialidad y quedar en línea con [_EditProfileButton] del header de
-/// perfil.
+/// Acción secundaria de la sección, con un área táctil estable de 48 dp.
 class _EditSpecialtiesButton extends StatelessWidget {
   final bool enabled;
   final VoidCallback onPressed;
@@ -150,29 +134,29 @@ class _EditSpecialtiesButton extends StatelessWidget {
         child: InkWell(
           key: const Key('edit-provider-specialties'),
           onTap: enabled ? onPressed : null,
-          borderRadius: BorderRadius.circular(99),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
+            constraints: const BoxConstraints(
+              minHeight: AppSpacing.buttonHeightMd,
+              minWidth: AppSpacing.buttonHeightMd,
+            ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.edit_outlined,
-                    size: 16,
+                  AppLineIcon(
+                    AppIcons.edit,
+                    size: AppIconSize.action,
                     color: enabled ? AppColors.primary : AppColors.textDisabled,
                   ),
-                  const SizedBox(width: 5),
+                  const SizedBox(width: AppSpacing.sm),
                   Text(
                     'Editar',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: enabled
-                          ? AppColors.primary
-                          : AppColors.textDisabled,
+                    style: AppTypography.label.copyWith(
+                      color:
+                          enabled ? AppColors.primary : AppColors.textDisabled,
                     ),
                   ),
                 ],
@@ -185,41 +169,68 @@ class _EditSpecialtiesButton extends StatelessWidget {
   }
 }
 
-class _SpecialtyChip extends StatelessWidget {
-  final Specialty specialty;
+class _SpecialtiesList extends StatelessWidget {
+  const _SpecialtiesList({required this.specialties});
 
-  const _SpecialtyChip({required this.specialty});
+  final List<Specialty> specialties;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label:
+          '${specialties.length} ${specialties.length == 1 ? 'especialidad configurada' : 'especialidades configuradas'}',
+      child: Column(
+        children: [
+          for (var index = 0; index < specialties.length; index++) ...[
+            _SpecialtyRow(specialty: specialties[index]),
+            if (index < specialties.length - 1)
+              const Divider(
+                height: 1,
+                indent: AppSpacing.xl3 + AppSpacing.md,
+                color: AppColors.border,
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SpecialtyRow extends StatelessWidget {
+  const _SpecialtyRow({required this.specialty});
+
+  final Specialty specialty;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       label: 'Especialidad ${specialty.name}',
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        decoration: BoxDecoration(
-          color: AppColors.primaryMuted,
-          borderRadius: BorderRadius.circular(99),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.build_circle_outlined,
-              size: 16,
-              color: AppColors.primary,
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                specialty.name,
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+      excludeSemantics: true,
+      child: ConstrainedBox(
+        key: Key('provider-specialty-${specialty.id}'),
+        constraints: const BoxConstraints(minHeight: AppSpacing.buttonHeightMd),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: AppSpacing.xl3,
+                child: AppLineIcon(
+                  _specialtyIcon(specialty.name),
+                  color: AppColors.primary,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  specialty.name,
+                  style:
+                      AppTypography.body.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -241,21 +252,31 @@ class _EmptySpecialties extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.info_outline_rounded,
-            color: AppColors.textSecondary,
-            size: 20,
+          const SizedBox(
+            width: AppSpacing.xl3,
+            child: AppLineIcon(
+              AppIcons.services,
+              color: AppColors.textSecondary,
+            ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: Text(
-              'Aún no has agregado especialidades.',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 13,
-                height: 1.35,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Aún no has agregado especialidades.',
+                  style: AppTypography.bodySm.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Usa Editar para indicar los servicios que puedes atender.',
+                  style: AppTypography.bodySm,
+                ),
+              ],
             ),
           ),
         ],
@@ -271,21 +292,42 @@ class _SpecialtiesLoading extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       label: 'Cargando especialidades',
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: const [92.0, 126.0, 108.0]
-            .map(
-              (width) => Container(
-                width: width,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: AppColors.grey100,
-                  borderRadius: BorderRadius.circular(99),
+      child: Column(
+        children: List.generate(
+          3,
+          (index) => Padding(
+            padding: EdgeInsets.only(
+              bottom: index == 2 ? 0 : AppSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: AppSpacing.xl3,
+                  height: AppSpacing.xl3,
+                  decoration: const BoxDecoration(
+                    color: AppColors.grey100,
+                    shape: BoxShape.circle,
+                  ),
                 ),
-              ),
-            )
-            .toList(growable: false),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: FractionallySizedBox(
+                    widthFactor: 0.72,
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      height: AppSpacing.md,
+                      decoration: BoxDecoration(
+                        color: AppColors.grey100,
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusSm),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -309,25 +351,42 @@ class _SpecialtiesError extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            message,
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 13,
-              height: 1.35,
-              color: AppColors.errorInk,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(
+                width: AppSpacing.xl3,
+                child: AppLineIcon(
+                  AppIcons.connectivityError,
+                  color: AppColors.errorInk,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  message,
+                  style: AppTypography.bodySm.copyWith(
+                    color: AppColors.errorInk,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
-          TextButton(
-            key: const Key('retry-provider-specialties'),
-            onPressed: onRetry,
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.errorInk,
-              minimumSize: const Size(88, 48),
-              padding: EdgeInsets.zero,
-              alignment: Alignment.centerLeft,
+          Padding(
+            padding: const EdgeInsets.only(
+              left: AppSpacing.xl3 + AppSpacing.md,
             ),
-            child: const Text('Reintentar'),
+            child: TextButton(
+              key: const Key('retry-provider-specialties'),
+              onPressed: onRetry,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.errorInk,
+                minimumSize: const Size(88, AppSpacing.buttonHeightMd),
+                padding: EdgeInsets.zero,
+                alignment: Alignment.centerLeft,
+              ),
+              child: const Text('Reintentar'),
+            ),
           ),
         ],
       ),
@@ -427,11 +486,7 @@ class _SpecialtiesEditorState extends ConsumerState<_SpecialtiesEditor> {
                                     ? 'No hay especialidades disponibles.'
                                     : 'No encontramos especialidades con ese nombre.',
                                 textAlign: TextAlign.center,
-                                style: GoogleFonts.hankenGrotesk(
-                                  fontSize: 14,
-                                  height: 1.4,
-                                  color: AppColors.textSecondary,
-                                ),
+                                style: AppTypography.bodySm,
                               ),
                             ),
                           ),
@@ -491,29 +546,25 @@ class _SpecialtiesEditorState extends ConsumerState<_SpecialtiesEditor> {
                   children: [
                     Text(
                       'Editar especialidades',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
+                      style: AppTypography.h1,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Agrega o quita los servicios que ofreces.',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 13.5,
-                        height: 1.35,
-                        color: AppColors.textSecondary,
-                      ),
+                      style: AppTypography.bodySm,
                     ),
                   ],
                 ),
               ),
               IconButton(
+                key: const Key('close-specialties-editor'),
                 tooltip: 'Cerrar',
                 onPressed: _isSaving ? null : () => Navigator.pop(context),
                 constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                icon: const Icon(Icons.close_rounded),
+                icon: const AppLineIcon(
+                  AppIcons.close,
+                  size: AppIconSize.action,
+                ),
                 color: AppColors.textSecondary,
               ),
             ],
@@ -524,52 +575,67 @@ class _SpecialtiesEditorState extends ConsumerState<_SpecialtiesEditor> {
   }
 
   Widget _buildSearchField() {
-    return TextField(
-      key: const Key('specialties-search-field'),
-      controller: _searchController,
-      enabled: !_isSaving,
-      onChanged: (value) => setState(() => _query = value.trim()),
-      textInputAction: TextInputAction.search,
-      style: GoogleFonts.hankenGrotesk(
-        fontSize: 14,
-        color: AppColors.textPrimary,
-      ),
-      decoration: InputDecoration(
-        hintText: 'Buscar especialidad',
-        hintStyle: GoogleFonts.hankenGrotesk(
-          fontSize: 14,
-          color: AppColors.textPlaceholder,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('BUSCAR ESPECIALIDAD', style: AppTypography.overline),
+        const SizedBox(height: AppSpacing.sm),
+        TextField(
+          key: const Key('specialties-search-field'),
+          controller: _searchController,
+          enabled: !_isSaving,
+          onChanged: (value) => setState(() => _query = value.trim()),
+          textInputAction: TextInputAction.search,
+          style: AppTypography.body,
+          decoration: InputDecoration(
+            hintText: 'Escribe el nombre del servicio',
+            hintStyle: AppTypography.body.copyWith(
+              color: AppColors.textPlaceholder,
+            ),
+            prefixIcon: const AppLineIcon(
+              AppIcons.search,
+              size: AppIconSize.action,
+              color: AppColors.textSecondary,
+            ),
+            suffixIcon: _query.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: 'Limpiar búsqueda',
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() => _query = '');
+                    },
+                    constraints: const BoxConstraints(
+                      minWidth: AppSpacing.buttonHeightMd,
+                      minHeight: AppSpacing.buttonHeightMd,
+                    ),
+                    icon: const AppLineIcon(
+                      AppIcons.close,
+                      size: AppIconSize.action,
+                    ),
+                  ),
+            filled: true,
+            fillColor: AppColors.surface,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: 15,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide:
+                  const BorderSide(color: AppColors.primary, width: 1.5),
+            ),
+          ),
         ),
-        prefixIcon: const Icon(
-          Icons.search_rounded,
-          color: AppColors.textSecondary,
-        ),
-        suffixIcon: _query.isEmpty
-            ? null
-            : IconButton(
-                tooltip: 'Limpiar búsqueda',
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() => _query = '');
-                },
-                icon: const Icon(Icons.close_rounded),
-              ),
-        filled: true,
-        fillColor: AppColors.grey50,
-        contentPadding: const EdgeInsets.symmetric(vertical: 15),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-        ),
-      ),
+      ],
     );
   }
 
@@ -590,9 +656,7 @@ class _SpecialtiesEditorState extends ConsumerState<_SpecialtiesEditor> {
               Text(
                 _saveError!,
                 key: const Key('specialties-save-error'),
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 12.5,
-                  height: 1.35,
+                style: AppTypography.bodySm.copyWith(
                   color: AppColors.errorInk,
                 ),
               ),
@@ -626,10 +690,9 @@ class _SpecialtiesEditorState extends ConsumerState<_SpecialtiesEditor> {
                       )
                     : Text(
                         _hasChanges ? 'GUARDAR CAMBIOS' : 'SIN CAMBIOS',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
+                        style: AppTypography.label.copyWith(
+                          color: Colors.white,
+                          letterSpacing: 1.5,
                         ),
                       ),
               ),
@@ -702,16 +765,19 @@ class _SpecialtyOption extends StatelessWidget {
       label: specialty.name,
       child: Material(
         color: selected ? AppColors.primaryMuted : Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         child: InkWell(
           key: Key('specialty-option-${specialty.id}'),
           onTap: enabled ? onTap : null,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
           child: Container(
             constraints: const BoxConstraints(minHeight: 64),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.sm,
+            ),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
               border: Border.all(
                 color: selected ? AppColors.primary : AppColors.border,
                 width: selected ? 1.5 : 1,
@@ -719,36 +785,28 @@ class _SpecialtyOption extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: selected ? Colors.white : AppColors.grey50,
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: Icon(
-                    Icons.build_circle_outlined,
+                SizedBox(
+                  width: AppSpacing.xl3,
+                  child: AppLineIcon(
+                    _specialtyIcon(specialty.name),
                     color:
                         selected ? AppColors.primary : AppColors.textSecondary,
-                    size: 21,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Text(
                     specialty.name,
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 14,
+                    style: AppTypography.body.copyWith(
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                      color: AppColors.textPrimary,
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Icon(
-                  selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-                  color: selected ? AppColors.primary : AppColors.grey400,
-                  size: 24,
+                const SizedBox(width: AppSpacing.md),
+                AppLineIcon(
+                  selected ? AppIcons.selected : AppIcons.unselected,
+                  size: AppIconSize.action,
+                  color: selected ? AppColors.primary : AppColors.grey500,
                 ),
               ],
             ),
@@ -762,4 +820,73 @@ class _SpecialtyOption extends StatelessWidget {
 String _friendlyError(Object error) {
   if (error is Failure) return error.message;
   return 'No pudimos cargar las especialidades. Inténtalo nuevamente.';
+}
+
+IconData _specialtyIcon(String name) {
+  final normalized = name
+      .trim()
+      .toLowerCase()
+      .replaceAll('á', 'a')
+      .replaceAll('é', 'e')
+      .replaceAll('í', 'i')
+      .replaceAll('ó', 'o')
+      .replaceAll('ú', 'u')
+      .replaceAll('ü', 'u')
+      .replaceAll('ñ', 'n');
+
+  if (normalized.contains('freno') || normalized.contains('abs')) {
+    return AppIcons.brakes;
+  }
+  if (normalized.contains('transmision') ||
+      normalized.contains('caja') ||
+      normalized.contains('cambio') ||
+      normalized.contains('embrague') ||
+      normalized.contains('cvt')) {
+    return AppIcons.transmission;
+  }
+  if (normalized.contains('suspension') ||
+      normalized.contains('direccion') ||
+      normalized.contains('alineacion')) {
+    return AppIcons.suspension;
+  }
+  if (normalized.contains('electric') ||
+      normalized.contains('electron') ||
+      normalized.contains('computadora') ||
+      normalized.contains('encendido') ||
+      normalized.contains('diagnostico') ||
+      normalized.contains('escaneo')) {
+    return AppIcons.electrical;
+  }
+  if (normalized.contains('latoneria') ||
+      normalized.contains('pintura') ||
+      normalized.contains('carroceria') ||
+      normalized.contains('detallado') ||
+      normalized.contains('estetica')) {
+    return AppIcons.bodywork;
+  }
+  if (normalized.contains('climat') ||
+      normalized.contains('aire acondicionado')) {
+    return AppIcons.climate;
+  }
+  if (normalized.contains('inyeccion') || normalized.contains('combustible')) {
+    return AppIcons.fuel;
+  }
+  if (normalized.contains('neumatic') ||
+      normalized.contains('caucho') ||
+      normalized.contains('rueda') ||
+      normalized.contains('rin')) {
+    return AppIcons.wheels;
+  }
+  if (normalized.contains('audio') || normalized.contains('multimedia')) {
+    return AppIcons.audio;
+  }
+  if (normalized.contains('luz') || normalized.contains('iluminacion')) {
+    return AppIcons.lighting;
+  }
+  if (normalized.contains('motor') ||
+      normalized.contains('mecanica') ||
+      normalized.contains('turbo')) {
+    return AppIcons.engine;
+  }
+  return AppIcons.services;
 }

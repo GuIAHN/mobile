@@ -131,6 +131,37 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('keeps the trailing chevron centered in every card state',
+      (tester) async {
+    Future<void> expectCenteredChevron(ChatThread thread) async {
+      await tester.pumpWidget(_subject(thread));
+
+      final content = tester.getRect(
+        find.byKey(const Key('consumer-request-content')),
+      );
+      final chevronSlot = tester.getRect(
+        find.byKey(const Key('consumer-request-chevron-slot')),
+      );
+
+      expect(chevronSlot.width, 32);
+      expect(chevronSlot.center.dx, closeTo(content.right - 16, 0.01));
+      expect(chevronSlot.center.dy, closeTo(content.center.dy, 0.01));
+      expect(tester.takeException(), isNull);
+    }
+
+    await expectCenteredChevron(_thread());
+    await expectCenteredChevron(
+      _thread(totalOffersCount: 2, bestOfferPrice: 1250),
+    );
+    await expectCenteredChevron(
+      _thread(
+        totalOffersCount: 1,
+        bestOfferPrice: 900,
+        bestOfferStatus: 'BOUGHT',
+      ),
+    );
+  });
+
   testWidgets('hides expiration after purchase and names the final outcome',
       (tester) async {
     await tester.pumpWidget(
