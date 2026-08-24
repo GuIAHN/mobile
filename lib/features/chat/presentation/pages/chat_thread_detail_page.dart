@@ -90,17 +90,22 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
                 error: (_, __) => const SizedBox.shrink(),
                 data: (result) {
                   final threads = result.threads;
-                  if (threads.isEmpty) return const SizedBox.shrink();
-                  final matches = threads.where((t) => t.id == widget.threadId);
-                  final thread =
-                      matches.isNotEmpty ? matches.first : threads.first;
+                  ChatThread? thread;
+                  for (final candidate in threads) {
+                    if (candidate.id == widget.threadId) {
+                      thread = candidate;
+                      break;
+                    }
+                  }
+                  if (thread == null) {
+                    return _MissingRequestSummary(isStore: isStore);
+                  }
                   return Padding(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                     child: _RequestSummaryCard(
                       thread: thread,
                       isStore: isStore,
-                      ref: ref,
                     ),
                   );
                 },
@@ -305,16 +310,109 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
   }
 }
 
-class _RequestSummaryCard extends StatelessWidget {
+class _MissingRequestSummary extends StatelessWidget {
+  const _MissingRequestSummary({required this.isStore});
+
+  final bool isStore;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.search_off_rounded,
+              size: 40,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Solicitud no disponible',
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Puede haber cambiado de estado o no pertenecer al filtro actual.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 13.5,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 18),
+            OutlinedButton(
+              onPressed: () => context.go(
+                isStore ? RouteNames.sales : RouteNames.purchases,
+              ),
+              child: Text(isStore ? 'Volver a ventas' : 'Volver a compras'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RequestSummaryCard extends ConsumerStatefulWidget {
   final ChatThread thread;
   final bool isStore;
-  final WidgetRef ref;
 
   const _RequestSummaryCard({
     required this.thread,
     required this.isStore,
-    required this.ref,
   });
+
+  @override
+  ConsumerState<_RequestSummaryCard> createState() =>
+      _RequestSummaryCardState();
+}
+
+class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
+  bool _isStartingChat = false;
+
+  ChatThread get thread => widget.thread;
+  bool get isStore => widget.isStore;
+
+  Future<void> _startChat() async {
+    if (_isStartingChat) return;
+    setState(() => _isStartingChat = true);
+    try {
+      final quoteRes = await ref.read(createQuoteUseCaseProvider)(
+        threadId: thread.id,
+        searchMatchId: thread.searchMatchId,
+      );
+      if (!mounted) return;
+
+      quoteRes.fold(
+        (failure) => context.showSnackBar(
+          'Error al iniciar chat: ${failure.message}',
+          isError: true,
+        ),
+        (newConv) {
+          ref.invalidate(chatConversationsProvider(thread.id));
+          ref.invalidate(storeSalesRequestsProvider);
+          ref.invalidate(myConversationsProvider);
+          context.pushReplacement(
+            RouteNames.chatConversationPath(newConv.id),
+          );
+        },
+      );
+    } finally {
+      if (mounted) setState(() => _isStartingChat = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -566,29 +664,7 @@ class _RequestSummaryCard extends StatelessWidget {
             )
           else
             ElevatedButton(
-              onPressed: () async {
-                // Abre una consulta (INQUIRY) sin precio: el backend crea la
-                // conversación de inmediato para chatear antes de cotizar.
-                final useCase = ref.read(createQuoteUseCaseProvider);
-                final quoteRes = await useCase(threadId: thread.id);
-
-                quoteRes.fold(
-                  (failure) {
-                    context.showSnackBar(
-                      'Error al iniciar chat: ${failure.message}',
-                      isError: true,
-                    );
-                  },
-                  (newConv) {
-                    ref.invalidate(chatConversationsProvider(thread.id));
-                    ref.invalidate(storeSalesRequestsProvider);
-                    ref.invalidate(myConversationsProvider);
-                    context.pushReplacement(
-                      RouteNames.chatConversationPath(newConv.id),
-                    );
-                  },
-                );
-              },
+              onPressed: _isStartingChat ? null : _startChat,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
@@ -599,21 +675,30 @@ class _RequestSummaryCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(32),
                 ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.chat_bubble_outline_rounded, size: 20),
-                  const SizedBox(width: 10),
-                  Text(
-                    'INICIAR CHAT CON EL CLIENTE',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
+              child: _isStartingChat
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.chat_bubble_outline_rounded, size: 20),
+                        const SizedBox(width: 10),
+                        Text(
+                          'INICIAR CHAT CON EL CLIENTE',
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
         ],
       ],

@@ -7,7 +7,11 @@ class PendingReviewModel extends PendingReview {
     required super.providerName,
     super.providerPhoto,
     super.eligibleAt,
-    required super.conversationId,
+    super.conversationId,
+    super.hasReviewed,
+    super.reviewId,
+    super.reviewRating,
+    super.reviewComment,
   });
 
   factory PendingReviewModel.fromJson(Map<String, dynamic> json) {
@@ -17,7 +21,13 @@ class PendingReviewModel extends PendingReview {
       providerName: json['providerName']?.toString() ?? 'Tienda',
       providerPhoto: json['providerPhoto']?.toString(),
       eligibleAt: DateTime.tryParse(json['eligibleAt']?.toString() ?? ''),
-      conversationId: json['conversationId']?.toString() ?? '',
+      conversationId: json['conversationId']?.toString(),
+      hasReviewed: json['hasReviewed'] as bool? ?? false,
+      reviewId: json['reviewId']?.toString(),
+      reviewRating: json['reviewRating'] is num
+          ? (json['reviewRating'] as num).toInt()
+          : int.tryParse(json['reviewRating']?.toString() ?? ''),
+      reviewComment: json['reviewComment']?.toString(),
     );
   }
 }

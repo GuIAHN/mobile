@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/providers/cache_for.dart';
 import '../../../../core/storage/secure_storage.dart';
-import '../../../chat/presentation/providers/chat_providers.dart';
 import '../../data/datasources/reviews_remote_datasource.dart';
 import '../../data/repositories/reviews_repository_impl.dart';
 import '../../domain/entities/my_review_status.dart';
@@ -54,58 +54,13 @@ final reviewsProvider = FutureProvider.family
 final pendingReviewsProvider =
     FutureProvider.autoDispose<List<PendingReview>>((ref) async {
   final result = await ref.watch(reviewsRepositoryProvider).getPendingReviews();
-  final serverItems = result.fold(
+  final items = result.fold(
     (failure) => throw Exception(failure.message),
     (items) => items,
   );
-
-  // El endpoint de pendientes excluye a una tienda ya valorada. Para una
-  // compra posterior, complementamos la lista con sus conversaciones
-  // entregadas: esa nueva compra habilita editar la única valoración.
-  final conversationsResult =
-      await ref.watch(chatRepositoryProvider).getMyConversations();
-  final conversations = conversationsResult.fold(
-    (_) => const [],
-    (items) => items,
-  );
-  final repository = ref.watch(chatRepositoryProvider);
-  final storage = ref.watch(secureStorageProvider);
-  final knownConversationIds =
-      serverItems.map((item) => item.conversationId).toSet();
-  final knownTargetIds = serverItems.map((item) => item.targetId).toSet();
-  final items = [...serverItems];
-
-  for (final conversation in conversations) {
-    if (conversation.offerStatus != 'DELIVERED' ||
-        knownConversationIds.contains(conversation.id) ||
-        await storage.hasHandledStoreReview(conversation.id)) {
-      continue;
-    }
-    final detailsResult =
-        await repository.getConversationDetails(conversation.id);
-    detailsResult.fold((_) {}, (details) {
-      final targetId = details.storeUserId;
-      final profileId = details.storeId;
-      if (details.hasReviewed ||
-          targetId == null ||
-          targetId.isEmpty ||
-          knownTargetIds.contains(targetId) ||
-          profileId == null ||
-          profileId.isEmpty) {
-        return;
-      }
-      items.add(PendingReview(
-        targetId: targetId,
-        providerProfileId: profileId,
-        providerName: details.participantName,
-        providerPhoto: details.storeLogoUrl ?? details.participantAvatarUrl,
-        conversationId: conversation.id,
-      ));
-      knownConversationIds.add(conversation.id);
-      knownTargetIds.add(targetId);
-    });
-  }
-
+  // Keep only successful responses. Transient failures should be retried on
+  // the next visit instead of remaining warm for the whole cache window.
+  ref.cacheFor(const Duration(minutes: 2));
   return items;
 });
 

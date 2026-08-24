@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/extensions.dart';
 import '../../../home/presentation/widgets/provider_detail_widgets.dart';
 import '../../domain/entities/chat_conversation.dart';
 
@@ -211,14 +212,11 @@ class StoreContactSheet extends StatelessWidget {
                       await Clipboard.setData(ClipboardData(text: phone));
                       HapticFeedback.mediumImpact();
                       if (!context.mounted) return;
-                      ScaffoldMessenger.of(context)
-                        ..hideCurrentSnackBar()
-                        ..showSnackBar(
-                          const SnackBar(
-                            content: Text('Número copiado'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
+                      context.showSnackBar(
+                        'Número copiado',
+                        isSuccess: true,
+                        duration: const Duration(seconds: 2),
+                      );
                     },
                     icon: const AppLineIcon(
                       AppIcons.receipt,

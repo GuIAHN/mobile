@@ -21,6 +21,10 @@ void main() {
               'providerPhoto': null,
               'eligibleAt': '2026-08-20T12:00:00.000Z',
               'conversationId': 'conversation-1',
+              'hasReviewed': true,
+              'reviewId': 'review-1',
+              'reviewRating': 4,
+              'reviewComment': 'Muy bien',
             },
           ],
           'total': 1,
@@ -33,6 +37,35 @@ void main() {
     expect(result, hasLength(1));
     expect(result.single.targetId, 'store-user-1');
     expect(result.single.conversationId, 'conversation-1');
+    expect(result.single.hasReviewed, isTrue);
+    expect(result.single.reviewId, 'review-1');
+    expect(result.single.reviewRating, 4);
+  });
+
+  test('keeps actionable provider prompts without a conversation', () async {
+    final client = _MockDioClient();
+    when(() => client.get('/reviews/pending')).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: '/reviews/pending'),
+        data: {
+          'items': [
+            {
+              'targetId': 'mechanic-user-1',
+              'providerProfileId': 'mechanic-1',
+              'providerName': 'Mecánica Central',
+              'hasReviewed': false,
+            },
+          ],
+          'total': 1,
+        },
+      ),
+    );
+
+    final result = await ReviewsRemoteDataSource(client).getPendingReviews();
+
+    expect(result, hasLength(1));
+    expect(result.single.conversationId, isNull);
+    expect(result.single.hasReviewed, isFalse);
   });
 
   test('creates direct provider reviews with targetId only', () async {

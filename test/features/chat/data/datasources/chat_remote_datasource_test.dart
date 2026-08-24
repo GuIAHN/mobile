@@ -350,4 +350,94 @@ void main() {
       ),
     ).called(1);
   });
+
+  test('store conversations return empty without downloading the inbox',
+      () async {
+    final client = _MockDioClient();
+    final dataSource = ChatRemoteDataSource(client, () => 'store-1');
+
+    final result =
+        await dataSource.getConversations('request-1', UserRole.store);
+
+    expect(result, isEmpty);
+    verifyNever(() => client.get(any()));
+  });
+
+  test('creates a quote with the known match without refetching sales',
+      () async {
+    final client = _MockDioClient();
+    final dataSource = ChatRemoteDataSource(client, () => 'store-1');
+    when(
+      () => client.post(
+        'offers',
+        data: {'searchMatchId': 'match-1', 'price': 100.0},
+      ),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: 'offers'),
+        data: const {
+          'id': 'offer-1',
+          'conversationId': 'conversation-1',
+          'message': '',
+          'createdAt': '2026-08-24T12:00:00.000Z',
+          'status': 'SENT',
+          'price': 100,
+        },
+      ),
+    );
+
+    final result = await dataSource.createQuote(
+      threadId: 'request-1',
+      searchMatchId: 'match-1',
+      price: 100,
+    );
+
+    expect(result.searchMatchId, 'match-1');
+    verifyNever(() => client.get(any()));
+    verify(
+      () => client.post(
+        'offers',
+        data: {'searchMatchId': 'match-1', 'price': 100.0},
+      ),
+    ).called(1);
+  });
+
+  test('keeps the sales lookup as create-quote fallback', () async {
+    final client = _MockDioClient();
+    final dataSource = ChatRemoteDataSource(client, () => 'store-1');
+    const fallbackEndpoint =
+        '${ApiEndpoints.storeSearchRequests}?status=ALL&page=1&pageSize=100';
+    when(() => client.get(fallbackEndpoint)).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: fallbackEndpoint),
+        data: const {
+          'items': [
+            {'id': 'request-1', 'searchMatchId': 'match-fallback'},
+          ],
+        },
+      ),
+    );
+    when(
+      () => client.post(
+        'offers',
+        data: {'searchMatchId': 'match-fallback'},
+      ),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: 'offers'),
+        data: const {
+          'id': 'offer-1',
+          'conversationId': 'conversation-1',
+          'message': '',
+          'createdAt': '2026-08-24T12:00:00.000Z',
+          'status': 'INQUIRY',
+        },
+      ),
+    );
+
+    final result = await dataSource.createQuote(threadId: 'request-1');
+
+    expect(result.searchMatchId, 'match-fallback');
+    verify(() => client.get(fallbackEndpoint)).called(1);
+  });
 }

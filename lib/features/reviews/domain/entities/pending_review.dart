@@ -6,7 +6,11 @@ class PendingReview extends Equatable {
   final String providerName;
   final String? providerPhoto;
   final DateTime? eligibleAt;
-  final String conversationId;
+  final String? conversationId;
+  final bool hasReviewed;
+  final String? reviewId;
+  final int? reviewRating;
+  final String? reviewComment;
 
   const PendingReview({
     required this.targetId,
@@ -14,7 +18,11 @@ class PendingReview extends Equatable {
     required this.providerName,
     this.providerPhoto,
     this.eligibleAt,
-    required this.conversationId,
+    this.conversationId,
+    this.hasReviewed = false,
+    this.reviewId,
+    this.reviewRating,
+    this.reviewComment,
   });
 
   @override
@@ -25,5 +33,9 @@ class PendingReview extends Equatable {
         providerPhoto,
         eligibleAt,
         conversationId,
+        hasReviewed,
+        reviewId,
+        reviewRating,
+        reviewComment,
       ];
 }

@@ -25,6 +25,7 @@ abstract class ChatRepository {
 
   Future<Either<Failure, ChatConversation>> createQuote({
     required String threadId,
+    String? searchMatchId,
     double? price,
     double? deliveryCost,
     String? brand,

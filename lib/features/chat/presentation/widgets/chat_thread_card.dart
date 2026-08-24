@@ -40,13 +40,14 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
   void _openQuoteDialog() async {
     final thread = widget.thread;
     final result = await QuoteInputDialog.show(context, thread.title);
-    if (result == null) return;
+    if (result == null || !mounted) return;
 
     setState(() => _isSubmitting = true);
     try {
       final useCase = ref.read(createQuoteUseCaseProvider);
       final quoteRes = await useCase(
         threadId: thread.id,
+        searchMatchId: thread.searchMatchId,
         price: result['price'] as double?,
         deliveryCost: result['deliveryCost'] as double?,
         brand: result['brand'] as String?,
@@ -116,6 +117,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
         searchMatchId,
         reason,
       );
+      if (!mounted) return;
       result.fold(
         (failure) => context.showSnackBar(
           'No se pudo declinar: ${failure.message}',
@@ -138,6 +140,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
     setState(() => _isSubmitting = true);
     try {
       final result = await ref.read(undoDeclineUseCaseProvider)(searchMatchId);
+      if (!mounted) return;
       result.fold(
         (failure) => context.showSnackBar(
           'No se pudo restaurar: ${failure.message}',

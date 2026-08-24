@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,7 +14,6 @@ import 'package:guiautomotriz_mobile/features/auth/domain/usecases/update_profil
 import 'package:guiautomotriz_mobile/features/auth/domain/usecases/upload_avatar_usecase.dart';
 import 'package:guiautomotriz_mobile/features/auth/presentation/providers/auth_provider.dart';
 import 'package:guiautomotriz_mobile/features/auth/presentation/providers/auth_state.dart';
-import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/header/home_header_expanded.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/domain/entities/user_car.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/presentation/providers/vehicle_providers.dart';
@@ -96,12 +93,6 @@ void main() {
     model: '4000',
     year: 1985,
   );
-  const toyota = UserCar(
-    id: 'car-2',
-    brand: 'Toyota',
-    model: 'Corolla',
-    year: 2020,
-  );
   const user = User(
     id: 'user-1',
     email: 'elio@example.com',
@@ -155,8 +146,7 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('shows the accessible vehicle-aware orange header',
-      (tester) async {
+  testWidgets('shows the accessible orange header', (tester) async {
     final container = containerWithCars([audi]);
     addTearDown(container.dispose);
 
@@ -172,15 +162,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Hola, Elio'), findsOneWidget);
-    final vehicleControl =
-        find.byKey(const Key('home-selected-vehicle-control'));
-    expect(vehicleControl, findsOneWidget);
-    expect(find.text('Audi 4000 · 1985'), findsOneWidget);
-    expect(find.text('¿En qué podemos ayudarte hoy?'), findsNothing);
-    expect(
-      tester.getSize(vehicleControl).height,
-      greaterThanOrEqualTo(48),
-    );
+    expect(find.text('¿En qué podemos ayudarte hoy?'), findsOneWidget);
     expect(find.text('Ubicación desactivada'), findsOneWidget);
     expect(find.byIcon(Icons.notifications_outlined), findsNothing);
 
@@ -188,10 +170,6 @@ void main() {
     expect(locationTarget, findsOneWidget);
     expect(tester.getSize(locationTarget).height, greaterThanOrEqualTo(48));
     expect(find.bySemanticsLabel('Activar ubicación'), findsOneWidget);
-    expect(
-      find.bySemanticsLabel('Vehículo seleccionado: Audi 4000, 1985'),
-      findsOneWidget,
-    );
   }, semanticsEnabled: true);
 
   testWidgets('uses the blue and black header car asset', (tester) async {
@@ -290,22 +268,15 @@ void main() {
     expect(container.read(userLocationProvider).valueOrNull, isNull);
   }, semanticsEnabled: true);
 
-  testWidgets('shows honest empty-garage and location states', (tester) async {
+  testWidgets('keeps the header independent from an empty garage',
+      (tester) async {
     final container = containerWithCars([]);
     addTearDown(container.dispose);
 
     await pumpHeader(tester, container);
 
-    expect(
-      find.byKey(const Key('home-selected-vehicle-control')),
-      findsOneWidget,
-    );
-    expect(find.text('Seleccionar vehículo'), findsOneWidget);
+    expect(find.text('¿En qué podemos ayudarte hoy?'), findsOneWidget);
     expect(find.text('Ubicación desactivada'), findsOneWidget);
-    expect(
-      find.bySemanticsLabel('Seleccionar vehículo'),
-      findsOneWidget,
-    );
   });
 
   testWidgets('shows the current resolved location name', (tester) async {
@@ -386,66 +357,6 @@ void main() {
     expect(container.read(userLocationProvider).valueOrNull, isNull);
   });
 
-  testWidgets('shows an honest garage loading state', (tester) async {
-    final pendingCars = Completer<List<UserCar>>();
-    final container = containerWithGarage((ref) => pendingCars.future);
-    addTearDown(container.dispose);
-
-    await pumpHeader(tester, container);
-
-    expect(
-      find.byKey(const Key('home-selected-vehicle-control')),
-      findsOneWidget,
-    );
-    expect(find.text('Cargando vehículo…'), findsOneWidget);
-    expect(find.text('Seleccionar vehículo'), findsNothing);
-    expect(
-      find.bySemanticsLabel('Cargando vehículo'),
-      findsOneWidget,
-    );
-  }, semanticsEnabled: true);
-
-  testWidgets('shows an honest garage error state', (tester) async {
-    final container = containerWithGarage(
-      (ref) async => throw StateError('private backend detail'),
-    );
-    addTearDown(container.dispose);
-
-    await pumpHeader(tester, container);
-
-    expect(
-      find.byKey(const Key('home-selected-vehicle-control')),
-      findsOneWidget,
-    );
-    expect(find.text('No pudimos cargar tu vehículo'), findsOneWidget);
-    expect(find.text('Seleccionar vehículo'), findsNothing);
-    expect(find.textContaining('private backend detail'), findsNothing);
-    expect(
-      find.bySemanticsLabel(
-        'No pudimos cargar tu vehículo. Toca para intentarlo de nuevo',
-      ),
-      findsOneWidget,
-    );
-  }, semanticsEnabled: true);
-
-  testWidgets('updates the shared search vehicle after garage selection',
-      (tester) async {
-    final container = containerWithCars([audi, toyota]);
-    addTearDown(container.dispose);
-
-    await pumpHeader(tester, container);
-    await tester.tap(find.byKey(const Key('home-selected-vehicle-control')));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
-    await tester.tap(find.text('Toyota Corolla').last);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
-
-    expect(container.read(searchVehicleProvider), toyota);
-    expect(container.read(searchVehicleVariantIdProvider), isNull);
-    expect(find.text('Toyota Corolla · 2020'), findsOneWidget);
-  });
-
   testWidgets('fits small and large phones with scaled text and 48 dp actions',
       (tester) async {
     final container = containerWithCars([audi]);
@@ -463,12 +374,9 @@ void main() {
         textScale: 2,
       );
 
-      final vehicleControl =
-          find.byKey(const Key('home-selected-vehicle-control'));
-      expect(vehicleControl, findsOneWidget);
       expect(tester.takeException(), isNull);
       expect(
-        tester.getSize(vehicleControl).height,
+        tester.getSize(find.byKey(const Key('home-location-control'))).height,
         greaterThanOrEqualTo(48),
       );
       expect(

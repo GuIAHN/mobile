@@ -13,12 +13,14 @@ class WriteReviewBottomSheet extends ConsumerStatefulWidget {
   final String targetId;
   final String? conversationId;
   final String providerName;
+  final MyReviewStatus? initialStatus;
 
   const WriteReviewBottomSheet({
     super.key,
     required this.targetId,
     this.conversationId,
     this.providerName = 'este proveedor',
+    this.initialStatus,
   });
 
   @override
@@ -65,6 +67,9 @@ class _WriteReviewBottomSheetState
     if (success && mounted) {
       ref.invalidate(reviewsProvider(widget.targetId));
       ref.invalidate(myReviewProvider(widget.targetId));
+      // This sheet is shared by pending reviews, chat and provider profiles.
+      // Invalidate once here so every successful entry point refreshes the
+      // badge/gate without requiring caller-specific duplicate requests.
       ref.invalidate(pendingReviewsProvider);
       context.pop(true);
     }
@@ -72,7 +77,9 @@ class _WriteReviewBottomSheetState
 
   @override
   Widget build(BuildContext context) {
-    final statusAsync = ref.watch(myReviewProvider(widget.targetId));
+    final statusAsync = widget.initialStatus == null
+        ? ref.watch(myReviewProvider(widget.targetId))
+        : AsyncValue.data(widget.initialStatus!);
     final submitState = ref.watch(createReviewProvider);
 
     return SafeArea(

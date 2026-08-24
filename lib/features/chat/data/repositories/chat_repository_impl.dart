@@ -90,6 +90,7 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<Either<Failure, ChatConversation>> createQuote({
     required String threadId,
+    String? searchMatchId,
     double? price,
     double? deliveryCost,
     String? brand,
@@ -98,6 +99,7 @@ class ChatRepositoryImpl implements ChatRepository {
     try {
       final conversation = await remoteDataSource.createQuote(
         threadId: threadId,
+        searchMatchId: searchMatchId,
         price: price,
         deliveryCost: deliveryCost,
         brand: brand,

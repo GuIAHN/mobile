@@ -7,6 +7,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/entities/pending_review.dart';
+import '../../domain/entities/my_review_status.dart';
+import '../../domain/entities/review.dart';
 import '../../../../core/utils/media_url.dart';
 import '../providers/reviews_providers.dart';
 import '../widgets/write_review_bottom_sheet.dart';
@@ -28,18 +30,40 @@ class PendingReviewsPage extends ConsumerWidget {
         targetId: item.targetId,
         conversationId: item.conversationId,
         providerName: item.providerName,
+        initialStatus: _reviewStatus(item),
       ),
     );
     if (!context.mounted) return;
     if (saved == true) {
-      await markStoreReviewHandled(ref, item.conversationId);
-      ref.invalidate(pendingReviewsProvider);
+      final conversationId = item.conversationId;
+      if (conversationId != null) {
+        await markStoreReviewHandled(ref, conversationId);
+      }
       if (!context.mounted) return;
       ref.read(homeTabProvider.notifier).state = MainNavigationTab.home;
       context.go(RouteNames.home);
-    } else {
-      ref.invalidate(pendingReviewsProvider);
     }
+  }
+
+  MyReviewStatus _reviewStatus(PendingReview item) {
+    final reviewId = item.reviewId;
+    final rating = item.reviewRating;
+    if (!item.hasReviewed || reviewId == null || rating == null) {
+      return const MyReviewStatus(hasReviewed: false);
+    }
+    return MyReviewStatus(
+      hasReviewed: true,
+      review: Review(
+        id: reviewId,
+        authorId: '',
+        targetId: item.targetId,
+        conversationId: item.conversationId,
+        rating: rating,
+        comentario: item.reviewComment,
+        createdAt: item.eligibleAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+        authorName: '',
+      ),
+    );
   }
 
   @override
@@ -82,7 +106,7 @@ class PendingReviewsPage extends ConsumerWidget {
                       Text('Tu experiencia cuenta', style: AppTypography.h1),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
-                        'Estas compras ya fueron entregadas. La puntuación es obligatoria y el comentario es opcional.',
+                        'Comparte tu experiencia con estos proveedores. La puntuación es obligatoria y el comentario es opcional.',
                         style: AppTypography.bodySm,
                       ),
                       const SizedBox(height: AppSpacing.xl2),
@@ -161,8 +185,8 @@ class _PendingReviewCard extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         item.eligibleAt == null
-                            ? 'Compra entregada'
-                            : 'Entregado el ${MaterialLocalizations.of(context).formatShortDate(item.eligibleAt!.toLocal())}',
+                            ? 'Experiencia pendiente'
+                            : 'Disponible desde el ${MaterialLocalizations.of(context).formatShortDate(item.eligibleAt!.toLocal())}',
                         style: AppTypography.meta,
                       ),
                     ],
@@ -178,7 +202,7 @@ class _PendingReviewCard extends StatelessWidget {
                 onPressed: onPressed,
                 icon: const Icon(Icons.star_outline_rounded, size: 20),
                 label: Text(
-                  'DEJAR VALORACIÓN',
+                  item.hasReviewed ? 'EDITAR VALORACIÓN' : 'DEJAR VALORACIÓN',
                   style: AppTypography.label.copyWith(color: Colors.white),
                 ),
                 style: ElevatedButton.styleFrom(

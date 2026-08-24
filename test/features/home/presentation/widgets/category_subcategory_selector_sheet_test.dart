@@ -114,7 +114,7 @@ void main() {
     expect(find.text('Filtro de aceite'), findsOneWidget);
   });
 
-  testWidgets('uses a specific icon for every selectable category level',
+  testWidgets('uses category icons at root and compact dots for children',
       (tester) async {
     await tester.pumpWidget(buildSubject());
     await tester.pump(const Duration(milliseconds: 360));
@@ -130,9 +130,9 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('category-node-pastillas')),
-        matching: find.byIcon(Icons.disc_full_outlined),
+        matching: find.byType(Icon),
       ),
-      findsOneWidget,
+      findsNothing,
     );
 
     await tester.tap(find.byKey(const ValueKey('category-root-motor')));
@@ -147,9 +147,9 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('category-node-filtro-aceite')),
-        matching: find.byIcon(Icons.filter_alt_outlined),
+        matching: find.byType(Icon),
       ),
-      findsOneWidget,
+      findsNothing,
     );
   });
 

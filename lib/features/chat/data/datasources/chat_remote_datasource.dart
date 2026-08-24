@@ -174,26 +174,10 @@ class ChatRemoteDataSource {
 
   Future<List<ChatConversationModel>> getConversations(
       String threadId, UserRole role) async {
-    // For a store, they shouldn't query search offers endpoint because they don't see others' offers
-    // But our API allows consumer to get offers. Let's see how Store sees its own offer.
-    // If it's consumer, get all offers for the search request.
-    // If it's a store, they only have 1 conversation per search Match.
     if (role == UserRole.store) {
-      // Get the visible requests to find the searchMatchId
-      final reqsRes = await _dioClient.get(ApiEndpoints.storeSearchRequests);
-      final rawReqs = reqsRes.data;
-      final List reqs = rawReqs is Map && rawReqs.containsKey('items')
-          ? (rawReqs['items'] as List)
-          : (rawReqs is List ? rawReqs : []);
-      final match =
-          reqs.firstWhere((r) => r['id'] == threadId, orElse: () => null);
-      if (match != null && match['searchMatchId'] != null) {
-        // Return a dummy conversation representing the chat with the client
-        // To be accurate we should fetch if they already made an offer, but for now we just return an empty list
-        // or a single local conversation object.
-        return [];
-      }
-      return [];
+      // A store never receives competing offers for a request. The previous
+      // implementation downloaded the whole sales inbox and discarded it.
+      return const [];
     }
 
     // Consumer side
@@ -324,26 +308,37 @@ class ChatRemoteDataSource {
   /// puede chatear antes de cotizar.
   Future<ChatConversationModel> createQuote({
     required String threadId,
+    String? searchMatchId,
     double? price,
     double? deliveryCost,
     String? brand,
     String? photoPath,
   }) async {
-    // Store sends an offer to a SearchMatch
-    // 1. Get searchMatchId by listing requests
-    final reqsRes = await _dioClient.get(ApiEndpoints.storeSearchRequests);
-    final rawReqs = reqsRes.data;
-    final List reqs = rawReqs is Map && rawReqs.containsKey('items')
-        ? (rawReqs['items'] as List)
-        : (rawReqs is List ? rawReqs : []);
-    final match =
-        reqs.firstWhere((r) => r['id'] == threadId, orElse: () => null);
-
-    if (match == null || match['searchMatchId'] == null) {
+    // Normal navigation already owns this id. The inbox lookup remains only
+    // as a compatibility fallback for old deep links and stale local state.
+    var resolvedSearchMatchId = searchMatchId;
+    if (resolvedSearchMatchId == null || resolvedSearchMatchId.isEmpty) {
+      // A stale/deep-link request may no longer be in the default PENDING
+      // page. Keep this compatibility lookup bounded while covering all
+      // statuses and a substantially larger window.
+      const fallbackEndpoint =
+          '${ApiEndpoints.storeSearchRequests}?status=ALL&page=1&pageSize=100';
+      final reqsRes = await _dioClient.get(fallbackEndpoint);
+      final rawReqs = reqsRes.data;
+      final List reqs = rawReqs is Map && rawReqs.containsKey('items')
+          ? (rawReqs['items'] as List)
+          : (rawReqs is List ? rawReqs : []);
+      Map<String, dynamic>? match;
+      for (final rawRequest in reqs) {
+        if (rawRequest is! Map || rawRequest['id'] != threadId) continue;
+        match = Map<String, dynamic>.from(rawRequest);
+        break;
+      }
+      resolvedSearchMatchId = match?['searchMatchId']?.toString();
+    }
+    if (resolvedSearchMatchId == null || resolvedSearchMatchId.isEmpty) {
       throw Exception('SearchMatch not found for this request');
     }
-
-    final searchMatchId = match['searchMatchId'];
 
     String? sparePhotoUrl = photoPath;
     if (photoPath != null &&
@@ -354,7 +349,7 @@ class ChatRemoteDataSource {
     }
 
     final payload = {
-      'searchMatchId': searchMatchId,
+      'searchMatchId': resolvedSearchMatchId,
       if (price != null) 'price': price,
       if (deliveryCost != null) 'deliveryCost': deliveryCost,
       if (brand != null && brand.isNotEmpty) 'spareBrand': brand,
@@ -384,7 +379,7 @@ class ChatRemoteDataSource {
       lastMessageAt: DateTime.parse(json['createdAt']),
       offerId: offerId,
       offerStatus: json['status'],
-      searchMatchId: searchMatchId as String?,
+      searchMatchId: resolvedSearchMatchId,
       hasQuote: true,
       isInquiry: json['status'] == 'INQUIRY',
       price: json['price'] != null

@@ -36,6 +36,7 @@ import 'package:guiautomotriz_mobile/features/home/presentation/widgets/provider
 import 'package:guiautomotriz_mobile/features/reports/domain/entities/store_dashboard.dart';
 import 'package:guiautomotriz_mobile/features/reports/presentation/providers/reports_provider.dart';
 import 'package:guiautomotriz_mobile/features/notifications/presentation/providers/notifications_providers.dart';
+import 'package:guiautomotriz_mobile/features/reviews/presentation/providers/reviews_providers.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/domain/entities/user_car.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/presentation/providers/vehicle_providers.dart';
 import 'package:guiautomotriz_mobile/shared/widgets/skeleton_loader.dart';
@@ -151,6 +152,7 @@ void main() {
         unreadNotificationsCountProvider.overrideWith(
           loadUnreadNotifications ?? (ref) async => 0,
         ),
+        pendingReviewsProvider.overrideWith((ref) async => const []),
         if (chatThreads != null)
           consumerRequestsProvider.overrideWith((ref) async => chatThreads),
         topProvidersProvider.overrideWith((ref, type) {

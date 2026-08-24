@@ -100,8 +100,7 @@ class ReviewsRemoteDataSource {
         .map((item) => PendingReviewModel.fromJson(
               Map<String, dynamic>.from(item as Map),
             ))
-        .where((item) =>
-            item.targetId.isNotEmpty && item.conversationId.isNotEmpty)
+        .where((item) => item.targetId.isNotEmpty)
         .toList();
   }
 
