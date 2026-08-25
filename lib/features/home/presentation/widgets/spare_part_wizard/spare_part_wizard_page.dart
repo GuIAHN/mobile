@@ -695,7 +695,6 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
           selectedPartType: _selectedPartType,
           detailsController: _detailsController,
           selectedImagePath: _selectedImagePath,
-          isOtroCategory: _selectedSubcategory?.id == kOtherSubcategoryId,
           requestLocation: effectiveLocation,
           onLocationTap: _openRequestLocationPicker,
           onEditVehicle: () => _goToStep(1),

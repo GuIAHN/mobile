@@ -576,15 +576,6 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                         chatConversationDetailsProvider(widget.conversationId));
                   }
                 },
-                onViewStoreReviewsPressed: () {
-                  final details = detailsAsync.valueOrNull!;
-                  if (details.storeUserId != null) {
-                    context.pushNamed(
-                      'providerReviews',
-                      pathParameters: {'targetId': details.storeUserId!},
-                    );
-                  }
-                },
               ),
 
             // ── Messages feed ─────────────────────────────────────────────

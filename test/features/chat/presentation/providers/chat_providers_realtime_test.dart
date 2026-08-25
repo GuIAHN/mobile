@@ -77,7 +77,7 @@ void main() {
       ),
     ).thenAnswer(
       (_) async => const Right(
-        ChatThreadsResult(threads: [], total: 0),
+        ChatThreadsResult(threads: []),
       ),
     );
 
@@ -143,7 +143,7 @@ void main() {
       ),
     ).thenAnswer(
       (_) async => const Right(
-        ChatThreadsResult(threads: [], total: 0),
+        ChatThreadsResult(threads: []),
       ),
     );
 

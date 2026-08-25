@@ -28,12 +28,9 @@ enum UserRole {
 
   bool get isConsumer => this == UserRole.consumer || this == UserRole.unknown;
 
-  bool get isAdmin => this == UserRole.admin;
-
   bool get isStore => this == UserRole.store;
   bool get isMechanic => this == UserRole.mechanic;
   bool get isWorkshop => this == UserRole.workshop;
-
 
   bool get usesSavedLocationForSearch => isStore || isWorkshop;
 

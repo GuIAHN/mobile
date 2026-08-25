@@ -856,7 +856,6 @@ void main() {
       chatThreads: ChatThreadsResult(
         threads: threads,
         counts: const {'all': 4, 'open': 4, 'closed': 0},
-        total: 4,
       ),
     );
     addTearDown(container.dispose);

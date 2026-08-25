@@ -35,15 +35,4 @@ class ReviewModel extends Review {
           'Usuario anónimo',
     );
   }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'authorId': authorId,
-        'targetId': targetId,
-        'conversationId': conversationId,
-        'rating': rating,
-        'comentario': comentario,
-        'createdAt': createdAt.toIso8601String(),
-        'authorName': authorName,
-      };
 }

@@ -24,17 +24,4 @@ class AdModel extends Ad {
       ctaLabel: json['ctaLabel'] as String?,
     );
   }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'brandName': brandName,
-      'type': type,
-      'title': title,
-      if (description != null) 'description': description,
-      'mediaUrl': mediaUrl,
-      if (ctaUrl != null) 'ctaUrl': ctaUrl,
-      if (ctaLabel != null) 'ctaLabel': ctaLabel,
-    };
-  }
 }

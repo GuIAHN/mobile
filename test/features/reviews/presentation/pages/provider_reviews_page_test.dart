@@ -14,10 +14,6 @@ void main() {
           reviewsProvider.overrideWith(
             (ref, targetId) async => const PaginatedReviews(
               items: [],
-              total: 0,
-              page: 1,
-              limit: 20,
-              totalPages: 0,
             ),
           ),
         ],

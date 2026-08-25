@@ -7,12 +7,10 @@ class SparePartWizardStep3 extends StatefulWidget {
   final PartType? selectedPartType;
   final TextEditingController detailsController;
   final String? selectedImagePath;
-  final bool isOtroCategory;
   final RequestLocationSelection? requestLocation;
   final VoidCallback onLocationTap;
   final VoidCallback? onEditVehicle;
   final VoidCallback? onEditPart;
-  final VoidCallback? onSubmit;
   final void Function(String?) onImagePicked;
 
   const SparePartWizardStep3({
@@ -23,12 +21,10 @@ class SparePartWizardStep3 extends StatefulWidget {
     this.selectedPartType,
     required this.detailsController,
     required this.selectedImagePath,
-    required this.isOtroCategory,
     required this.requestLocation,
     required this.onLocationTap,
     this.onEditVehicle,
     this.onEditPart,
-    this.onSubmit,
     required this.onImagePicked,
   });
 

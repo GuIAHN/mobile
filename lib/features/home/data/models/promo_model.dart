@@ -18,12 +18,4 @@ class PromoModel extends Promo {
       imageUrl: json['imageUrl'] as String?,
     );
   }
-
-  Map<String, dynamic> toJson() => {
-        'title': title,
-        'subtitle': subtitle,
-        'iconName': iconName,
-        'gradientColors': gradientColors,
-        'imageUrl': imageUrl,
-      };
 }

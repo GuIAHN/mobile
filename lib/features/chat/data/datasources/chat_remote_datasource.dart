@@ -43,11 +43,9 @@ class ChatRemoteDataSource {
     final rawData = response.data;
     final List dataList;
     Map<String, int> counts = {};
-    int total = 0;
 
     if (rawData is Map && rawData.containsKey('items')) {
       dataList = rawData['items'] as List;
-      total = rawData['total'] as int? ?? 0;
       if (rawData['counts'] is Map) {
         final rawCounts = rawData['counts'] as Map<String, dynamic>;
         counts = rawCounts.map((k, v) => MapEntry(k, (v as num).toInt()));
@@ -168,7 +166,6 @@ class ChatRemoteDataSource {
     return ChatThreadsResult(
       threads: threads,
       counts: counts,
-      total: total,
     );
   }
 
@@ -259,12 +256,6 @@ class ChatRemoteDataSource {
       Map<String, dynamic>.from(data.first as Map),
       getCurrentUserId(),
     );
-  }
-
-  Future<ChatMessageModel> sendMessage(
-      String conversationId, String content, UserRole role) async {
-    // Handled by sockets now
-    throw UnimplementedError();
   }
 
   Future<String> startChatFromOffer(String offerId) async {

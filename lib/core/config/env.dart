@@ -10,7 +10,8 @@ class Env {
   Env._();
 
   /// Active environment. Modify this when building with --dart-define (e.g., --dart-define=ENV=production).
-  static const String _envString = String.fromEnvironment('ENV', defaultValue: 'development');
+  static const String _envString =
+      String.fromEnvironment('ENV', defaultValue: 'development');
 
   static AppEnvironment get current {
     switch (_envString) {
@@ -58,6 +59,5 @@ class Env {
     return url;
   }
 
-  static bool get isDev => current == AppEnvironment.development;
   static bool get isProd => current == AppEnvironment.production;
 }

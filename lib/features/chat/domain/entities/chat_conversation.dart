@@ -118,12 +118,6 @@ class ChatConversation extends Equatable {
     return '\$${price!.toStringAsFixed(0)}';
   }
 
-  String get formattedDeliveryCost {
-    if (deliveryCost == null) return 'Retiro en tienda';
-    if (deliveryCost == 0) return 'Delivery gratis';
-    return '\$${deliveryCost!.toStringAsFixed(0)}';
-  }
-
   String get formattedTotalCost {
     final total = totalCost;
     if (total == null) return formattedPrice;

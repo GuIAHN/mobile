@@ -13,9 +13,4 @@ class SpecialtyModel extends Specialty {
       name: json['name'] as String,
     );
   }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-      };
 }

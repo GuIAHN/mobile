@@ -37,11 +37,6 @@ class LocationService {
     );
   }
 
-  /// Obtiene la última ubicación conocida del dispositivo.
-  Future<Position?> getLastKnownPosition() async {
-    return await Geolocator.getLastKnownPosition();
-  }
-
   /// Convierte coordenadas en una etiqueta breve y legible para el header.
   Future<String?> getAddressFromCoordinates(
     double latitude,

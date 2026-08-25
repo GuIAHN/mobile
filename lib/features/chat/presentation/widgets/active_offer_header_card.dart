@@ -16,7 +16,6 @@ class ActiveOfferHeaderCard extends StatefulWidget {
   final VoidCallback? onDeliverPressed;
   final VoidCallback? onCancelPressed;
   final VoidCallback? onReviewPressed;
-  final VoidCallback? onViewStoreReviewsPressed;
   final bool reviewHandledLocally;
   final bool reviewHandlingStatusLoading;
   final bool isCancelling;
@@ -29,7 +28,6 @@ class ActiveOfferHeaderCard extends StatefulWidget {
     this.onDeliverPressed,
     this.onCancelPressed,
     this.onReviewPressed,
-    this.onViewStoreReviewsPressed,
     this.reviewHandledLocally = false,
     this.reviewHandlingStatusLoading = false,
     this.isCancelling = false,

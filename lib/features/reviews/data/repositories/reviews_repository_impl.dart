@@ -69,16 +69,6 @@ class ReviewsRepositoryImpl implements ReviewsRepository {
   }
 
   @override
-  Future<Either<Failure, void>> deleteReview(String id) async {
-    try {
-      await remoteDataSource.deleteReview(id);
-      return const Right(null);
-    } catch (e) {
-      return Left(ErrorMapper.map(e));
-    }
-  }
-
-  @override
   Future<Either<Failure, List<PendingReview>>> getPendingReviews() async {
     try {
       return Right(await remoteDataSource.getPendingReviews());

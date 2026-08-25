@@ -15,7 +15,6 @@ abstract class AppIcons {
   static const IconData retry = LucideIcons.refreshCw;
   static const IconData time = LucideIcons.clock3;
   static const IconData notification = LucideIcons.bell;
-  static const IconData notificationActive = LucideIcons.bellRing;
   static const IconData error = LucideIcons.circleX;
   static const IconData warning = LucideIcons.triangleAlert;
   static const IconData account = LucideIcons.userRound;
@@ -72,7 +71,6 @@ abstract class AppIcons {
   static const IconData selected = LucideIcons.check;
   static const IconData unselected = LucideIcons.circle;
   static const IconData favorite = LucideIcons.heart;
-  static const IconData favoriteFilled = LucideIcons.heart;
 
   static const IconData call = LucideIcons.phoneCall;
   static const IconData message = LucideIcons.messageCircle;

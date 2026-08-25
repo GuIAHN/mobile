@@ -57,44 +57,22 @@ class UserModel extends User {
       cars: parsedCars,
     );
   }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'email': email,
-        'name': name,
-        if (avatarUrl != null) 'avatarUrl': avatarUrl,
-        if (phone != null) 'phone': phone,
-        'role': role.value,
-        'approved': approved,
-        if (latitude != null || longitude != null)
-          'location': {
-            if (latitude != null) 'lat': latitude,
-            if (longitude != null) 'lon': longitude,
-          },
-        if (cars != null)
-          'cars': cars?.map((c) => (c as UserCarModel).toJson()).toList(),
-      };
 }
 
 /// Complete login response containing tokens and user information.
 class LoginResponseModel {
   final String accessToken;
   final String? refreshToken;
-  final UserModel? user;
 
   const LoginResponseModel({
     required this.accessToken,
     this.refreshToken,
-    this.user,
   });
 
   factory LoginResponseModel.fromJson(Map<String, dynamic> json) {
     return LoginResponseModel(
       accessToken: json['accessToken'] as String,
       refreshToken: json['refreshToken'] as String?,
-      user: json['user'] != null
-          ? UserModel.fromJson(json['user'] as Map<String, dynamic>)
-          : null,
     );
   }
 }

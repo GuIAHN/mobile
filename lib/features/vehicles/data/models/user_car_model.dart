@@ -20,7 +20,7 @@ class UserCarModel extends UserCar {
   factory UserCarModel.fromJson(Map<String, dynamic> json) {
     // 3-table structure: variant -> model -> brand
     final variantMap = json['variant'] as Map<String, dynamic>?;
-    
+
     if (variantMap != null) {
       final modelMap = variantMap['model'] as Map<String, dynamic>? ?? {};
       final brandMap = modelMap['brand'] as Map<String, dynamic>? ?? {};
@@ -52,13 +52,4 @@ class UserCarModel extends UserCar {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'brand': brand,
-        'model': model,
-        'year': year,
-        'vehicleType': vehicleType,
-        if (placa != null) 'placa': placa,
-        if (color != null) 'color': color,
-      };
 }

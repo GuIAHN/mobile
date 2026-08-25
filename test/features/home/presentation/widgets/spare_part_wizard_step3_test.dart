@@ -12,7 +12,6 @@ Widget _testApp({
       body: SparePartWizardStep3(
         detailsController: detailsController ?? TextEditingController(),
         selectedImagePath: null,
-        isOtroCategory: false,
         requestLocation: selection,
         onLocationTap: () {},
         onImagePicked: (_) {},

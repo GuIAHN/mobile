@@ -46,14 +46,6 @@ class HomeFilters extends Equatable {
     );
   }
 
-  bool get isDefault =>
-      sortBy == SortOption.rating &&
-      minRating == 0.0 &&
-      radioKm == 20.0 &&
-      specialtyIds.isEmpty &&
-      lat == null &&
-      lon == null;
-
   int get activeCount =>
       (sortBy != SortOption.rating ? 1 : 0) +
       (minRating != 0.0 ? 1 : 0) +

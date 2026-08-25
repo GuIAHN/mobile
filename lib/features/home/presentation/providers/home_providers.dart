@@ -49,25 +49,11 @@ enum SearchRequestStatus { idle, loading, success, error }
 class SearchRequestState {
   final SearchRequestStatus status;
   final String? errorMessage;
-  final Map<String, dynamic>? data;
 
   const SearchRequestState({
     this.status = SearchRequestStatus.idle,
     this.errorMessage,
-    this.data,
   });
-
-  SearchRequestState copyWith({
-    SearchRequestStatus? status,
-    String? errorMessage,
-    Map<String, dynamic>? data,
-  }) {
-    return SearchRequestState(
-      status: status ?? this.status,
-      errorMessage: errorMessage ?? this.errorMessage,
-      data: data ?? this.data,
-    );
-  }
 }
 
 class SearchRequestNotifier extends StateNotifier<SearchRequestState> {
@@ -107,12 +93,9 @@ class SearchRequestNotifier extends StateNotifier<SearchRequestState> {
           errorMessage: failure.message,
         );
       },
-      (data) {
+      (_) {
         _ref?.invalidate(consumerRequestsProvider);
-        state = SearchRequestState(
-          status: SearchRequestStatus.success,
-          data: data,
-        );
+        state = const SearchRequestState(status: SearchRequestStatus.success);
       },
     );
   }

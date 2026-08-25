@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
 import 'app_spacing.dart';
 
 /// Tokens de decoración compartidos: radios y sombras.
@@ -36,15 +35,6 @@ abstract class AppDecorations {
           color: Colors.black.withValues(alpha: 0.08),
           blurRadius: 20,
           offset: const Offset(0, 8),
-        ),
-      ];
-
-  /// CTA primario de marca.
-  static List<BoxShadow> get brand => [
-        BoxShadow(
-          color: AppColors.primary.withValues(alpha: 0.28),
-          blurRadius: 16,
-          offset: const Offset(0, 6),
         ),
       ];
 }

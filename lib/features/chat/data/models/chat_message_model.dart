@@ -13,7 +13,8 @@ class ChatMessageModel extends ChatMessage {
     super.isRead,
   });
 
-  factory ChatMessageModel.fromJson(Map<String, dynamic> json, String currentUserId) {
+  factory ChatMessageModel.fromJson(
+      Map<String, dynamic> json, String currentUserId) {
     return ChatMessageModel(
       id: json['_id'] as String,
       conversationId: json['conversationId'] as String,
@@ -29,16 +30,4 @@ class ChatMessageModel extends ChatMessage {
       isRead: json['read'] as bool? ?? false,
     );
   }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'conversationId': conversationId,
-        'senderId': senderId,
-        'senderName': senderName,
-        'isFromMe': isFromMe,
-        'content': content,
-        'type': type.name,
-        'createdAt': createdAt.toIso8601String(),
-        'isRead': isRead,
-      };
 }

@@ -12,14 +12,6 @@ class ReportsRepositoryImpl implements ReportsRepository {
       _remoteDataSource.getStoreDashboard(from: from, to: to);
 
   @override
-  Future<MetricResult> getStoreMetric(
-    String metricId, {
-    String? from,
-    String? to,
-  }) =>
-      _remoteDataSource.getStoreMetric(metricId, from: from, to: to);
-
-  @override
   Future<StoreResponseStatus> getStoreResponseStatus() =>
       _remoteDataSource.getStoreResponseStatus();
 

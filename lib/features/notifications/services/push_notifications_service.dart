@@ -200,6 +200,4 @@ class PushNotificationsService {
       return null;
     }
   }
-
-  static Stream<String> get onTokenRefresh => _messaging.onTokenRefresh;
 }

@@ -43,8 +43,6 @@ class AuthState extends Equatable {
   bool get isAuthenticated => status == AuthStatus.authenticated;
   bool get isProviderRegistrationSucceeded =>
       status == AuthStatus.providerRegistrationSucceeded;
-  bool get hasError => status == AuthStatus.error;
-
   @override
   List<Object?> get props => [status, user, errorMessage];
 }

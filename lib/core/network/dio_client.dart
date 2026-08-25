@@ -71,15 +71,6 @@ class DioClient {
       _dio.post<T>(_cleanPath(path),
           data: data, queryParameters: queryParameters, options: options);
 
-  Future<Response<T>> put<T>(
-    String path, {
-    dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-  }) =>
-      _dio.put<T>(_cleanPath(path),
-          data: data, queryParameters: queryParameters, options: options);
-
   Future<Response<T>> patch<T>(
     String path, {
     dynamic data,

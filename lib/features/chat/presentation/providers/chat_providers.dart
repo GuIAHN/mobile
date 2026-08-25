@@ -9,7 +9,6 @@ import '../../domain/repositories/chat_repository.dart';
 import '../../domain/usecases/get_chat_threads_usecase.dart';
 import '../../domain/usecases/get_conversations_usecase.dart';
 import '../../domain/usecases/get_messages_usecase.dart';
-import '../../domain/usecases/send_message_usecase.dart';
 import '../../domain/usecases/create_quote_usecase.dart';
 import '../../domain/usecases/quote_offer_usecase.dart';
 import '../../domain/usecases/buy_offer_usecase.dart';
@@ -54,10 +53,6 @@ final getConversationsUseCaseProvider =
 
 final getMessagesUseCaseProvider = Provider<GetMessagesUseCase>((ref) {
   return GetMessagesUseCase(ref.watch(chatRepositoryProvider));
-});
-
-final sendMessageUseCaseProvider = Provider<SendMessageUseCase>((ref) {
-  return SendMessageUseCase(ref.watch(chatRepositoryProvider));
 });
 
 final createQuoteUseCaseProvider = Provider<CreateQuoteUseCase>((ref) {
@@ -444,17 +439,6 @@ final storeSalesRequestsProvider =
   );
 });
 
-/// Alias transitorio para detalles existentes. La selección se basa solo en
-/// STORE, no en `isProvider`, porque el endpoint de ventas pertenece a tiendas.
-final chatThreadsProvider = FutureProvider<ChatThreadsResult>((ref) {
-  final role = ref.watch(currentRoleProvider);
-  return ref.watch(
-    role.isStore
-        ? storeSalesRequestsProvider.future
-        : consumerRequestsProvider.future,
-  );
-});
-
 final myConversationsProvider =
     FutureProvider<List<ChatConversation>>((ref) async {
   final repository = ref.watch(chatRepositoryProvider);
@@ -467,30 +451,6 @@ final myConversationsProvider =
     (failure) => throw Exception(failure.message),
     (conversations) => conversations,
   );
-});
-
-/// El indicador de chats se calcula desde conversaciones reales, no desde
-/// solicitudes que casualmente tengan ofertas.
-final hasUnreadChatThreadsProvider = Provider<bool>((ref) {
-  final conversations = ref.watch(myConversationsProvider);
-  final currentUserId = ref.watch(
-    currentUserProvider.select((user) => user?.id ?? ''),
-  );
-
-  return conversations.valueOrNull?.any((conversation) {
-        final update = ref.watch(
-          conversationRealtimeUpdateProvider(
-            conversation.realtimeConversationId,
-          ),
-        );
-        return applyRealtimeConversationUpdate(
-              conversation,
-              update,
-              currentUserId: currentUserId,
-            ).unreadCount >
-            0;
-      }) ??
-      false;
 });
 
 final chatConversationDetailsProvider = FutureProvider.autoDispose

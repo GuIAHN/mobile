@@ -199,9 +199,7 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
         _buildHeader(
           isProvider: isProvider,
           isLoading: true,
-          allCount: 0,
           activeCount: 0,
-          closedCount: 0,
         ),
         Expanded(
           child: ListView.builder(
@@ -229,9 +227,7 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
         _buildHeader(
           isProvider: isProvider,
           isLoading: false,
-          allCount: 0,
           activeCount: 0,
-          closedCount: 0,
         ),
         Expanded(
           child: Center(
@@ -251,18 +247,13 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
     Map<String, int> counts,
   ) {
     final searchFiltered = _applySearch(threads);
-    final allCount = counts['all'] ?? searchFiltered.length;
     final activeCount = counts['open'] ??
         searchFiltered.where((t) => t.isOpen && !t.isExpired).length;
-    final closedCount =
-        counts['closed'] ?? (searchFiltered.length - activeCount);
     final inquiringCount = counts['inquiring'] ??
         searchFiltered.where((t) => t.matchState == 'INQUIRING').length;
     final pendingCount = (counts['pending'] ??
             searchFiltered.where((t) => t.matchState == 'PENDING').length) +
         inquiringCount;
-    final declinedCount = counts['declined'] ??
-        searchFiltered.where((t) => t.matchState == 'DECLINED').length;
     final quotedCount = counts['quoted'] ??
         counts['withOffer'] ??
         searchFiltered
@@ -284,8 +275,6 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
                 ? t.offerStatus == 'CANCELLED'
                 : t.bestOfferStatus == 'CANCELLED')
             .length;
-    final discardedCount = counts['discarded'] ??
-        searchFiltered.where((t) => t.offerStatus == 'DISCARDED').length;
     final visible = _applyStatus(searchFiltered, isProvider);
 
     return Column(
@@ -293,17 +282,12 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
         _buildHeader(
           isProvider: isProvider,
           isLoading: false,
-          allCount: allCount,
           activeCount: activeCount,
-          closedCount: closedCount,
           pendingCount: pendingCount,
-          inquiringCount: inquiringCount,
-          declinedCount: declinedCount,
           quotedCount: quotedCount,
           boughtCount: boughtCount,
           deliveredCount: deliveredCount,
           cancelledCount: cancelledCount,
-          discardedCount: discardedCount,
         ),
         Expanded(
           child: _buildListBody(threads, searchFiltered, visible, isProvider),
@@ -414,17 +398,12 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
   Widget _buildHeader({
     required bool isProvider,
     required bool isLoading,
-    required int allCount,
     required int activeCount,
-    required int closedCount,
     int pendingCount = 0,
-    int inquiringCount = 0,
-    int declinedCount = 0,
     int quotedCount = 0,
     int boughtCount = 0,
     int deliveredCount = 0,
     int cancelledCount = 0,
-    int discardedCount = 0,
   }) {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 14, 24, 14),
@@ -445,17 +424,12 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
             _StatusFilterChips(
               isProvider: isProvider,
               selected: _statusFilter,
-              allCount: allCount,
               activeCount: activeCount,
-              closedCount: closedCount,
               pendingCount: pendingCount,
-              inquiringCount: inquiringCount,
-              declinedCount: declinedCount,
               quotedCount: quotedCount,
               boughtCount: boughtCount,
               deliveredCount: deliveredCount,
               cancelledCount: cancelledCount,
-              discardedCount: discardedCount,
               onChanged: (f) {
                 setState(() => _statusFilter = f);
                 final param = _mapFilterToParam(f, isProvider);
@@ -549,33 +523,23 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
 class _StatusFilterChips extends StatelessWidget {
   final bool isProvider;
   final _StatusFilter selected;
-  final int allCount;
   final int activeCount;
-  final int closedCount;
   final int pendingCount;
-  final int inquiringCount;
-  final int declinedCount;
   final int quotedCount;
   final int boughtCount;
   final int deliveredCount;
   final int cancelledCount;
-  final int discardedCount;
   final ValueChanged<_StatusFilter> onChanged;
 
   const _StatusFilterChips({
     this.isProvider = false,
     required this.selected,
-    required this.allCount,
     required this.activeCount,
-    required this.closedCount,
     this.pendingCount = 0,
-    this.inquiringCount = 0,
-    this.declinedCount = 0,
     this.quotedCount = 0,
     this.boughtCount = 0,
     this.deliveredCount = 0,
     this.cancelledCount = 0,
-    this.discardedCount = 0,
     required this.onChanged,
   });
 

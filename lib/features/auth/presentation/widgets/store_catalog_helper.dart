@@ -60,29 +60,6 @@ IconData getCategoryIcon(String name) {
   return Icons.build_outlined;
 }
 
-String getCategoryDescription(String name) {
-  final lower = name.toLowerCase();
-  if (lower.contains('motor')) {
-    return 'Empacaduras, pistones, correas y bombas de agua.';
-  }
-  if (lower.contains('transmisión')) {
-    return 'Kits de embrague, discos, collarines y soportes.';
-  }
-  if (lower.contains('suspensión')) {
-    return 'Amortiguadores, mesetas, terminales y rótulas.';
-  }
-  if (lower.contains('freno')) {
-    return 'Pastillas, discos, tambores y bombas de freno.';
-  }
-  if (lower.contains('electricidad')) {
-    return 'Alternadores, bujías, sensores y baterías.';
-  }
-  if (lower.contains('latonería')) {
-    return 'Faros, stops, parachoques y espejos retrovisores.';
-  }
-  return 'Repuestos y accesorios mecánicos de alta calidad.';
-}
-
 /* ───────────────── Bottom Sheet de Selección de Marcas ───────────────── */
 
 class SheetMarcas extends ConsumerStatefulWidget {

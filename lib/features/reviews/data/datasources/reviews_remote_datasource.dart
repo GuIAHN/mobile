@@ -29,10 +29,6 @@ class ReviewsRemoteDataSource {
 
     return PaginatedReviews(
       items: items,
-      total: data['total'] as int,
-      page: data['page'] as int,
-      limit: data['limit'] as int,
-      totalPages: data['totalPages'] as int,
     );
   }
 
@@ -87,10 +83,6 @@ class ReviewsRemoteDataSource {
       },
     );
     return ReviewModel.fromJson(response.data as Map<String, dynamic>);
-  }
-
-  Future<void> deleteReview(String id) async {
-    await _dioClient.delete('/reviews/$id');
   }
 
   Future<List<PendingReviewModel>> getPendingReviews() async {

@@ -55,7 +55,6 @@ void main() {
   ChatThreadsResult resultFor(ChatThread thread) => ChatThreadsResult(
         threads: [thread],
         counts: const {'all': 1, 'open': 1, 'closed': 0},
-        total: 1,
       );
 
   Future<void> pumpPage(
@@ -293,7 +292,6 @@ void main() {
           'pending': 1,
           'inquiring': 1,
         },
-        total: 2,
       ),
     );
 
@@ -350,7 +348,6 @@ void main() {
         ),
       ],
       counts: const {'cancelled': 2, 'delivered': 2},
-      total: 4,
     );
 
     await pumpPage(

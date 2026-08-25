@@ -10,22 +10,6 @@ enum NotificationType {
   warning,
   message;
 
-  /// Color de fondo semántico (suave) de la notificación.
-  Color get backgroundColor {
-    switch (this) {
-      case NotificationType.error:
-        return AppColors.errorLight;
-      case NotificationType.success:
-        return AppColors.successLight;
-      case NotificationType.info:
-        return AppColors.infoLight;
-      case NotificationType.warning:
-        return AppColors.warningLight;
-      case NotificationType.message:
-        return AppColors.primaryMuted;
-    }
-  }
-
   /// Color del acento (borde, icono, progress bar).
   Color get accentColor {
     switch (this) {

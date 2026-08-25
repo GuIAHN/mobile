@@ -17,11 +17,4 @@ class VehicleVariantModel extends VehicleVariant {
       motor: json['motor'] as String? ?? '',
     );
   }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'modelId': modelId,
-        'year': year,
-        'motor': motor,
-      };
 }

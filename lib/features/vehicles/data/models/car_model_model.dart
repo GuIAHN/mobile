@@ -14,14 +14,9 @@ class CarModelModel extends CarModel {
       id: json['id'] as String,
       brandId: json['brandId'] as String? ?? json['brand_id'] as String? ?? '',
       name: json['name'] as String,
-      vehicleType: json['vehicleType'] as String? ?? json['vehicle_type'] as String? ?? 'CAR',
+      vehicleType: json['vehicleType'] as String? ??
+          json['vehicle_type'] as String? ??
+          'CAR',
     );
   }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'brandId': brandId,
-        'name': name,
-        'vehicleType': vehicleType,
-      };
 }

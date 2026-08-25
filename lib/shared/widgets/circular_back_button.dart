@@ -4,12 +4,10 @@ import '../../core/theme/app_colors.dart';
 /// Un botón de retroceso circular premium utilizado en el flujo de registro y onboarding.
 class CircularBackButton extends StatelessWidget {
   final VoidCallback onTap;
-  final String tooltip;
 
   const CircularBackButton({
     super.key,
     required this.onTap,
-    required this.tooltip,
   });
 
   @override

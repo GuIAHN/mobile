@@ -15,9 +15,6 @@ class CategoryNode extends Equatable {
     this.children = const [],
   });
 
-  /// Whether this node is a leaf (has no children / is a subcategory).
-  bool get isLeaf => children.isEmpty;
-
   @override
   List<Object?> get props => [id, name, parentId, children];
 }

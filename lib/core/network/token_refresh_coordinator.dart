@@ -21,9 +21,7 @@ class SessionInvalidatedException implements Exception {
 }
 
 class TokenRefreshUnavailableException implements Exception {
-  const TokenRefreshUnavailableException(this.cause);
-
-  final Object cause;
+  const TokenRefreshUnavailableException();
 }
 
 /// Owns refresh-token rotation for every transport. Calls are single-flight:
@@ -110,9 +108,9 @@ class TokenRefreshCoordinator {
         await _invalidateSession();
         throw const SessionInvalidatedException();
       }
-      throw TokenRefreshUnavailableException(error);
-    } catch (error) {
-      throw TokenRefreshUnavailableException(error);
+      throw const TokenRefreshUnavailableException();
+    } catch (_) {
+      throw const TokenRefreshUnavailableException();
     }
   }
 

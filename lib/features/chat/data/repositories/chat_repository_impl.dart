@@ -75,19 +75,6 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, ChatMessage>> sendMessage(
-      String conversationId, String content) async {
-    try {
-      final role = getCurrentRole();
-      final message =
-          await remoteDataSource.sendMessage(conversationId, content, role);
-      return Right(message);
-    } catch (e) {
-      return Left(ErrorMapper.map(e));
-    }
-  }
-
-  @override
   Future<Either<Failure, ChatConversation>> createQuote({
     required String threadId,
     String? searchMatchId,

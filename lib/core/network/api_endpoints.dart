@@ -15,10 +15,6 @@ abstract class ApiEndpoints {
   static const String changePassword = 'auth/change-password';
 
   // ── Vehículos ─────────────────────────────────────────────────────────────
-  static const String vehicles = 'vehicles';
-  static String vehicleById(String id) => 'vehicles/$id';
-  static String vehicleServices(String id) => 'vehicles/$id/services';
-
   // ── Búsqueda de Proveedores ───────────────────────────────────────────────
   static const String searchMechanics = 'search/mechanics';
   static const String searchWorkshops = 'search/workshops';
@@ -35,7 +31,6 @@ abstract class ApiEndpoints {
   static const String storeOwnCoverage = 'stores/me/coverage';
 
   // ── Home / Dashboard ──────────────────────────────────────────────────────
-  static const String dashboard = 'dashboard';
   static const String homeTopProviders = 'home/top-providers';
 
   // ── Notificaciones ────────────────────────────────────────────────────────
@@ -46,10 +41,7 @@ abstract class ApiEndpoints {
   static String notificationRead(String id) => 'me/notifications/$id/read';
 
   // ── Búsqueda de Repuestos ─────────────────────────────────────────────────
-  static const String search = 'search';
   static const String searchMe = 'search/me';
-  static String searchById(String id) => 'search/$id';
-  static String searchClose(String id) => 'search/$id/close';
   static String searchOffers(String id) => 'search/$id/offers';
   static String offerCancel(String id) => 'offers/$id/cancel';
 
@@ -60,10 +52,6 @@ abstract class ApiEndpoints {
 
   // ── Chat / Mensajería ──────────────────────────────────────────────────────
 
-  static const String conversationsFromOffer = 'conversations/from-offer';
-  static const String conversationsDirect = 'conversations/direct';
-  static String conversationMessages(String id) => 'conversations/$id/messages';
-  static String conversationRead(String id) => 'conversations/$id/read';
   // ── Ads ───────────────────────────────────────────────────────────────────
   static const String adsFeed = 'ads/feed';
   static String trackAdImpression(String id) => 'ads/$id/impression';

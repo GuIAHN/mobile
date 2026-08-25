@@ -93,7 +93,6 @@ class SocketService {
 
   final Set<String> _activeConversationRooms = <String>{};
   final Map<String, String> _pendingMessageIds = <String, String>{};
-  final Map<String, Timer> _typingDebounceTimers = {};
   final LinkedHashSet<String> _seenEventIds = LinkedHashSet<String>();
   final LinkedHashSet<String> _seenMessageIds = LinkedHashSet<String>();
   static const _maxRememberedEventIds = 512;
@@ -102,27 +101,18 @@ class SocketService {
       StreamController<Map<String, dynamic>>.broadcast();
   final _offerUpdatedController =
       StreamController<Map<String, dynamic>>.broadcast();
-  final _reviewCreatedController =
-      StreamController<Map<String, dynamic>>.broadcast();
   final _messageController = StreamController<Map<String, dynamic>>.broadcast();
-  final _typingStartController = StreamController<String>.broadcast();
-  final _typingStopController = StreamController<String>.broadcast();
   final _notificationController =
       StreamController<Map<String, dynamic>>.broadcast();
   final _connectedController = StreamController<void>.broadcast();
   final _reconnectedController = StreamController<void>.broadcast();
-  final _authenticationRequiredController =
-      StreamController<void>.broadcast();
+  final _authenticationRequiredController = StreamController<void>.broadcast();
 
   Stream<Map<String, dynamic>> get onSearchMatched =>
       _searchMatchedController.stream;
   Stream<Map<String, dynamic>> get onOfferUpdated =>
       _offerUpdatedController.stream;
-  Stream<Map<String, dynamic>> get onReviewCreated =>
-      _reviewCreatedController.stream;
   Stream<Map<String, dynamic>> get onMessage => _messageController.stream;
-  Stream<String> get onTypingStart => _typingStartController.stream;
-  Stream<String> get onTypingStop => _typingStopController.stream;
   Stream<Map<String, dynamic>> get onNotification =>
       _notificationController.stream;
   Stream<void> get onConnected => _connectedController.stream;
@@ -241,10 +231,6 @@ class SocketService {
       final data = _eventData(RealtimeServerEvent.offerUpdated, raw);
       if (data != null) _offerUpdatedController.add(data);
     });
-    socket.on(RealtimeServerEvent.reviewCreated, (raw) {
-      final data = _eventData(RealtimeServerEvent.reviewCreated, raw);
-      if (data != null) _reviewCreatedController.add(data);
-    });
     socket.on(RealtimeServerEvent.notificationNew, (raw) {
       final data = _eventData(RealtimeServerEvent.notificationNew, raw);
       if (data != null) _notificationController.add(data);
@@ -252,16 +238,6 @@ class SocketService {
     socket.on(RealtimeServerEvent.messageNew, (raw) {
       final data = _eventData(RealtimeServerEvent.messageNew, raw);
       if (data != null) _publishMessage(data);
-    });
-    socket.on(RealtimeServerEvent.typingStart, (raw) {
-      final data = _eventData(RealtimeServerEvent.typingStart, raw);
-      final userId = data?['userId'];
-      if (userId != null) _typingStartController.add(userId.toString());
-    });
-    socket.on(RealtimeServerEvent.typingStop, (raw) {
-      final data = _eventData(RealtimeServerEvent.typingStop, raw);
-      final userId = data?['userId'];
-      if (userId != null) _typingStopController.add(userId.toString());
     });
   }
 
@@ -482,25 +458,6 @@ class SocketService {
     return completer.future;
   }
 
-  void sendTypingStart(String conversationId) {
-    _emitTypingDebounced(RealtimeClientEvent.typingStart, conversationId);
-  }
-
-  void sendTypingStop(String conversationId) {
-    _emitTypingDebounced(RealtimeClientEvent.typingStop, conversationId);
-  }
-
-  void _emitTypingDebounced(String event, String conversationId) {
-    if (_socket?.connected != true) return;
-    final key = '$event:$conversationId';
-    if (_typingDebounceTimers.containsKey(key)) return;
-    _socket!.emit(event, {'conversationId': conversationId});
-    _typingDebounceTimers[key] = Timer(
-      const Duration(milliseconds: 250),
-      () => _typingDebounceTimers.remove(key),
-    );
-  }
-
   void disconnect() {
     _shouldReconnect = false;
     _requiresRefresh = false;
@@ -529,10 +486,6 @@ class SocketService {
   }
 
   void _disposeSocket() {
-    for (final timer in _typingDebounceTimers.values) {
-      timer.cancel();
-    }
-    _typingDebounceTimers.clear();
     final socket = _socket;
     _socket = null;
     _connectedToken = null;
@@ -548,11 +501,8 @@ class SocketService {
       RealtimeServerEvent.searchMatched,
       RealtimeServerEvent.offerNew,
       RealtimeServerEvent.offerUpdated,
-      RealtimeServerEvent.reviewCreated,
       RealtimeServerEvent.notificationNew,
       RealtimeServerEvent.messageNew,
-      RealtimeServerEvent.typingStart,
-      RealtimeServerEvent.typingStop,
     ]) {
       socket.off(event);
     }
@@ -572,10 +522,7 @@ class SocketService {
     _disposed = true;
     _searchMatchedController.close();
     _offerUpdatedController.close();
-    _reviewCreatedController.close();
     _messageController.close();
-    _typingStartController.close();
-    _typingStopController.close();
     _notificationController.close();
     _connectedController.close();
     _reconnectedController.close();

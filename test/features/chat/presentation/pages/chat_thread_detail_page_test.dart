@@ -75,7 +75,6 @@ void main() {
         storeSalesRequestsProvider.overrideWith(
           (ref) async => ChatThreadsResult(
             threads: threads,
-            total: threads.length,
           ),
         ),
         chatConversationsProvider('request-1').overrideWith(

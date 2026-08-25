@@ -68,7 +68,6 @@ class NotificationNotifier extends StateNotifier<List<NotificationModel>> {
 /// **Uso:**
 /// ```dart
 /// NotificationService.error(ref, 'No se pudo guardar.');
-/// NotificationService.success(ref, '¡Vehículo guardado!', title: 'Listo');
 /// ```
 abstract class NotificationService {
   static void error(
@@ -80,51 +79,6 @@ abstract class NotificationService {
   }) =>
       ref.read(notificationProvider.notifier).show(
             type: NotificationType.error,
-            message: message,
-            title: title,
-            duration: duration,
-            isDismissible: isDismissible,
-          );
-
-  static void success(
-    WidgetRef ref,
-    String message, {
-    String? title,
-    Duration? duration,
-    bool isDismissible = true,
-  }) =>
-      ref.read(notificationProvider.notifier).show(
-            type: NotificationType.success,
-            message: message,
-            title: title,
-            duration: duration,
-            isDismissible: isDismissible,
-          );
-
-  static void info(
-    WidgetRef ref,
-    String message, {
-    String? title,
-    Duration? duration,
-    bool isDismissible = true,
-  }) =>
-      ref.read(notificationProvider.notifier).show(
-            type: NotificationType.info,
-            message: message,
-            title: title,
-            duration: duration,
-            isDismissible: isDismissible,
-          );
-
-  static void warning(
-    WidgetRef ref,
-    String message, {
-    String? title,
-    Duration? duration,
-    bool isDismissible = true,
-  }) =>
-      ref.read(notificationProvider.notifier).show(
-            type: NotificationType.warning,
             message: message,
             title: title,
             duration: duration,

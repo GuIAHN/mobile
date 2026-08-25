@@ -37,7 +37,6 @@ abstract class CardTokens {
   static const double thumbRadius = 14;
   static const double thumbSize = 64;
   static const double thumbSizeLarge = 88;
-  static const double avatarSize = 48;
 
   /// Elevación única y suave. Antes había 4 sombras distintas entre cards.
   static List<BoxShadow> get shadow => [

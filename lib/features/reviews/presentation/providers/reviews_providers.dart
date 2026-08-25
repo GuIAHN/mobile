@@ -8,7 +8,6 @@ import '../../domain/entities/my_review_status.dart';
 import '../../domain/entities/pending_review.dart';
 import '../../domain/repositories/reviews_repository.dart';
 import '../../domain/usecases/create_review_usecase.dart';
-import '../../domain/usecases/delete_review_usecase.dart';
 import '../../domain/usecases/get_reviews_usecase.dart';
 import '../../domain/usecases/update_review_usecase.dart';
 
@@ -33,10 +32,6 @@ final createReviewUseCaseProvider = Provider<CreateReviewUseCase>((ref) {
 
 final updateReviewUseCaseProvider = Provider<UpdateReviewUseCase>((ref) {
   return UpdateReviewUseCase(ref.watch(reviewsRepositoryProvider));
-});
-
-final deleteReviewUseCaseProvider = Provider<DeleteReviewUseCase>((ref) {
-  return DeleteReviewUseCase(ref.watch(reviewsRepositoryProvider));
 });
 
 // ── State Providers ──────────────────────────────────────────────────────────

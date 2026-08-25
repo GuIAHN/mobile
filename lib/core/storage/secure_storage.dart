@@ -35,10 +35,6 @@ class SecureStorage {
     return _storage.read(key: _keyAccessToken);
   }
 
-  Future<void> deleteToken() async {
-    await _storage.delete(key: _keyAccessToken);
-  }
-
   // ── Refresh Token ─────────────────────────────────────────────────────────
 
   Future<void> saveRefreshToken(String token) async {
@@ -47,10 +43,6 @@ class SecureStorage {
 
   Future<String?> getRefreshToken() async {
     return _storage.read(key: _keyRefreshToken);
-  }
-
-  Future<void> deleteRefreshToken() async {
-    await _storage.delete(key: _keyRefreshToken);
   }
 
   // ── User ID ──────────────────────────────────────────────────────────────
@@ -137,11 +129,6 @@ class SecureStorage {
       _storage.delete(key: _keySyncedDeviceToken),
       _storage.delete(key: _keySyncedDeviceUserId),
     ]);
-  }
-
-  /// Borra todo el almacenamiento seguro.
-  Future<void> clearAll() async {
-    await _storage.deleteAll();
   }
 
   // ── Onboarding ──────────────────────────────────────────────────────────

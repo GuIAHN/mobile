@@ -6,17 +6,9 @@ import '../entities/pending_review.dart';
 
 class PaginatedReviews {
   final List<Review> items;
-  final int total;
-  final int page;
-  final int limit;
-  final int totalPages;
 
   const PaginatedReviews({
     required this.items,
-    required this.total,
-    required this.page,
-    required this.limit,
-    required this.totalPages,
   });
 }
 
@@ -39,8 +31,6 @@ abstract class ReviewsRepository {
     int? rating,
     String? comentario,
   });
-
-  Future<Either<Failure, void>> deleteReview(String id);
 
   Future<Either<Failure, List<PendingReview>>> getPendingReviews();
 

@@ -20,9 +20,6 @@ abstract class ChatRepository {
 
   Future<Either<Failure, ChatMessage?>> getLatestMessage(String conversationId);
 
-  Future<Either<Failure, ChatMessage>> sendMessage(
-      String conversationId, String content);
-
   Future<Either<Failure, ChatConversation>> createQuote({
     required String threadId,
     String? searchMatchId,
