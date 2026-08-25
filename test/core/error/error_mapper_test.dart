@@ -41,4 +41,11 @@ void main() {
     expect(failure.message, contains('Inicia sesión'));
     expect(failure.message, isNot(contains('authorization token')));
   });
+
+  test('translates backend already-registered conflicts', () {
+    expect(
+      ErrorMapper.parseErrorMessage('Email is already registered'),
+      'El correo electrónico ya está registrado.',
+    );
+  });
 }

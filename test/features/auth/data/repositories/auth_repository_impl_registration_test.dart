@@ -153,4 +153,109 @@ void main() {
     verifyNever(() => secureStorage.saveRefreshToken(any()));
     verifyNever(() => secureStorage.saveUserId(any()));
   });
+
+  test('consumer registration remains successful when phone enrichment fails',
+      () async {
+    const registeredUser = UserModel(
+      id: 'consumer-id',
+      email: 'consumer@example.com',
+      name: 'Usuario Consumer',
+    );
+    const tokens = LoginResponseModel(
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    );
+    when(
+      () => remoteDataSource.register(
+        email: any(named: 'email'),
+        password: any(named: 'password'),
+        name: any(named: 'name'),
+        role: any(named: 'role'),
+        idToken: any(named: 'idToken'),
+        provider: any(named: 'provider'),
+        acceptedTerms: any(named: 'acceptedTerms'),
+      ),
+    ).thenAnswer((_) async => registeredUser);
+    when(
+      () => remoteDataSource.socialLogin(
+        idToken: any(named: 'idToken'),
+        provider: any(named: 'provider'),
+      ),
+    ).thenAnswer((_) async => tokens);
+    when(() => secureStorage.saveToken(any())).thenAnswer((_) async {});
+    when(() => secureStorage.saveRefreshToken(any())).thenAnswer((_) async {});
+    when(() => secureStorage.saveUserId(any())).thenAnswer((_) async {});
+    when(() => remoteDataSource.updateProfile(phone: any(named: 'phone')))
+        .thenThrow(Exception('temporary profile failure'));
+    when(() => remoteDataSource.getCurrentUser())
+        .thenAnswer((_) async => registeredUser);
+
+    final result = await repository.register(
+      email: registeredUser.email,
+      name: registeredUser.name,
+      role: 'CONSUMER',
+      phone: '04141234567',
+      idToken: 'google-id-token',
+      provider: 'GOOGLE',
+      acceptedTerms: true,
+    );
+
+    expect(result.getOrElse(() => throw StateError('registration failed')),
+        registeredUser);
+    verify(() => remoteDataSource.updateProfile(phone: '04141234567'))
+        .called(1);
+  });
+
+  test('social registration retry recovers an account already created',
+      () async {
+    const recoveredUser = UserModel(
+      id: 'consumer-id',
+      email: 'consumer@example.com',
+      name: 'Usuario Consumer',
+    );
+    const tokens = LoginResponseModel(
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    );
+    when(
+      () => remoteDataSource.register(
+        email: any(named: 'email'),
+        password: any(named: 'password'),
+        name: any(named: 'name'),
+        role: any(named: 'role'),
+        idToken: any(named: 'idToken'),
+        provider: any(named: 'provider'),
+        acceptedTerms: any(named: 'acceptedTerms'),
+      ),
+    ).thenThrow(Exception('Email is already registered'));
+    when(
+      () => remoteDataSource.socialLogin(
+        idToken: 'google-id-token',
+        provider: 'GOOGLE',
+      ),
+    ).thenAnswer((_) async => tokens);
+    when(() => remoteDataSource.getCurrentUser())
+        .thenAnswer((_) async => recoveredUser);
+    when(() => secureStorage.saveToken(any())).thenAnswer((_) async {});
+    when(() => secureStorage.saveRefreshToken(any())).thenAnswer((_) async {});
+    when(() => secureStorage.saveUserId(any())).thenAnswer((_) async {});
+    when(() => remoteDataSource.updateProfile(phone: any(named: 'phone')))
+        .thenAnswer((_) async => recoveredUser);
+
+    final result = await repository.register(
+      email: recoveredUser.email,
+      name: recoveredUser.name,
+      role: 'CONSUMER',
+      phone: '04141234567',
+      idToken: 'google-id-token',
+      provider: 'GOOGLE',
+      acceptedTerms: true,
+    );
+
+    expect(result.getOrElse(() => throw StateError('recovery failed')),
+        recoveredUser);
+    verify(() => secureStorage.saveUserId(recoveredUser.id)).called(1);
+    verify(() => remoteDataSource.updateProfile(phone: '04141234567'))
+        .called(1);
+  });
 }

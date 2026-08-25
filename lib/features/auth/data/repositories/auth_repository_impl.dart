@@ -84,17 +84,46 @@ class AuthRepositoryImpl implements AuthRepository {
     String? provider,
     required bool acceptedTerms,
   }) async {
+    User? registeredUser;
     try {
       // 1. Create the user in the backend.
-      final registeredUser = await remoteDataSource.register(
-        email: email,
-        password: password,
-        name: name,
-        role: role,
-        idToken: idToken,
-        provider: provider,
-        acceptedTerms: acceptedTerms,
-      );
+      try {
+        registeredUser = await remoteDataSource.register(
+          email: email,
+          password: password,
+          name: name,
+          role: role,
+          idToken: idToken,
+          provider: provider,
+          acceptedTerms: acceptedTerms,
+        );
+      } catch (registrationError) {
+        // A previous social attempt may have created the account before the
+        // follow-up login/profile request failed. Retrying social login makes
+        // that partial success recoverable instead of trapping the user in an
+        // "already registered" loop.
+        if (idToken == null || provider == null) rethrow;
+
+        try {
+          final loginResponse = await remoteDataSource.socialLogin(
+            idToken: idToken,
+            provider: provider,
+          );
+          await _persistSession(loginResponse);
+          if (phone != null && phone.trim().isNotEmpty) {
+            try {
+              await remoteDataSource.updateProfile(phone: phone);
+            } catch (_) {
+              // Recovery should still complete when optional enrichment fails.
+            }
+          }
+          final recoveredUser = await remoteDataSource.getCurrentUser();
+          await secureStorage.saveUserId(recoveredUser.id);
+          return Right(recoveredUser);
+        } catch (_) {
+          throw registrationError;
+        }
+      }
 
       // 2. Log in automatically to obtain tokens for the active session.
       final LoginResponseModel loginResponse;
@@ -110,24 +139,40 @@ class AuthRepositoryImpl implements AuthRepository {
         );
       }
 
-      // Save obtained tokens securely.
-      await secureStorage.saveToken(loginResponse.accessToken);
-      if (loginResponse.refreshToken != null) {
-        await secureStorage.saveRefreshToken(loginResponse.refreshToken!);
-      }
+      // Save obtained tokens securely. From this point onward registration is
+      // complete; optional profile enrichment must not turn it into a failure.
+      await _persistSession(loginResponse);
       await secureStorage.saveUserId(registeredUser.id);
 
       // 3. Register the phone number if specified.
       if (phone != null && phone.trim().isNotEmpty) {
-        await remoteDataSource.updateProfile(phone: phone);
+        try {
+          await remoteDataSource.updateProfile(phone: phone);
+        } catch (_) {
+          // The account and session already exist. The phone can be completed
+          // later from the profile without forcing the user to register again.
+        }
       }
 
       // 4. Retrieve the updated full profile from the API.
-      final finalUser = await remoteDataSource.getCurrentUser();
+      User finalUser = registeredUser;
+      try {
+        finalUser = await remoteDataSource.getCurrentUser();
+      } catch (_) {
+        // Keep the valid registration response when profile refresh is
+        // temporarily unavailable.
+      }
 
       return Right(finalUser);
     } catch (e) {
       return Left(ErrorMapper.map(e));
+    }
+  }
+
+  Future<void> _persistSession(LoginResponseModel loginResponse) async {
+    await secureStorage.saveToken(loginResponse.accessToken);
+    if (loginResponse.refreshToken != null) {
+      await secureStorage.saveRefreshToken(loginResponse.refreshToken!);
     }
   }
 

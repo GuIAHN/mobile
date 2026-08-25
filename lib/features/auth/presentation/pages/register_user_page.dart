@@ -17,6 +17,35 @@ import '../widgets/account_security_step.dart';
 import '../widgets/registration_step_feedback.dart';
 import '../widgets/terms_acceptance_step.dart';
 
+/// Keeps the user close to the field they can actually correct. Unknown,
+/// connectivity and server errors stay on the current step so a failed submit
+/// never looks like the registration flow restarted.
+@visibleForTesting
+int registrationStepForError({
+  required int currentStep,
+  required String message,
+}) {
+  final normalized = message.toLowerCase();
+  if (normalized.contains('contrase') || normalized.contains('password')) {
+    return 2;
+  }
+  if (normalized.contains('término') ||
+      normalized.contains('termino') ||
+      normalized.contains('terms')) {
+    return 3;
+  }
+  if (normalized.contains('correo') ||
+      normalized.contains('email') ||
+      normalized.contains('teléfono') ||
+      normalized.contains('telefono') ||
+      normalized.contains('phone') ||
+      normalized.contains('nombre') ||
+      normalized.contains('name')) {
+    return 1;
+  }
+  return currentStep;
+}
+
 class RegisterUserPage extends ConsumerStatefulWidget {
   const RegisterUserPage({super.key});
 
@@ -159,13 +188,16 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
     ref.listen<AuthState>(authProvider, (previous, next) {
       if (next.isAuthenticated) {
         if (mounted) {
+          ref.read(socialRegistrationProvider.notifier).clear();
           context.go(RouteNames.registerVehicles);
         }
       } else if (previous?.isLoading == true && next.errorMessage != null) {
-        final message = next.errorMessage!.toLowerCase();
-        final securityError =
-            message.contains('contrase') || message.contains('password');
-        setState(() => _paso = securityError ? 2 : 1);
+        setState(() {
+          _paso = registrationStepForError(
+            currentStep: _paso,
+            message: next.errorMessage!,
+          );
+        });
         _validarFormulario();
         _scrollToTop();
       }

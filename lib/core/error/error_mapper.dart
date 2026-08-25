@@ -165,6 +165,7 @@ class ErrorMapper {
     // Restricciones de unicidad (Unique constraint failed)
     if (lower.contains('unique constraint failed') ||
         lower.contains('already exists') ||
+        lower.contains('already registered') ||
         lower.contains('duplicate key')) {
       if (lower.contains('number') ||
           lower.contains('telefono') ||
