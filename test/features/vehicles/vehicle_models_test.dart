@@ -5,7 +5,9 @@ import 'package:guiautomotriz_mobile/features/vehicles/data/models/user_car_mode
 
 void main() {
   group('Vehicle Models JSON Parsing', () {
-    test('CarModelModel.fromJson should parse model without year/motor and with vehicleType', () {
+    test(
+        'CarModelModel.fromJson should parse model without year/motor and with vehicleType',
+        () {
       final json = {
         'id': 'model-1',
         'brandId': 'brand-1',
@@ -21,7 +23,9 @@ void main() {
       expect(model.vehicleType, equals('CAR'));
     });
 
-    test('VehicleVariantModel.fromJson should parse variant with year and motor', () {
+    test(
+        'VehicleVariantModel.fromJson should parse variant with year and motor',
+        () {
       final json = {
         'id': 'variant-1',
         'modelId': 'model-1',
@@ -37,7 +41,9 @@ void main() {
       expect(variant.motor, equals('I4 1.8L Dual VVT-i'));
     });
 
-    test('UserCarModel.fromJson should parse 3-table nested structure (variant -> model -> brand)', () {
+    test(
+        'UserCarModel.fromJson should parse 3-table nested structure (variant -> model -> brand)',
+        () {
       final json = {
         'id': 'car-1',
         'placa': 'HDN-1234',
@@ -65,6 +71,7 @@ void main() {
       expect(userCar.brand, equals('Toyota'));
       expect(userCar.model, equals('Corolla'));
       expect(userCar.year, equals(2022));
+      expect(userCar.version, equals('1.8L'));
       expect(userCar.placa, equals('HDN-1234'));
       expect(userCar.color, equals('Rojo'));
     });

@@ -9,6 +9,7 @@ import '../../../../core/utils/extensions.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/guia_map.dart';
+import '../../../vehicles/domain/entities/user_car.dart';
 
 /// Widgets compartidos por las pantallas de detalle de proveedor
 /// (mecánico, taller y tienda). Mantienen el sistema de diseño GuIA:
@@ -634,13 +635,18 @@ abstract class ContactActions {
     }
   }
 
-  static String providerInquiryMessage({String? vehicleDescription}) {
-    final vehicle = vehicleDescription?.trim();
-    if (vehicle == null || vehicle.isEmpty) {
+  static String providerInquiryMessage({UserCar? vehicle}) {
+    if (vehicle == null) {
       return 'Hola, te contacto desde GuIA-HN';
     }
+
+    final version = vehicle.version?.trim();
     return 'Hola, te contacto desde GuIA-HN. Quisiera consultar por servicios '
-        'para mi $vehicle.';
+        'para este vehículo:\n'
+        'Marca: ${vehicle.brand}\n'
+        'Modelo: ${vehicle.model}\n'
+        'Año: ${vehicle.year}\n'
+        'Versión: ${version == null || version.isEmpty ? 'No especificada' : version}';
   }
 
   static Uri whatsappUri(

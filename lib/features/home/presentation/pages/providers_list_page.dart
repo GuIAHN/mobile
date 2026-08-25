@@ -13,7 +13,7 @@ import '../providers/home_providers.dart';
 import '../widgets/filters_sheet.dart';
 import '../widgets/item_card.dart';
 import '../widgets/home_list_header.dart';
-import '../widgets/vehicle_compatibility_bar.dart';
+import '../widgets/vehicle_context_card.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/widgets/app_search_field.dart';
 import '../../../../shared/widgets/empty_state.dart';
@@ -161,7 +161,7 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
               ),
             ),
             if (isConsumer)
-              const SliverToBoxAdapter(child: VehicleCompatibilityBar()),
+              const SliverToBoxAdapter(child: VehicleContextCard()),
             SliverToBoxAdapter(
               child: HomeListHeader(
                 itemCount: filteredItemsAsync.valueOrNull?.length ?? 0,

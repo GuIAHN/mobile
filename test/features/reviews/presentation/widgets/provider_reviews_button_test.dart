@@ -17,8 +17,6 @@ void main() {
               padding: EdgeInsets.all(24),
               child: ProviderReviewsButton(
                 targetId: 'provider-user-1',
-                rating: 4.8,
-                reviewCount: 24,
               ),
             ),
           ),
@@ -38,7 +36,8 @@ void main() {
     expect(button, findsOneWidget);
     expect(tester.getSize(button).height, greaterThanOrEqualTo(56));
     expect(find.text('Ver reseñas de clientes'), findsOneWidget);
-    expect(find.text('4.8 de 5 · 24 opiniones'), findsOneWidget);
+    expect(find.textContaining('opiniones'), findsNothing);
+    expect(find.textContaining('de 5'), findsNothing);
 
     await tester.tap(button);
     await tester.pumpAndSettle();

@@ -43,6 +43,7 @@ abstract class AppIcons {
 
   static const IconData workshop = LucideIcons.warehouse;
   static const IconData mechanic = LucideIcons.wrench;
+  static const IconData vehicle = LucideIcons.car;
   static const IconData services = LucideIcons.clipboardList;
   static const IconData presentation = LucideIcons.quote;
   static const IconData location = LucideIcons.mapPin;

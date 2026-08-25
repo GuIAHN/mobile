@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:guiautomotriz_mobile/core/theme/app_theme.dart';
 import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_conversation.dart';
@@ -22,12 +23,14 @@ ChatConversation _details({String? phone = '+504 9999-0000'}) {
 }
 
 Widget _subject(ChatConversation details, {double textScale = 1}) {
-  return MaterialApp(
-    theme: AppTheme.light(),
-    home: MediaQuery(
-      data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
-      child: Scaffold(
-        body: StoreContactSheet(details: details),
+  return ProviderScope(
+    child: MaterialApp(
+      theme: AppTheme.light(),
+      home: MediaQuery(
+        data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
+        child: Scaffold(
+          body: StoreContactSheet(details: details),
+        ),
       ),
     ),
   );

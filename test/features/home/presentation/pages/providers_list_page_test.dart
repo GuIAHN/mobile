@@ -23,7 +23,7 @@ class _MockAuthRepository extends Mock implements AuthRepository {}
 class _MockSecureStorage extends Mock implements SecureStorage {}
 
 class _TestAuthNotifier extends AuthNotifier {
-  _TestAuthNotifier()
+  _TestAuthNotifier({UserRole role = UserRole.store})
       : super(
           loginUseCase: LoginUseCase(_MockAuthRepository()),
           registerUseCase: RegisterUseCase(_MockAuthRepository()),
@@ -32,13 +32,13 @@ class _TestAuthNotifier extends AuthNotifier {
           authRepository: _MockAuthRepository(),
           secureStorage: _MockSecureStorage(),
         ) {
-    state = const AuthState(
+    state = AuthState(
       status: AuthStatus.authenticated,
       user: User(
         id: 'store-1',
         email: 'store@example.com',
         name: 'Repuestos Norte',
-        role: UserRole.store,
+        role: role,
       ),
     );
   }
@@ -53,11 +53,13 @@ Widget _subject({
   required EdgeInsets padding,
   double textScale = 1,
   bool disableAnimations = false,
+  ServiceType serviceType = ServiceType.workshops,
+  UserRole role = UserRole.store,
 }) {
   return ProviderScope(
     key: UniqueKey(),
     overrides: [
-      authProvider.overrideWith((ref) => _TestAuthNotifier()),
+      authProvider.overrideWith((ref) => _TestAuthNotifier(role: role)),
       filteredHomeItemsProvider.overrideWith((ref) => state),
     ],
     child: MediaQuery(
@@ -67,14 +69,45 @@ Widget _subject({
         textScaler: TextScaler.linear(textScale),
         disableAnimations: disableAnimations,
       ),
-      child: const MaterialApp(
-        home: ProvidersListPage(serviceType: ServiceType.workshops),
+      child: MaterialApp(
+        home: ProvidersListPage(serviceType: serviceType),
       ),
     ),
   );
 }
 
 void main() {
+  for (final serviceType in [ServiceType.workshops, ServiceType.mechanic]) {
+    testWidgets(
+      'shows vehicle context without compatibility wording in the ${serviceType.name} list',
+      (tester) async {
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.binding.setSurfaceSize(const Size(430, 932));
+
+        await tester.pumpWidget(
+          _subject(
+            state: const AsyncValue.data([]),
+            size: const Size(430, 932),
+            padding: const EdgeInsets.only(top: 59, bottom: 34),
+            serviceType: serviceType,
+            role: UserRole.consumer,
+          ),
+        );
+        await tester.pump();
+
+        expect(find.text('Selecciona el vehículo'), findsOneWidget);
+        expect(find.textContaining('Lo incluiremos'), findsNothing);
+        expect(find.textContaining('COMPATIBILIDAD'), findsNothing);
+        expect(
+          tester
+              .getSize(find.byKey(const Key('vehicle-context-action')))
+              .height,
+          greaterThanOrEqualTo(48),
+        );
+      },
+    );
+  }
+
   testWidgets(
     'lays out the pinned search header at the reported phone dimensions',
     (tester) async {

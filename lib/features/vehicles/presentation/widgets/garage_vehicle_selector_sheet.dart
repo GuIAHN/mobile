@@ -30,7 +30,10 @@ class GarageVehicleSelectorSheet extends ConsumerWidget {
   });
 
   /// Abre el modal y muestra la lista de selección.
-  static Future<VehicleSelectorResult?> show(BuildContext context, {UserCar? selectedCar}) {
+  static Future<VehicleSelectorResult?> show(
+    BuildContext context, {
+    UserCar? selectedCar,
+  }) {
     return showModalBottomSheet<VehicleSelectorResult>(
       context: context,
       isScrollControlled: true,
@@ -116,7 +119,9 @@ class GarageVehicleSelectorSheet extends ConsumerWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                           side: BorderSide(
-                            color: esSeleccionado ? AppColors.primary : AppColors.border,
+                            color: esSeleccionado
+                                ? AppColors.primary
+                                : AppColors.border,
                             width: esSeleccionado ? 1.5 : 1.0,
                           ),
                         ),
@@ -128,18 +133,25 @@ class GarageVehicleSelectorSheet extends ConsumerWidget {
                             );
                           },
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
                             child: Row(
                               children: [
                                 Container(
                                   decoration: BoxDecoration(
-                                    color: esSeleccionado ? AppColors.primaryMuted : AppColors.grey50,
+                                    color: esSeleccionado
+                                        ? AppColors.primaryMuted
+                                        : AppColors.grey50,
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: esSeleccionado ? AppColors.primary.withValues(alpha: 0.3) : AppColors.border,
+                                      color: esSeleccionado
+                                          ? AppColors.primary
+                                              .withValues(alpha: 0.3)
+                                          : AppColors.border,
                                     ),
                                   ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: 2),
                                   child: VehicleTypeIllustration(
                                     vehicleType: car.vehicleType,
                                     height: 48,
@@ -149,32 +161,34 @@ class GarageVehicleSelectorSheet extends ConsumerWidget {
                                 const SizedBox(width: 14),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                       Row(
-                                         children: [
-                                           Image.network(
-                                             car.computedBrandLogoUrl,
-                                             width: 24,
-                                             height: 24,
-                                             fit: BoxFit.contain,
-                                             errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                                           ),
-                                           const SizedBox(width: 8),
-                                           Expanded(
-                                             child: Text(
-                                               '${car.brand} ${car.model}',
-                                               maxLines: 1,
-                                               overflow: TextOverflow.ellipsis,
-                                               style: GoogleFonts.hankenGrotesk(
-                                                 fontWeight: FontWeight.w700,
-                                                 fontSize: 14.5,
-                                                 color: AppColors.textPrimary,
-                                               ),
-                                             ),
-                                           ),
-                                         ],
-                                       ),
+                                      Row(
+                                        children: [
+                                          Image.network(
+                                            car.computedBrandLogoUrl,
+                                            width: 24,
+                                            height: 24,
+                                            fit: BoxFit.contain,
+                                            errorBuilder: (_, __, ___) =>
+                                                const SizedBox.shrink(),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              '${car.brand} ${car.model}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: GoogleFonts.hankenGrotesk(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 14.5,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                       const SizedBox(height: 2),
                                       Text(
                                         'Año ${car.year}',
@@ -225,11 +239,15 @@ class GarageVehicleSelectorSheet extends ConsumerWidget {
                     brand: result.brand.name,
                     model: result.modelName,
                     year: result.year,
+                    version: result.motor,
                   );
                   if (context.mounted) {
                     Navigator.pop(
                       context,
-                      VehicleSelectorResult(car: newCar, variantId: result.variantId),
+                      VehicleSelectorResult(
+                        car: newCar,
+                        variantId: result.variantId,
+                      ),
                     );
                   }
                 }

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../home/presentation/providers/home_providers.dart';
 import '../../../home/presentation/widgets/provider_detail_widgets.dart';
 import '../../domain/entities/chat_conversation.dart';
 
@@ -14,7 +16,7 @@ import '../../domain/entities/chat_conversation.dart';
 /// La compra desbloquea la identidad y los medios de contacto. La hoja lo
 /// explica primero y mantiene una sola acción principal para no competir con
 /// las alternativas de llamada, mapa y copiado.
-class StoreContactSheet extends StatelessWidget {
+class StoreContactSheet extends ConsumerWidget {
   final ChatConversation details;
   final bool isPostPurchase;
 
@@ -42,7 +44,7 @@ class StoreContactSheet extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final phone = details.storePhone?.trim() ?? '';
     final hasPhone = phone.isNotEmpty;
     final address = details.storeAddress?.trim();
@@ -53,6 +55,7 @@ class StoreContactSheet extends StatelessWidget {
         ? details.spareBrand!.trim()
         : (details.subcategoryName ?? 'Repuesto');
     final total = details.totalCost ?? details.price;
+    final selectedVehicle = ref.watch(searchVehicleProvider);
 
     return SafeArea(
       top: false,
@@ -143,7 +146,15 @@ class StoreContactSheet extends StatelessWidget {
                   key: const Key('store-contact-primary-action'),
                   onPressed: () {
                     Navigator.pop(context);
-                    if (hasPhone) ContactActions.whatsapp(context, phone);
+                    if (hasPhone) {
+                      ContactActions.whatsapp(
+                        context,
+                        phone,
+                        message: ContactActions.providerInquiryMessage(
+                          vehicle: selectedVehicle,
+                        ),
+                      );
+                    }
                   },
                   icon: const AppLineIcon(
                     AppIcons.message,

@@ -5,8 +5,6 @@ import '../../../../core/domain/enums/offer_status.dart';
 import '../../domain/entities/chat_thread.dart';
 import '_atoms/card_shell.dart';
 import '_atoms/card_tokens.dart';
-import '_atoms/status_badge.dart';
-import '_atoms/meta_line.dart';
 import '_atoms/price_text.dart';
 import '_atoms/expiration_label.dart';
 
@@ -70,6 +68,7 @@ class ConsumerThreadCard extends StatelessWidget {
         status == OfferStatus.delivered ||
         status == OfferStatus.cancelled;
     final hasBestOffer = thread.bestOfferPrice != null;
+    final requestMetaLabel = _requestMetaLabel();
 
     final semanticLabel = StringBuffer('Solicitud ${thread.title}');
     if (thread.subcategory != null) {
@@ -119,36 +118,25 @@ class ConsumerThreadCard extends StatelessWidget {
                     children: [
                       _RequestHeader(
                         status: status,
-                        labelOverride: resolved.labelOverride,
                         expiration: !isTerminal ? expiration : '',
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         thread.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: CardTokens.title.copyWith(fontSize: 16),
                       ),
-                      const SizedBox(height: CardTokens.tight),
-                      MetaLine(
-                        items: [
-                          if (thread.subcategory != null)
-                            MetaItem(thread.subcategory!),
-                          if (thread.partType != null)
-                            MetaItem(_partTypeLabel(thread.partType!)),
-                        ],
-                      ),
-                      if (thread.details != null &&
-                          thread.details!.trim().isNotEmpty) ...[
+                      if (requestMetaLabel.isNotEmpty) ...[
                         const SizedBox(height: CardTokens.tight),
                         Text(
-                          thread.details!,
+                          requestMetaLabel,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: CardTokens.body,
+                          style: CardTokens.meta,
                         ),
                       ],
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       _OfferMeta(
                         hasBestOffer: hasBestOffer,
                         bestOfferPrice: thread.bestOfferPrice,
@@ -176,6 +164,15 @@ class ConsumerThreadCard extends StatelessWidget {
     );
   }
 
+  String _requestMetaLabel() {
+    return [
+      if (thread.subcategory != null && thread.subcategory!.trim().isNotEmpty)
+        thread.subcategory!.trim(),
+      if (thread.partType != null && thread.partType!.trim().isNotEmpty)
+        _partTypeLabel(thread.partType!),
+    ].join(' · ');
+  }
+
   String _partTypeLabel(String raw) {
     switch (raw) {
       case 'ORIGINAL':
@@ -190,78 +187,82 @@ class ConsumerThreadCard extends StatelessWidget {
   }
 }
 
-/// El vencimiento antes estaba superpuesto sobre la card. En el flujo normal
-/// puede bajar de línea en pantallas angostas o con texto grande.
+/// Encabezado compacto: el estado se comunica con un solo icono y el texto de
+/// vencimiento permanece en la misma línea. El nombre accesible completo vive
+/// en la semántica de la card.
 class _RequestHeader extends StatelessWidget {
   final OfferStatus status;
-  final String? labelOverride;
   final String expiration;
 
   const _RequestHeader({
     required this.status,
-    required this.labelOverride,
     required this.expiration,
   });
 
   @override
   Widget build(BuildContext context) {
-    final statusBadge = StatusBadge(
-      status: status,
-      labelOverride: labelOverride,
-    );
-
-    if (expiration.isEmpty) return statusBadge;
-
-    final expirationMeta = Text.rich(
-      TextSpan(
-        children: [
-          const WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: Padding(
-              padding: EdgeInsets.only(right: 5),
-              child: AppLineIcon(
-                AppIcons.time,
-                size: AppIconSize.inline,
-                color: AppColors.textMeta,
+    return Row(
+      children: [
+        AppLineIcon(
+          _statusIcon(status),
+          key: const Key('consumer-request-status-icon'),
+          size: AppIconSize.action,
+          color: status.foreground,
+        ),
+        if (expiration.isNotEmpty) ...[
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  const WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: Padding(
+                      padding: EdgeInsets.only(right: 5),
+                      child: AppLineIcon(
+                        AppIcons.time,
+                        size: AppIconSize.inline,
+                        color: AppColors.textMeta,
+                      ),
+                    ),
+                  ),
+                  TextSpan(text: expiration),
+                ],
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: CardTokens.meta.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
-          TextSpan(text: expiration),
         ],
-      ),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: CardTokens.meta.copyWith(fontWeight: FontWeight.w600),
+      ],
     );
+  }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final scaledBody = MediaQuery.textScalerOf(context).scale(14);
-        final shouldWrap = constraints.maxWidth < 180 || scaledBody > 19;
-
-        if (shouldWrap) {
-          return Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [statusBadge, expirationMeta],
-          );
-        }
-
-        return Row(
-          children: [
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: statusBadge,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Flexible(child: expirationMeta),
-          ],
-        );
-      },
-    );
+  IconData _statusIcon(OfferStatus status) {
+    switch (status) {
+      case OfferStatus.noOffers:
+        return AppIcons.search;
+      case OfferStatus.offersReceived:
+        return AppIcons.offer;
+      case OfferStatus.unquoted:
+        return AppIcons.opportunity;
+      case OfferStatus.noQuoteYet:
+        return AppIcons.message;
+      case OfferStatus.sent:
+      case OfferStatus.accepted:
+        return AppIcons.send;
+      case OfferStatus.discarded:
+        return AppIcons.cancellation;
+      case OfferStatus.bought:
+        return AppIcons.receipt;
+      case OfferStatus.delivered:
+        return AppIcons.success;
+      case OfferStatus.cancelled:
+        return AppIcons.cancellation;
+      case OfferStatus.unknown:
+        return AppIcons.info;
+    }
   }
 }
 

@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../domain/entities/onboarding_slide.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/ken_burns_background.dart';
@@ -38,6 +40,10 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   }
 
   void _goTo(int index) {
+    if (MediaQuery.of(context).disableAnimations) {
+      _pageController.jumpToPage(index);
+      return;
+    }
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 450),
@@ -56,6 +62,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   Widget build(BuildContext context) {
     final currentPage = ref.watch(onboardingPageProvider);
     final isLast = currentPage == _slides.length - 1;
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -64,7 +71,9 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
           // ── Fondos con crossfade + Ken Burns ─────────────────────────────
           ...List.generate(_slides.length, (i) {
             return AnimatedOpacity(
-              duration: const Duration(milliseconds: 700),
+              duration: reduceMotion
+                  ? Duration.zero
+                  : const Duration(milliseconds: 700),
               opacity: currentPage == i ? 1.0 : 0.0,
               child: KenBurnsBackground(
                 imageUrl: _slides[i].imagePath,
@@ -105,48 +114,56 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
           ),
 
           // ── Header: Logo "GuIA" + Saltar ──────────────────────────────────
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Image.asset(
-                    'assets/images/logo_icon.png',
-                    height: 72,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return RichText(
-                        text: const TextSpan(
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                          children: [
-                            TextSpan(text: 'Gu'),
-                            TextSpan(
-                              text: 'IA',
-                              style: TextStyle(color: AppColors.primary),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                  if (!isLast)
-                    TextButton(
-                      onPressed: () => _goTo(_slides.length - 1),
-                      child: const Text(
-                        'SALTAR',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                          letterSpacing: 2,
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          key: const Key('onboarding-brand-logo'),
+                          width: 132,
+                          fit: BoxFit.contain,
+                          alignment: Alignment.centerLeft,
+                          semanticLabel: 'guIAutomotriz HN',
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Text(
+                              'guIAutomotriz HN',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ),
-                ],
+                    if (!isLast)
+                      TextButton(
+                        onPressed: () => _goTo(_slides.length - 1),
+                        child: const Text(
+                          'SALTAR',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -167,31 +184,37 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                     ),
                     const SizedBox(height: 20),
                     AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 350),
+                      duration: reduceMotion
+                          ? Duration.zero
+                          : const Duration(milliseconds: 350),
                       child: isLast
-                          ? Padding(
-                              key: const ValueKey('cta'),
-                              padding: const EdgeInsets.symmetric(horizontal: 40),
-                              child: SizedBox(
-                                width: double.infinity,
-                                child: FilledButton(
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(32),
-                                    ),
-                                  ),
-                                  onPressed: _finishOnboarding,
-                                  child: const Text(
-                                    'Comenzar',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
+                          ? TextButton(
+                              key: const Key('onboarding-continue'),
+                              onPressed: _finishOnboarding,
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size(0, 48),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 20),
+                                shape: const StadiumBorder(),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Continuar',
+                                    style: AppTypography.label.copyWith(
                                       color: Colors.white,
+                                      letterSpacing: 0.8,
                                     ),
                                   ),
-                                ),
+                                  const SizedBox(width: 8),
+                                  const AppLineIcon(
+                                    AppIcons.next,
+                                    size: AppIconSize.inline,
+                                    color: AppColors.primary,
+                                  ),
+                                ],
                               ),
                             )
                           : const Column(

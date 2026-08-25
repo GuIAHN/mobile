@@ -42,6 +42,7 @@ class _SparePartWizardStep1State extends ConsumerState<_SparePartWizardStep1> {
         brand: result.brand.name,
         model: result.modelName,
         year: result.year,
+        version: result.motor,
       ),
       result.modelId,
     );

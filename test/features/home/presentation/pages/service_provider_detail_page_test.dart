@@ -322,7 +322,7 @@ void main() {
     expect(flutterErrors, isEmpty);
   });
 
-  testWidgets('offers the full presentation whenever five lines overflow',
+  testWidgets('centers and opens the full provider presentation',
       (tester) async {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.binding.setSurfaceSize(const Size(320, 720));
@@ -338,8 +338,28 @@ void main() {
       ),
     );
 
+    final presentationRow =
+        find.byKey(const Key('service-provider-presentation-row'));
+    final presentationIcon = find.byIcon(AppIcons.presentation);
+    expect(presentationRow, findsOneWidget);
+    expect(presentationIcon, findsOneWidget);
+
+    await tester.ensureVisible(presentationRow);
+    await tester.pump();
+
     expect(
-      find.byKey(const Key('service-provider-read-more')),
+      (tester.getRect(presentationIcon).center.dy -
+              tester.getRect(presentationRow).center.dy)
+          .abs(),
+      lessThan(1),
+    );
+
+    await tester.tap(presentationRow);
+    await tester.pump();
+
+    expect(find.text('Sobre el mecánico'), findsOneWidget);
+    expect(
+      find.byKey(const Key('service-provider-presentation-full')),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);

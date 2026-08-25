@@ -38,10 +38,6 @@ class ServiceProviderDetailView extends ConsumerWidget {
     final hasPhone = phone != null && phone.isNotEmpty;
     final compactHero = MediaQuery.sizeOf(context).height < 760;
     final selectedVehicle = ref.watch(searchVehicleProvider);
-    final vehicleDescription = selectedVehicle == null
-        ? null
-        : '${selectedVehicle.brand} ${selectedVehicle.model} '
-            '(${selectedVehicle.year})';
 
     Future<void> contact(String channel) async {
       HapticFeedback.lightImpact();
@@ -58,7 +54,7 @@ class ServiceProviderDetailView extends ConsumerWidget {
           context,
           phone!,
           message: ContactActions.providerInquiryMessage(
-            vehicleDescription: vehicleDescription,
+            vehicle: selectedVehicle,
           ),
         );
       }
@@ -105,8 +101,6 @@ class ServiceProviderDetailView extends ConsumerWidget {
                         const SizedBox(height: AppSpacing.md),
                         ProviderReviewsButton(
                           targetId: detail.userId!,
-                          rating: detail.rating,
-                          reviewCount: detail.ratingCount,
                         ),
                         const SizedBox(height: AppSpacing.md),
                         ProviderReviewActionCard(
@@ -325,31 +319,21 @@ class _ProviderOverviewCard extends StatelessWidget {
                 : () => _showServicesSheet(context, detail.especialidades),
           ),
           const Divider(height: 1, color: AppColors.border),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(
-                  width: AppSpacing.xl3,
-                  child: AppLineIcon(
-                    AppIcons.presentation,
-                    color: AppColors.primaryInk,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: _ExpandablePresentation(
-                    description: hasDescription ? description : null,
-                    onReadMore: () => _showAboutSheet(
+          _CompactInfoRow(
+            key: const Key('service-provider-presentation-row'),
+            icon: AppIcons.presentation,
+            title: 'Presentación',
+            value: hasDescription
+                ? description
+                : 'Este proveedor aún no agregó una presentación.',
+            enabled: hasDescription,
+            onTap: hasDescription
+                ? () => _showAboutSheet(
                       context,
                       detail.esTaller ? 'Sobre el taller' : 'Sobre el mecánico',
-                      description!,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+                      description,
+                    )
+                : null,
           ),
           const Divider(height: 1, color: AppColors.border),
           _CompactInfoRow(
@@ -372,71 +356,6 @@ class _ProviderOverviewCard extends StatelessWidget {
           ],
         ],
       ),
-    );
-  }
-}
-
-class _ExpandablePresentation extends StatelessWidget {
-  const _ExpandablePresentation({
-    required this.description,
-    required this.onReadMore,
-  });
-
-  static const _emptyMessage = 'Este proveedor aún no agregó una presentación.';
-
-  final String? description;
-  final VoidCallback onReadMore;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = description ?? _emptyMessage;
-    final style = AppTypography.bodySm;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final painter = TextPainter(
-          text: TextSpan(text: text, style: style),
-          maxLines: 5,
-          textDirection: Directionality.of(context),
-          textScaler: MediaQuery.textScalerOf(context),
-          locale: Localizations.maybeLocaleOf(context),
-        )..layout(maxWidth: constraints.maxWidth);
-        final canExpand = description != null && painter.didExceedMaxLines;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Presentación', style: AppTypography.label),
-            const SizedBox(height: AppSpacing.xs),
-            Semantics(
-              label: text,
-              child: Text(
-                text,
-                maxLines: 5,
-                overflow: TextOverflow.ellipsis,
-                style: style,
-              ),
-            ),
-            if (canExpand)
-              TextButton(
-                key: const Key('service-provider-read-more'),
-                onPressed: onReadMore,
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(48, 48),
-                  padding: EdgeInsets.zero,
-                  foregroundColor: AppColors.primaryInk,
-                  alignment: Alignment.centerLeft,
-                ),
-                child: Text(
-                  'Ver presentación completa',
-                  style: AppTypography.label.copyWith(
-                    color: AppColors.primaryInk,
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
     );
   }
 }
@@ -849,7 +768,11 @@ Future<void> _showAboutSheet(
   return _showDetailSheet(
     context,
     title: title,
-    child: Text(description, style: AppTypography.body),
+    child: Text(
+      description,
+      key: const Key('service-provider-presentation-full'),
+      style: AppTypography.body,
+    ),
   );
 }
 

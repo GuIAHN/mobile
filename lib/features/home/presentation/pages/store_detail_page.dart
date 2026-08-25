@@ -26,6 +26,7 @@ class StoreDetailPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final args = (id: storeId, type: serviceType);
     final detailAsync = ref.watch(providerDetailProvider(args));
+    final selectedVehicle = ref.watch(searchVehicleProvider);
     final isStore = serviceType == ServiceType.spareParts;
     final providerLabel = isStore ? 'tienda' : 'taller';
 
@@ -178,7 +179,12 @@ class StoreDetailPage extends ConsumerWidget {
                             }
                             if (context.mounted) {
                               await ContactActions.whatsapp(
-                                  context, detail.telefono!);
+                                context,
+                                detail.telefono!,
+                                message: ContactActions.providerInquiryMessage(
+                                  vehicle: selectedVehicle,
+                                ),
+                              );
                             }
                           },
                         ),
