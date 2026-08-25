@@ -49,6 +49,12 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
   _StatusFilter _statusFilter = _StatusFilter.active;
   bool _initializedProviderFilter = false;
 
+  bool _isExpired(ChatThread thread) {
+    final expiresAt = thread.expiresAt;
+    return thread.isExpired ||
+        (expiresAt != null && !expiresAt.isAfter(DateTime.now()));
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -79,7 +85,9 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
       case _StatusFilter.pending:
         return threads
             .where(
-              (t) => t.matchState == 'PENDING' || t.matchState == 'INQUIRING',
+              (t) =>
+                  !_isExpired(t) &&
+                  (t.matchState == 'PENDING' || t.matchState == 'INQUIRING'),
             )
             .toList();
       case _StatusFilter.inquiring:
@@ -249,11 +257,16 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
     final searchFiltered = _applySearch(threads);
     final activeCount = counts['open'] ??
         searchFiltered.where((t) => t.isOpen && !t.isExpired).length;
-    final inquiringCount = counts['inquiring'] ??
-        searchFiltered.where((t) => t.matchState == 'INQUIRING').length;
-    final pendingCount = (counts['pending'] ??
-            searchFiltered.where((t) => t.matchState == 'PENDING').length) +
-        inquiringCount;
+    // El contador debe representar exactamente lo que puede abrirse desde
+    // Pendientes. No usamos los conteos del servidor porque una respuesta
+    // desactualizada podría seguir incluyendo solicitudes ya vencidas.
+    final pendingCount = searchFiltered
+        .where(
+          (t) =>
+              !_isExpired(t) &&
+              (t.matchState == 'PENDING' || t.matchState == 'INQUIRING'),
+        )
+        .length;
     final quotedCount = counts['quoted'] ??
         counts['withOffer'] ??
         searchFiltered

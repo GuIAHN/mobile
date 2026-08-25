@@ -300,6 +300,45 @@ void main() {
     expect(find.text('2'), findsOneWidget);
   });
 
+  testWidgets('expired requests are hidden from store Pendientes',
+      (tester) async {
+    final expiredByFlag = ChatThread(
+      id: 'expired-by-flag',
+      title: 'Solicitud expirada por estado',
+      requestType: ServiceType.spareParts,
+      unreadCount: 0,
+      conversationCount: 0,
+      lastActivityAt: DateTime.utc(2026, 8, 14),
+      matchState: 'PENDING',
+      isExpired: true,
+    );
+    final expiredByDate = ChatThread(
+      id: 'expired-by-date',
+      title: 'Solicitud expirada por fecha',
+      requestType: ServiceType.spareParts,
+      unreadCount: 0,
+      conversationCount: 0,
+      lastActivityAt: DateTime.utc(2026, 8, 14),
+      matchState: 'INQUIRING',
+      expiresAt: DateTime.utc(2020),
+    );
+
+    await pumpPage(
+      tester,
+      role: UserRole.store,
+      page: const StoreSalesPage(),
+      storeResult: ChatThreadsResult(
+        threads: [storeRequest, expiredByFlag, expiredByDate],
+        counts: const {'pending': 2, 'inquiring': 1},
+      ),
+    );
+
+    expect(find.text('Bomba de gasolina'), findsOneWidget);
+    expect(find.text('Solicitud expirada por estado'), findsNothing);
+    expect(find.text('Solicitud expirada por fecha'), findsNothing);
+    expect(find.text('1'), findsOneWidget);
+  });
+
   testWidgets('store keeps cancelled and delivered requests until expiration',
       (tester) async {
     ChatThread sale({
