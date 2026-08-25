@@ -11,6 +11,7 @@ import 'package:guiautomotriz_mobile/core/providers/current_user_provider.dart';
 import 'package:guiautomotriz_mobile/core/router/route_names.dart';
 import 'package:guiautomotriz_mobile/core/theme/app_colors.dart';
 import 'package:guiautomotriz_mobile/core/theme/app_icons.dart';
+import 'package:guiautomotriz_mobile/core/theme/app_spacing.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/navigation/category_grid.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/spare_part_wizard_page.dart';
@@ -196,7 +197,7 @@ void main() {
           decorations.firstWhere((decoration) => decoration.boxShadow != null);
       final border = cardDecoration.border! as Border;
 
-      expect(border.top.width, isSelected ? 1.5 : 1);
+      expect(border.top.width, 1.5);
       expect(
         border.top.color,
         isSelected ? AppColors.primary : AppColors.border,
@@ -280,6 +281,37 @@ void main() {
     } finally {
       semantics.dispose();
     }
+  });
+
+  testWidgets('uses compact and equal spacing for every consumer action',
+      (tester) async {
+    await tester.pumpWidget(subject());
+
+    final header = find.text('¿Qué buscas hoy?');
+    final firstAction = find.bySemanticsLabel(actionLabels.first);
+    expect(
+      tester.getTopLeft(firstAction).dy - tester.getBottomLeft(header).dy,
+      AppSpacing.sm,
+    );
+
+    final actionHeights = <double>[];
+    final titleOffsets = <double>[];
+    for (final label in actionLabels) {
+      final action = find.bySemanticsLabel(label);
+      actionHeights.add(tester.getSize(action).height);
+      titleOffsets.add(
+        tester
+                .getTopLeft(
+                  find.byKey(ValueKey<String>('category-title-slot-$label')),
+                )
+                .dy -
+            tester.getTopLeft(action).dy,
+      );
+    }
+
+    expect(actionHeights.toSet(), hasLength(1));
+    expect(actionHeights.first, lessThanOrEqualTo(104));
+    expect(titleOffsets.toSet(), hasLength(1));
   });
 
   testWidgets('consumer actions stay equal and overflow-free on phone widths',

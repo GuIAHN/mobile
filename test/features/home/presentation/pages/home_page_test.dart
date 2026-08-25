@@ -39,7 +39,6 @@ import 'package:guiautomotriz_mobile/features/notifications/presentation/provide
 import 'package:guiautomotriz_mobile/features/reviews/presentation/providers/reviews_providers.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/domain/entities/user_car.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/presentation/providers/vehicle_providers.dart';
-import 'package:guiautomotriz_mobile/features/reviews/presentation/providers/reviews_providers.dart';
 import 'package:guiautomotriz_mobile/shared/widgets/skeleton_loader.dart';
 import 'package:mocktail/mocktail.dart';
 

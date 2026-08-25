@@ -121,7 +121,7 @@ class CategoryGrid extends ConsumerWidget {
           title: '¿Qué buscas hoy?',
           padding: EdgeInsets.zero,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.sm),
         LayoutBuilder(
           builder: (context, constraints) {
             final usesAccessibleList =
@@ -216,7 +216,7 @@ class _CategoryCardState extends State<_CategoryCard> {
             borderRadius: radius,
             border: Border.all(
               color: widget.isSelected ? AppColors.primary : AppColors.border,
-              width: widget.isSelected ? 1.5 : 1,
+              width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
@@ -245,7 +245,7 @@ class _CategoryCardState extends State<_CategoryCard> {
               ),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  minHeight: widget.usesHorizontalLayout ? 64 : 104,
+                  minHeight: widget.usesHorizontalLayout ? 64 : AppSpacing.xl8,
                 ),
                 child: Stack(
                   children: [
@@ -305,6 +305,9 @@ class _VerticalCategoryContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final titleSlotHeight =
+        MediaQuery.textScalerOf(context).scale(AppSpacing.xl3);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -313,14 +316,21 @@ class _VerticalCategoryContent extends StatelessWidget {
           size: AppIconSize.feature,
           color: iconColor,
         ),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          config.label,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: AppTypography.label.copyWith(
-            height: 1.2,
-            color: AppColors.textPrimary,
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          key: ValueKey<String>('category-title-slot-${config.label}'),
+          height: titleSlotHeight,
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: Text(
+              config.label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.label.copyWith(
+                height: 1.2,
+                color: AppColors.textPrimary,
+              ),
+            ),
           ),
         ),
       ],
