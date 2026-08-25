@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/entities/onboarding_slide.dart';
 import '../providers/onboarding_provider.dart';
@@ -198,23 +197,13 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                                     const EdgeInsets.symmetric(horizontal: 20),
                                 shape: const StadiumBorder(),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    'Continuar',
-                                    style: AppTypography.label.copyWith(
-                                      color: Colors.white,
-                                      letterSpacing: 0.8,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const AppLineIcon(
-                                    AppIcons.next,
-                                    size: AppIconSize.inline,
-                                    color: AppColors.primary,
-                                  ),
-                                ],
+                              child: Text(
+                                'Continuar',
+                                textAlign: TextAlign.center,
+                                style: AppTypography.label.copyWith(
+                                  color: Colors.white,
+                                  letterSpacing: 0.8,
+                                ),
                               ),
                             )
                           : const Column(

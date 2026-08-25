@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:guiautomotriz_mobile/core/theme/app_icons.dart';
 import 'package:guiautomotriz_mobile/features/onboarding/presentation/pages/onboarding_page.dart';
 import 'package:guiautomotriz_mobile/features/onboarding/presentation/widgets/ken_burns_background.dart';
 
@@ -91,13 +90,7 @@ void main() {
     final continueFinder = find.byKey(const Key('onboarding-continue'));
     expect(continueFinder, findsOneWidget);
     expect(find.text('Continuar'), findsOneWidget);
-    expect(
-      find.descendant(
-        of: continueFinder,
-        matching: find.byType(AppLineIcon),
-      ),
-      findsOneWidget,
-    );
+    expect(tester.getCenter(continueFinder).dx, 215);
     expect(tester.getSize(continueFinder).height, greaterThanOrEqualTo(48));
     expect(find.byType(FilledButton), findsNothing);
     expect(find.text('SALTAR'), findsNothing);
