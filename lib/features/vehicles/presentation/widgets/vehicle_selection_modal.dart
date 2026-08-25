@@ -50,20 +50,36 @@ class VehicleSelectionModal extends ConsumerStatefulWidget {
 }
 
 class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
+  static const int _oldestVehicleYear = 1950;
   int _step = 1;
   String _searchQuery = '';
+  bool _isResolvingYear = false;
+  String? _yearError;
+  late final FixedExtentScrollController _yearController;
 
   Brand? _selectedBrand;
   CarModel? _selectedModel;
   int? _selectedYear;
 
+  List<int> get _allYears => List<int>.generate(
+        DateTime.now().year + 2 - _oldestVehicleYear,
+        (index) => DateTime.now().year + 1 - index,
+      );
+
   @override
   void initState() {
     super.initState();
+    _yearController = FixedExtentScrollController(initialItem: 1);
     if (widget.initialBrand != null) {
       _selectedBrand = widget.initialBrand;
       _step = 2; // Pass directly to model selection
     }
+  }
+
+  @override
+  void dispose() {
+    _yearController.dispose();
+    super.dispose();
   }
 
   @override
@@ -135,42 +151,44 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
               ),
             ),
             const SizedBox(height: 16),
-            // Search Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: TextField(
-                onChanged: (val) => setState(() => _searchQuery = val),
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 15,
-                  color: AppColors.textPrimary,
-                ),
-                decoration: InputDecoration(
-                  hintText: _placeholderBuscador(),
-                  hintStyle: GoogleFonts.hankenGrotesk(
-                    color: AppColors.textDisabled,
+            // Search is useful for textual catalogs; the compact year wheel
+            // replaces it in step 3.
+            if (_step != 3)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: TextField(
+                  onChanged: (val) => setState(() => _searchQuery = val),
+                  style: GoogleFonts.hankenGrotesk(
                     fontSize: 15,
+                    color: AppColors.textPrimary,
                   ),
-                  prefixIcon: const Icon(
-                    Icons.search_rounded,
-                    size: 20,
-                    color: AppColors.textSecondary,
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide:
-                        const BorderSide(color: AppColors.primary, width: 1.5),
+                  decoration: InputDecoration(
+                    hintText: _placeholderBuscador(),
+                    hintStyle: GoogleFonts.hankenGrotesk(
+                      color: AppColors.textDisabled,
+                      fontSize: 15,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      size: 20,
+                      color: AppColors.textSecondary,
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 13),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(
+                          color: AppColors.primary, width: 1.5),
+                    ),
                   ),
                 ),
               ),
-            ),
             const SizedBox(height: 16),
             // Content
             Expanded(
@@ -209,7 +227,7 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
       case 2:
         return 'Buscar modelo...';
       case 3:
-        return 'Buscar año...';
+        return '';
       case 4:
         return 'Buscar motor...';
       default:
@@ -318,7 +336,7 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
               onTap: () {
                 setState(() {
                   _selectedModel = model;
-                  _selectedYear = null;
+                  _selectedYear = DateTime.now().year;
                   _step = 3;
                   _searchQuery = '';
                 });
@@ -340,54 +358,139 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
 
     return variantsAsync.when(
       data: (variants) {
-        final anios = variants
-            .map((variant) => variant.year)
-            .toSet()
-            .where((year) => year.toString().contains(_searchQuery.trim()))
-            .toList();
-        anios.sort((a, b) => b.compareTo(a));
-
-        if (anios.isEmpty) {
-          return _emptyState(
-            _searchQuery.trim().isEmpty
-                ? 'No hay años disponibles para este modelo'
-                : 'No se encontraron años',
-          );
-        }
-
-        return ListView.separated(
+        final years = _allYears;
+        return Padding(
           key: const ValueKey('anios'),
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-          itemCount: anios.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final year = anios[index];
-
-            return _ListItem(
-              key: ValueKey('vehicle-year-$year'),
-              label: '$year',
-              onTap: () {
-                final variantsForYear =
-                    variants.where((variant) => variant.year == year).toList();
-
-                if (variantsForYear.length == 1) {
-                  _completeSelection(variantsForYear.single);
-                  return;
-                }
-
-                setState(() {
-                  _selectedYear = year;
-                  _step = 4;
-                  _searchQuery = '';
-                });
-              },
-            );
-          },
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+          child: Column(
+            children: [
+              Text(
+                'Desliza para elegir cualquier año',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Semantics(
+                  label: 'Selector de año',
+                  value: '${_selectedYear ?? DateTime.now().year}',
+                  child: ListWheelScrollView.useDelegate(
+                    key: const ValueKey('vehicle-year-wheel'),
+                    controller: _yearController,
+                    itemExtent: 52,
+                    diameterRatio: 1.7,
+                    physics: const FixedExtentScrollPhysics(),
+                    onSelectedItemChanged: (index) =>
+                        setState(() => _selectedYear = years[index]),
+                    childDelegate: ListWheelChildBuilderDelegate(
+                      childCount: years.length,
+                      builder: (context, index) {
+                        final year = years[index];
+                        final selected = year == _selectedYear;
+                        return Center(
+                          child: Text(
+                            '$year',
+                            key: ValueKey('vehicle-year-$year'),
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: selected ? 28 : 20,
+                              fontWeight:
+                                  selected ? FontWeight.w800 : FontWeight.w500,
+                              color: selected
+                                  ? AppColors.primary
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              if (_yearError != null) ...[
+                Text(
+                  _yearError!,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 12,
+                    color: AppColors.error,
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  key: const ValueKey('confirm-vehicle-year'),
+                  onPressed:
+                      _isResolvingYear ? null : () => _confirmYear(variants),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: AppColors.disabledBackground,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(32),
+                    ),
+                  ),
+                  child: _isResolvingYear
+                      ? const SizedBox.square(
+                          dimension: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          'CONTINUAR',
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
         );
       },
       loading: () => _loadingState('Cargando años disponibles'),
       error: (_, __) => _variantsErrorState(),
     );
+  }
+
+  Future<void> _confirmYear(List<VehicleVariant> variants) async {
+    final year = _selectedYear ?? DateTime.now().year;
+    final variantsForYear =
+        variants.where((variant) => variant.year == year).toList();
+    if (variantsForYear.isNotEmpty) {
+      setState(() {
+        _selectedYear = year;
+        _step = 4;
+        _searchQuery = '';
+      });
+      return;
+    }
+
+    setState(() {
+      _isResolvingYear = true;
+      _yearError = null;
+    });
+    try {
+      final variant = await ref.read(
+        ensureModelYearVariantProvider(
+            (modelId: _selectedModel!.id, year: year)).future,
+      );
+      if (mounted) _completeSelection(variant);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isResolvingYear = false;
+        _yearError = 'No pudimos registrar este año. Inténtalo de nuevo.';
+      });
+    }
   }
 
   Widget _buildVariantesDelAnio() {

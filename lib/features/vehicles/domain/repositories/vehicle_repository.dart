@@ -14,7 +14,15 @@ abstract class VehicleRepository {
   Future<Either<Failure, List<CarModel>>> getBrandModels(String brandId);
 
   /// Fetches all variants for a specific model.
-  Future<Either<Failure, List<VehicleVariant>>> getModelVariants(String modelId);
+  Future<Either<Failure, List<VehicleVariant>>> getModelVariants(
+      String modelId);
+
+  /// Returns the catalog variant for a year, creating a generic one when the
+  /// catalog does not have versions for that model/year yet.
+  Future<Either<Failure, VehicleVariant>> ensureModelYearVariant(
+    String modelId,
+    int year,
+  );
 
   /// Registers a car in the user's garage using a variantId.
   Future<Either<Failure, UserCar>> addCarToGarage({

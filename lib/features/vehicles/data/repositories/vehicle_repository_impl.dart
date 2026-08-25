@@ -35,10 +35,25 @@ class VehicleRepositoryImpl implements VehicleRepository {
   }
 
   @override
-  Future<Either<Failure, List<VehicleVariant>>> getModelVariants(String modelId) async {
+  Future<Either<Failure, List<VehicleVariant>>> getModelVariants(
+      String modelId) async {
     try {
       final variants = await remoteDataSource.getModelVariants(modelId);
       return Right(variants);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, VehicleVariant>> ensureModelYearVariant(
+    String modelId,
+    int year,
+  ) async {
+    try {
+      return Right(
+        await remoteDataSource.ensureModelYearVariant(modelId, year),
+      );
     } catch (e) {
       return Left(ErrorMapper.map(e));
     }

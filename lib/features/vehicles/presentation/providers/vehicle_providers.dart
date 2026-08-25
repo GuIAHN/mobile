@@ -17,7 +17,8 @@ import '../../domain/usecases/get_user_cars_usecase.dart';
 import '../../domain/usecases/delete_car_usecase.dart';
 
 /// Remote data source provider.
-final vehicleRemoteDataSourceProvider = Provider<VehicleRemoteDataSource>((ref) {
+final vehicleRemoteDataSourceProvider =
+    Provider<VehicleRemoteDataSource>((ref) {
   final client = ref.watch(dioClientProvider);
   return VehicleRemoteDataSource(client);
 });
@@ -38,7 +39,8 @@ final getBrandModelsUseCaseProvider = Provider<GetBrandModelsUseCase>((ref) {
   return GetBrandModelsUseCase(ref.watch(vehicleRepositoryProvider));
 });
 
-final getModelVariantsUseCaseProvider = Provider<GetModelVariantsUseCase>((ref) {
+final getModelVariantsUseCaseProvider =
+    Provider<GetModelVariantsUseCase>((ref) {
   return GetModelVariantsUseCase(ref.watch(vehicleRepositoryProvider));
 });
 
@@ -67,7 +69,8 @@ final brandsProvider = FutureProvider.autoDispose<List<Brand>>((ref) async {
 });
 
 /// Provider for specific brand models.
-final brandModelsProvider = FutureProvider.family.autoDispose<List<CarModel>, String>((ref, brandId) async {
+final brandModelsProvider = FutureProvider.family
+    .autoDispose<List<CarModel>, String>((ref, brandId) async {
   final useCase = ref.watch(getBrandModelsUseCaseProvider);
   final result = await useCase(brandId);
   return result.fold(
@@ -77,7 +80,8 @@ final brandModelsProvider = FutureProvider.family.autoDispose<List<CarModel>, St
 });
 
 /// Provider for specific model variants.
-final modelVariantsProvider = FutureProvider.family.autoDispose<List<VehicleVariant>, String>((ref, modelId) async {
+final modelVariantsProvider = FutureProvider.family
+    .autoDispose<List<VehicleVariant>, String>((ref, modelId) async {
   final useCase = ref.watch(getModelVariantsUseCaseProvider);
   final result = await useCase(modelId);
   return result.fold(
@@ -86,15 +90,23 @@ final modelVariantsProvider = FutureProvider.family.autoDispose<List<VehicleVari
   );
 });
 
-
+final ensureModelYearVariantProvider = FutureProvider.family
+    .autoDispose<VehicleVariant, ({String modelId, int year})>(
+  (ref, input) async {
+    final result = await ref
+        .watch(vehicleRepositoryProvider)
+        .ensureModelYearVariant(input.modelId, input.year);
+    return result.fold((failure) => throw failure, (variant) => variant);
+  },
+);
 
 /// Provider for the list of cars in the user's garage.
 final userCarsProvider = FutureProvider.autoDispose<List<UserCar>>((ref) async {
   final authState = ref.watch(authProvider);
 
   // Si aún está verificando sesión o no está autenticado, no hacer peticiones prematuras
-  if (authState.status == AuthStatus.initial || 
-      authState.status == AuthStatus.loading || 
+  if (authState.status == AuthStatus.initial ||
+      authState.status == AuthStatus.loading ||
       authState.status == AuthStatus.unauthenticated) {
     return [];
   }

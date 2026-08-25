@@ -26,6 +26,9 @@ void main() {
     required Future<List<VehicleVariant>> Function(Ref ref, String modelId)
         variantLoader,
     required ValueChanged<VehicleSelectionResult?> onResult,
+    Future<VehicleVariant> Function(
+            Ref ref, ({String modelId, int year}) input)?
+        yearResolver,
     double textScale = 1,
     Size size = const Size(390, 844),
   }) {
@@ -35,6 +38,15 @@ void main() {
           (ref, brandId) async => const [model],
         ),
         modelVariantsProvider.overrideWith(variantLoader),
+        ensureModelYearVariantProvider.overrideWith(
+          yearResolver ??
+              (ref, input) async => VehicleVariant(
+                    id: 'resolved-${input.year}',
+                    modelId: input.modelId,
+                    year: input.year,
+                    motor: '',
+                  ),
+        ),
       ],
       child: MaterialApp(
         home: MediaQuery(
@@ -64,6 +76,18 @@ void main() {
     );
   }
 
+  Future<void> selectYear(WidgetTester tester, int year) async {
+    final currentYear = DateTime.now().year;
+    final wheel = tester.widget<ListWheelScrollView>(
+      find.byKey(const ValueKey('vehicle-year-wheel')),
+    );
+    (wheel.controller! as FixedExtentScrollController)
+        .jumpToItem(currentYear + 1 - year);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('confirm-vehicle-year')));
+    await tester.pumpAndSettle();
+  }
+
   Future<void> openModelYears(WidgetTester tester) async {
     await tester.tap(find.text('Abrir selector'));
     await tester.pumpAndSettle();
@@ -71,7 +95,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('shows unique years and completes a year with one variant',
+  testWidgets('shows the version even when a year has only one variant',
       (tester) async {
     VehicleSelectionResult? result;
     const variants = [
@@ -104,14 +128,14 @@ void main() {
     await openModelYears(tester);
 
     expect(find.text('Año de Corolla'), findsOneWidget);
-    expect(find.text('2023'), findsOneWidget);
-    expect(find.text('2022'), findsOneWidget);
-    expect(
-      tester.getTopLeft(find.text('2023')).dy,
-      lessThan(tester.getTopLeft(find.text('2022')).dy),
-    );
+    expect(find.byKey(const ValueKey('vehicle-year-wheel')), findsOneWidget);
+    expect(find.text('CONTINUAR'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('vehicle-year-2022')));
+    await selectYear(tester, 2022);
+
+    expect(find.text('Motor de Corolla 2022'), findsOneWidget);
+    await tester
+        .tap(find.byKey(const ValueKey('vehicle-variant-variant-2022')));
     await tester.pumpAndSettle();
 
     expect(result?.year, 2022);
@@ -148,8 +172,7 @@ void main() {
       ),
     );
     await openModelYears(tester);
-    await tester.tap(find.byKey(const ValueKey('vehicle-year-2023')));
-    await tester.pumpAndSettle();
+    await selectYear(tester, 2023);
 
     expect(find.text('Motor de Corolla 2023'), findsOneWidget);
     expect(find.text('1.8L'), findsOneWidget);
@@ -162,6 +185,35 @@ void main() {
     expect(result?.year, 2023);
     expect(result?.variantId, 'variant-2');
     expect(result?.motor, '2.0L');
+  });
+
+  testWidgets('registers a generic variant when the selected year has none',
+      (tester) async {
+    VehicleSelectionResult? result;
+    ({String modelId, int year})? resolvedInput;
+
+    await tester.pumpWidget(
+      buildSubject(
+        variantLoader: (ref, modelId) async => const [],
+        yearResolver: (ref, input) async {
+          resolvedInput = input;
+          return VehicleVariant(
+            id: 'generic-${input.year}',
+            modelId: input.modelId,
+            year: input.year,
+            motor: '',
+          );
+        },
+        onResult: (value) => result = value,
+      ),
+    );
+    await openModelYears(tester);
+    await tester.tap(find.byKey(const ValueKey('confirm-vehicle-year')));
+    await tester.pumpAndSettle();
+
+    expect(resolvedInput?.modelId, 'model-1');
+    expect(resolvedInput?.year, DateTime.now().year);
+    expect(result?.variantId, 'generic-${DateTime.now().year}');
   });
 
   testWidgets('supports empty data, large text, and accessible controls',
@@ -181,10 +233,8 @@ void main() {
       await openModelYears(tester);
 
       expect(tester.takeException(), isNull);
-      expect(
-        find.text('No hay años disponibles para este modelo'),
-        findsOneWidget,
-      );
+      expect(find.byKey(const ValueKey('vehicle-year-wheel')), findsOneWidget);
+      expect(find.text('CONTINUAR'), findsOneWidget);
       expect(tester.getSize(find.byTooltip('Volver')).shortestSide, 48);
       expect(
         tester.getSize(find.byTooltip('Cerrar selector')).shortestSide,
@@ -215,10 +265,7 @@ void main() {
 
     pendingVariants.complete(const []);
     await tester.pumpAndSettle();
-    expect(
-      find.text('No hay años disponibles para este modelo'),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('vehicle-year-wheel')), findsOneWidget);
   });
 
   testWidgets('shows a recoverable error when variants cannot be loaded',

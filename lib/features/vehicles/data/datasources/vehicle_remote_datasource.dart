@@ -29,7 +29,8 @@ class VehicleRemoteDataSource {
   /// Fetches the list of models for a specific brand.
   Future<List<CarModelModel>> getBrandModels(String brandId) async {
     try {
-      final response = await _client.get<List<dynamic>>('/brands/$brandId/models');
+      final response =
+          await _client.get<List<dynamic>>('/brands/$brandId/models');
       if (response.data == null) {
         throw const ParseException();
       }
@@ -44,16 +45,30 @@ class VehicleRemoteDataSource {
   /// Fetches the list of variants for a specific model.
   Future<List<VehicleVariantModel>> getModelVariants(String modelId) async {
     try {
-      final response = await _client.get<List<dynamic>>('/models/$modelId/variants');
+      final response =
+          await _client.get<List<dynamic>>('/models/$modelId/variants');
       if (response.data == null) {
         throw const ParseException();
       }
       return response.data!
-          .map((json) => VehicleVariantModel.fromJson(json as Map<String, dynamic>))
+          .map((json) =>
+              VehicleVariantModel.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
       rethrow;
     }
+  }
+
+  Future<VehicleVariantModel> ensureModelYearVariant(
+    String modelId,
+    int year,
+  ) async {
+    final response = await _client.post<Map<String, dynamic>>(
+      '/models/$modelId/variants/resolve',
+      data: {'year': year},
+    );
+    if (response.data == null) throw const ParseException();
+    return VehicleVariantModel.fromJson(response.data!);
   }
 
   /// Adds a vehicle to the user's garage using a variantId.
