@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, kReleaseMode, visibleForTesting;
 
 /// Defines the execution environment of the application.
 enum AppEnvironment { development, staging, production }
@@ -10,11 +11,22 @@ class Env {
   Env._();
 
   /// Active environment. Modify this when building with --dart-define (e.g., --dart-define=ENV=production).
-  static const String _envString =
-      String.fromEnvironment('ENV', defaultValue: 'development');
+  static const String _envString = String.fromEnvironment('ENV');
 
-  static AppEnvironment get current {
-    switch (_envString) {
+  static AppEnvironment get current => resolveEnvironment(
+        _envString,
+        isRelease: kReleaseMode,
+      );
+
+  /// Release artifacts must never silently point at a developer machine.
+  /// An explicit ENV value still wins, which keeps local/profile workflows
+  /// available when they are intentionally requested.
+  @visibleForTesting
+  static AppEnvironment resolveEnvironment(
+    String value, {
+    required bool isRelease,
+  }) {
+    switch (value.trim().toLowerCase()) {
       case 'production':
       case 'prod':
         return AppEnvironment.production;
@@ -22,8 +34,11 @@ class Env {
         return AppEnvironment.staging;
       case 'development':
       case 'dev':
-      default:
         return AppEnvironment.development;
+      default:
+        return isRelease
+            ? AppEnvironment.production
+            : AppEnvironment.development;
     }
   }
 
