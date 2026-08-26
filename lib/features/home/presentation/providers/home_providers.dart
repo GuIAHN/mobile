@@ -180,13 +180,10 @@ final searchVehicleProvider = StateProvider<UserCar?>((ref) {
   return null;
 });
 
-/// ID de variante de vehículo temporario/manual seleccionado
-final searchVehicleVariantIdProvider = StateProvider<String?>((ref) {
+/// ID de modelo del vehículo temporario/manual seleccionado.
+final searchVehicleModelIdProvider = StateProvider<String?>((ref) {
   return null;
 });
-
-@Deprecated('Use searchVehicleVariantIdProvider instead')
-final searchVehicleModelIdProvider = searchVehicleVariantIdProvider;
 
 /// Destinos estables de la navegación principal.
 ///

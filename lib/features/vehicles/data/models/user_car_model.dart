@@ -1,17 +1,18 @@
 import '../../domain/entities/user_car.dart';
 
 /// Data model for cars stored in the user's garage.
-/// Maps the nested structure returned by the backend (UserCar -> Variant -> Model -> Brand).
+/// Maps the backend structure (UserCar -> Model -> Brand).
 class UserCarModel extends UserCar {
   final String? placa;
   final String? color;
 
   const UserCarModel({
     required super.id,
+    super.modelId,
     required super.brand,
     required super.model,
     required super.year,
-    super.version,
+    super.motor,
     super.vehicleType = 'CAR',
     super.brandLogoUrl,
     this.placa,
@@ -19,35 +20,16 @@ class UserCarModel extends UserCar {
   });
 
   factory UserCarModel.fromJson(Map<String, dynamic> json) {
-    // 3-table structure: variant -> model -> brand
-    final variantMap = json['variant'] as Map<String, dynamic>?;
-
-    if (variantMap != null) {
-      final modelMap = variantMap['model'] as Map<String, dynamic>? ?? {};
-      final brandMap = modelMap['brand'] as Map<String, dynamic>? ?? {};
-      return UserCarModel(
-        id: json['id'] as String,
-        brand: brandMap['name'] as String? ?? '',
-        model: modelMap['name'] as String? ?? '',
-        year: variantMap['year'] as int? ?? 0,
-        version: variantMap['motor'] as String?,
-        vehicleType: modelMap['vehicleType'] as String? ?? 'CAR',
-        brandLogoUrl: brandMap['photoUrl'] as String?,
-        placa: json['placa'] as String?,
-        color: json['color'] as String?,
-      );
-    }
-
-    // Legacy fallback (2-table structure: model -> brand)
     final modelMap = json['model'] as Map<String, dynamic>? ?? {};
     final brandMap = modelMap['brand'] as Map<String, dynamic>? ?? {};
 
     return UserCarModel(
       id: json['id'] as String,
+      modelId: json['modelId'] as String? ?? modelMap['id'] as String? ?? '',
       brand: brandMap['name'] as String? ?? '',
       model: modelMap['name'] as String? ?? '',
-      year: modelMap['year'] as int? ?? 0,
-      version: modelMap['motor'] as String?,
+      year: json['year'] as int? ?? 0,
+      motor: json['motor'] as String?,
       vehicleType: modelMap['vehicleType'] as String? ?? 'CAR',
       brandLogoUrl: brandMap['photoUrl'] as String?,
       placa: json['placa'] as String?,

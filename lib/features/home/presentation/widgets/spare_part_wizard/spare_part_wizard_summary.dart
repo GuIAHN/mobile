@@ -96,6 +96,7 @@ class _WizardSelectionSummary extends StatelessWidget {
   }
 }
 
+
 class _SummaryLeading extends StatelessWidget {
   final IconData icon;
   final String? imageUrl;
@@ -254,4 +255,3 @@ class _SectionBadge extends StatelessWidget {
     );
   }
 }
-

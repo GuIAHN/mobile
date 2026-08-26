@@ -3,7 +3,6 @@ import '../../../../core/network/dio_client.dart';
 import '../models/brand_model.dart';
 import '../models/car_model_model.dart';
 import '../models/user_car_model.dart';
-import '../models/vehicle_variant_model.dart';
 
 /// Remote data source to manage vehicle catalog and user's garage.
 class VehicleRemoteDataSource {
@@ -42,38 +41,11 @@ class VehicleRemoteDataSource {
     }
   }
 
-  /// Fetches the list of variants for a specific model.
-  Future<List<VehicleVariantModel>> getModelVariants(String modelId) async {
-    try {
-      final response =
-          await _client.get<List<dynamic>>('/models/$modelId/variants');
-      if (response.data == null) {
-        throw const ParseException();
-      }
-      return response.data!
-          .map((json) =>
-              VehicleVariantModel.fromJson(json as Map<String, dynamic>))
-          .toList();
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  Future<VehicleVariantModel> ensureModelYearVariant(
-    String modelId,
-    int year,
-  ) async {
-    final response = await _client.post<Map<String, dynamic>>(
-      '/models/$modelId/variants/resolve',
-      data: {'year': year},
-    );
-    if (response.data == null) throw const ParseException();
-    return VehicleVariantModel.fromJson(response.data!);
-  }
-
-  /// Adds a vehicle to the user's garage using a variantId.
+  /// Adds a vehicle to the user's garage using free year/engine data.
   Future<UserCarModel> addCarToGarage({
-    required String variantId,
+    required String modelId,
+    required int year,
+    String? motor,
     String? placa,
     String? color,
   }) async {
@@ -81,7 +53,9 @@ class VehicleRemoteDataSource {
       final response = await _client.post<Map<String, dynamic>>(
         '/me/cars',
         data: {
-          'variantId': variantId,
+          'modelId': modelId,
+          'year': year,
+          if (motor != null && motor.trim().isNotEmpty) 'motor': motor.trim(),
           if (placa != null && placa.isNotEmpty) 'placa': placa,
           if (color != null && color.isNotEmpty) 'color': color,
         },

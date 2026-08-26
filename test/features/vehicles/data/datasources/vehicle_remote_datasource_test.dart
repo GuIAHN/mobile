@@ -15,7 +15,7 @@ void main() {
     when(
       () => client.post<Map<String, dynamic>>(
         '/me/cars',
-        data: {'variantId': 'variant-1'},
+        data: {'modelId': 'model-1', 'year': 2022, 'motor': '1.8L'},
       ),
     ).thenAnswer(
       (_) async => Response(
@@ -24,7 +24,9 @@ void main() {
         data: {
           'id': 'car-1',
           'userId': 'user-1',
-          'variantId': 'variant-1',
+          'modelId': 'model-1',
+          'year': 2022,
+          'motor': '1.8L',
           'placa': null,
           'color': null,
         },
@@ -38,25 +40,28 @@ void main() {
           'id': 'car-1',
           'placa': null,
           'color': null,
-          'variant': {
-            'id': 'variant-1',
-            'year': 2022,
-            'model': {
-              'id': 'model-1',
-              'name': 'Corolla',
-              'vehicleType': 'CAR',
-              'brand': {
-                'id': 'brand-1',
-                'name': 'Toyota',
-                'photoUrl': 'https://example.com/toyota.png',
-              },
+          'modelId': 'model-1',
+          'year': 2022,
+          'motor': '1.8L',
+          'model': {
+            'id': 'model-1',
+            'name': 'Corolla',
+            'vehicleType': 'CAR',
+            'brand': {
+              'id': 'brand-1',
+              'name': 'Toyota',
+              'photoUrl': 'https://example.com/toyota.png',
             },
           },
         },
       ),
     );
 
-    final car = await dataSource.addCarToGarage(variantId: 'variant-1');
+    final car = await dataSource.addCarToGarage(
+      modelId: 'model-1',
+      year: 2022,
+      motor: '1.8L',
+    );
 
     expect(car.id, 'car-1');
     expect(car.brand, 'Toyota');

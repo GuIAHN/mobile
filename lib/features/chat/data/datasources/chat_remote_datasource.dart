@@ -119,8 +119,8 @@ class ChatRemoteDataSource {
           cancelReason: json['cancelReason'] as String?,
         );
       } else {
-        final variant = json['userCar']?['variant'];
-        final model = variant?['model'];
+        final vehicle = json['vehicle'] as Map<String, dynamic>?;
+        final model = vehicle?['model'] as Map<String, dynamic>?;
         final brandName = model?['brand']?['name'] ?? '';
         final modelName = model?['name'] ?? '';
         final title = '$brandName $modelName'.trim();
@@ -145,7 +145,7 @@ class ChatRemoteDataSource {
           fotoUrl: json['photoUrl'] as String?,
           details: json['details'] as String?,
           partType: json['partType'] as String?,
-          vehicleYear: variant?['year'] as int?,
+          vehicleYear: vehicle?['year'] as int?,
           subcategory: subcategoryName as String?,
           expiresAt: json['expiresAt'] != null
               ? DateTime.tryParse(json['expiresAt'].toString())

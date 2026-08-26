@@ -3,9 +3,8 @@ import '../../../../core/error/failures.dart';
 import '../entities/brand.dart';
 import '../entities/car_model.dart';
 import '../entities/user_car.dart';
-import '../entities/vehicle_variant.dart';
 
-/// Repository contract for brands, models, variants, and vehicle garage.
+/// Repository contract for brands, models, and vehicle garage.
 abstract class VehicleRepository {
   /// Fetches all available vehicle brands.
   Future<Either<Failure, List<Brand>>> getBrands();
@@ -13,20 +12,11 @@ abstract class VehicleRepository {
   /// Fetches all models for a specific brand.
   Future<Either<Failure, List<CarModel>>> getBrandModels(String brandId);
 
-  /// Fetches all variants for a specific model.
-  Future<Either<Failure, List<VehicleVariant>>> getModelVariants(
-      String modelId);
-
-  /// Returns the catalog variant for a year, creating a generic one when the
-  /// catalog does not have versions for that model/year yet.
-  Future<Either<Failure, VehicleVariant>> ensureModelYearVariant(
-    String modelId,
-    int year,
-  );
-
-  /// Registers a car in the user's garage using a variantId.
+  /// Registers a car in the user's garage.
   Future<Either<Failure, UserCar>> addCarToGarage({
-    required String variantId,
+    required String modelId,
+    required int year,
+    String? motor,
     String? placa,
     String? color,
   });

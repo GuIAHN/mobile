@@ -93,7 +93,7 @@ void main() {
       overrides: [
         currentRoleProvider.overrideWithValue(role),
         searchVehicleProvider.overrideWith((ref) => selectedVehicle),
-        searchVehicleVariantIdProvider.overrideWith(
+        searchVehicleModelIdProvider.overrideWith(
           (ref) => selectedVariantId,
         ),
         userCarsProvider.overrideWith((ref) async => const [fixtureCar]),
@@ -420,7 +420,7 @@ void main() {
       find.byType(SparePartWizardPage),
     );
     expect(wizard.initialVehicle, fixtureCar);
-    expect(wizard.initialVariantId, 'variant-1');
+    expect(wizard.initialModelId, 'variant-1');
   });
 
   testWidgets(

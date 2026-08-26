@@ -38,7 +38,9 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
 
     for (final v in vehiculos) {
       final result = await repository.addCarToGarage(
-        variantId: v.variantId,
+        modelId: v.modelId,
+        year: v.year,
+        motor: v.motor,
       );
       result.fold(
         (failure) {
@@ -243,7 +245,8 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
                 brand: result.brand.name,
                 model: result.modelName,
                 year: result.year,
-                variantId: result.variantId,
+                modelId: result.modelId,
+                motor: result.motor,
               );
         }
       },
@@ -257,7 +260,8 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
                     brand: result.brand.name,
                     model: result.modelName,
                     year: result.year,
-                    variantId: result.variantId,
+                    modelId: result.modelId,
+                    motor: result.motor,
                   );
             }
           },

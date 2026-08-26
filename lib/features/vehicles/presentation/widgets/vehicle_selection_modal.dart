@@ -1,29 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../domain/entities/brand.dart';
 import '../../domain/entities/car_model.dart';
-import '../../domain/entities/vehicle_variant.dart';
 import '../providers/vehicle_providers.dart';
 
 class VehicleSelectionResult {
   final Brand brand;
+  final String modelId;
   final String modelName;
+  final String vehicleType;
   final int year;
-  final String variantId;
   final String motor;
-
-  @Deprecated('Use variantId instead')
-  String get modelId => variantId;
 
   VehicleSelectionResult({
     required this.brand,
+    required this.modelId,
     required this.modelName,
+    required this.vehicleType,
     required this.year,
-    required this.variantId,
     required this.motor,
   });
 }
@@ -49,27 +49,31 @@ class VehicleSelectionModal extends ConsumerStatefulWidget {
       _VehicleSelectionModalState();
 }
 
-class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
+class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal>
+    with WidgetsBindingObserver {
   static const int _oldestVehicleYear = 1950;
   int _step = 1;
   String _searchQuery = '';
-  bool _isResolvingYear = false;
   String? _yearError;
-  late final FixedExtentScrollController _yearController;
+  late final TextEditingController _yearController;
+  late final TextEditingController _motorController;
+  late final FocusNode _yearFocusNode;
+  late final FocusNode _motorFocusNode;
+  late final ScrollController _detailsScrollController;
 
   Brand? _selectedBrand;
   CarModel? _selectedModel;
-  int? _selectedYear;
-
-  List<int> get _allYears => List<int>.generate(
-        DateTime.now().year + 2 - _oldestVehicleYear,
-        (index) => DateTime.now().year + 1 - index,
-      );
+  int get _newestVehicleYear => DateTime.now().year + 1;
 
   @override
   void initState() {
     super.initState();
-    _yearController = FixedExtentScrollController(initialItem: 1);
+    WidgetsBinding.instance.addObserver(this);
+    _yearController = TextEditingController(text: '${DateTime.now().year}');
+    _motorController = TextEditingController();
+    _yearFocusNode = FocusNode();
+    _motorFocusNode = FocusNode()..addListener(_handleMotorFocus);
+    _detailsScrollController = ScrollController();
     if (widget.initialBrand != null) {
       _selectedBrand = widget.initialBrand;
       _step = 2; // Pass directly to model selection
@@ -78,7 +82,14 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _yearController.dispose();
+    _motorController.dispose();
+    _yearFocusNode.dispose();
+    _detailsScrollController.dispose();
+    _motorFocusNode
+      ..removeListener(_handleMotorFocus)
+      ..dispose();
     super.dispose();
   }
 
@@ -86,15 +97,18 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
 
-    return SafeArea(
-      top: false,
-      child: Container(
-        height: mediaQuery.size.height * 0.85,
-        decoration: const BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: _dismissKeyboard,
+      child: SafeArea(
+        top: false,
+        child: Container(
+          height: mediaQuery.size.height * 0.85,
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
           children: [
             const SizedBox(height: 12),
             // Handle drag
@@ -200,9 +214,37 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
               ),
             ),
           ],
+          ),
         ),
       ),
     );
+  }
+
+  void _dismissKeyboard() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  void _handleMotorFocus() {
+    if (_motorFocusNode.hasFocus) _revealMotorField();
+  }
+
+  @override
+  void didChangeMetrics() {
+    if (_motorFocusNode.hasFocus) _revealMotorField();
+  }
+
+  void _revealMotorField() {
+    Future<void>.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted || !_motorFocusNode.hasFocus) return;
+      if (!_detailsScrollController.hasClients) return;
+      _detailsScrollController.animateTo(
+        _detailsScrollController.position.maxScrollExtent,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   String _tituloPaso() {
@@ -212,9 +254,7 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
       case 2:
         return 'Modelo de ${_selectedBrand?.name}';
       case 3:
-        return 'Año de ${_selectedModel?.name}';
-      case 4:
-        return 'Motor de ${_selectedModel?.name} $_selectedYear';
+        return 'Completa tu vehículo';
       default:
         return '';
     }
@@ -228,8 +268,6 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
         return 'Buscar modelo...';
       case 3:
         return '';
-      case 4:
-        return 'Buscar motor...';
       default:
         return '';
     }
@@ -237,14 +275,12 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
 
   void _retrocederPaso() {
     setState(() {
-      if (_step == 4) {
-        _step = 3;
-        _selectedYear = null;
-        _searchQuery = '';
-      } else if (_step == 3) {
+      if (_step == 3) {
         _step = 2;
         _selectedModel = null;
-        _selectedYear = null;
+        _yearController.text = '${DateTime.now().year}';
+        _motorController.clear();
+        _yearError = null;
         _searchQuery = '';
       } else if (_step == 2) {
         _step = 1;
@@ -261,9 +297,7 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
       case 2:
         return _buildModelos();
       case 3:
-        return _buildAnios();
-      case 4:
-        return _buildVariantesDelAnio();
+        return _buildVehicleDetails();
       default:
         return const SizedBox();
     }
@@ -336,7 +370,7 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
               onTap: () {
                 setState(() {
                   _selectedModel = model;
-                  _selectedYear = DateTime.now().year;
+                  _yearController.text = '${DateTime.now().year}';
                   _step = 3;
                   _searchQuery = '';
                 });
@@ -350,15 +384,168 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
     );
   }
 
-  Widget _buildAnios() {
+  Widget _buildVehicleDetails() {
     if (_selectedBrand == null || _selectedModel == null) {
       return const SizedBox();
     }
-    final variantsAsync = ref.watch(modelVariantsProvider(_selectedModel!.id));
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final isIos = Theme.of(context).platform == TargetPlatform.iOS;
+    final keyboardClearance = keyboardVisible ? (isIos ? 380.0 : 240.0) : 24.0;
+    return SingleChildScrollView(
+      key: const ValueKey('vehicle-details'),
+      controller: _detailsScrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: EdgeInsets.fromLTRB(
+        24,
+        4,
+        24,
+        keyboardClearance,
+      ),
+      child: Form(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _VehicleDepthPreview(
+              brand: _selectedBrand!.name,
+              brandPhotoUrl: _selectedBrand!.photoUrl,
+              model: _selectedModel!.name,
+              vehicleType: _selectedModel!.vehicleType,
+            ),
+            const SizedBox(height: 24),
+            Text('AÑO',
+                style: GoogleFonts.hankenGrotesk(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                    color: AppColors.textSecondary)),
+            const SizedBox(height: 8),
+            TextField(
+              key: const ValueKey('vehicle-year-input'),
+              controller: _yearController,
+              focusNode: _yearFocusNode,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.next,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(4)
+              ],
+              onChanged: (_) => setState(() => _yearError = null),
+              onTapOutside: (_) => _dismissKeyboard(),
+              onSubmitted: (_) {
+                _motorFocusNode.requestFocus();
+                _revealMotorField();
+              },
+              decoration: _inputDecoration(
+                hint: 'Ej. ${DateTime.now().year}',
+                icon: AppIcons.period,
+                errorText: _yearError,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text('MOTOR (OPCIONAL)',
+                style: GoogleFonts.hankenGrotesk(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                    color: AppColors.textSecondary)),
+            const SizedBox(height: 8),
+            TextField(
+                key: const ValueKey('vehicle-motor-input'),
+                controller: _motorController,
+                focusNode: _motorFocusNode,
+                textCapitalization: TextCapitalization.characters,
+                textInputAction: TextInputAction.done,
+                maxLength: 100,
+                scrollPadding: EdgeInsets.only(
+                  bottom: isIos ? 320 : 200,
+                ),
+                onTap: _revealMotorField,
+                onTapOutside: (_) => _dismissKeyboard(),
+                onSubmitted: (_) => _dismissKeyboard(),
+                decoration: _inputDecoration(
+                  hint: 'Ej. 1.8L, 2.0 Turbo',
+                  icon: AppIcons.engine,
+                  helperText:
+                      'Escríbelo como aparece en el vehículo o documento.',
+                ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 52,
+              child: ElevatedButton(
+                key: const ValueKey('confirm-vehicle-details'),
+                onPressed: _completeSelection,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(32)),
+                ),
+                child: Text('CONFIRMAR VEHÍCULO',
+                    style: GoogleFonts.hankenGrotesk(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 2)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-    return variantsAsync.when(
-      data: (variants) {
-        final years = _allYears;
+  InputDecoration _inputDecoration(
+      {required String hint,
+      required IconData icon,
+      String? errorText,
+      String? helperText}) {
+    return InputDecoration(
+      hintText: hint,
+      errorText: errorText,
+      helperText: helperText,
+      counterText: '',
+      prefixIcon: Icon(icon, size: 20, color: AppColors.textSecondary),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.border)),
+      focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+      errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.error)),
+      focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.5)),
+    );
+  }
+
+  void _completeSelection() {
+    final year = int.tryParse(_yearController.text.trim());
+    if (year == null ||
+        year < _oldestVehicleYear ||
+        year > _newestVehicleYear) {
+      setState(() => _yearError =
+          'Ingresa un año entre $_oldestVehicleYear y $_newestVehicleYear.');
+      return;
+    }
+    Navigator.pop(
+      context,
+      VehicleSelectionResult(
+        brand: _selectedBrand!,
+        modelId: _selectedModel!.id,
+        modelName: _selectedModel!.name,
+        vehicleType: _selectedModel!.vehicleType,
+        year: year,
+        motor: _motorController.text.trim(),
+      ),
+    );
+  }
+
+/* Legacy variant picker removed with the backend vehicle-variant catalog.
         return Padding(
           key: const ValueKey('anios'),
           padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
@@ -555,60 +742,7 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
       ),
     );
   }
-
-  Widget _loadingState(String label) {
-    return Semantics(
-      label: label,
-      liveRegion: true,
-      child: const Center(child: CircularProgressIndicator()),
-    );
-  }
-
-  Widget _variantsErrorState() {
-    return Semantics(
-      liveRegion: true,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'No pudimos cargar los datos de este modelo.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 15,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton(
-                onPressed: () => ref.invalidate(
-                  modelVariantsProvider(_selectedModel!.id),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary, width: 1.5),
-                  minimumSize: const Size(0, 48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(32),
-                  ),
-                ),
-                child: Text(
-                  'REINTENTAR',
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+*/
 
   Widget _emptyState(String message) {
     return Semantics(
@@ -627,6 +761,150 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _VehicleDepthPreview extends StatelessWidget {
+  final String brand;
+  final String? brandPhotoUrl;
+  final String model;
+  final String vehicleType;
+
+  const _VehicleDepthPreview({
+    required this.brand,
+    this.brandPhotoUrl,
+    required this.model,
+    required this.vehicleType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    return Semantics(
+      label: 'Vehículo seleccionado: $brand $model',
+      child: ExcludeSemantics(
+        child: SizedBox(
+          height: 132,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned(
+                bottom: 12,
+                child: Container(
+                  width: 190,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(99),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.16),
+                        blurRadius: 24,
+                        spreadRadius: 4,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, reduceMotion ? 0 : 0.0015)
+                  ..rotateX(reduceMotion ? 0 : -0.10)
+                  ..rotateY(reduceMotion ? 0 : -0.08),
+                child: Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 24,
+                        offset: const Offset(0, 14),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox.square(
+                        dimension: 72,
+                        child: _BrandLogo(
+                          brand: brand,
+                          photoUrl: brandPhotoUrl,
+                        ),
+                      ),
+                      const SizedBox(width: 18),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(brand.toUpperCase(),
+                                style: GoogleFonts.hankenGrotesk(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.5,
+                                    color: AppColors.textSecondary)),
+                            const SizedBox(height: 4),
+                            Text(model,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.hankenGrotesk(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textPrimary)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BrandLogo extends StatelessWidget {
+  final String brand;
+  final String? photoUrl;
+
+  const _BrandLogo({required this.brand, this.photoUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    final url = photoUrl?.trim();
+    final fallback = Center(
+      child: Text(
+        brand.isEmpty ? '?' : brand.characters.first.toUpperCase(),
+        style: GoogleFonts.hankenGrotesk(
+          fontSize: 32,
+          fontWeight: FontWeight.w800,
+          color: AppColors.primary,
+        ),
+      ),
+    );
+    if (url == null || url.isEmpty) return fallback;
+    if (url.toLowerCase().endsWith('.svg')) {
+      return SvgPicture.network(
+        url,
+        fit: BoxFit.contain,
+        placeholderBuilder: (_) => fallback,
+      );
+    }
+    return Image.network(
+      url,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) => fallback,
     );
   }
 }
@@ -712,13 +990,10 @@ class _BrandCard extends StatelessWidget {
 
 class _ListItem extends StatelessWidget {
   final String label;
-  final String? subtitle;
   final VoidCallback onTap;
 
   const _ListItem({
-    super.key,
     required this.label,
-    this.subtitle,
     required this.onTap,
   });
 
@@ -726,7 +1001,7 @@ class _ListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: subtitle == null ? label : '$label, $subtitle',
+      label: label,
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -760,17 +1035,6 @@ class _ListItem extends StatelessWidget {
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    if (subtitle != null && subtitle!.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle!,
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),

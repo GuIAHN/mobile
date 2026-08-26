@@ -85,7 +85,7 @@ class VehicleContextCard extends ConsumerWidget {
     if (result == null || !context.mounted) return;
 
     HapticFeedback.selectionClick();
-    ref.read(searchVehicleVariantIdProvider.notifier).state = result.variantId;
+    ref.read(searchVehicleModelIdProvider.notifier).state = result.modelId;
     ref.read(searchVehicleProvider.notifier).state = result.car;
   }
 }

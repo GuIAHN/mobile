@@ -7,12 +7,10 @@ import '../../data/repositories/vehicle_repository_impl.dart';
 import '../../domain/entities/brand.dart';
 import '../../domain/entities/car_model.dart';
 import '../../domain/entities/user_car.dart';
-import '../../domain/entities/vehicle_variant.dart';
 import '../../domain/repositories/vehicle_repository.dart';
 import '../../domain/usecases/add_car_to_garage_usecase.dart';
 import '../../domain/usecases/get_brand_models_usecase.dart';
 import '../../domain/usecases/get_brands_usecase.dart';
-import '../../domain/usecases/get_model_variants_usecase.dart';
 import '../../domain/usecases/get_user_cars_usecase.dart';
 import '../../domain/usecases/delete_car_usecase.dart';
 
@@ -37,11 +35,6 @@ final getBrandsUseCaseProvider = Provider<GetBrandsUseCase>((ref) {
 
 final getBrandModelsUseCaseProvider = Provider<GetBrandModelsUseCase>((ref) {
   return GetBrandModelsUseCase(ref.watch(vehicleRepositoryProvider));
-});
-
-final getModelVariantsUseCaseProvider =
-    Provider<GetModelVariantsUseCase>((ref) {
-  return GetModelVariantsUseCase(ref.watch(vehicleRepositoryProvider));
 });
 
 final getUserCarsUseCaseProvider = Provider<GetUserCarsUseCase>((ref) {
@@ -78,27 +71,6 @@ final brandModelsProvider = FutureProvider.family
     (models) => models,
   );
 });
-
-/// Provider for specific model variants.
-final modelVariantsProvider = FutureProvider.family
-    .autoDispose<List<VehicleVariant>, String>((ref, modelId) async {
-  final useCase = ref.watch(getModelVariantsUseCaseProvider);
-  final result = await useCase(modelId);
-  return result.fold(
-    (failure) => throw failure,
-    (variants) => variants,
-  );
-});
-
-final ensureModelYearVariantProvider = FutureProvider.family
-    .autoDispose<VehicleVariant, ({String modelId, int year})>(
-  (ref, input) async {
-    final result = await ref
-        .watch(vehicleRepositoryProvider)
-        .ensureModelYearVariant(input.modelId, input.year);
-    return result.fold((failure) => throw failure, (variant) => variant);
-  },
-);
 
 /// Provider for the list of cars in the user's garage.
 final userCarsProvider = FutureProvider.autoDispose<List<UserCar>>((ref) async {

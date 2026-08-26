@@ -56,7 +56,7 @@ void main() {
         child: const MaterialApp(
           home: SparePartWizardPage(
             initialVehicle: fixtureCar,
-            initialVariantId: 'variant-1',
+            initialModelId: 'model-1',
           ),
         ),
       ),
@@ -70,7 +70,7 @@ void main() {
     expect(find.text('Selecciona la categoría'), findsNothing);
   });
 
-  testWidgets('keeps the initial variant when confirming the temporary car',
+  testWidgets('keeps the initial model when confirming the temporary car',
       (tester) async {
     const temporaryCar = UserCar(
       id: 'temp-car-1',
@@ -87,7 +87,7 @@ void main() {
         child: const MaterialApp(
           home: SparePartWizardPage(
             initialVehicle: temporaryCar,
-            initialVariantId: 'variant-1',
+            initialModelId: 'model-1',
           ),
         ),
       ),
@@ -115,7 +115,7 @@ void main() {
       findsOneWidget,
     );
     final state = tester.state(find.byType(SparePartWizardPage)) as dynamic;
-    expect(state.debugTemporaryVariantId, 'variant-1');
+    expect(state.debugTemporaryModelId, 'model-1');
   });
 
   testWidgets('shows a free-standing brand logo in the step summary',
@@ -178,7 +178,7 @@ void main() {
     expect(find.text('Vehículo 2 de 2'), findsOneWidget);
   });
 
-  testWidgets('uses a smooth 360ms transition and a restrained title change',
+  testWidgets('switches dense steps immediately without overlapping pages',
       (tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -199,13 +199,10 @@ void main() {
     await tester.tap(find.text('Continuar'));
     await tester.pump();
 
-    expect(find.byKey(const Key('wizard-step-title-1')), findsOneWidget);
-    expect(find.byKey(const Key('wizard-step-title-2')), findsOneWidget);
-
-    await tester.pump(const Duration(milliseconds: 320));
     final state = tester.state(find.byType(SparePartWizardPage)) as dynamic;
-    expect(state.debugWizardPage, greaterThan(0));
-    expect(state.debugWizardPage, lessThan(1));
+    expect(state.debugWizardPage, 1);
+    expect(find.byKey(const ValueKey('step1')), findsNothing);
+    expect(find.byKey(const ValueKey('step2')), findsOneWidget);
 
     await tester.pumpAndSettle();
     expect(state.debugWizardPage, 1);

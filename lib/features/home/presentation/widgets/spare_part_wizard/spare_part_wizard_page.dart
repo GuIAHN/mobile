@@ -42,20 +42,20 @@ part 'vehicle_option_card.dart';
 
 class SparePartWizardPage extends ConsumerStatefulWidget {
   final UserCar? initialVehicle;
-  final String? initialVariantId;
+  final String? initialModelId;
   final VoidCallback? onSubmitted;
 
   const SparePartWizardPage({
     super.key,
     this.initialVehicle,
-    this.initialVariantId,
+    this.initialModelId,
     this.onSubmitted,
   });
 
   static Future<void> show(
     BuildContext context, {
     UserCar? initialVehicle,
-    String? initialVariantId,
+    String? initialModelId,
     VoidCallback? onSubmitted,
   }) async {
     final container = ProviderScope.containerOf(context);
@@ -110,7 +110,7 @@ class SparePartWizardPage extends ConsumerStatefulWidget {
       MaterialPageRoute(
         builder: (_) => SparePartWizardPage(
           initialVehicle: initialVehicle,
-          initialVariantId: initialVariantId,
+          initialModelId: initialModelId,
           onSubmitted: onSubmitted,
         ),
       ),
@@ -224,7 +224,7 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
   String? _temporaryModelId;
 
   @visibleForTesting
-  String? get debugTemporaryVariantId => _temporaryModelId;
+  String? get debugTemporaryModelId => _temporaryModelId;
 
   @visibleForTesting
   double? get debugWizardPage =>
@@ -243,7 +243,7 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
     super.initState();
     _pageController = PageController();
     _selectedVehicle = widget.initialVehicle;
-    _temporaryModelId = widget.initialVariantId;
+    _temporaryModelId = widget.initialModelId;
   }
 
   @override
@@ -256,20 +256,14 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
   Future<void> _goToStep(int nextStep) async {
     if (nextStep < 1 || nextStep > 3 || nextStep == _currentStep) return;
     FocusManager.instance.primaryFocus?.unfocus();
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    // A full-page slide keeps both dense form steps visible at once and can
+    // look frozen on iOS. Swap the page immediately; the header and progress
+    // indicator provide the lightweight continuity cue.
+    _pageController.jumpToPage(nextStep - 1);
     setState(() {
       _currentStep = nextStep;
       _submitError = null;
     });
-    if (reduceMotion) {
-      _pageController.jumpToPage(nextStep - 1);
-      return;
-    }
-    await _pageController.animateToPage(
-      nextStep - 1,
-      duration: const Duration(milliseconds: 360),
-      curve: Curves.easeInOutCubicEmphasized,
-    );
   }
 
   Future<void> _prevStep() async {
@@ -415,7 +409,9 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
           return;
         }
         final addResult = await ref.read(addCarToGarageUseCaseProvider)(
-          variantId: _temporaryModelId!,
+          modelId: _temporaryModelId!,
+          year: vehicle.year,
+          motor: vehicle.motor,
         );
         if (!mounted) return;
         final registeredCar = addResult.fold((failure) {

@@ -53,7 +53,7 @@ class CategoryGrid extends ConsumerWidget {
         SparePartWizardPage.show(
           context,
           initialVehicle: displayedVehicle,
-          initialVariantId: ref.read(searchVehicleVariantIdProvider),
+          initialModelId: ref.read(searchVehicleModelIdProvider),
         );
         break;
       case ServiceType.workshops:

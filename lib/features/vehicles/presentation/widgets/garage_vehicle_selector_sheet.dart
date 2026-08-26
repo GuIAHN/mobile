@@ -10,14 +10,11 @@ import '_atoms/vehicle_type_illustration.dart';
 
 class VehicleSelectorResult {
   final UserCar car;
-  final String? variantId;
-
-  @Deprecated('Use variantId instead')
-  String? get modelId => variantId;
+  final String? modelId;
 
   const VehicleSelectorResult({
     required this.car,
-    this.variantId,
+    this.modelId,
   });
 }
 
@@ -239,14 +236,16 @@ class GarageVehicleSelectorSheet extends ConsumerWidget {
                     brand: result.brand.name,
                     model: result.modelName,
                     year: result.year,
-                    version: result.motor,
+                    modelId: result.modelId,
+                    motor: result.motor,
+                    vehicleType: result.vehicleType,
                   );
                   if (context.mounted) {
                     Navigator.pop(
                       context,
                       VehicleSelectorResult(
                         car: newCar,
-                        variantId: result.variantId,
+                        modelId: result.modelId,
                       ),
                     );
                   }
