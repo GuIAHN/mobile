@@ -10,7 +10,12 @@ final secureStorageProvider = Provider<SecureStorage>((ref) {
 /// Es el ÚNICO lugar de la app donde se persisten datos sensibles.
 class SecureStorage {
   static const _storage = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+      // If Android restored encrypted preferences without their Keystore key,
+      // discard the unreadable values instead of blocking app startup.
+      resetOnError: true,
+    ),
     iOptions: IOSOptions(
       accessibility: KeychainAccessibility.first_unlock_this_device,
     ),

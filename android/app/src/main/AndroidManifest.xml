@@ -9,7 +9,13 @@
     <application
         android:label="GuIA HN"
         android:name="${applicationName}"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher">
+        <!-- Compatibility fallback for devices whose Vulkan/OpenGL drivers
+             fail while Flutter initializes Impeller. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
