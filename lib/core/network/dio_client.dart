@@ -117,21 +117,30 @@ class DioClient {
         bytes: bytes,
       );
 
-  Future<String> uploadAvatarImage(String filePath, {Uint8List? bytes}) =>
-      _uploadImage(
-        filePath,
-        endpoint: ApiEndpoints.avatarImageUpload,
-        bytes: bytes,
-      );
-
-  /// Subida multipart de una imagen a un endpoint definido por su acción.
-  /// Retorna la URL pública de la imagen almacenada.
-  /// Compatible tanto con Web (Chrome/Safari) como con Móvil (Android/iOS).
-  Future<String> _uploadImage(
+  /// Sube la foto de perfil directamente al endpoint dedicado del usuario
+  /// (`POST users/me/avatar`), que sube el archivo al bucket y actualiza el
+  /// perfil en un solo paso. Retorna el perfil de usuario actualizado.
+  Future<Map<String, dynamic>> uploadUserAvatar(
     String filePath, {
     Uint8List? bytes,
-    required String endpoint,
   }) async {
+    final formData = await _buildImageFormData(filePath, bytes: bytes);
+
+    final response = await _dio.post(
+      ApiEndpoints.userAvatarUpload,
+      data: formData,
+    );
+
+    final data = response.data;
+    if (data is Map<String, dynamic>) {
+      return data;
+    }
+    throw Exception('Error al subir avatar: la respuesta no contiene el perfil actualizado');
+  }
+
+  /// Construye el `FormData` multipart con el campo `file` a partir de un
+  /// path local (móvil) o de bytes en memoria (Web).
+  Future<FormData> _buildImageFormData(String filePath, {Uint8List? bytes}) async {
     final rawFileName = filePath.split('/').last.split('\\').last;
     final String fileName =
         rawFileName.isEmpty || rawFileName.startsWith('blob:')
@@ -168,16 +177,24 @@ class DioClient {
       );
     }
 
-    final formData = FormData.fromMap({
+    return FormData.fromMap({
       'file': multipartFile,
     });
+  }
+
+  /// Subida multipart de una imagen a un endpoint definido por su acción.
+  /// Retorna la URL pública de la imagen almacenada.
+  /// Compatible tanto con Web (Chrome/Safari) como con Móvil (Android/iOS).
+  Future<String> _uploadImage(
+    String filePath, {
+    Uint8List? bytes,
+    required String endpoint,
+  }) async {
+    final formData = await _buildImageFormData(filePath, bytes: bytes);
 
     final response = await _dio.post(
       endpoint,
       data: formData,
-      options: Options(
-        contentType: 'multipart/form-data',
-      ),
     );
 
     final data = response.data;

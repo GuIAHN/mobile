@@ -308,19 +308,12 @@ class AuthRemoteDataSource {
   }
 
   /// Uploads or replaces the current user's profile photo (avatar).
+  /// Uses the dedicated `POST users/me/avatar` endpoint that uploads the
+  /// file to the bucket and updates the profile in a single step.
   Future<UserModel> uploadAvatar(String filePath) async {
     try {
-      final photoUrl = await _client.uploadAvatarImage(filePath);
-      final response = await _client.patch<Map<String, dynamic>>(
-        'users/me',
-        data: {'photo': photoUrl},
-      );
-
-      if (response.data == null) {
-        throw const ParseException();
-      }
-
-      return UserModel.fromJson(response.data!);
+      final updatedUser = await _client.uploadUserAvatar(filePath);
+      return UserModel.fromJson(updatedUser);
     } catch (e) {
       rethrow;
     }
