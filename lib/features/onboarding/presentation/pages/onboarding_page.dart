@@ -171,9 +171,12 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
           Align(
             alignment: Alignment.bottomCenter,
             child: SafeArea(
+              key: const Key('onboarding-footer-safe-area'),
+              maintainBottomViewPadding: true,
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 24),
                 child: Column(
+                  key: const Key('onboarding-footer-controls'),
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     OnboardingDots(

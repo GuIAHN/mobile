@@ -9,6 +9,7 @@ void main() {
     WidgetTester tester, {
     required Size size,
     TextScaler textScaler = TextScaler.noScaling,
+    double bottomSystemInset = 0,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -24,6 +25,8 @@ void main() {
             data: MediaQuery.of(context).copyWith(
               disableAnimations: true,
               textScaler: textScaler,
+              padding: EdgeInsets.only(bottom: bottomSystemInset),
+              viewPadding: EdgeInsets.only(bottom: bottomSystemInset),
             ),
             child: child!,
           ),
@@ -94,6 +97,30 @@ void main() {
     expect(tester.getSize(continueFinder).height, greaterThanOrEqualTo(48));
     expect(find.byType(FilledButton), findsNothing);
     expect(find.text('SALTAR'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Android navigation bar keeps footer above the system controls',
+      (tester) async {
+    const height = 802.0;
+    const bottomSystemInset = 48.0;
+    await pumpLanding(
+      tester,
+      size: const Size(377, height),
+      bottomSystemInset: bottomSystemInset,
+    );
+
+    final footerControls = find.byKey(const Key('onboarding-footer-controls'));
+    final firstDot = find.byKey(const Key('onboarding-dot-0'));
+
+    expect(
+      tester.getBottomRight(footerControls).dy,
+      height - bottomSystemInset - 24,
+    );
+    expect(
+      tester.getBottomRight(find.text('Encuentra Repuestos')).dy,
+      lessThan(tester.getTopLeft(firstDot).dy),
+    );
     expect(tester.takeException(), isNull);
   });
 }

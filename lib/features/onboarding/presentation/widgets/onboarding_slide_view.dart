@@ -14,13 +14,17 @@ class OnboardingSlideView extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         const topClearance = 88.0;
-        const footerClearance = 150.0;
+        // El footer se desplaza sobre la barra de gestos o de tres botones de
+        // Android. Reservamos el mismo inset para que el texto nunca quede
+        // oculto detrás de los controles del onboarding.
+        final footerClearance =
+            150.0 + MediaQuery.viewPaddingOf(context).bottom;
         final availableContentHeight =
             constraints.maxHeight - topClearance - footerClearance;
 
         return SingleChildScrollView(
           reverse: true,
-          padding: const EdgeInsets.fromLTRB(
+          padding: EdgeInsets.fromLTRB(
             32,
             topClearance,
             32,
