@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../providers/chat_providers.dart';
 import '../../domain/entities/chat_thread.dart';
 import '../widgets/chat_thread_card.dart';
@@ -434,7 +435,7 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
 
           if (!isLoading) ...[
             const SizedBox(height: 12),
-            _StatusFilterChips(
+            _StatusFilterSelector(
               isProvider: isProvider,
               selected: _statusFilter,
               activeCount: activeCount,
@@ -531,9 +532,9 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
   }
 }
 
-/// Fila de chips segmentados con contadores. Consumidor y tienda ven solo los
-/// estados que corresponden a decisiones claras dentro de cada flujo.
-class _StatusFilterChips extends StatelessWidget {
+/// Selector compacto de estado. Mantiene visible la selección actual y lleva
+/// las opciones a un bottom sheet con blancos táctiles cómodos.
+class _StatusFilterSelector extends StatelessWidget {
   final bool isProvider;
   final _StatusFilter selected;
   final int activeCount;
@@ -544,7 +545,7 @@ class _StatusFilterChips extends StatelessWidget {
   final int cancelledCount;
   final ValueChanged<_StatusFilter> onChanged;
 
-  const _StatusFilterChips({
+  const _StatusFilterSelector({
     this.isProvider = false,
     required this.selected,
     required this.activeCount,
@@ -571,14 +572,19 @@ class _StatusFilterChips extends StatelessWidget {
               filter: _StatusFilter.quoted,
             ),
             (
-              label: 'Canceladas',
-              count: cancelledCount,
-              filter: _StatusFilter.cancelled,
+              label: 'Compradas',
+              count: boughtCount,
+              filter: _StatusFilter.bought,
             ),
             (
               label: 'Entregadas',
               count: deliveredCount,
               filter: _StatusFilter.delivered,
+            ),
+            (
+              label: 'Canceladas',
+              count: cancelledCount,
+              filter: _StatusFilter.cancelled,
             ),
           ]
         : <({String label, int count, _StatusFilter filter})>[
@@ -603,112 +609,231 @@ class _StatusFilterChips extends StatelessWidget {
               filter: _StatusFilter.cancelled,
             ),
           ];
-
-    return Container(
-      key: Key(
-        isProvider
-            ? 'store-sales-filter-group'
-            : 'consumer-purchase-filter-group',
-      ),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          for (var index = 0; index < options.length; index++)
-            Expanded(
-              child: _SalesStatusTab(
-                label: options[index].label,
-                count: options[index].count,
-                isSelected: selected == options[index].filter,
-                showDivider: index < options.length - 1,
-                onTap: () => onChanged(options[index].filter),
-              ),
-            ),
-        ],
-      ),
+    final selectedOption = options.firstWhere(
+      (option) => option.filter == selected,
+      orElse: () => options.first,
     );
-  }
-}
 
-class _SalesStatusTab extends StatelessWidget {
-  final String label;
-  final int count;
-  final bool isSelected;
-  final bool showDivider;
-  final VoidCallback onTap;
-
-  const _SalesStatusTab({
-    required this.label,
-    required this.count,
-    required this.isSelected,
-    this.showDivider = true,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      selected: isSelected,
-      label: '$label, $count',
+      label:
+          'Filtrar por estado. Seleccionado: ${selectedOption.label}, ${selectedOption.count}',
       child: Material(
-        color: Colors.transparent,
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
-            constraints: const BoxConstraints(minHeight: 64),
-            padding: const EdgeInsets.fromLTRB(3, 9, 3, 7),
+          key: Key(
+            isProvider
+                ? 'store-sales-filter-group'
+                : 'consumer-purchase-filter-group',
+          ),
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _showOptions(context, options),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 52),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: isSelected
-                  ? AppColors.primary.withValues(alpha: 0.08)
-                  : Colors.transparent,
-              border: Border(
-                right: showDivider
-                    ? const BorderSide(color: AppColors.border, width: 0.7)
-                    : BorderSide.none,
-                bottom: BorderSide(
-                  color: isSelected ? AppColors.primary : Colors.transparent,
-                  width: 3,
-                ),
-              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Row(
               children: [
-                Text(
-                  label,
-                  maxLines: 2,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.visible,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 11.5,
-                    height: 1.05,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
-                    color: isSelected
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'ESTADO',
+                        maxLines: 1,
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        selectedOption.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '$count',
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 11,
-                    height: 1,
-                    fontWeight: FontWeight.w800,
-                    color:
-                        isSelected ? AppColors.primary : AppColors.textDisabled,
-                  ),
+                const SizedBox(width: 8),
+                _StatusCount(count: selectedOption.count, isSelected: true),
+                const SizedBox(width: 10),
+                const AppLineIcon(
+                  AppIcons.expand,
+                  size: AppIconSize.inline,
+                  color: AppColors.textSecondary,
                 ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showOptions(
+    BuildContext context,
+    List<({String label, int count, _StatusFilter filter})> options,
+  ) async {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final choice = await showModalBottomSheet<_StatusFilter>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.48),
+      sheetAnimationStyle: AnimationStyle(
+        duration:
+            reduceMotion ? Duration.zero : const Duration(milliseconds: 280),
+        reverseDuration:
+            reduceMotion ? Duration.zero : const Duration(milliseconds: 180),
+      ),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.8,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 18, 24, 10),
+                child: Text(
+                  'Filtrar por estado',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              Flexible(
+                child: ListView(
+                  key: const Key('status-filter-list'),
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  children: [
+                    for (final option in options)
+                      Semantics(
+                        button: true,
+                        selected: option.filter == selected,
+                        label:
+                            '${option.label}, ${option.count == 1 ? '1 solicitud' : '${option.count} solicitudes'}',
+                        child: Material(
+                          color: option.filter == selected
+                              ? AppColors.primary.withValues(alpha: 0.08)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(14),
+                          child: InkWell(
+                            key: Key('status-filter-${option.filter.name}'),
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () => Navigator.of(sheetContext).pop(
+                              option.filter,
+                            ),
+                            child: Container(
+                              constraints: const BoxConstraints(minHeight: 56),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      option.label,
+                                      style: GoogleFonts.hankenGrotesk(
+                                        fontSize: 16,
+                                        fontWeight: option.filter == selected
+                                            ? FontWeight.w800
+                                            : FontWeight.w600,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                  _StatusCount(
+                                    count: option.count,
+                                    isSelected: option.filter == selected,
+                                  ),
+                                  const SizedBox(width: 14),
+                                  SizedBox.square(
+                                    dimension: AppIconSize.action,
+                                    child: option.filter == selected
+                                        ? const AppLineIcon(
+                                            AppIcons.selected,
+                                            size: AppIconSize.action,
+                                            color: AppColors.primary,
+                                          )
+                                        : null,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (choice != null && choice != selected) onChanged(choice);
+  }
+}
+
+class _StatusCount extends StatelessWidget {
+  final int count;
+  final bool isSelected;
+
+  const _StatusCount({required this.count, required this.isSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? AppColors.primary.withValues(alpha: 0.1)
+            : AppColors.background,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(
+        '$count',
+        style: GoogleFonts.hankenGrotesk(
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
         ),
       ),
     );
