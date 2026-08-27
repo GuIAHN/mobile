@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
+import 'package:guiautomotriz_mobile/core/error/failures.dart';
 import 'package:guiautomotriz_mobile/core/providers/current_user_provider.dart';
 import 'package:guiautomotriz_mobile/core/services/socket_service.dart';
 import 'package:guiautomotriz_mobile/core/theme/app_colors.dart';
@@ -18,6 +21,73 @@ class _MockChatRepository extends Mock implements ChatRepository {}
 class _MockSocketService extends Mock implements SocketService {}
 
 void main() {
+  testWidgets('submits delivery only once while the first request is pending',
+      (tester) async {
+    final repository = _MockChatRepository();
+    final socket = _MockSocketService();
+    final delivery = Completer<Either<Failure, void>>();
+    final details = ChatConversation(
+      id: 'conversation-1',
+      threadId: 'request-1',
+      participantName: 'Carlos',
+      lastMessage: '',
+      unreadCount: 0,
+      lastMessageAt: DateTime.utc(2026, 8, 24),
+      offerId: 'offer-1',
+      offerStatus: 'BOUGHT',
+      hasQuote: true,
+      price: 125,
+      subcategoryName: 'Pastillas de freno',
+    );
+
+    when(() => repository.getConversationDetails('conversation-1'))
+        .thenAnswer((_) async => Right(details));
+    when(() => repository.getMessages('conversation-1'))
+        .thenAnswer((_) async => const Right([]));
+    when(() => repository.markAsRead('conversation-1'))
+        .thenAnswer((_) async => const Right(null));
+    when(() => repository.deliverOffer('offer-1'))
+        .thenAnswer((_) => delivery.future);
+    when(() => socket.onSearchMatched).thenAnswer((_) => const Stream.empty());
+    when(() => socket.onOfferUpdated).thenAnswer((_) => const Stream.empty());
+    when(() => socket.onNotification).thenAnswer((_) => const Stream.empty());
+    when(() => socket.onMessage).thenAnswer((_) => const Stream.empty());
+    when(() => socket.onReconnect).thenAnswer((_) => const Stream.empty());
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          currentRoleProvider.overrideWithValue(UserRole.store),
+          chatRepositoryProvider.overrideWithValue(repository),
+          socketServiceProvider.overrideWithValue(socket),
+          handledStoreReviewProvider('conversation-1')
+              .overrideWith((ref) async => false),
+        ],
+        child: const MaterialApp(
+          home: ChatConversationPage(conversationId: 'conversation-1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final deliverButton = find.byKey(const Key('deliver-offer-button'));
+    await tester.tap(deliverButton);
+    await tester.tap(deliverButton);
+    await tester.pump();
+
+    verify(() => repository.deliverOffer('offer-1')).called(1);
+    expect(find.text('Marcando entrega…'), findsOneWidget);
+    expect(
+      tester.widget<ElevatedButton>(deliverButton).onPressed,
+      isNull,
+    );
+
+    delivery.complete(const Right(null));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('store can open the decline flow from an inquiry chat',
       (tester) async {
     tester.view.physicalSize = const Size(320, 800);

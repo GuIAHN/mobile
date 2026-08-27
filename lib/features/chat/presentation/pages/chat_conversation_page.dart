@@ -47,6 +47,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
   bool _isDeclining = false;
   bool _declinedLocally = false;
   bool _isCancelling = false;
+  bool _isDelivering = false;
 
   @override
   void initState() {
@@ -201,6 +202,38 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
       ref.invalidate(storeDashboardProvider);
     } finally {
       if (mounted) setState(() => _isCancelling = false);
+    }
+  }
+
+  Future<void> _deliverOffer(ChatConversation details) async {
+    if (_isDelivering || details.offerId == null) return;
+
+    setState(() => _isDelivering = true);
+    try {
+      final result = await ref.read(deliverOfferUseCaseProvider)(
+        details.offerId!,
+      );
+
+      result.fold(
+        (failure) {
+          if (mounted) {
+            context.showSnackBar(
+              'Error: ${failure.message}',
+              isError: true,
+            );
+          }
+        },
+        (_) {
+          ref.invalidate(
+            chatConversationDetailsProvider(widget.conversationId),
+          );
+          ref.invalidate(myConversationsProvider);
+          ref.invalidate(storeSalesRequestsProvider);
+          ref.invalidate(storeDashboardProvider);
+        },
+      );
+    } finally {
+      if (mounted) setState(() => _isDelivering = false);
     }
   }
 
@@ -490,6 +523,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                 reviewHandlingStatusLoading: reviewHandledLocally.isLoading,
                 isStore: isStore,
                 isCancelling: _isCancelling,
+                isDelivering: _isDelivering,
                 onCancelPressed: () => _cancelPurchase(
                   detailsAsync.valueOrNull!,
                 ),
@@ -536,28 +570,8 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                     },
                   );
                 },
-                onDeliverPressed: () async {
-                  final details = detailsAsync.valueOrNull!;
-                  final usecase = ref.read(deliverOfferUseCaseProvider);
-                  final result = await usecase(details.offerId!);
-                  result.fold(
-                    (f) {
-                      if (context.mounted) {
-                        context.showSnackBar(
-                          'Error: ${f.message}',
-                          isError: true,
-                        );
-                      }
-                    },
-                    (_) {
-                      ref.invalidate(chatConversationDetailsProvider(
-                          widget.conversationId));
-                      ref.invalidate(myConversationsProvider);
-                      ref.invalidate(storeSalesRequestsProvider);
-                      ref.invalidate(storeDashboardProvider);
-                    },
-                  );
-                },
+                onDeliverPressed: () =>
+                    _deliverOffer(detailsAsync.valueOrNull!),
                 onReviewPressed: () async {
                   final details = detailsAsync.valueOrNull!;
                   final res = await showModalBottomSheet<bool>(

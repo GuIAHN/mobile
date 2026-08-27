@@ -19,6 +19,7 @@ class ActiveOfferHeaderCard extends StatefulWidget {
   final bool reviewHandledLocally;
   final bool reviewHandlingStatusLoading;
   final bool isCancelling;
+  final bool isDelivering;
 
   const ActiveOfferHeaderCard({
     super.key,
@@ -31,6 +32,7 @@ class ActiveOfferHeaderCard extends StatefulWidget {
     this.reviewHandledLocally = false,
     this.reviewHandlingStatusLoading = false,
     this.isCancelling = false,
+    this.isDelivering = false,
   });
 
   @override
@@ -485,11 +487,27 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                       width: double.infinity,
                       height: 48,
                       child: ElevatedButton.icon(
-                        onPressed: widget.onDeliverPressed,
-                        icon: const Icon(Icons.check_circle_outline_rounded,
-                            size: 18, color: Colors.white),
+                        key: const Key('deliver-offer-button'),
+                        onPressed: widget.isDelivering
+                            ? null
+                            : widget.onDeliverPressed,
+                        icon: widget.isDelivering
+                            ? const SizedBox.square(
+                                dimension: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.check_circle_outline_rounded,
+                                size: 18,
+                                color: Colors.white,
+                              ),
                         label: Text(
-                          'Marcar como Entregado',
+                          widget.isDelivering
+                              ? 'Marcando entrega…'
+                              : 'Marcar como Entregado',
                           style: GoogleFonts.hankenGrotesk(
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
@@ -498,6 +516,8 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.success,
+                          disabledBackgroundColor: AppColors.success,
+                          disabledForegroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(32),
