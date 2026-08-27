@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/validators.dart';
@@ -54,7 +55,7 @@ class WorkshopInfoStep extends StatelessWidget {
           icono: Icons.badge_outlined,
           teclado: TextInputType.number,
           textInputAction: TextInputAction.next,
-          validator: (value) => Validators.required(value, fieldName: 'El RIF'),
+          validator: Validators.rif,
         ),
         const SizedBox(height: 8),
         // Nota informativa
@@ -128,6 +129,10 @@ class WorkshopInfoStep extends StatelessWidget {
       hint: hint,
       prefixIcon: icono,
       keyboardType: teclado,
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(9),
+      ],
       textInputAction: textInputAction,
       validator: validator,
       prefixBuilder: (context, isFocused) {

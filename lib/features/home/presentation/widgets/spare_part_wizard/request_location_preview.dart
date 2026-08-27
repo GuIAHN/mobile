@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../../../core/config/env.dart';
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
 import 'request_location_selection.dart';
@@ -10,11 +12,15 @@ import 'request_location_selection.dart';
 class RequestLocationPreview extends StatefulWidget {
   final RequestLocationSelection? selection;
   final VoidCallback onTap;
+  final bool isLocating;
+  final String? errorMessage;
 
   const RequestLocationPreview({
     super.key,
     required this.selection,
     required this.onTap,
+    this.isLocating = false,
+    this.errorMessage,
   });
 
   @override
@@ -41,10 +47,12 @@ class _RequestLocationPreviewState extends State<RequestLocationPreview> {
     final textScale = MediaQuery.textScalerOf(context).scale(16) / 16;
     final emptyHeight = 148 + ((textScale - 1) * 64).clamp(0.0, 96.0);
     final selectedHeight = 168 + ((textScale - 1) * 44).clamp(0.0, 72.0);
-    final semanticsLabel = selection == null
-        ? 'Elegir ubicación para esta solicitud'
-        : 'Cambiar ubicación para esta solicitud. Ubicación actual: '
-            '${selection.displayLabel}. ${selection.sourceLabel}';
+    final semanticsLabel = widget.isLocating
+        ? 'Obteniendo tu ubicación actual'
+        : selection == null
+            ? widget.errorMessage ?? 'Elegir ubicación para esta solicitud'
+            : 'Cambiar ubicación para esta solicitud. Ubicación actual: '
+                '${selection.displayLabel}. ${selection.sourceLabel}';
 
     return Semantics(
       button: true,
@@ -63,7 +71,10 @@ class _RequestLocationPreviewState extends State<RequestLocationPreview> {
           child: SizedBox(
             height: selection == null ? emptyHeight : selectedHeight,
             child: selection == null
-                ? const _EmptyMapPreview()
+                ? _EmptyMapPreview(
+                    isLocating: widget.isLocating,
+                    errorMessage: widget.errorMessage,
+                  )
                 : _buildSelectedMap(context, selection),
           ),
         ),
@@ -95,8 +106,7 @@ class _RequestLocationPreviewState extends State<RequestLocationPreview> {
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate:
-                        'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                    urlTemplate: Env.cartoBasemapUrl,
                     userAgentPackageName: 'com.guiautomotriz.mobile',
                     retinaMode: RetinaMode.isHighDensity(context),
                     errorTileCallback: (_, __, ___) {
@@ -111,7 +121,7 @@ class _RequestLocationPreviewState extends State<RequestLocationPreview> {
                         point: point,
                         width: 46,
                         height: 46,
-                        child: const _PreviewPin(),
+                        child: _PreviewPin(source: selection.source),
                       ),
                     ],
                   ),
@@ -191,7 +201,13 @@ class _RequestLocationPreviewState extends State<RequestLocationPreview> {
 }
 
 class _EmptyMapPreview extends StatelessWidget {
-  const _EmptyMapPreview();
+  final bool isLocating;
+  final String? errorMessage;
+
+  const _EmptyMapPreview({
+    required this.isLocating,
+    this.errorMessage,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -211,21 +227,38 @@ class _EmptyMapPreview extends StatelessWidget {
                   color: AppColors.primaryMuted,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.location_on_rounded,
-                  color: AppColors.primary,
-                  size: 28,
-                ),
+                child: isLocating
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: AppColors.primary,
+                        ),
+                      )
+                    : const Icon(
+                        AppIcons.account,
+                        color: AppColors.primary,
+                        size: 26,
+                      ),
               ),
               const SizedBox(height: 10),
               Text(
-                'Define dónde necesitas el repuesto',
+                isLocating
+                    ? 'Obteniendo tu ubicación actual…'
+                    : errorMessage != null
+                        ? 'No pudimos ubicarte'
+                        : 'Define dónde necesitas el repuesto',
                 textAlign: TextAlign.center,
                 style: AppTypography.title,
               ),
               const SizedBox(height: 2),
               Text(
-                'Elegir ubicación',
+                isLocating
+                    ? 'Esto puede tardar unos segundos'
+                    : errorMessage ?? 'Elegir ubicación',
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: AppTypography.label.copyWith(
                   color: AppColors.primaryInk,
                 ),
@@ -239,7 +272,9 @@ class _EmptyMapPreview extends StatelessWidget {
 }
 
 class _PreviewPin extends StatelessWidget {
-  const _PreviewPin();
+  final RequestLocationSource source;
+
+  const _PreviewPin({required this.source});
 
   @override
   Widget build(BuildContext context) {
@@ -256,8 +291,10 @@ class _PreviewPin extends StatelessWidget {
           ),
         ],
       ),
-      child: const Icon(
-        Icons.location_on_rounded,
+      child: Icon(
+        source == RequestLocationSource.gps
+            ? AppIcons.account
+            : AppIcons.location,
         color: Colors.white,
         size: 24,
       ),

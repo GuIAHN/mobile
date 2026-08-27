@@ -49,21 +49,22 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('collects free year and optional motor without variants',
+  testWidgets('collects wheel year and optional motor without variants',
       (tester) async {
     VehicleSelectionResult? result;
     await tester.pumpWidget(subject((value) => result = value));
     await openDetails(tester);
 
     expect(find.text('Completa tu vehículo'), findsOneWidget);
-    expect(find.byKey(const ValueKey('vehicle-year-input')), findsOneWidget);
+    expect(find.byKey(const ValueKey('vehicle-year-wheel')), findsOneWidget);
     expect(find.byKey(const ValueKey('vehicle-motor-input')), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
 
-    await tester.enterText(
-      find.byKey(const ValueKey('vehicle-year-input')),
-      '2014',
+    await tester.drag(
+      find.byKey(const ValueKey('vehicle-year-wheel')),
+      const Offset(0, -600),
     );
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey('vehicle-motor-input')),
       ' 1.8L ',
@@ -74,20 +75,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(result?.modelId, 'model-1');
-    expect(result?.year, 2014);
+    expect(result?.year, lessThan(DateTime.now().year));
     expect(result?.motor, '1.8L');
   });
 
-  testWidgets('validates the backend year range inline', (tester) async {
+  testWidgets('wheel constrains years to the supported backend range',
+      (tester) async {
     await tester.pumpWidget(subject((_) {}));
     await openDetails(tester);
-    await tester.enterText(
-      find.byKey(const ValueKey('vehicle-year-input')),
-      '1949',
-    );
-    await tester.tap(find.byKey(const ValueKey('confirm-vehicle-details')));
-    await tester.pump();
-    expect(find.textContaining('Ingresa un año entre 1950'), findsOneWidget);
+    expect(find.byKey(const ValueKey('vehicle-year-wheel')), findsOneWidget);
+    expect(find.byKey(const ValueKey('vehicle-year-1949')), findsNothing);
   });
 
   testWidgets('keeps accessible 48 dp modal actions', (tester) async {
@@ -101,12 +98,31 @@ void main() {
       (tester) async {
     await tester.pumpWidget(subject((_) {}));
     await openDetails(tester);
-    await tester.tap(find.byKey(const ValueKey('vehicle-year-input')));
+    await tester.tap(find.byKey(const ValueKey('vehicle-motor-input')));
     await tester.pump();
 
     await tester.tap(find.text('Completa tu vehículo'));
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
     expect(tester.testTextInput.isVisible, isFalse);
+  });
+
+  testWidgets('fits small and large phones without layout overflow',
+      (tester) async {
+    for (final size in <Size>[
+      const Size(320, 568),
+      const Size(430, 932),
+    ]) {
+      await tester.binding.setSurfaceSize(size);
+      await tester.pumpWidget(subject((_) {}));
+      await openDetails(tester);
+
+      expect(find.byKey(const ValueKey('vehicle-year-wheel')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    }
+    await tester.binding.setSurfaceSize(null);
   });
 
   testWidgets('reserves keyboard clearance for the motor field',

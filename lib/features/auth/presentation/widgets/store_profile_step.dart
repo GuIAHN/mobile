@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/validators.dart';
@@ -61,9 +62,13 @@ class StoreProfileStep extends StatelessWidget {
           hint: '123456789',
           prefixIcon: Icons.badge_outlined,
           keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(9),
+          ],
           textInputAction:
               isSocial ? TextInputAction.done : TextInputAction.next,
-          validator: (value) => Validators.required(value, fieldName: 'El RIF'),
+          validator: Validators.rif,
           prefixBuilder: (context, isFocused) {
             return Row(
               mainAxisSize: MainAxisSize.min,

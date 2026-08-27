@@ -10,7 +10,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/utils/venezuelan_phone_number.dart';
 import '../../../../shared/widgets/api_error_message.dart';
+import '../../../../shared/widgets/registration_page_chrome.dart';
 import '../../../catalog/domain/entities/category.dart';
+import '../../../vehicles/domain/entities/brand.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
 import '../providers/social_registration_state.dart';
@@ -49,11 +51,11 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
   final _confirmPasswordCtrl = TextEditingController();
   bool _hasDelivery = false;
 
-  // ===== Paso 2: Catálogo =====
+  // ===== Pasos 3 y 4: Catálogo, marcas y tipos de repuesto =====
   final List<LineaCatalogo> _catalogo = [];
   bool _servesAllBrands = false;
 
-  // ===== Paso 4: Ubicación =====
+  // ===== Paso 5: Ubicación =====
   LatLng _location = const LatLng(10.4806, -66.9036);
   bool _ubicacionConfirmada = false;
   bool _termsAccepted = false;
@@ -125,47 +127,16 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     });
   }
 
-  Future<void> _configurarCatalogoGeneral() async {
-    final existente = _catalogo.firstOrNull;
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
-
-    final resultado = await showModalBottomSheet<ResultadoSheet>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.48),
-      sheetAnimationStyle: AnimationStyle(
-        duration:
-            reduceMotion ? Duration.zero : const Duration(milliseconds: 280),
-        reverseDuration:
-            reduceMotion ? Duration.zero : const Duration(milliseconds: 180),
-      ),
-      builder: (_) => SheetMarcas(
-        category: const Category(id: 'general', name: 'Todo tu catálogo'),
-        seleccionInicial: existente?.brands ?? {},
-        typesInicial: existente?.sparePartsTypes ?? {'ORIGINAL'},
-        existia: existente?.brands.isNotEmpty ?? false,
-      ),
-    );
-
-    if (resultado == null) return;
-
+  void _updateCatalogCoverage(
+    Set<Brand> brands,
+    Set<String> sparePartsTypes,
+    bool servesAllBrands,
+  ) {
     setState(() {
-      if (resultado.eliminar ||
-          resultado.brands.isEmpty ||
-          resultado.sparePartsTypes.isEmpty) {
-        _servesAllBrands = false;
-        for (final line in _catalogo) {
-          line.brands = {};
-          line.sparePartsTypes = {};
-        }
-        return;
-      }
-      _servesAllBrands = resultado.servesAllBrands;
+      _servesAllBrands = servesAllBrands;
       for (final line in _catalogo) {
-        line.brands = Set.of(resultado.brands);
-        line.sparePartsTypes = Set.of(resultado.sparePartsTypes);
+        line.brands = Set.of(brands);
+        line.sparePartsTypes = Set.of(sparePartsTypes);
       }
     });
   }
@@ -184,7 +155,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
         return Validators.required(_nombreCtrl.text) == null &&
             Validators.email(_emailCtrl.text) == null &&
             Validators.phone(_telefonoCtrl.text) == null &&
-            Validators.required(_rifCtrl.text) == null;
+            Validators.rif(_rifCtrl.text) == null;
       case 2:
         return isSocial ||
             (_passwordValida &&
@@ -282,9 +253,11 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     final authState = ref.watch(authProvider);
     final socialData = ref.watch(socialRegistrationProvider);
     final isSocial = socialData != null;
+    final bottomSafeInset = MediaQuery.paddingOf(context).bottom;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
+        bottom: false,
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
@@ -309,112 +282,102 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                         ),
                       ],
                       const SizedBox(height: 8),
-                      AnimatedSwitcher(
-                        duration: MediaQuery.disableAnimationsOf(context)
-                            ? Duration.zero
-                            : const Duration(milliseconds: 350),
-                        transitionBuilder: (child, anim) => FadeTransition(
-                          opacity: anim,
-                          child: SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0.06, 0),
-                              end: Offset.zero,
-                            ).animate(anim),
-                            child: child,
-                          ),
-                        ),
-                        child: Container(
-                          key: ValueKey(_paso),
-                          child: switch (_paso) {
-                            1 => StoreProfileStep(
-                                nombreController: _nombreCtrl,
-                                emailController: _emailCtrl,
-                                telefonoController: _telefonoCtrl,
-                                rifController: _rifCtrl,
-                                hasDelivery: _hasDelivery,
-                                onHasDeliveryChanged: (v) =>
-                                    setState(() => _hasDelivery = v),
-                                isSocial: isSocial,
+                      KeyedSubtree(
+                        key: ValueKey(_paso),
+                        child: switch (_paso) {
+                          1 => StoreProfileStep(
+                              nombreController: _nombreCtrl,
+                              emailController: _emailCtrl,
+                              telefonoController: _telefonoCtrl,
+                              rifController: _rifCtrl,
+                              hasDelivery: _hasDelivery,
+                              onHasDeliveryChanged: (v) =>
+                                  setState(() => _hasDelivery = v),
+                              isSocial: isSocial,
+                            ),
+                          2 => AccountSecurityStep(
+                              passwordController: _passwordCtrl,
+                              confirmPasswordController: _confirmPasswordCtrl,
+                              isSocial: isSocial,
+                              socialProvider: socialData?.provider,
+                            ),
+                          3 => StoreCatalogStep(
+                              catalogo: _catalogo,
+                              onSubcategoryToggled: _toggleSubcategory,
+                            ),
+                          4 => StoreSummaryStep(
+                              catalogo: _catalogo,
+                              servesAllBrands: _servesAllBrands,
+                              onChanged: _updateCatalogCoverage,
+                            ),
+                          5 => WorkshopLocationStep(
+                              location: _location,
+                              onLocationChanged: (location) =>
+                                  setState(() => _location = location),
+                              ubicacionConfirmada: _ubicacionConfirmada,
+                              onUbicacionConfirmadaChanged: (c) =>
+                                  setState(() => _ubicacionConfirmada = c),
+                              helperText:
+                                  'Usa tu ubicación actual o mueve el mapa para marcar la tienda.',
+                            ),
+                          6 => ProviderDocumentsStep(
+                              rifPhoto: _rifPhoto,
+                              mercantilRegistry: _mercantilRegistry,
+                              onRifPhotoChanged: (file) =>
+                                  setState(() => _rifPhoto = file),
+                              onMercantilRegistryChanged: (file) => setState(
+                                () => _mercantilRegistry = file,
                               ),
-                            2 => AccountSecurityStep(
-                                passwordController: _passwordCtrl,
-                                confirmPasswordController: _confirmPasswordCtrl,
-                                isSocial: isSocial,
-                                socialProvider: socialData?.provider,
+                            ),
+                          7 => TermsAcceptanceStep(
+                              audience: TermsAudience.serviceProvider,
+                              isAccepted: _termsAccepted,
+                              onAcceptedChanged: (accepted) => setState(
+                                () => _termsAccepted = accepted,
                               ),
-                            3 => StoreCatalogStep(
-                                catalogo: _catalogo,
-                                onSubcategoryToggled: _toggleSubcategory,
-                              ),
-                            4 => StoreSummaryStep(
-                                catalogo: _catalogo,
-                                onConfigurarCatalogo:
-                                    _configurarCatalogoGeneral,
-                              ),
-                            5 => WorkshopLocationStep(
-                                location: _location,
-                                onLocationChanged: (location) =>
-                                    setState(() => _location = location),
-                                ubicacionConfirmada: _ubicacionConfirmada,
-                                onUbicacionConfirmadaChanged: (c) =>
-                                    setState(() => _ubicacionConfirmada = c),
-                                helperText:
-                                    'Usa tu ubicación actual o mueve el mapa para marcar la tienda.',
-                              ),
-                            6 => ProviderDocumentsStep(
-                                rifPhoto: _rifPhoto,
-                                mercantilRegistry: _mercantilRegistry,
-                                onRifPhotoChanged: (file) =>
-                                    setState(() => _rifPhoto = file),
-                                onMercantilRegistryChanged: (file) => setState(
-                                  () => _mercantilRegistry = file,
+                            ),
+                          _ => RegistrationCompletedStep(
+                              title: '¡Solicitud\nRecibida!',
+                              description:
+                                  'Hemos recibido la solicitud para registrar ${_nombreCtrl.text} de forma exitosa.',
+                              buttonLabel: 'Finalizar Registro',
+                              buttonIcon: Icons.check_circle_outline,
+                              cards: [
+                                const CompletedStepCardItem(
+                                  icon: Icons.timer_outlined,
+                                  label: 'Aprobación Estimada',
+                                  title: 'Entre 24 y 48 horas',
                                 ),
-                              ),
-                            7 => TermsAcceptanceStep(
-                                audience: TermsAudience.serviceProvider,
-                                isAccepted: _termsAccepted,
-                                onAcceptedChanged: (accepted) => setState(
-                                  () => _termsAccepted = accepted,
+                                CompletedStepCardItem(
+                                  icon: Icons.storefront_outlined,
+                                  label: 'Catálogo de Repuestos',
+                                  title:
+                                      '${_catalogo.length} ${_catalogo.length == 1 ? 'subcategoría' : 'subcategorías'}',
                                 ),
-                              ),
-                            _ => RegistrationCompletedStep(
-                                title: '¡Solicitud\nRecibida!',
-                                description:
-                                    'Hemos recibido la solicitud para registrar ${_nombreCtrl.text} de forma exitosa.',
-                                buttonLabel: 'Finalizar Registro',
-                                buttonIcon: Icons.check_circle_outline,
-                                cards: [
-                                  const CompletedStepCardItem(
-                                    icon: Icons.timer_outlined,
-                                    label: 'Aprobación Estimada',
-                                    title: 'Entre 24 y 48 horas',
-                                  ),
-                                  CompletedStepCardItem(
-                                    icon: Icons.storefront_outlined,
-                                    label: 'Catálogo de Repuestos',
-                                    title:
-                                        '${_catalogo.length} ${_catalogo.length == 1 ? 'subcategoría' : 'subcategorías'}',
-                                  ),
-                                ],
-                                onFinish: () {
-                                  ref
-                                      .read(authProvider.notifier)
-                                      .finishProviderRegistration();
-                                  ref
-                                      .read(socialRegistrationProvider.notifier)
-                                      .clear();
-                                  context.go(RouteNames.login);
-                                },
-                              ),
-                          },
-                        ),
+                              ],
+                              onFinish: () {
+                                ref
+                                    .read(authProvider.notifier)
+                                    .finishProviderRegistration();
+                                ref
+                                    .read(socialRegistrationProvider.notifier)
+                                    .clear();
+                                context.go(RouteNames.login);
+                              },
+                            ),
+                        },
                       ),
                     ],
                   ),
                 ),
                 if (_paso < _completedStep)
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      0,
+                      24,
+                      16 + bottomSafeInset,
+                    ),
                     sliver: SliverFillRemaining(
                       hasScrollBody: false,
                       child: Column(
@@ -431,8 +394,8 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                     ),
                   ),
                 if (_paso >= _completedStep)
-                  const SliverPadding(
-                    padding: EdgeInsets.only(bottom: 16),
+                  SliverPadding(
+                    padding: EdgeInsets.only(bottom: 16 + bottomSafeInset),
                   ),
               ],
             ),
@@ -443,64 +406,17 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
   }
 
   Widget _appBar() {
-    return Row(
-      children: [
-        IconButton(
-          onPressed: _retroceder,
-          tooltip: _paso == 1 ? 'Volver a elegir perfil' : 'Paso anterior',
-          constraints: const BoxConstraints.tightFor(width: 48, height: 48),
-          padding: EdgeInsets.zero,
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            color: AppColors.textPrimary,
-            size: 22,
-          ),
-        ),
-        Expanded(
-          child: Text(
-            'Registro de Tienda',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
-          ),
-        ),
-      ],
+    return RegistrationPageHeader(
+      title: 'Registro de Tienda',
+      onBack: _retroceder,
+      backTooltip: _paso == 1 ? 'Volver a elegir perfil' : 'Paso anterior',
     );
   }
 
   Widget _indicadorPasos() {
-    return Row(
-      children: [
-        Text(
-          'PASO $_paso DE $_totalSteps',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 2,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Row(
-            children: List.generate(_totalSteps, (i) {
-              return Expanded(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  height: 5,
-                  margin: EdgeInsets.only(left: i == 0 ? 0 : 6),
-                  decoration: BoxDecoration(
-                    color: i < _paso ? AppColors.primary : AppColors.border,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-      ],
+    return RegistrationStepProgress(
+      currentStep: _paso,
+      totalSteps: _totalSteps,
     );
   }
 
@@ -518,14 +434,12 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
         subtitulo = 'Crea una contraseña segura para administrar tu tienda.';
         break;
       case 3:
-        titulo = 'Catálogo';
-        subtitulo =
-            'Paso 3 de 7: Abre las categorías y selecciona las subcategorías que maneja tu tienda.';
+        titulo = 'Tu Catálogo';
+        subtitulo = 'Elige las categorías y repuestos que ofreces.';
         break;
       case 4:
-        titulo = 'Marcas y Repuestos';
-        subtitulo =
-            'Paso 4 de 7: Configura una sola vez las marcas y tipos de repuesto para todo tu catálogo.';
+        titulo = 'Marcas y Tipos';
+        subtitulo = 'Elige las marcas y tipos que vendes.';
         break;
       case 5:
         titulo = 'Ubicación';
@@ -595,65 +509,33 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
           flex: 2,
           child: _PressableScale(
             onTap: _pasoValido && !authState.isLoading ? _avanzar : null,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(32),
-                boxShadow: _pasoValido
-                    ? [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.4),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
-                        ),
-                      ]
-                    : [],
-              ),
-              child: ElevatedButton(
-                key: const Key('register-store-continue'),
-                onPressed:
-                    _pasoValido && !authState.isLoading ? _avanzar : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: const Color(0xFFD9DCE1),
-                  disabledForegroundColor: const Color(0xFF9AA0A8),
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(32),
-                  ),
+            child: ElevatedButton(
+              key: const Key('register-store-continue'),
+              onPressed: _pasoValido && !authState.isLoading ? _avanzar : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFD9DCE1),
+                disabledForegroundColor: const Color(0xFF9AA0A8),
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(32),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        _paso == _totalSteps ? 'FINALIZAR' : 'CONTINUAR',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1,
-                        ),
+              ),
+              child: authState.isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
                       ),
+                    )
+                  : RegistrationActionLabel(
+                      label: _paso == _totalSteps ? 'FINALIZAR' : 'CONTINUAR',
+                      icon: Icons.chevron_right,
                     ),
-                    const SizedBox(width: 6),
-                    if (authState.isLoading)
-                      const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    else
-                      const Icon(Icons.chevron_right, size: 18),
-                  ],
-                ),
-              ),
             ),
           ),
         ),
@@ -682,9 +564,9 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
               _passwordCtrl.text,
             );
       case 3:
-        return 'Selecciona al menos una subcategoría para continuar.';
+        return 'Selecciona al menos un repuesto para continuar.';
       case 4:
-        return 'Selecciona las marcas y al menos un tipo de repuesto para todo tu catálogo.';
+        return 'Selecciona al menos una marca y un tipo de repuesto para continuar.';
       case 5:
         return 'Confirma la ubicación exacta de la tienda para continuar.';
       case 6:

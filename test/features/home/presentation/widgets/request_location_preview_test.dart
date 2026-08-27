@@ -72,6 +72,44 @@ void main() {
     );
   }, semanticsEnabled: true);
 
+  testWidgets('shows that the current location is being obtained',
+      (tester) async {
+    await tester.pumpWidget(
+      _testApp(
+        RequestLocationPreview(
+          selection: null,
+          isLocating: true,
+          onTap: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('Obteniendo tu ubicación actual…'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Obteniendo tu ubicación actual'),
+      findsOneWidget,
+    );
+  }, semanticsEnabled: true);
+
+  testWidgets('keeps manual map selection available after a GPS failure',
+      (tester) async {
+    const message =
+        'No pudimos obtener tu ubicación actual. Puedes elegirla en el mapa.';
+    await tester.pumpWidget(
+      _testApp(
+        RequestLocationPreview(
+          selection: null,
+          errorMessage: message,
+          onTap: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('No pudimos ubicarte'), findsOneWidget);
+    expect(find.text(message), findsOneWidget);
+  });
+
   testWidgets('identifies a location restored from the saved profile',
       (tester) async {
     await tester.pumpWidget(

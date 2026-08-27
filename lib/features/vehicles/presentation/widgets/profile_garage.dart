@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/async_error_listener.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../shared/widgets/count_pill.dart';
@@ -24,178 +25,178 @@ class ProfileGarage extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Fila Encabezado Garage
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Icon(Icons.directions_car_filled_outlined,
-                      color: AppColors.primary, size: 20),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'Mi Garage',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final title = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.directions_car_filled_outlined,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Flexible(
+                  child: Text(
+                    'Mi Garage',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                  userCarsAsync.maybeWhen(
-                    data: (cars) => cars.isEmpty
-                        ? const SizedBox.shrink()
-                        : Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: CountPill(count: cars.length),
-                          ),
-                    orElse: () => const SizedBox.shrink(),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            PressableScale(
+                ),
+                userCarsAsync.maybeWhen(
+                  data: (cars) => cars.isEmpty
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.only(left: AppSpacing.sm),
+                          child: CountPill(count: cars.length),
+                        ),
+                  orElse: () => const SizedBox.shrink(),
+                ),
+              ],
+            );
+            final addButton = _GarageAddButton(
               onTap: () => _abrirDialogoAgregarVehiculo(context, ref),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryMuted,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.add, size: 14, color: AppColors.primary),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Agregar',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+            );
+            final scaledTitle = MediaQuery.textScalerOf(context).scale(15);
+            final stackHeader = constraints.maxWidth < 300 || scaledTitle >= 22;
+
+            if (stackHeader) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  title,
+                  const SizedBox(height: AppSpacing.sm),
+                  Align(alignment: Alignment.centerRight, child: addButton),
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(child: title),
+                const SizedBox(width: AppSpacing.sm),
+                addButton,
+              ],
+            );
+          },
         ),
         const SizedBox(height: 12),
 
         // Listado de Autos
-        userCarsAsync.when(
-          data: (cars) {
-            if (cars.isEmpty) {
-              return Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        color: AppColors.primaryMuted,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.no_crash_outlined,
-                          size: 28, color: AppColors.primary),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      'Aún no tienes vehículos en tu garage.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.hankenGrotesk(
-                        color: AppColors.textSecondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    PressableScale(
-                      onTap: () => _abrirDialogoAgregarVehiculo(context, ref),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(99),
+        LayoutBuilder(
+          builder: (context, constraints) => userCarsAsync.when(
+            data: (cars) {
+              if (cars.isEmpty) {
+                return Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 56,
+                        height: 56,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          color: AppColors.primaryMuted,
+                          shape: BoxShape.circle,
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.add,
-                                size: 15, color: Colors.white),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                'Agregar vehículo',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.hankenGrotesk(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
+                        child: const Icon(Icons.no_crash_outlined,
+                            size: 28, color: AppColors.primary),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'Aún no tienes vehículos en tu garage.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.hankenGrotesk(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      _GarageAddButton(
+                        filled: true,
+                        label: 'Agregar vehículo',
+                        onTap: () => _abrirDialogoAgregarVehiculo(context, ref),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              final availableWidth = constraints.maxWidth;
+              final cardWidth = availableWidth < 520
+                  ? availableWidth
+                  : ((availableWidth - AppSpacing.md) / 2).clamp(280.0, 340.0);
+            final imageHeight = (cardWidth * 0.46).clamp(124.0, 148.0);
+            final scaledTitle = MediaQuery.textScalerOf(context).scale(15.5);
+            final titleScale = (scaledTitle / 15.5).clamp(1.0, 3.0);
+            final footerHeight = 88 + ((titleScale - 1) * 64);
+
+              return SizedBox(
+                height: imageHeight + footerHeight,
+                child: ListView.separated(
+                  key: const Key('profile-garage-list'),
+                  scrollDirection: Axis.horizontal,
+                  clipBehavior: Clip.none,
+                  itemCount: cars.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: AppSpacing.md),
+                  itemBuilder: (context, index) {
+                    return SizedBox(
+                      width: cardWidth,
+                      child: _buildGarageCarCard(
+                        context,
+                        ref,
+                        cars[index],
+                        imageHeight: imageHeight,
+                      ),
+                    );
+                  },
                 ),
               );
-            }
-
-            return SizedBox(
-              height: 220,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                clipBehavior: Clip.none,
-                itemCount: cars.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 14),
-                itemBuilder: (context, index) {
-                  return SizedBox(
-                    width: 230,
-                    child: _buildGarageCarCard(context, ref, cars[index]),
-                  );
-                },
-              ),
-            );
-          },
-          loading: () => Container(
-            height: 90,
-            alignment: Alignment.center,
-            child: const CircularProgressIndicator(color: AppColors.primary),
-          ),
-          error: (err, _) => Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
+            },
+            loading: () => Container(
+              height: 90,
+              alignment: Alignment.center,
+              child: const CircularProgressIndicator(color: AppColors.primary),
             ),
-            child: Text(
-              'Error al cargar vehículos: $err',
-              style: GoogleFonts.hankenGrotesk(
-                color: AppColors.error,
-                fontSize: 13,
+            error: (err, _) => Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'No pudimos cargar tus vehículos.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.hankenGrotesk(
+                      color: AppColors.error,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  TextButton(
+                    onPressed: () => ref.invalidate(userCarsProvider),
+                    child: const Text('Reintentar'),
+                  ),
+                ],
               ),
             ),
           ),
@@ -204,8 +205,14 @@ class ProfileGarage extends ConsumerWidget {
     );
   }
 
-  Widget _buildGarageCarCard(BuildContext context, WidgetRef ref, UserCar car) {
+  Widget _buildGarageCarCard(
+    BuildContext context,
+    WidgetRef ref,
+    UserCar car, {
+    required double imageHeight,
+  }) {
     return Material(
+      key: ValueKey('profile-garage-car-${car.id}'),
       color: Colors.white,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
@@ -217,9 +224,8 @@ class ProfileGarage extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Área Superior (Hero) — Gran espacio para la ilustración del vehículo
           Container(
-            height: 130,
+            height: imageHeight,
             width: double.infinity,
             decoration: BoxDecoration(
               color: AppColors.grey50,
@@ -315,71 +321,81 @@ class ProfileGarage extends ConsumerWidget {
             ),
           ),
           // Área Inferior — Nombre del Vehículo y Botón de Eliminar
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Image.network(
-                            car.computedBrandLogoUrl,
-                            width: 24,
-                            height: 24,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) =>
-                                const SizedBox.shrink(),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              '${car.brand} ${car.model}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.hankenGrotesk(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 15.5,
-                                color: AppColors.textPrimary,
-                                letterSpacing: -0.4,
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Image.network(
+                              car.computedBrandLogoUrl,
+                              width: 24,
+                              height: 24,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) =>
+                                  const SizedBox.shrink(),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${car.brand} ${car.model}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15.5,
+                                  color: AppColors.textPrimary,
+                                  letterSpacing: -0.4,
+                                ),
                               ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          _getVehicleTypeName(car.vehicleType),
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        _getVehicleTypeName(car.vehicleType),
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w600,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Semantics(
+                    button: true,
+                    label: 'Eliminar ${car.brand} ${car.model}',
+                    child: PressableScale(
+                      key: ValueKey('delete-garage-car-${car.id}'),
+                      onTap: () =>
+                          _confirmarEliminarVehiculo(context, ref, car),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.errorLight.withValues(alpha: 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.delete_outline_rounded,
+                          color: AppColors.error,
+                          size: 18,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                PressableScale(
-                  onTap: () => _confirmarEliminarVehiculo(context, ref, car),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.errorLight.withValues(alpha: 0.5),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.delete_outline_rounded,
-                      color: AppColors.error,
-                      size: 18,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -547,6 +563,65 @@ class ProfileGarage extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _GarageAddButton extends StatelessWidget {
+  final String label;
+  final bool filled;
+  final VoidCallback onTap;
+
+  const _GarageAddButton({
+    this.label = 'Agregar',
+    this.filled = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = filled ? Colors.white : AppColors.primary;
+
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: PressableScale(
+        key: Key(
+          filled ? 'add-garage-vehicle-empty' : 'add-garage-vehicle',
+        ),
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            color: filled ? AppColors.primary : AppColors.primaryMuted,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add, size: 16, color: foreground),
+              const SizedBox(width: AppSpacing.xs),
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: foreground,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -10,6 +10,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/utils/venezuelan_phone_number.dart';
 import '../../../../shared/widgets/api_error_message.dart';
+import '../../../../shared/widgets/registration_page_chrome.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
@@ -104,7 +105,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
         return Validators.required(_nombreCtrl.text) == null &&
             Validators.email(_emailCtrl.text) == null &&
             Validators.phone(_telefonoCtrl.text) == null &&
-            Validators.required(_rifCtrl.text) == null;
+            Validators.rif(_rifCtrl.text) == null;
       case 2:
         return _passwordValida &&
             Validators.confirmPassword(
@@ -354,62 +355,17 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
   }
 
   Widget _appBar() {
-    return Row(
-      children: [
-        IconButton(
-          onPressed: _retroceder,
-          tooltip: _paso == 1 ? 'Volver a elegir perfil' : 'Paso anterior',
-          constraints: const BoxConstraints.tightFor(width: 48, height: 48),
-          padding: EdgeInsets.zero,
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            color: AppColors.textPrimary,
-            size: 22,
-          ),
-        ),
-        Text(
-          'Registro de Taller',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
-        ),
-      ],
+    return RegistrationPageHeader(
+      title: 'Registro de Taller',
+      onBack: _retroceder,
+      backTooltip: _paso == 1 ? 'Volver a elegir perfil' : 'Paso anterior',
     );
   }
 
   Widget _indicadorPasos() {
-    return Row(
-      children: [
-        Text(
-          'PASO $_paso DE $_totalSteps',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 2,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Row(
-            children: List.generate(_totalSteps, (i) {
-              return Expanded(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  height: 5,
-                  margin: EdgeInsets.only(left: i == 0 ? 0 : 6),
-                  decoration: BoxDecoration(
-                    color: i < _paso ? AppColors.primary : AppColors.border,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-      ],
+    return RegistrationStepProgress(
+      currentStep: _paso,
+      totalSteps: _totalSteps,
     );
   }
 
@@ -457,19 +413,9 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                         color: Colors.white,
                       ),
                     )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _paso == _totalSteps ? 'FINALIZAR' : 'CONTINUAR',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        const Icon(Icons.chevron_right, size: 18),
-                      ],
+                  : RegistrationActionLabel(
+                      label: _paso == _totalSteps ? 'FINALIZAR' : 'CONTINUAR',
+                      icon: Icons.chevron_right,
                     ),
             ),
           ),

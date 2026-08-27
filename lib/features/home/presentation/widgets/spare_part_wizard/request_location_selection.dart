@@ -18,7 +18,7 @@ class RequestLocationSelection {
       '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}';
 
   String get sourceLabel => switch (source) {
-        RequestLocationSource.gps => 'Ubicación GPS',
+        RequestLocationSource.gps => 'Tu ubicación actual',
         RequestLocationSource.profile => 'Última ubicación guardada',
         RequestLocationSource.mapTap => 'Punto elegido en el mapa',
       };

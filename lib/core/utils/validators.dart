@@ -56,4 +56,20 @@ abstract class Validators {
     }
     return null;
   }
+
+  static String? rif(String? value) {
+    final requiredError = required(value, fieldName: 'El RIF');
+    if (requiredError != null) return requiredError;
+
+    final normalized = value!.trim().toUpperCase();
+    final digits =
+        normalized.startsWith('J') ? normalized.substring(1) : normalized;
+    if (!RegExp(r'^\d+$').hasMatch(digits)) {
+      return 'El RIF solo puede contener números.';
+    }
+    if (digits.length > 9) {
+      return 'El RIF debe tener un máximo de 9 dígitos.';
+    }
+    return null;
+  }
 }

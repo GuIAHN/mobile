@@ -237,6 +237,9 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
   final _detailsController = TextEditingController();
   String? _selectedImagePath;
   RequestLocationSelection? _requestLocation;
+  bool _isLocatingRequest = false;
+  bool _requestedCurrentLocation = false;
+  String? _requestLocationError;
 
   @override
   void initState() {
@@ -263,6 +266,57 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
     setState(() {
       _currentStep = nextStep;
       _submitError = null;
+    });
+    if (nextStep == 3) {
+      await _loadCurrentRequestLocation();
+    }
+  }
+
+  Future<void> _loadCurrentRequestLocation() async {
+    final user = ref.read(authProvider).user;
+    final usesSavedLocation = user?.role.usesSavedLocationForSearch ?? false;
+    if (usesSavedLocation ||
+        _requestedCurrentLocation ||
+        _requestLocation != null) {
+      return;
+    }
+
+    _requestedCurrentLocation = true;
+    setState(() {
+      _isLocatingRequest = true;
+      _requestLocationError = null;
+    });
+
+    final found =
+        await ref.read(userLocationProvider.notifier).updateLocation();
+    if (!mounted) return;
+    final position = ref.read(userLocationProvider).valueOrNull;
+    if (!found || position == null) {
+      setState(() {
+        _isLocatingRequest = false;
+        _requestLocationError =
+            'No pudimos obtener tu ubicación actual. Puedes elegirla en el mapa.';
+      });
+      return;
+    }
+
+    final label =
+        await ref.read(locationServiceProvider).getAddressFromCoordinates(
+              position.latitude,
+              position.longitude,
+            );
+    if (!mounted) return;
+    ref.read(isLocationSharedProvider.notifier).state = true;
+    setState(() {
+      _requestLocation = RequestLocationSelection(
+        latitude: position.latitude,
+        longitude: position.longitude,
+        source: RequestLocationSource.gps,
+        label: label,
+      );
+      _isLocatingRequest = false;
+      _requestLocationError = null;
+      _isDirty = true;
     });
   }
 
@@ -682,7 +736,13 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
           onEditVehicle: () => _goToStep(1),
         );
       case 3:
-        final effectiveLocation = _resolveEffectiveRequestLocation().selection;
+        // While GPS is resolving (or if it failed), do not briefly present a
+        // saved/profile coordinate as though it were the consumer's current
+        // position. Manual selection remains available after an error.
+        final effectiveLocation =
+            _isLocatingRequest || _requestLocationError != null
+                ? _requestLocation
+                : _resolveEffectiveRequestLocation().selection;
         return SparePartWizardStep3(
           key: const ValueKey('step3'),
           selectedVehicle: _selectedVehicle,
@@ -692,6 +752,8 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
           detailsController: _detailsController,
           selectedImagePath: _selectedImagePath,
           requestLocation: effectiveLocation,
+          isLocatingLocation: _isLocatingRequest,
+          locationError: _requestLocationError,
           onLocationTap: _openRequestLocationPicker,
           onEditVehicle: () => _goToStep(1),
           onEditPart: () => _goToStep(2),

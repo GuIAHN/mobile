@@ -22,6 +22,7 @@ import 'package:guiautomotriz_mobile/features/provider_profile/presentation/widg
 import 'package:guiautomotriz_mobile/features/provider_profile/presentation/widgets/provider_specialties_card.dart';
 import 'package:guiautomotriz_mobile/features/reviews/domain/entities/pending_review.dart';
 import 'package:guiautomotriz_mobile/features/reviews/presentation/providers/reviews_providers.dart';
+import 'package:guiautomotriz_mobile/features/vehicles/domain/entities/user_car.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/presentation/providers/vehicle_providers.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -308,6 +309,113 @@ void main() {
       );
       await tester.pump();
       expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('adapts profile cards and garage across Android phone dimensions',
+      (tester) async {
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    tester.view.devicePixelRatio = 1;
+
+    const user = User(
+      id: 'consumer-android',
+      email: 'consumer.pixel@example.com',
+      name: 'Usuario Android',
+      phone: '+504 9999 1111',
+      role: UserRole.consumer,
+    );
+    const car = UserCar(
+      id: 'android-car',
+      brand: 'BMW',
+      model: 'X3',
+      year: 2025,
+      vehicleType: 'SUV',
+    );
+
+    const deviceSizes = <Size>[
+      Size(360, 640),
+      Size(412, 915),
+      Size(430, 932),
+      Size(480, 1040),
+      Size(915, 412),
+    ];
+
+    for (final size in deviceSizes) {
+      tester.view.physicalSize = size;
+      final textScale = size.width == 360 ? 2.0 : 1.3;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authProvider.overrideWith((ref) => _TestAuthNotifier(user)),
+            userCarsProvider.overrideWith((ref) async => const [car]),
+            pendingReviewsProvider.overrideWith((ref) async => const []),
+          ],
+          child: MaterialApp(
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                padding: const EdgeInsets.only(top: 24, bottom: 24),
+                textScaler: TextScaler.linear(textScale),
+                disableAnimations: true,
+              ),
+              child: child!,
+            ),
+            home: const Scaffold(body: ProfileTab()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final layoutException = tester.takeException();
+      expect(layoutException, isNull, reason: 'Falló en $size');
+
+      final contentRect = tester.getRect(
+        find.byKey(const Key('profile-content')),
+      );
+      final carRect = tester.getRect(
+        find.byKey(const ValueKey('profile-garage-car-android-car')),
+      );
+      expect(contentRect.left, greaterThanOrEqualTo(0));
+      expect(contentRect.right, lessThanOrEqualTo(size.width));
+      expect(carRect.left, greaterThanOrEqualTo(contentRect.left));
+      expect(carRect.right, lessThanOrEqualTo(contentRect.right));
+
+      if (size.width < 368) {
+        expect(
+          find.byKey(const Key('profile-account-actions-column')),
+          findsOneWidget,
+        );
+        expect(carRect.width, closeTo(size.width - 48, 1));
+      } else {
+        expect(
+          find.byKey(const Key('profile-account-actions-row')),
+          findsOneWidget,
+        );
+      }
+
+      expect(
+        tester.getSize(find.byKey(const Key('add-garage-vehicle'))).height,
+        greaterThanOrEqualTo(48),
+      );
+      expect(
+        tester
+            .getSize(
+              find.byKey(
+                const ValueKey('delete-garage-car-android-car'),
+              ),
+            )
+            .height,
+        greaterThanOrEqualTo(48),
+      );
+
+      await tester.drag(
+        find.byKey(const Key('profile-scroll-view')),
+        const Offset(0, -1000),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull, reason: 'Falló al hacer scroll');
     }
   });
 

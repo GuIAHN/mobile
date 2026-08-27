@@ -32,4 +32,21 @@ void main() {
       );
     });
   });
+
+  group('Env.resolveCartoBasemapUrl', () {
+    test('keeps the base URL when the API key is absent', () {
+      expect(
+        Env.resolveCartoBasemapUrl(''),
+        'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      );
+    });
+
+    test('adds an encoded API key to the tile URL', () {
+      expect(
+        Env.resolveCartoBasemapUrl(' test key+value '),
+        'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+        '?key=test+key%2Bvalue',
+      );
+    });
+  });
 }

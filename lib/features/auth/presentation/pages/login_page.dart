@@ -286,32 +286,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               onChanged: _clearApiError,
                             ),
                             const SizedBox(height: AppSpacing.xl),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const _FieldLabel('Contraseña'),
-                                Flexible(
-                                  child: TextButton(
-                                    key: const Key('open-forgot-password'),
-                                    onPressed: () =>
-                                        context.push(RouteNames.forgotPassword),
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: _brand,
-                                      minimumSize: const Size(0, 48),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: AppSpacing.xs,
-                                      ),
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.padded,
-                                    ),
-                                    child: Text(
-                                      '¿Olvidaste tu contraseña?',
-                                      textAlign: TextAlign.end,
-                                      style: _font(12, FontWeight.w700, _brand),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            _PasswordLabelRow(
+                              onForgotPassword: () =>
+                                  context.push(RouteNames.forgotPassword),
                             ),
                             const SizedBox(height: AppSpacing.sm),
                             _LoginField(
@@ -349,22 +326,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           children: [
                             const _LabeledDivider('O continuar con'),
                             const SizedBox(height: AppSpacing.xl),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _SocialButton.google(
-                                    onPressed: () =>
-                                        _handleSocialLogin('GOOGLE'),
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.md),
-                                Expanded(
-                                  child: _SocialButton.apple(
-                                    onPressed: () =>
-                                        _handleSocialLogin('APPLE'),
-                                  ),
-                                ),
-                              ],
+                            _SocialActions(
+                              onGoogle: () => _handleSocialLogin('GOOGLE'),
+                              onApple: () => _handleSocialLogin('APPLE'),
                             ),
                             const SizedBox(height: AppSpacing.xl3),
                             const _RegisterFooter(),
@@ -495,14 +459,18 @@ class _BrandHeader extends StatelessWidget {
     return Column(
       children: [
         const SizedBox(height: 32),
-        Image.asset(
-          'assets/images/logo.png',
-          width: 320,
-          fit: BoxFit.contain,
-          semanticLabel: 'guIAutomotriz HN',
-          errorBuilder: (_, __, ___) => Text(
-            'guIAutomotriz HN',
-            style: _font(24, FontWeight.w800, _ink, letterSpacing: -0.3),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: Image.asset(
+            'assets/images/logo.png',
+            width: double.infinity,
+            fit: BoxFit.contain,
+            semanticLabel: 'guIAutomotriz HN',
+            errorBuilder: (_, __, ___) => Text(
+              'guIAutomotriz HN',
+              textAlign: TextAlign.center,
+              style: _font(24, FontWeight.w800, _ink, letterSpacing: -0.3),
+            ),
           ),
         ),
       ],
@@ -521,6 +489,56 @@ class _FieldLabel extends StatelessWidget {
     return Text(
       text.toUpperCase(),
       style: _font(12, FontWeight.w700, _muted, letterSpacing: 1.5),
+    );
+  }
+}
+
+class _PasswordLabelRow extends StatelessWidget {
+  final VoidCallback onForgotPassword;
+
+  const _PasswordLabelRow({required this.onForgotPassword});
+
+  @override
+  Widget build(BuildContext context) {
+    final forgotButton = TextButton(
+      key: const Key('open-forgot-password'),
+      onPressed: onForgotPassword,
+      style: TextButton.styleFrom(
+        foregroundColor: _brand,
+        minimumSize: const Size(0, 48),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+        tapTargetSize: MaterialTapTargetSize.padded,
+      ),
+      child: Text(
+        '¿Olvidaste tu contraseña?',
+        textAlign: TextAlign.end,
+        style: _font(12, FontWeight.w700, _brand),
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scaledLabel = MediaQuery.textScalerOf(context).scale(12);
+        final stack = constraints.maxWidth < 320 || scaledLabel >= 18;
+
+        if (stack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _FieldLabel('Contraseña'),
+              Align(alignment: Alignment.centerRight, child: forgotButton),
+            ],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const _FieldLabel('Contraseña'),
+            Flexible(child: forgotButton),
+          ],
+        );
+      },
     );
   }
 }
@@ -723,11 +741,14 @@ class _LabeledDivider extends StatelessWidget {
     return Row(
       children: [
         const Expanded(child: Divider(color: _hairline, thickness: 1)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Text(
-            label.toUpperCase(),
-            style: _font(11, FontWeight.w600, _muted, letterSpacing: 1.5),
+        Flexible(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Text(
+              label.toUpperCase(),
+              textAlign: TextAlign.center,
+              style: _font(11, FontWeight.w600, _muted, letterSpacing: 1.5),
+            ),
           ),
         ),
         const Expanded(child: Divider(color: _hairline, thickness: 1)),
@@ -801,6 +822,47 @@ class _SocialButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SocialActions extends StatelessWidget {
+  final VoidCallback onGoogle;
+  final VoidCallback onApple;
+
+  const _SocialActions({
+    required this.onGoogle,
+    required this.onApple,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scaledLabel = MediaQuery.textScalerOf(context).scale(14.5);
+        final stack = constraints.maxWidth < 320 || scaledLabel >= 20;
+        final google = _SocialButton.google(onPressed: onGoogle);
+        final apple = _SocialButton.apple(onPressed: onApple);
+
+        if (stack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              google,
+              const SizedBox(height: AppSpacing.md),
+              apple,
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: google),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(child: apple),
+          ],
+        );
+      },
     );
   }
 }

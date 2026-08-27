@@ -8,6 +8,8 @@ class SparePartWizardStep3 extends StatefulWidget {
   final TextEditingController detailsController;
   final String? selectedImagePath;
   final RequestLocationSelection? requestLocation;
+  final bool isLocatingLocation;
+  final String? locationError;
   final VoidCallback onLocationTap;
   final VoidCallback? onEditVehicle;
   final VoidCallback? onEditPart;
@@ -22,6 +24,8 @@ class SparePartWizardStep3 extends StatefulWidget {
     required this.detailsController,
     required this.selectedImagePath,
     required this.requestLocation,
+    this.isLocatingLocation = false,
+    this.locationError,
     required this.onLocationTap,
     this.onEditVehicle,
     this.onEditPart,
@@ -133,6 +137,8 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
           const SizedBox(height: 10),
           RequestLocationPreview(
             selection: widget.requestLocation,
+            isLocating: widget.isLocatingLocation,
+            errorMessage: widget.locationError,
             onTap: widget.onLocationTap,
           ),
           const SizedBox(height: 32),

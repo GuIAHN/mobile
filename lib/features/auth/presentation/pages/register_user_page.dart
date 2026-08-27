@@ -10,6 +10,7 @@ import '../../../../core/utils/venezuelan_phone_number.dart';
 import '../../../../shared/widgets/app_phone_field.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/api_error_message.dart';
+import '../../../../shared/widgets/registration_page_chrome.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
 import '../providers/social_registration_state.dart';
@@ -332,63 +333,17 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   }
 
   Widget _appBar() {
-    return Row(
-      children: [
-        IconButton(
-          onPressed: _retroceder,
-          tooltip: _paso == 1 ? 'Volver a elegir perfil' : 'Paso anterior',
-          constraints: const BoxConstraints.tightFor(width: 48, height: 48),
-          padding: EdgeInsets.zero,
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            color: AppColors.textPrimary,
-            size: 22,
-          ),
-        ),
-        Text(
-          'Registro de Usuario',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const Spacer(),
-      ],
+    return RegistrationPageHeader(
+      title: 'Registro de Usuario',
+      onBack: _retroceder,
+      backTooltip: _paso == 1 ? 'Volver a elegir perfil' : 'Paso anterior',
     );
   }
 
   Widget _indicadorPasos() {
-    return Row(
-      children: [
-        Text(
-          'PASO $_paso DE $_totalSteps',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 2,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Row(
-            children: List.generate(_totalSteps, (i) {
-              return Expanded(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  height: 5,
-                  margin: EdgeInsets.only(left: i == 0 ? 0 : 6),
-                  decoration: BoxDecoration(
-                    color: i < _paso ? AppColors.primary : AppColors.border,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-      ],
+    return RegistrationStepProgress(
+      currentStep: _paso,
+      totalSteps: _totalSteps,
     );
   }
 
@@ -427,28 +382,8 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   }
 
   Widget _loginLink() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          '¿Ya tienes una cuenta? ',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 15,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        GestureDetector(
-          onTap: () => context.go(RouteNames.login),
-          child: Text(
-            'Inicia sesión',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primary,
-            ),
-          ),
-        ),
-      ],
+    return RegistrationLoginLink(
+      onPressed: () => context.go(RouteNames.login),
     );
   }
 
@@ -498,25 +433,11 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                         color: Colors.white,
                       ),
                     )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _paso < _totalSteps ? 'CONTINUAR' : 'CREAR CUENTA',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          _paso < _totalSteps
-                              ? Icons.chevron_right
-                              : Icons.person_add_outlined,
-                          size: 18,
-                        ),
-                      ],
+                  : RegistrationActionLabel(
+                      label: _paso < _totalSteps ? 'CONTINUAR' : 'CREAR CUENTA',
+                      icon: _paso < _totalSteps
+                          ? Icons.chevron_right
+                          : Icons.person_add_outlined,
                     ),
             ),
           ),

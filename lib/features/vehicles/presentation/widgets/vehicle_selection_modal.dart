@@ -54,10 +54,9 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal>
   static const int _oldestVehicleYear = 1950;
   int _step = 1;
   String _searchQuery = '';
-  String? _yearError;
-  late final TextEditingController _yearController;
+  late int _selectedYear;
+  late final FixedExtentScrollController _yearWheelController;
   late final TextEditingController _motorController;
-  late final FocusNode _yearFocusNode;
   late final FocusNode _motorFocusNode;
   late final ScrollController _detailsScrollController;
 
@@ -69,9 +68,11 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _yearController = TextEditingController(text: '${DateTime.now().year}');
+    _selectedYear = DateTime.now().year;
+    _yearWheelController = FixedExtentScrollController(
+      initialItem: _newestVehicleYear - _selectedYear,
+    );
     _motorController = TextEditingController();
-    _yearFocusNode = FocusNode();
     _motorFocusNode = FocusNode()..addListener(_handleMotorFocus);
     _detailsScrollController = ScrollController();
     if (widget.initialBrand != null) {
@@ -83,9 +84,8 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _yearController.dispose();
+    _yearWheelController.dispose();
     _motorController.dispose();
-    _yearFocusNode.dispose();
     _detailsScrollController.dispose();
     _motorFocusNode
       ..removeListener(_handleMotorFocus)
@@ -97,123 +97,132 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal>
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
 
+    final availableHeight = mediaQuery.size.height - mediaQuery.padding.top - 8;
+    final modalHeight = availableHeight < 560
+        ? availableHeight
+        : (mediaQuery.size.height * 0.92).clamp(560.0, availableHeight);
+
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: _dismissKeyboard,
       child: SafeArea(
         top: false,
         child: Container(
-          height: mediaQuery.size.height * 0.85,
+          height: modalHeight,
           decoration: const BoxDecoration(
             color: AppColors.background,
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(
-          children: [
-            const SizedBox(height: 12),
-            // Handle drag
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.textDisabled,
-                borderRadius: BorderRadius.circular(99),
+            children: [
+              const SizedBox(height: 12),
+              // Handle drag
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textDisabled,
+                  borderRadius: BorderRadius.circular(99),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  if (_step > 1)
+              const SizedBox(height: 16),
+              // Header
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: mediaQuery.size.width < 360 ? 12 : 20,
+                ),
+                child: Row(
+                  children: [
+                    if (_step > 1)
+                      IconButton(
+                        onPressed: _retrocederPaso,
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                            size: 20),
+                        tooltip: 'Volver',
+                        constraints: const BoxConstraints.tightFor(
+                          width: 48,
+                          height: 48,
+                        ),
+                        color: AppColors.textPrimary,
+                      )
+                    else
+                      const SizedBox(width: 48),
+                    Expanded(
+                      child: Text(
+                        _tituloPaso(),
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
                     IconButton(
-                      onPressed: _retrocederPaso,
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                          size: 20),
-                      tooltip: 'Volver',
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close_rounded, size: 24),
+                      tooltip: 'Cerrar selector',
                       constraints: const BoxConstraints.tightFor(
                         width: 48,
                         height: 48,
                       ),
+                      color: AppColors.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Search is useful for textual catalogs; the compact year wheel
+              // replaces it in step 3.
+              if (_step != 3)
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: mediaQuery.size.width < 360 ? 16 : 24,
+                  ),
+                  child: TextField(
+                    onChanged: (val) => setState(() => _searchQuery = val),
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 15,
                       color: AppColors.textPrimary,
-                    )
-                  else
-                    const SizedBox(width: 48),
-                  Expanded(
-                    child: Text(
-                      _tituloPaso(),
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: _placeholderBuscador(),
+                      hintStyle: GoogleFonts.hankenGrotesk(
+                        color: AppColors.textDisabled,
+                        fontSize: 15,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search_rounded,
+                        size: 20,
+                        color: AppColors.textSecondary,
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 13),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                            color: AppColors.primary, width: 1.5),
                       ),
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded, size: 24),
-                    tooltip: 'Cerrar selector',
-                    constraints: const BoxConstraints.tightFor(
-                      width: 48,
-                      height: 48,
-                    ),
-                    color: AppColors.textSecondary,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Search is useful for textual catalogs; the compact year wheel
-            // replaces it in step 3.
-            if (_step != 3)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: TextField(
-                  onChanged: (val) => setState(() => _searchQuery = val),
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 15,
-                    color: AppColors.textPrimary,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: _placeholderBuscador(),
-                    hintStyle: GoogleFonts.hankenGrotesk(
-                      color: AppColors.textDisabled,
-                      fontSize: 15,
-                    ),
-                    prefixIcon: const Icon(
-                      Icons.search_rounded,
-                      size: 20,
-                      color: AppColors.textSecondary,
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 13),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: AppColors.border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(
-                          color: AppColors.primary, width: 1.5),
-                    ),
-                  ),
+                ),
+              const SizedBox(height: 16),
+              // Content
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: mediaQuery.disableAnimations
+                      ? Duration.zero
+                      : const Duration(milliseconds: 300),
+                  child: _buildPasoActual(),
                 ),
               ),
-            const SizedBox(height: 16),
-            // Content
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: mediaQuery.disableAnimations
-                    ? Duration.zero
-                    : const Duration(milliseconds: 300),
-                child: _buildPasoActual(),
-              ),
-            ),
-          ],
+            ],
           ),
         ),
       ),
@@ -278,9 +287,8 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal>
       if (_step == 3) {
         _step = 2;
         _selectedModel = null;
-        _yearController.text = '${DateTime.now().year}';
+        _resetYear();
         _motorController.clear();
-        _yearError = null;
         _searchQuery = '';
       } else if (_step == 2) {
         _step = 1;
@@ -370,7 +378,7 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal>
               onTap: () {
                 setState(() {
                   _selectedModel = model;
-                  _yearController.text = '${DateTime.now().year}';
+                  _resetYear();
                   _step = 3;
                   _searchQuery = '';
                 });
@@ -391,107 +399,107 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal>
     final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
     final isIos = Theme.of(context).platform == TargetPlatform.iOS;
     final keyboardClearance = keyboardVisible ? (isIos ? 380.0 : 240.0) : 24.0;
-    return SingleChildScrollView(
-      key: const ValueKey('vehicle-details'),
-      controller: _detailsScrollController,
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: EdgeInsets.fromLTRB(
-        24,
-        4,
-        24,
-        keyboardClearance,
-      ),
-      child: Form(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _VehicleDepthPreview(
-              brand: _selectedBrand!.name,
-              brandPhotoUrl: _selectedBrand!.photoUrl,
-              model: _selectedModel!.name,
-              vehicleType: _selectedModel!.vehicleType,
-            ),
-            const SizedBox(height: 24),
-            Text('AÑO',
-                style: GoogleFonts.hankenGrotesk(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
-                    color: AppColors.textSecondary)),
-            const SizedBox(height: 8),
-            TextField(
-              key: const ValueKey('vehicle-year-input'),
-              controller: _yearController,
-              focusNode: _yearFocusNode,
-              keyboardType: TextInputType.number,
-              textInputAction: TextInputAction.next,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(4)
-              ],
-              onChanged: (_) => setState(() => _yearError = null),
-              onTapOutside: (_) => _dismissKeyboard(),
-              onSubmitted: (_) {
-                _motorFocusNode.requestFocus();
-                _revealMotorField();
-              },
-              decoration: _inputDecoration(
-                hint: 'Ej. ${DateTime.now().year}',
-                icon: AppIcons.period,
-                errorText: _yearError,
-              ),
-            ),
-            const SizedBox(height: 18),
-            Text('MOTOR (OPCIONAL)',
-                style: GoogleFonts.hankenGrotesk(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
-                    color: AppColors.textSecondary)),
-            const SizedBox(height: 8),
-            TextField(
-                key: const ValueKey('vehicle-motor-input'),
-                controller: _motorController,
-                focusNode: _motorFocusNode,
-                textCapitalization: TextCapitalization.characters,
-                textInputAction: TextInputAction.done,
-                maxLength: 100,
-                scrollPadding: EdgeInsets.only(
-                  bottom: isIos ? 320 : 200,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final horizontalPadding = constraints.maxWidth < 360 ? 16.0 : 24.0;
+        return SingleChildScrollView(
+          key: const ValueKey('vehicle-details'),
+          controller: _detailsScrollController,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            4,
+            horizontalPadding,
+            keyboardClearance,
+          ),
+          child: Form(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _VehicleDepthPreview(
+                  brand: _selectedBrand!.name,
+                  brandPhotoUrl: _selectedBrand!.photoUrl,
+                  model: _selectedModel!.name,
+                  vehicleType: _selectedModel!.vehicleType,
                 ),
-                onTap: _revealMotorField,
-                onTapOutside: (_) => _dismissKeyboard(),
-                onSubmitted: (_) => _dismissKeyboard(),
-                decoration: _inputDecoration(
-                  hint: 'Ej. 1.8L, 2.0 Turbo',
-                  icon: AppIcons.engine,
-                  helperText:
-                      'Escríbelo como aparece en el vehículo o documento.',
-                ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 52,
-              child: ElevatedButton(
-                key: const ValueKey('confirm-vehicle-details'),
-                onPressed: _completeSelection,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(32)),
-                ),
-                child: Text('CONFIRMAR VEHÍCULO',
+                const SizedBox(height: 24),
+                Text('AÑO',
                     style: GoogleFonts.hankenGrotesk(
-                        fontSize: 15,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 2)),
-              ),
+                        letterSpacing: 1.5,
+                        color: AppColors.textSecondary)),
+                const SizedBox(height: 8),
+                _YearWheelPicker(
+                  controller: _yearWheelController,
+                  selectedYear: _selectedYear,
+                  newestYear: _newestVehicleYear,
+                  oldestYear: _oldestVehicleYear,
+                  onChanged: (year) {
+                    HapticFeedback.selectionClick();
+                    setState(() => _selectedYear = year);
+                  },
+                ),
+                const SizedBox(height: 18),
+                Text('MOTOR (OPCIONAL)',
+                    style: GoogleFonts.hankenGrotesk(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5,
+                        color: AppColors.textSecondary)),
+                const SizedBox(height: 8),
+                TextField(
+                  key: const ValueKey('vehicle-motor-input'),
+                  controller: _motorController,
+                  focusNode: _motorFocusNode,
+                  textCapitalization: TextCapitalization.characters,
+                  textInputAction: TextInputAction.done,
+                  maxLength: 100,
+                  scrollPadding: EdgeInsets.only(
+                    bottom: isIos ? 320 : 200,
+                  ),
+                  onTap: _revealMotorField,
+                  onTapOutside: (_) => _dismissKeyboard(),
+                  onSubmitted: (_) => _dismissKeyboard(),
+                  decoration: _inputDecoration(
+                    hint: 'Ej. 1.8L, 2.0 Turbo',
+                    icon: AppIcons.engine,
+                    helperText:
+                        'Escríbelo como aparece en el vehículo o documento.',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 52,
+                  child: ElevatedButton(
+                    key: const ValueKey('confirm-vehicle-details'),
+                    onPressed: _completeSelection,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(32)),
+                    ),
+                    child: Text('CONFIRMAR VEHÍCULO',
+                        style: GoogleFonts.hankenGrotesk(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 2)),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
+  }
+
+  void _resetYear() {
+    _selectedYear = DateTime.now().year;
+    if (_yearWheelController.hasClients) {
+      _yearWheelController.jumpToItem(_newestVehicleYear - _selectedYear);
+    }
   }
 
   InputDecoration _inputDecoration(
@@ -524,14 +532,6 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal>
   }
 
   void _completeSelection() {
-    final year = int.tryParse(_yearController.text.trim());
-    if (year == null ||
-        year < _oldestVehicleYear ||
-        year > _newestVehicleYear) {
-      setState(() => _yearError =
-          'Ingresa un año entre $_oldestVehicleYear y $_newestVehicleYear.');
-      return;
-    }
     Navigator.pop(
       context,
       VehicleSelectionResult(
@@ -539,7 +539,7 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal>
         modelId: _selectedModel!.id,
         modelName: _selectedModel!.name,
         vehicleType: _selectedModel!.vehicleType,
-        year: year,
+        year: _selectedYear,
         motor: _motorController.text.trim(),
       ),
     );
@@ -758,6 +758,118 @@ class _VehicleSelectionModalState extends ConsumerState<VehicleSelectionModal>
               fontSize: 15,
               color: AppColors.textSecondary,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _YearWheelPicker extends StatelessWidget {
+  final FixedExtentScrollController controller;
+  final int selectedYear;
+  final int newestYear;
+  final int oldestYear;
+  final ValueChanged<int> onChanged;
+
+  const _YearWheelPicker({
+    required this.controller,
+    required this.selectedYear,
+    required this.newestYear,
+    required this.oldestYear,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textScaler = MediaQuery.textScalerOf(context);
+    final itemExtent = textScaler.scale(28).clamp(52.0, 68.0);
+    final yearsCount = newestYear - oldestYear + 1;
+
+    return Semantics(
+      label: 'Año del vehículo',
+      value: '$selectedYear',
+      increasedValue: selectedYear < newestYear ? '${selectedYear + 1}' : null,
+      decreasedValue: selectedYear > oldestYear ? '${selectedYear - 1}' : null,
+      onIncrease: selectedYear < newestYear
+          ? () => controller.animateToItem(
+                newestYear - selectedYear - 1,
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+              )
+          : null,
+      onDecrease: selectedYear > oldestYear
+          ? () => controller.animateToItem(
+                newestYear - selectedYear + 1,
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+              )
+          : null,
+      child: ExcludeSemantics(
+        child: Container(
+          key: const ValueKey('vehicle-year-wheel'),
+          height: itemExtent * 3,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              IgnorePointer(
+                child: Container(
+                  height: itemExtent,
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryMuted,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.35),
+                    ),
+                  ),
+                ),
+              ),
+              ListWheelScrollView.useDelegate(
+                controller: controller,
+                itemExtent: itemExtent,
+                diameterRatio: 1.65,
+                perspective: 0.0025,
+                physics: const FixedExtentScrollPhysics(),
+                onSelectedItemChanged: (index) => onChanged(newestYear - index),
+                childDelegate: ListWheelChildBuilderDelegate(
+                  childCount: yearsCount,
+                  builder: (context, index) {
+                    final year = newestYear - index;
+                    final selected = year == selectedYear;
+                    return Center(
+                      child: AnimatedDefaultTextStyle(
+                        duration: MediaQuery.disableAnimationsOf(context)
+                            ? Duration.zero
+                            : const Duration(milliseconds: 180),
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: selected ? 26 : 18,
+                          fontWeight:
+                              selected ? FontWeight.w800 : FontWeight.w500,
+                          color: selected
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                        child: Text(
+                          '$year',
+                          key: ValueKey('vehicle-year-$year'),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),

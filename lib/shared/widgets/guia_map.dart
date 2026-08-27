@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/config/env.dart';
 import '../../core/theme/app_colors.dart';
 
 class GuiaMap extends StatefulWidget {
@@ -95,8 +96,7 @@ class _GuiaMapState extends State<GuiaMap> {
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate:
-                        'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                    urlTemplate: Env.cartoBasemapUrl,
                     userAgentPackageName: 'com.guiautomotriz.mobile',
                     retinaMode: RetinaMode.isHighDensity(context),
                     errorTileCallback: (_, __, ___) => _handleMapError(),

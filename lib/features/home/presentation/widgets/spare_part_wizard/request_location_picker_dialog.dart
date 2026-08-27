@@ -6,8 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../../../core/config/env.dart';
 import '../../../../../core/services/location_service.dart';
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
 import 'request_location_selection.dart';
@@ -242,8 +244,7 @@ class _RequestLocationPickerDialogState
       ),
       children: [
         TileLayer(
-          urlTemplate:
-              'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+          urlTemplate: Env.cartoBasemapUrl,
           userAgentPackageName: 'com.guiautomotriz.mobile',
           retinaMode: RetinaMode.isHighDensity(context),
           reset: _tileResetController.stream,
@@ -389,7 +390,7 @@ class _RequestLocationPickerDialogState
                                 color: AppColors.primary,
                               ),
                             )
-                          : const Icon(Icons.my_location_rounded),
+                          : const Icon(AppIcons.account),
                     ),
                   ),
                 ),
@@ -515,7 +516,7 @@ class _CenterLocationPin extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Punto seleccionado en el centro del mapa',
+      label: 'Tu ubicación seleccionada en el centro del mapa',
       child: Container(
         width: 52,
         height: 52,
@@ -532,7 +533,7 @@ class _CenterLocationPin extends StatelessWidget {
           ],
         ),
         child: const Icon(
-          Icons.location_on_rounded,
+          AppIcons.account,
           color: Colors.white,
           size: 30,
         ),

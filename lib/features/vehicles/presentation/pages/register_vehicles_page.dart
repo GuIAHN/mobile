@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../shared/widgets/registration_page_chrome.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/register_vehicles_provider.dart';
 import '../providers/vehicle_providers.dart';
@@ -108,10 +109,13 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
                           // Lista de autos
                           Row(
                             children: [
-                              const _FieldLabel('TUS VEHÍCULOS'),
-                              const SizedBox(width: 8),
-                              if (vehiculos.isNotEmpty)
+                              const Flexible(
+                                child: _FieldLabel('TUS VEHÍCULOS'),
+                              ),
+                              if (vehiculos.isNotEmpty) ...[
+                                const SizedBox(width: 8),
                                 _BadgeCount(vehiculos.length),
+                              ],
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -148,63 +152,26 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
   }
 
   Widget _appBar() {
-    return Row(
-      children: [
-        GestureDetector(
-          onTap: () => context.go(RouteNames.registerUser),
-          child: const Icon(
-            Icons.arrow_back_ios_new,
-            color: AppColors.textPrimary,
-            size: 22,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          'Mi Garage',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const Spacer(),
-        const Icon(
+    return RegistrationPageHeader(
+      title: 'Mi Garage',
+      onBack: () => context.go(RouteNames.registerUser),
+      backTooltip: 'Volver al registro de usuario',
+      trailing: Semantics(
+        label: 'Información del garage',
+        image: true,
+        child: const Icon(
           Icons.help_outline,
           color: AppColors.textSecondary,
           size: 20,
         ),
-      ],
+      ),
     );
   }
 
   Widget _indicadorPasos() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'PASO 2 DE 2',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 2,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        Row(
-          children: List.generate(2, (i) {
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: 28,
-              height: 5,
-              margin: const EdgeInsets.only(left: 6),
-              decoration: BoxDecoration(
-                color: i < 2 ? AppColors.primary : AppColors.border,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            );
-          }),
-        ),
-      ],
+    return const RegistrationStepProgress(
+      currentStep: 2,
+      totalSteps: 2,
     );
   }
 
@@ -252,7 +219,7 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
       },
       child: SizedBox(
         width: double.infinity,
-        child: OutlinedButton.icon(
+        child: OutlinedButton(
           onPressed: () async {
             final result = await VehicleSelectionModal.show(context);
             if (result != null) {
@@ -265,15 +232,6 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
                   );
             }
           },
-          icon: const Icon(Icons.add, size: 18),
-          label: Text(
-            'AÑADIR VEHÍCULO',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.5,
-            ),
-          ),
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.primary,
             side: const BorderSide(
@@ -284,6 +242,10 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(32),
             ),
+          ),
+          child: const RegistrationActionLabel(
+            label: 'AÑADIR VEHÍCULO',
+            icon: Icons.add,
           ),
         ),
       ),
@@ -325,31 +287,19 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
                 borderRadius: BorderRadius.circular(32),
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  _isSaving ? 'GUARDANDO VEHÍCULOS...' : 'FINALIZAR REGISTRO',
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1,
+            child: _isSaving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  )
+                : const RegistrationActionLabel(
+                    label: 'FINALIZAR REGISTRO',
+                    icon: Icons.check_circle_outline,
                   ),
-                ),
-                const SizedBox(width: 8),
-                _isSaving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Icon(Icons.check_circle_outline, size: 18),
-              ],
-            ),
           ),
         ),
       ),

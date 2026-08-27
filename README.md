@@ -25,7 +25,8 @@ explicit in the build command:
 ```bash
 flutter build apk --release \
   --dart-define=ENV=production \
-  --dart-define=API_BASE_URL=https://guia-api-test.onrender.com/api
+  --dart-define=API_BASE_URL=https://guia-api-test.onrender.com/api \
+  --dart-define=CARTO_BASEMAP_API_KEY=YOUR_CARTO_BASEMAP_API_KEY
 ```
 
 After building, verify the artifact before sharing it:

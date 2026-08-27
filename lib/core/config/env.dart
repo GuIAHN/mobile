@@ -10,6 +10,11 @@ enum AppEnvironment { development, staging, production }
 class Env {
   Env._();
 
+  static const String _cartoRasterTileUrl =
+      'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+  static const String _cartoBasemapApiKey =
+      String.fromEnvironment('CARTO_BASEMAP_API_KEY');
+
   /// Active environment. Modify this when building with --dart-define (e.g., --dart-define=ENV=production).
   static const String _envString = String.fromEnvironment('ENV');
 
@@ -75,4 +80,16 @@ class Env {
   }
 
   static bool get isProd => current == AppEnvironment.production;
+
+  /// CARTO raster tile URL shared by every map in the application.
+  static String get cartoBasemapUrl =>
+      resolveCartoBasemapUrl(_cartoBasemapApiKey);
+
+  @visibleForTesting
+  static String resolveCartoBasemapUrl(String apiKey) {
+    final normalizedKey = apiKey.trim();
+    if (normalizedKey.isEmpty) return _cartoRasterTileUrl;
+
+    return '$_cartoRasterTileUrl?key=${Uri.encodeQueryComponent(normalizedKey)}';
+  }
 }
