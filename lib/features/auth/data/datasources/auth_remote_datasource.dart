@@ -1,5 +1,6 @@
 import 'dart:convert';
-
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:dio/dio.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/network/api_endpoints.dart';
@@ -299,11 +300,35 @@ class AuthRemoteDataSource {
     }
   }
 
-  Future<MultipartFile> _registrationDocument(String filePath) {
-    final filename = filePath.split('/').last.split('\\').last;
+  Future<MultipartFile> _registrationDocument(String filePath) async {
+    final xFile = XFile(filePath);
+    final rawName = kIsWeb ? xFile.name : filePath.split('/').last.split('\\').last;
+
+    final String filename =
+        (rawName.isEmpty || rawName.startsWith('blob:') || !rawName.contains('.'))
+            ? 'document_${DateTime.now().millisecondsSinceEpoch}.jpg'
+            : rawName;
+
+    final ext = filename.split('.').last.toLowerCase();
+    final mediaType = switch (ext) {
+      'png' => DioMediaType('image', 'png'),
+      'webp' => DioMediaType('image', 'webp'),
+      'pdf' => DioMediaType('application', 'pdf'),
+      _ => DioMediaType('image', 'jpeg'),
+    };
+
+    if (kIsWeb) {
+      final bytes = await xFile.readAsBytes();
+      return MultipartFile.fromBytes(
+        bytes,
+        filename: filename,
+        contentType: mediaType,
+      );
+    }
     return MultipartFile.fromFile(
       filePath,
-      filename: filename.isEmpty ? 'document.jpg' : filename,
+      filename: filename,
+      contentType: mediaType,
     );
   }
 
