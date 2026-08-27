@@ -59,6 +59,13 @@ void main() {
       tester.getSize(find.byKey(const Key('vehicle-context-card'))).height,
       lessThanOrEqualTo(64),
     );
+    expect(
+      tester.getCenter(find.text('Selecciona el vehículo')).dy,
+      closeTo(
+        tester.getCenter(find.byKey(const Key('vehicle-context-action'))).dy,
+        1,
+      ),
+    );
   });
 
   testWidgets('shows the full vehicle and adapts to large text',
@@ -85,6 +92,12 @@ void main() {
     expect(find.text('Toyota Corolla'), findsOneWidget);
     expect(find.text('Año 2022 · Versión XLE 1.8L'), findsOneWidget);
     expect(find.text('Elegir'), findsOneWidget);
+    expect(
+      tester.getRect(find.text('Toyota Corolla')).right,
+      lessThanOrEqualTo(
+        tester.getRect(find.byKey(const Key('vehicle-context-action'))).left,
+      ),
+    );
     expect(tester.takeException(), isNull);
   });
 }

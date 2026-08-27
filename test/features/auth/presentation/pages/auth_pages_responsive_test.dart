@@ -100,6 +100,18 @@ void main() {
         );
         expect(find.byType(Scaffold), findsWidgets);
 
+        if (fixture.name == 'login') {
+          final google = find.text('Google');
+          final apple = find.text('Apple');
+          expect(google, findsOneWidget);
+          expect(apple, findsOneWidget);
+          expect(
+            tester.getCenter(google).dy,
+            closeTo(tester.getCenter(apple).dy, 1),
+            reason: 'Google y Apple deben permanecer en la misma fila',
+          );
+        }
+
         final scrollables = find.byType(Scrollable);
         if (scrollables.evaluate().isNotEmpty) {
           await tester.drag(scrollables.first, const Offset(0, -600));

@@ -837,32 +837,12 @@ class _SocialActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final scaledLabel = MediaQuery.textScalerOf(context).scale(14.5);
-        final stack = constraints.maxWidth < 320 || scaledLabel >= 20;
-        final google = _SocialButton.google(onPressed: onGoogle);
-        final apple = _SocialButton.apple(onPressed: onApple);
-
-        if (stack) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              google,
-              const SizedBox(height: AppSpacing.md),
-              apple,
-            ],
-          );
-        }
-
-        return Row(
-          children: [
-            Expanded(child: google),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(child: apple),
-          ],
-        );
-      },
+    return Row(
+      children: [
+        Expanded(child: _SocialButton.google(onPressed: onGoogle)),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(child: _SocialButton.apple(onPressed: onApple)),
+      ],
     );
   }
 }

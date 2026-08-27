@@ -20,7 +20,6 @@ class VehicleContextCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final vehicle = ref.watch(searchVehicleProvider);
-    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -42,35 +41,15 @@ class VehicleContextCard extends ConsumerWidget {
             horizontal: AppSpacing.lg,
             vertical: AppSpacing.sm,
           ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final stacksAction =
-                  constraints.maxWidth < 300 || textScale > 1.3;
-              final summary = _VehicleSummary(vehicle: vehicle);
-              final action = _VehicleAction(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(child: _VehicleSummary(vehicle: vehicle)),
+              const SizedBox(width: AppSpacing.md),
+              _VehicleAction(
                 onPressed: () => _selectVehicle(context, ref),
-              );
-
-              if (stacksAction) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    summary,
-                    const SizedBox(height: AppSpacing.md),
-                    action,
-                  ],
-                );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(child: summary),
-                  const SizedBox(width: AppSpacing.md),
-                  action,
-                ],
-              );
-            },
+              ),
+            ],
           ),
         ),
       ),
