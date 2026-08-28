@@ -53,6 +53,18 @@ void main() {
     await pumpCoverage(tester, brandsOverride: (ref) async => brands);
     await tester.pumpAndSettle();
 
+    final oemSize = tester.getSize(
+      find.byKey(const Key('spare-part-type-ORIGINAL')),
+    );
+    final genericSize = tester.getSize(
+      find.byKey(const Key('spare-part-type-GENERIC')),
+    );
+    final performanceSize = tester.getSize(
+      find.byKey(const Key('spare-part-type-PERFORMANCE')),
+    );
+    expect(genericSize, oemSize);
+    expect(performanceSize, oemSize);
+
     final grids = tester.widgetList<GridView>(find.byType(GridView));
     expect(grids, isNotEmpty);
     for (final grid in grids) {
@@ -158,6 +170,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('spare-part-type-ORIGINAL')), findsOneWidget);
+    expect(find.text('OEM'), findsOneWidget);
+    expect(find.text('Alto rendimiento'), findsOneWidget);
     expect(
       find.byKey(const Key('spare-part-type-icon-ORIGINAL')),
       findsOneWidget,

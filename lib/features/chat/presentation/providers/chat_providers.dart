@@ -21,6 +21,7 @@ import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/providers/cache_for.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/services/socket_service.dart';
+import '../../../../core/session/session_generation_provider.dart';
 
 // ── Dependency Providers ─────────────────────────────────────────────────────
 
@@ -90,11 +91,17 @@ final undoDeclineUseCaseProvider = Provider<UndoDeclineUseCase>((ref) {
 // ── State Providers ──────────────────────────────────────────────────────────
 
 /// Filtro activo para solicitudes de tiendas. `UNQUOTED` ya no es válido.
-final storeStatusFilterProvider = StateProvider<String>((ref) => 'PENDING');
+final storeStatusFilterProvider = StateProvider<String>((ref) {
+  ref.watch(sessionGenerationProvider);
+  return 'PENDING';
+});
 
 /// Mis compras abre en solicitudes activas. El usuario puede cambiar a
 /// cotizadas, compradas o canceladas desde el grupo segmentado visible.
-final consumerStatusFilterProvider = StateProvider<String>((ref) => 'OPEN');
+final consumerStatusFilterProvider = StateProvider<String>((ref) {
+  ref.watch(sessionGenerationProvider);
+  return 'OPEN';
+});
 
 /// Stable, targeted revisions for chat queries. Subscriptions live outside the
 /// FutureProviders, so an event cannot be lost while a query invalidates and
@@ -103,6 +110,7 @@ final consumerStatusFilterProvider = StateProvider<String>((ref) => 'OPEN');
 final _chatRealtimeRevisionProvider =
     StateNotifierProvider<_ChatRealtimeRevisionNotifier, _ChatRealtimeRevision>(
         (ref) {
+  ref.watch(sessionGenerationProvider);
   return _ChatRealtimeRevisionNotifier(ref.watch(socketServiceProvider));
 });
 
@@ -211,6 +219,7 @@ class ConversationRealtimeUpdate {
 final _conversationRealtimeUpdatesProvider = StateNotifierProvider<
     _ConversationRealtimeUpdatesNotifier,
     Map<String, ConversationRealtimeUpdate>>((ref) {
+  ref.watch(sessionGenerationProvider);
   return _ConversationRealtimeUpdatesNotifier(ref.watch(socketServiceProvider));
 });
 
@@ -236,6 +245,7 @@ typedef LatestMessagePreviewKey = ({
 /// un refresh REST no reutilice la respuesta de un mensaje anterior.
 final latestConversationMessageProvider = FutureProvider.autoDispose
     .family<ChatMessage?, LatestMessagePreviewKey>((ref, preview) async {
+  ref.watch(sessionGenerationProvider);
   final repository = ref.watch(chatRepositoryProvider);
   final result = await repository.getLatestMessage(preview.conversationId);
   return result.fold(
@@ -406,6 +416,7 @@ ChatConversation applyLatestMessageAuthorship(
 
 /// Solicitudes creadas por el consumidor. Viven en Compras, no en Chats.
 final consumerRequestsProvider = FutureProvider<ChatThreadsResult>((ref) async {
+  ref.watch(sessionGenerationProvider);
   final useCase = ref.watch(getChatThreadsUseCaseProvider);
   ref.watch(
     _chatRealtimeRevisionProvider.select((value) => value.consumerRequests),
@@ -424,6 +435,7 @@ final consumerRequestsProvider = FutureProvider<ChatThreadsResult>((ref) async {
 /// Solicitudes visibles para la tienda. Constituyen su bandeja de Ventas.
 final storeSalesRequestsProvider =
     FutureProvider<ChatThreadsResult>((ref) async {
+  ref.watch(sessionGenerationProvider);
   final useCase = ref.watch(getChatThreadsUseCaseProvider);
   ref.watch(
     _chatRealtimeRevisionProvider.select((value) => value.storeSales),
@@ -441,6 +453,7 @@ final storeSalesRequestsProvider =
 
 final myConversationsProvider =
     FutureProvider<List<ChatConversation>>((ref) async {
+  ref.watch(sessionGenerationProvider);
   final repository = ref.watch(chatRepositoryProvider);
   ref.watch(
     _chatRealtimeRevisionProvider.select((value) => value.conversations),
@@ -455,6 +468,7 @@ final myConversationsProvider =
 
 final chatConversationDetailsProvider = FutureProvider.autoDispose
     .family<ChatConversation, String>((ref, conversationId) async {
+  ref.watch(sessionGenerationProvider);
   final repository = ref.watch(chatRepositoryProvider);
   ref.watch(
     _chatRealtimeRevisionProvider.select((value) => value.details),
@@ -470,6 +484,7 @@ final chatConversationDetailsProvider = FutureProvider.autoDispose
 /// Conversaciones/ofertas dentro de una carpeta específica.
 final chatConversationsProvider = FutureProvider.autoDispose
     .family<List<ChatConversation>, String>((ref, threadId) async {
+  ref.watch(sessionGenerationProvider);
   final useCase = ref.watch(getConversationsUseCaseProvider);
   ref.watch(
     _chatRealtimeRevisionProvider.select((value) => value.conversations),

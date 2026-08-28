@@ -66,7 +66,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('34 marcas'), findsOneWidget);
-    expect(find.text('Original'), findsOneWidget);
+    expect(find.text('OEM'), findsOneWidget);
     expect(find.text('Genérico'), findsOneWidget);
     expect(find.text('MARCAS QUE ATIENDES'), findsOneWidget);
     expect(find.text('CATEGORÍAS Y SUBCATEGORÍAS'), findsOneWidget);
@@ -186,7 +186,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Todas las marcas'), findsOneWidget);
-    expect(find.text('Original'), findsOneWidget);
+    expect(find.text('OEM'), findsOneWidget);
     expect(
       find.text('Aún no has configurado tu catálogo de tienda.'),
       findsNothing,

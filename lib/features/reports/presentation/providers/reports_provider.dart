@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/services/socket_service.dart';
 import '../../../../core/providers/cache_for.dart';
+import '../../../../core/session/session_generation_provider.dart';
 
 import '../../../../core/network/dio_client.dart';
 import '../../data/datasources/reports_remote_datasource.dart';
@@ -66,6 +67,7 @@ class DashboardFilterNotifier extends StateNotifier<DashboardFilter> {
 
 final dashboardFilterProvider =
     StateNotifierProvider<DashboardFilterNotifier, DashboardFilter>((ref) {
+  ref.watch(sessionGenerationProvider);
   return DashboardFilterNotifier();
 });
 

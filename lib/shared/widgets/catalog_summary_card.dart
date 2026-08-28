@@ -152,11 +152,11 @@ class CatalogSummaryCard extends StatelessWidget {
 String catalogPartTypeLabel(String type) {
   switch (type) {
     case 'ORIGINAL':
-      return 'Original';
+      return 'OEM';
     case 'GENERIC':
       return 'Genérico';
     case 'PERFORMANCE':
-      return 'Performance';
+      return 'Alto rendimiento';
     default:
       return type;
   }

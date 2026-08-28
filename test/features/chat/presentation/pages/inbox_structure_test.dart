@@ -282,6 +282,8 @@ void main() {
     expect(find.byKey(const Key('status-filter-pending')), findsOneWidget);
     expect(find.byKey(const Key('status-filter-quoted')), findsOneWidget);
     expect(find.byKey(const Key('status-filter-bought')), findsOneWidget);
+    expect(find.text('Vendidas'), findsOneWidget);
+    expect(find.text('Compradas'), findsNothing);
     expect(find.byKey(const Key('status-filter-delivered')), findsOneWidget);
     expect(find.byKey(const Key('status-filter-cancelled')), findsOneWidget);
   });

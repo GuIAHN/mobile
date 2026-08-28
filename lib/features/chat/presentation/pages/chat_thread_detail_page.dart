@@ -419,11 +419,11 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
     String partTypeLabel = 'Cualquiera';
     if (thread.partType != null) {
       if (thread.partType == 'ORIGINAL') {
-        partTypeLabel = 'Original';
+        partTypeLabel = 'OEM';
       } else if (thread.partType == 'GENERIC') {
         partTypeLabel = 'Genérico';
       } else if (thread.partType == 'PERFORMANCE') {
-        partTypeLabel = 'Performance';
+        partTypeLabel = 'Alto rendimiento';
       }
     }
 

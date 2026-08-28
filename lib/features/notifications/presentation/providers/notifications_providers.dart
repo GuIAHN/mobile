@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/providers/cache_for.dart';
 import '../../../../core/services/socket_service.dart';
+import '../../../../core/session/session_generation_provider.dart';
 import '../../data/datasources/notifications_remote_datasource.dart';
 import '../../data/repositories/notifications_repository_impl.dart';
 import '../../domain/repositories/notifications_repository.dart';
@@ -56,6 +57,7 @@ final getUnreadNotificationsCountUseCaseProvider =
 
 final unreadNotificationsCountProvider =
     FutureProvider.autoDispose<int>((ref) async {
+  ref.watch(sessionGenerationProvider);
   ref.cacheFor(const Duration(minutes: 2));
   final socketService = ref.watch(socketServiceProvider);
   Timer? refreshDebounce;
@@ -87,6 +89,7 @@ final unreadNotificationsCountProvider =
 
 final notificationsProvider = StateNotifierProvider.autoDispose<
     NotificationsNotifier, NotificationsState>((ref) {
+  ref.watch(sessionGenerationProvider);
   final notifier = NotificationsNotifier(
     getUnread: ref.watch(getUnreadNotificationsUseCaseProvider),
     markRead: ref.watch(markNotificationReadUseCaseProvider),

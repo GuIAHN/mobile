@@ -36,9 +36,9 @@ class StoreSummaryStep extends ConsumerStatefulWidget {
 class _StoreSummaryStepState extends ConsumerState<StoreSummaryStep> {
   static const _initialBrandLimit = 9;
   static const _partTypes = <(String, String, IconData)>[
-    ('ORIGINAL', 'Original', AppIcons.verified),
+    ('ORIGINAL', 'OEM', AppIcons.verified),
     ('GENERIC', 'Genérico', AppIcons.catalog),
-    ('PERFORMANCE', 'Performance', AppIcons.trendUp),
+    ('PERFORMANCE', 'Alto rendimiento', AppIcons.trendUp),
   ];
 
   final _searchController = TextEditingController();
@@ -105,24 +105,9 @@ class _StoreSummaryStepState extends ConsumerState<StoreSummaryStep> {
         LayoutBuilder(
           builder: (context, constraints) {
             final textScale = MediaQuery.textScalerOf(context).scale(1);
-            final columns =
-                constraints.maxWidth >= 300 && textScale < 1.6 ? 3 : 1;
             final tileHeight =
-                70 + ((textScale - 1).clamp(0, 2) * 30).toDouble();
-            return GridView.builder(
-              shrinkWrap: true,
-              padding: EdgeInsets.zero,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _partTypes.length,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columns,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                mainAxisExtent: tileHeight,
-              ),
-              itemBuilder: (context, index) {
-                final type = _partTypes[index];
-                return _ChoiceTile(
+                82 + ((textScale - 1).clamp(0, 2) * 30).toDouble();
+            Widget tile((String, String, IconData) type) => _ChoiceTile(
                   key: Key('spare-part-type-${type.$1}'),
                   label: type.$2,
                   icon: type.$3,
@@ -130,7 +115,33 @@ class _StoreSummaryStepState extends ConsumerState<StoreSummaryStep> {
                   selected: _selectedTypes.contains(type.$1),
                   onTap: () => _toggleType(type.$1),
                 );
-              },
+
+            if (constraints.maxWidth < 300 || textScale >= 1.6) {
+              return Column(
+                children: [
+                  for (var index = 0; index < _partTypes.length; index++) ...[
+                    if (index > 0) const SizedBox(height: 10),
+                    SizedBox(
+                      height: tileHeight,
+                      width: double.infinity,
+                      child: tile(_partTypes[index]),
+                    ),
+                  ],
+                ],
+              );
+            }
+
+            return SizedBox(
+              height: tileHeight,
+              child: Row(
+                children: [
+                  Expanded(child: tile(_partTypes[0])),
+                  const SizedBox(width: 10),
+                  Expanded(child: tile(_partTypes[1])),
+                  const SizedBox(width: 10),
+                  Expanded(child: tile(_partTypes[2])),
+                ],
+              ),
             );
           },
         ),
@@ -377,16 +388,21 @@ class _ChoiceTile extends StatelessWidget {
                           : AppColors.textSecondary,
                     ),
                     const SizedBox(height: 5),
-                    Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 13.5,
-                        height: 1.15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                    SizedBox(
+                      height: 32,
+                      child: Center(
+                        child: Text(
+                          label,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 13.5,
+                            height: 1.15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
                       ),
                     ),
                   ],

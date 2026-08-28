@@ -381,6 +381,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// and updating authentication state to unauthenticated.
   Future<void> logout() async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    // Cortar primero la sala personal y todas las conversaciones de la cuenta
+    // saliente. No mantener el socket vivo mientras el logout HTTP responde.
+    _socketService?.disconnect();
     // If login/startup is still registering this device, let it finish before
     // removing the token so a late upsert cannot recreate it after logout.
     await _deviceTokenSyncInFlight;
@@ -392,6 +395,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } catch (e) {
       // Ignore errors
     }
+    // Invalidar también en FCM: si el backend no estuvo disponible, el token
+    // anterior deja de ser un destino válido de todas formas. El siguiente
+    // login obtiene y registra uno nuevo para su propio userId.
+    await PushNotificationsService.deleteToken();
     await _authRepository.logout();
     state = const AuthState(
       status: AuthStatus.unauthenticated,

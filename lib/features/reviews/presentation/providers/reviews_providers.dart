@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/providers/cache_for.dart';
 import '../../../../core/storage/secure_storage.dart';
+import '../../../../core/session/session_generation_provider.dart';
 import '../../data/datasources/reviews_remote_datasource.dart';
 import '../../data/repositories/reviews_repository_impl.dart';
 import '../../domain/entities/my_review_status.dart';
@@ -48,6 +49,7 @@ final reviewsProvider = FutureProvider.family
 
 final pendingReviewsProvider =
     FutureProvider.autoDispose<List<PendingReview>>((ref) async {
+  ref.watch(sessionGenerationProvider);
   final result = await ref.watch(reviewsRepositoryProvider).getPendingReviews();
   final items = result.fold(
     (failure) => throw Exception(failure.message),
@@ -61,6 +63,7 @@ final pendingReviewsProvider =
 
 final myReviewProvider = FutureProvider.family
     .autoDispose<MyReviewStatus, String>((ref, targetId) async {
+  ref.watch(sessionGenerationProvider);
   final result =
       await ref.watch(reviewsRepositoryProvider).getMyReview(targetId);
   return result.fold(
@@ -71,6 +74,7 @@ final myReviewProvider = FutureProvider.family
 
 final hasContactedProviderProvider = FutureProvider.family
     .autoDispose<bool, String>((ref, providerProfileId) async {
+  ref.watch(sessionGenerationProvider);
   return ref
       .watch(secureStorageProvider)
       .hasContactedProvider(providerProfileId);
@@ -78,6 +82,7 @@ final hasContactedProviderProvider = FutureProvider.family
 
 final handledStoreReviewProvider = FutureProvider.family
     .autoDispose<bool, String>((ref, conversationId) async {
+  ref.watch(sessionGenerationProvider);
   return ref.watch(secureStorageProvider).hasHandledStoreReview(conversationId);
 });
 
@@ -178,6 +183,7 @@ class CreateReviewNotifier extends StateNotifier<AsyncValue<void>> {
 final createReviewProvider =
     StateNotifierProvider.autoDispose<CreateReviewNotifier, AsyncValue<void>>(
         (ref) {
+  ref.watch(sessionGenerationProvider);
   return CreateReviewNotifier(
     ref.watch(createReviewUseCaseProvider),
     ref.watch(updateReviewUseCaseProvider),

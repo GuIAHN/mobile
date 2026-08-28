@@ -10,6 +10,7 @@ import 'shared/widgets/maintenance_page.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/presentation/providers/auth_state.dart';
 import 'core/services/socket_service.dart';
+import 'core/session/session_state_coordinator.dart';
 import 'core/notifications/foreground_notification_toast_provider.dart';
 import 'core/notifications/notification_model.dart';
 import 'features/notifications/presentation/providers/notifications_providers.dart';
@@ -166,15 +167,30 @@ class _GuiAutomotrizAppState extends ConsumerState<GuiAutomotrizApp>
     ref.listen<AuthStatus>(
       authProvider.select((s) => s.status),
       (previous, next) {
-        final socket = ref.read(socketServiceProvider);
         if (next == AuthStatus.authenticated) {
-          socket.connect();
           _flushPendingNotificationTap();
         } else if (next == AuthStatus.unauthenticated) {
-          socket.disconnect();
+          _discardPendingNotificationNavigation();
         }
       },
     );
+
+    ref.listen<String?>(
+      authProvider.select((state) => state.user?.id),
+      (previous, next) {
+        if (previous == next) return;
+        // Conservar el tap que abrió la app mientras se hidrata por primera
+        // vez la misma sesión. Un logout (A -> null) o un cambio directo
+        // (A -> B) sí debe descartar cualquier destino privado anterior.
+        if (previous != null || next == null) {
+          _discardPendingNotificationNavigation();
+        }
+      },
+    );
+
+    // Mantiene activa la frontera que reinicia cachés y transportes cuando
+    // cambia la identidad dentro del mismo ProviderScope.
+    ref.watch(sessionStateCoordinatorProvider);
 
     return MaterialApp.router(
       title: 'guIAutomotriz',
@@ -197,5 +213,11 @@ class _GuiAutomotrizAppState extends ConsumerState<GuiAutomotrizApp>
         );
       },
     );
+  }
+
+  void _discardPendingNotificationNavigation() {
+    _pendingNotificationTap = null;
+    _lastNotificationTapKey = null;
+    PushNotificationsService.discardPendingNotificationTap();
   }
 }

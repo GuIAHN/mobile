@@ -572,7 +572,7 @@ class _StatusFilterSelector extends StatelessWidget {
               filter: _StatusFilter.quoted,
             ),
             (
-              label: 'Compradas',
+              label: 'Vendidas',
               count: boughtCount,
               filter: _StatusFilter.bought,
             ),

@@ -5,6 +5,7 @@ import '../../../../core/theme/app_icons.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/media_url.dart';
 import '../../../../shared/widgets/image_viewer_dialog.dart';
+import '../../../../shared/widgets/catalog_summary_card.dart';
 import '../../domain/entities/chat_conversation.dart';
 import '_atoms/offer_price_breakdown.dart';
 import 'store_contact_sheet.dart';
@@ -856,7 +857,7 @@ class _OfferPriceSummary extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               child: Text(
-                details.partType!.toUpperCase(),
+                catalogPartTypeLabel(details.partType!),
                 style: GoogleFonts.hankenGrotesk(
                   fontSize: 9,
                   fontWeight: FontWeight.w800,

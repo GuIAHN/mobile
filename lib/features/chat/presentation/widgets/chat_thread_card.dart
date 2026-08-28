@@ -163,11 +163,11 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
   String _partTypeLabel(String raw) {
     switch (raw) {
       case 'ORIGINAL':
-        return 'Original';
+        return 'OEM';
       case 'GENERIC':
         return 'Genérico';
       case 'PERFORMANCE':
-        return 'Performance';
+        return 'Alto rendimiento';
       default:
         return raw;
     }

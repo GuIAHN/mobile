@@ -345,8 +345,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Pastillas de freno'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Original'));
-    await tester.tap(find.text('Original'));
+    await tester.ensureVisible(find.text('OEM'));
+    await tester.tap(find.text('OEM'));
     await tester.pump();
     await tester.ensureVisible(find.text('Continuar'));
     await tester.tap(find.text('Continuar'));

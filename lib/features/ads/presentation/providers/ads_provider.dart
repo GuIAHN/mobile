@@ -5,6 +5,7 @@ import '../../../home/domain/entities/promo.dart';
 import '../../../home/presentation/providers/home_providers.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/location_service.dart';
+import '../../../../core/session/session_generation_provider.dart';
 import '../../domain/entities/ad.dart';
 import '../../domain/repositories/ad_repository.dart';
 import '../../domain/usecases/get_ads_usecase.dart';
@@ -99,6 +100,7 @@ final adsAsPromosProvider = FutureProvider.family
 class AdTrackerNotifier extends Notifier<Set<String>> {
   @override
   Set<String> build() {
+    ref.watch(sessionGenerationProvider);
     return {};
   }
 

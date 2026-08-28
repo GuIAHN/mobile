@@ -25,9 +25,9 @@ extension PartTypeX on PartType {
   String get label {
     switch (this) {
       case PartType.performance:
-        return 'Performance';
+        return 'Alto rendimiento';
       case PartType.original:
-        return 'Original';
+        return 'OEM';
       case PartType.generic:
         return 'Genérico';
     }
@@ -37,9 +37,9 @@ extension PartTypeX on PartType {
   String get description {
     switch (this) {
       case PartType.performance:
-        return 'Alto rendimiento';
+        return 'Mejora el desempeño';
       case PartType.original:
-        return 'Marca del fabricante';
+        return 'Equipo del fabricante';
       case PartType.generic:
         return 'Alternativo / compatible';
     }

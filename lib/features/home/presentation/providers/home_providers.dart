@@ -5,6 +5,7 @@ import '../../../../core/providers/cache_for.dart';
 import '../../../../core/domain/enums/part_type.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../core/providers/current_user_provider.dart';
+import '../../../../core/session/session_generation_provider.dart';
 import '../../data/datasources/search_remote_datasource.dart';
 import '../../data/datasources/home_remote_datasource.dart';
 import '../../data/repositories/home_repository_impl.dart';
@@ -107,6 +108,7 @@ class SearchRequestNotifier extends StateNotifier<SearchRequestState> {
 
 final searchRequestNotifierProvider =
     StateNotifierProvider<SearchRequestNotifier, SearchRequestState>((ref) {
+  ref.watch(sessionGenerationProvider);
   final useCase = ref.watch(createSearchRequestUseCaseProvider);
   return SearchRequestNotifier(useCase, ref);
 });
@@ -167,21 +169,25 @@ final selectedServiceTypeProvider = StateProvider<ServiceType>((ref) {
 
 /// Filtros de búsqueda (se envían al backend en mecánicos/talleres)
 final homeFiltersProvider = StateProvider<HomeFilters>((ref) {
+  ref.watch(sessionGenerationProvider);
   return const HomeFilters();
 });
 
 /// Query de búsqueda textual (filtro local sobre la lista)
 final searchQueryProvider = StateProvider<String>((ref) {
+  ref.watch(sessionGenerationProvider);
   return '';
 });
 
 /// Vehículo seleccionado para buscar mecánicos o talleres
 final searchVehicleProvider = StateProvider<UserCar?>((ref) {
+  ref.watch(sessionGenerationProvider);
   return null;
 });
 
 /// ID de modelo del vehículo temporario/manual seleccionado.
 final searchVehicleModelIdProvider = StateProvider<String?>((ref) {
+  ref.watch(sessionGenerationProvider);
   return null;
 });
 
@@ -193,6 +199,7 @@ final searchVehicleModelIdProvider = StateProvider<String?>((ref) {
 enum MainNavigationTab { home, chats, commerce, profile }
 
 final homeTabProvider = StateProvider<MainNavigationTab>((ref) {
+  ref.watch(sessionGenerationProvider);
   return MainNavigationTab.home;
 });
 
@@ -213,6 +220,7 @@ final promosProvider = FutureProvider.family
 /// conserva el mock local configurado por el repositorio.
 final homeItemsProvider = FutureProvider.family
     .autoDispose<List<HomeItem>, ServiceType>((ref, type) async {
+  ref.watch(sessionGenerationProvider);
   if (type == ServiceType.spareParts) {
     final useCase = ref.watch(getHomeItemsUseCaseProvider);
     final result = await useCase(type);
@@ -265,6 +273,7 @@ final homeItemsProvider = FutureProvider.family
 /// Una única carga agrupada para las dos secciones destacadas del Home.
 final homeTopProvidersProvider =
     FutureProvider.autoDispose<TopProvidersResult>((ref) async {
+  ref.watch(sessionGenerationProvider);
   ref.cacheFor(const Duration(minutes: 30));
   final role = ref.watch(currentRoleProvider);
   final isLocationShared =

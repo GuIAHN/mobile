@@ -166,6 +166,13 @@ class PushNotificationsService {
     return initial;
   }
 
+  /// Descarta un tap capturado antes de que cambiara la identidad activa.
+  /// Un deep link de la cuenta anterior nunca debe reanudarse con el JWT de
+  /// la cuenta siguiente.
+  static void discardPendingNotificationTap() {
+    _initialNotificationTap = null;
+  }
+
   static void _publishInitialTap(NotificationTap tap) {
     _initialNotificationTap = tap;
     // initializeApp ahora corre después del primer frame. Si la aplicación ya
@@ -219,6 +226,16 @@ class PushNotificationsService {
     } catch (e) {
       debugPrint('Error getting token: $e');
       return null;
+    }
+  }
+
+  /// Invalida el token de esta instalación al cerrar sesión. El próximo
+  /// `getToken` obtiene uno vigente que se registra para la cuenta entrante.
+  static Future<void> deleteToken() async {
+    try {
+      await _messaging.deleteToken();
+    } catch (e) {
+      debugPrint('Error deleting token: $e');
     }
   }
 }
