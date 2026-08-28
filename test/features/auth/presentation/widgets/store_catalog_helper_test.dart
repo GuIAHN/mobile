@@ -171,11 +171,7 @@ void main() {
 
     expect(find.byKey(const Key('spare-part-type-ORIGINAL')), findsOneWidget);
     expect(find.text('OEM'), findsOneWidget);
-    expect(find.text('Alto rendimiento'), findsOneWidget);
-    expect(
-      find.byKey(const Key('spare-part-type-icon-ORIGINAL')),
-      findsOneWidget,
-    );
+    expect(find.text('Alto\nrendimiento'), findsOneWidget);
     expect(find.byKey(const Key('toggle-all-brands')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

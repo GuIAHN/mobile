@@ -35,10 +35,10 @@ class StoreSummaryStep extends ConsumerStatefulWidget {
 
 class _StoreSummaryStepState extends ConsumerState<StoreSummaryStep> {
   static const _initialBrandLimit = 9;
-  static const _partTypes = <(String, String, IconData)>[
-    ('ORIGINAL', 'OEM', AppIcons.verified),
-    ('GENERIC', 'Genérico', AppIcons.catalog),
-    ('PERFORMANCE', 'Alto rendimiento', AppIcons.trendUp),
+  static const _partTypes = <(String, String)>[
+    ('ORIGINAL', 'OEM'),
+    ('GENERIC', 'Genérico'),
+    ('PERFORMANCE', 'Alto\nrendimiento'),
   ];
 
   final _searchController = TextEditingController();
@@ -106,42 +106,41 @@ class _StoreSummaryStepState extends ConsumerState<StoreSummaryStep> {
           builder: (context, constraints) {
             final textScale = MediaQuery.textScalerOf(context).scale(1);
             final tileHeight =
-                82 + ((textScale - 1).clamp(0, 2) * 30).toDouble();
-            Widget tile((String, String, IconData) type) => _ChoiceTile(
+                62 + ((textScale - 1).clamp(0, 2) * 20).toDouble();
+            Widget tile((String, String) type) => _ChoiceTile(
                   key: Key('spare-part-type-${type.$1}'),
                   label: type.$2,
-                  icon: type.$3,
-                  iconKey: Key('spare-part-type-icon-${type.$1}'),
                   selected: _selectedTypes.contains(type.$1),
                   onTap: () => _toggleType(type.$1),
                 );
 
-            if (constraints.maxWidth < 300 || textScale >= 1.6) {
-              return Column(
-                children: [
-                  for (var index = 0; index < _partTypes.length; index++) ...[
-                    if (index > 0) const SizedBox(height: 10),
-                    SizedBox(
-                      height: tileHeight,
-                      width: double.infinity,
-                      child: tile(_partTypes[index]),
-                    ),
+            if (constraints.maxWidth >= 300 && textScale < 1.6) {
+              return SizedBox(
+                height: tileHeight,
+                child: Row(
+                  children: [
+                    for (var index = 0;
+                        index < _partTypes.length;
+                        index++) ...[
+                      if (index > 0) const SizedBox(width: 8),
+                      Expanded(child: tile(_partTypes[index])),
+                    ],
                   ],
-                ],
+                ),
               );
             }
 
-            return SizedBox(
-              height: tileHeight,
-              child: Row(
-                children: [
-                  Expanded(child: tile(_partTypes[0])),
-                  const SizedBox(width: 10),
-                  Expanded(child: tile(_partTypes[1])),
-                  const SizedBox(width: 10),
-                  Expanded(child: tile(_partTypes[2])),
+            return Column(
+              children: [
+                for (var index = 0; index < _partTypes.length; index++) ...[
+                  if (index > 0) const SizedBox(height: 10),
+                  SizedBox(
+                    height: tileHeight,
+                    width: constraints.maxWidth,
+                    child: tile(_partTypes[index]),
+                  ),
                 ],
-              ),
+              ],
             );
           },
         ),
@@ -333,15 +332,11 @@ class _ChoiceTile extends StatelessWidget {
   const _ChoiceTile({
     super.key,
     required this.label,
-    required this.icon,
-    required this.iconKey,
     required this.selected,
     required this.onTap,
   });
 
   final String label;
-  final IconData icon;
-  final Key iconKey;
   final bool selected;
   final VoidCallback onTap;
 
@@ -364,7 +359,7 @@ class _ChoiceTile extends StatelessWidget {
                 ? Duration.zero
                 : const Duration(milliseconds: 180),
             constraints: const BoxConstraints(minHeight: 64),
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
               color: selected ? AppColors.primaryMuted : Colors.white,
               borderRadius: BorderRadius.circular(20),
@@ -376,36 +371,17 @@ class _ChoiceTile extends StatelessWidget {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AppLineIcon(
-                      icon,
-                      key: iconKey,
-                      size: AppIconSize.action,
-                      color: selected
-                          ? AppColors.primary
-                          : AppColors.textSecondary,
-                    ),
-                    const SizedBox(height: 5),
-                    SizedBox(
-                      height: 32,
-                      child: Center(
-                        child: Text(
-                          label,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 13.5,
-                            height: 1.15,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 13.5,
+                    height: 1.1,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 Positioned(
                   top: 0,
