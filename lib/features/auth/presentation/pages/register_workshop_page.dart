@@ -54,7 +54,6 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
   bool _ubicacionConfirmada = false;
   bool _termsAccepted = false;
   XFile? _rifPhoto;
-  XFile? _mercantilRegistry;
 
   @override
   void initState() {
@@ -116,7 +115,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
       case 4:
         return _ubicacionConfirmada;
       case 5:
-        return _rifPhoto != null && _mercantilRegistry != null;
+        return _rifPhoto != null;
       case 6:
         return _termsAccepted;
       default:
@@ -158,7 +157,6 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
           specialtyIds: _seleccionadas.toList(),
           acceptedTerms: _termsAccepted,
           rifPhotoPath: _rifPhoto!.path,
-          mercantilRegistryPath: _mercantilRegistry!.path,
         );
   }
 
@@ -280,13 +278,8 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
                                     ),
                                   5 => ProviderDocumentsStep(
                                       rifPhoto: _rifPhoto,
-                                      mercantilRegistry: _mercantilRegistry,
                                       onRifPhotoChanged: (file) =>
                                           setState(() => _rifPhoto = file),
-                                      onMercantilRegistryChanged: (file) =>
-                                          setState(
-                                        () => _mercantilRegistry = file,
-                                      ),
                                     ),
                                   6 => TermsAcceptanceStep(
                                       audience: TermsAudience.serviceProvider,
@@ -443,8 +436,8 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
           'Confirma el punto exacto donde tus clientes encontrarán el taller.'
         ),
       5 => (
-          'Documentos del Taller',
-          'Adjunta el RIF y el registro mercantil para verificar el negocio.'
+          'RIF del Taller',
+          'Adjunta el RIF vigente para verificar el negocio.'
         ),
       6 => (
           'Términos y Condiciones',
@@ -502,7 +495,7 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
       case 4:
         return 'Confirma la ubicación exacta del taller para continuar.';
       case 5:
-        return 'Adjunta el RIF y el registro mercantil para continuar.';
+        return 'Adjunta el RIF para continuar.';
       case 6:
         return 'Abre el documento y acepta los términos y condiciones para registrarte.';
     }
@@ -525,7 +518,6 @@ class _RegisterWorkshopPageState extends ConsumerState<RegisterWorkshopPage> {
     }
     if (normalized.contains('document') ||
         normalized.contains('rifphoto') ||
-        normalized.contains('mercantil') ||
         normalized.contains('image') ||
         normalized.contains('file')) {
       return 5;

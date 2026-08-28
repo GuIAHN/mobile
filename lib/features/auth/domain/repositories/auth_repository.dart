@@ -48,7 +48,6 @@ abstract class AuthRepository {
     required bool acceptedTerms,
     String? idPhotoPath,
     String? rifPhotoPath,
-    String? mercantilRegistryPath,
   });
 
   /// Registers a store and configures its initial catalog.
@@ -67,7 +66,6 @@ abstract class AuthRepository {
     String? provider,
     required bool acceptedTerms,
     required String rifPhotoPath,
-    required String mercantilRegistryPath,
   });
 
   /// Closes the current session and clears stored tokens.

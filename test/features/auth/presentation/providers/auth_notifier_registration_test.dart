@@ -48,7 +48,6 @@ void main() {
         provider: any(named: 'provider'),
         acceptedTerms: any(named: 'acceptedTerms'),
         rifPhotoPath: any(named: 'rifPhotoPath'),
-        mercantilRegistryPath: any(named: 'mercantilRegistryPath'),
       ),
     ).thenAnswer(
       (_) async => const Right(
@@ -89,7 +88,6 @@ void main() {
       hasDelivery: true,
       acceptedTerms: true,
       rifPhotoPath: '/tmp/rif.jpg',
-      mercantilRegistryPath: '/tmp/registry.jpg',
     );
 
     expect(notifier.state.isProviderRegistrationSucceeded, isTrue);

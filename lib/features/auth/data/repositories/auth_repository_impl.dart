@@ -193,7 +193,6 @@ class AuthRepositoryImpl implements AuthRepository {
     required bool acceptedTerms,
     String? idPhotoPath,
     String? rifPhotoPath,
-    String? mercantilRegistryPath,
   }) async {
     try {
       final registeredUser = await remoteDataSource.registerMechanic(
@@ -212,7 +211,6 @@ class AuthRepositoryImpl implements AuthRepository {
         acceptedTerms: acceptedTerms,
         idPhotoPath: idPhotoPath,
         rifPhotoPath: rifPhotoPath,
-        mercantilRegistryPath: mercantilRegistryPath,
       );
 
       return Right(registeredUser);
@@ -237,7 +235,6 @@ class AuthRepositoryImpl implements AuthRepository {
     String? provider,
     required bool acceptedTerms,
     required String rifPhotoPath,
-    required String mercantilRegistryPath,
   }) async {
     try {
       final registeredUser = await remoteDataSource.registerStore(
@@ -255,7 +252,6 @@ class AuthRepositoryImpl implements AuthRepository {
         provider: provider,
         acceptedTerms: acceptedTerms,
         rifPhotoPath: rifPhotoPath,
-        mercantilRegistryPath: mercantilRegistryPath,
       );
 
       // Stores also require approval, so registration success is intentionally

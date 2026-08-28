@@ -58,7 +58,6 @@ void main() {
         provider: any(named: 'provider'),
         acceptedTerms: any(named: 'acceptedTerms'),
         rifPhotoPath: any(named: 'rifPhotoPath'),
-        mercantilRegistryPath: any(named: 'mercantilRegistryPath'),
       ),
     ).thenAnswer((_) async => registeredStore);
 
@@ -80,7 +79,6 @@ void main() {
       hasDelivery: true,
       acceptedTerms: true,
       rifPhotoPath: '/tmp/rif.jpg',
-      mercantilRegistryPath: '/tmp/registry.jpg',
     );
 
     expect(result.getOrElse(() => throw StateError('registration failed')),
@@ -121,7 +119,6 @@ void main() {
         acceptedTerms: any(named: 'acceptedTerms'),
         idPhotoPath: any(named: 'idPhotoPath'),
         rifPhotoPath: any(named: 'rifPhotoPath'),
-        mercantilRegistryPath: any(named: 'mercantilRegistryPath'),
       ),
     ).thenAnswer((_) async => registeredMechanic);
 

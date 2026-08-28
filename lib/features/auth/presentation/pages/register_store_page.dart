@@ -60,7 +60,6 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
   bool _ubicacionConfirmada = false;
   bool _termsAccepted = false;
   XFile? _rifPhoto;
-  XFile? _mercantilRegistry;
 
   @override
   void initState() {
@@ -171,7 +170,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       case 5:
         return _ubicacionConfirmada;
       case 6:
-        return _rifPhoto != null && _mercantilRegistry != null;
+        return _rifPhoto != null;
       case 7:
         return _termsAccepted;
       default:
@@ -225,7 +224,6 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
           provider: socialData?.provider,
           acceptedTerms: _termsAccepted,
           rifPhotoPath: _rifPhoto!.path,
-          mercantilRegistryPath: _mercantilRegistry!.path,
         );
   }
 
@@ -322,12 +320,8 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
                             ),
                           6 => ProviderDocumentsStep(
                               rifPhoto: _rifPhoto,
-                              mercantilRegistry: _mercantilRegistry,
                               onRifPhotoChanged: (file) =>
                                   setState(() => _rifPhoto = file),
-                              onMercantilRegistryChanged: (file) => setState(
-                                () => _mercantilRegistry = file,
-                              ),
                             ),
                           7 => TermsAcceptanceStep(
                               audience: TermsAudience.serviceProvider,
@@ -446,8 +440,8 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
         subtitulo = 'Paso 5 de 7: Confirma la dirección física de la tienda.';
         break;
       case 6:
-        titulo = 'Documentos de la Tienda';
-        subtitulo = 'Paso 6 de 7: Adjunta el RIF y el registro mercantil.';
+        titulo = 'RIF de la Tienda';
+        subtitulo = 'Paso 6 de 7: Adjunta el RIF de la tienda.';
         break;
       case 7:
         titulo = 'Términos y Condiciones';
@@ -570,7 +564,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
       case 5:
         return 'Confirma la ubicación exacta de la tienda para continuar.';
       case 6:
-        return 'Adjunta el RIF y el registro mercantil para continuar.';
+        return 'Adjunta el RIF para continuar.';
       case 7:
         return 'Abre el documento y acepta los términos y condiciones para registrarte.';
     }
@@ -593,7 +587,6 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
     if (normalized.contains('categor')) return 3;
     if (normalized.contains('document') ||
         normalized.contains('rifphoto') ||
-        normalized.contains('mercantil') ||
         normalized.contains('image') ||
         normalized.contains('file')) {
       return 6;

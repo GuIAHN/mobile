@@ -189,7 +189,6 @@ class AuthRemoteDataSource {
     required bool acceptedTerms,
     String? idPhotoPath,
     String? rifPhotoPath,
-    String? mercantilRegistryPath,
   }) async {
     try {
       final payload = {
@@ -215,9 +214,6 @@ class AuthRemoteDataSource {
           'idPhoto': await _registrationDocument(idPhotoPath),
         if (rifPhotoPath != null)
           'rifPhoto': await _registrationDocument(rifPhotoPath),
-        if (mercantilRegistryPath != null)
-          'mercantilRegistry':
-              await _registrationDocument(mercantilRegistryPath),
       });
       final response = await _client.post<Map<String, dynamic>>(
         'mechanics/register',
@@ -254,7 +250,6 @@ class AuthRemoteDataSource {
     String? provider,
     required bool acceptedTerms,
     required String rifPhotoPath,
-    required String mercantilRegistryPath,
   }) async {
     try {
       final payload = {
@@ -279,7 +274,6 @@ class AuthRemoteDataSource {
       final formData = FormData.fromMap({
         'payload': jsonEncode(payload),
         'rifPhoto': await _registrationDocument(rifPhotoPath),
-        'mercantilRegistry': await _registrationDocument(mercantilRegistryPath),
       });
       final response = await _client.post<Map<String, dynamic>>(
         'stores/register',
@@ -302,12 +296,14 @@ class AuthRemoteDataSource {
 
   Future<MultipartFile> _registrationDocument(String filePath) async {
     final xFile = XFile(filePath);
-    final rawName = kIsWeb ? xFile.name : filePath.split('/').last.split('\\').last;
+    final rawName =
+        kIsWeb ? xFile.name : filePath.split('/').last.split('\\').last;
 
-    final String filename =
-        (rawName.isEmpty || rawName.startsWith('blob:') || !rawName.contains('.'))
-            ? 'document_${DateTime.now().millisecondsSinceEpoch}.jpg'
-            : rawName;
+    final String filename = (rawName.isEmpty ||
+            rawName.startsWith('blob:') ||
+            !rawName.contains('.'))
+        ? 'document_${DateTime.now().millisecondsSinceEpoch}.jpg'
+        : rawName;
 
     final ext = filename.split('.').last.toLowerCase();
     final mediaType = switch (ext) {

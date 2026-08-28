@@ -299,7 +299,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required bool acceptedTerms,
     String? idPhotoPath,
     String? rifPhotoPath,
-    String? mercantilRegistryPath,
   }) async {
     await _runProviderRegistration(
       () => _authRepository.registerMechanic(
@@ -318,7 +317,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
         acceptedTerms: acceptedTerms,
         idPhotoPath: idPhotoPath,
         rifPhotoPath: rifPhotoPath,
-        mercantilRegistryPath: mercantilRegistryPath,
       ),
     );
   }
@@ -339,7 +337,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? provider,
     required bool acceptedTerms,
     required String rifPhotoPath,
-    required String mercantilRegistryPath,
   }) async {
     await _runProviderRegistration(
       () => _authRepository.registerStore(
@@ -357,7 +354,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
         provider: provider,
         acceptedTerms: acceptedTerms,
         rifPhotoPath: rifPhotoPath,
-        mercantilRegistryPath: mercantilRegistryPath,
       ),
     );
   }

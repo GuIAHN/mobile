@@ -11,20 +11,16 @@ class ProviderDocumentsStep extends StatelessWidget {
     super.key,
     this.idPhoto,
     this.rifPhoto,
-    this.mercantilRegistry,
     this.onIdPhotoChanged,
     this.onRifPhotoChanged,
-    this.onMercantilRegistryChanged,
   });
 
   static const int maxFileSizeBytes = 5 * 1024 * 1024;
 
   final XFile? idPhoto;
   final XFile? rifPhoto;
-  final XFile? mercantilRegistry;
   final ValueChanged<XFile>? onIdPhotoChanged;
   final ValueChanged<XFile>? onRifPhotoChanged;
-  final ValueChanged<XFile>? onMercantilRegistryChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +45,7 @@ class ProviderDocumentsStep extends StatelessWidget {
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Text(
-                  'Tus documentos se almacenan de forma privada y solo el equipo de verificación puede consultarlos.',
+                  'Tu documento se almacena de forma privada y solo el equipo de verificación puede consultarlo.',
                   style: AppTypography.bodySm.copyWith(
                     color: AppColors.textPrimary,
                   ),
@@ -77,13 +73,6 @@ class ProviderDocumentsStep extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
         ],
-        if (onMercantilRegistryChanged != null)
-          _DocumentCard(
-            title: 'Registro mercantil',
-            helper: 'Fotografía legible del registro del negocio.',
-            file: mercantilRegistry,
-            onChanged: onMercantilRegistryChanged!,
-          ),
         const SizedBox(height: AppSpacing.md),
         Text(
           'Formatos de imagen admitidos. Máximo 5 MB por archivo.',

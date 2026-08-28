@@ -170,9 +170,7 @@ void main() {
     final tempDir = await Directory.systemTemp.createTemp('store-kyc-test-');
     addTearDown(() => tempDir.delete(recursive: true));
     final rifPhoto = File('${tempDir.path}/rif.jpg');
-    final registryPhoto = File('${tempDir.path}/registry.jpg');
     await rifPhoto.writeAsBytes(const [1, 2, 3]);
-    await registryPhoto.writeAsBytes(const [4, 5, 6]);
 
     when(
       () => client.post<Map<String, dynamic>>(
@@ -209,7 +207,6 @@ void main() {
       hasDelivery: true,
       acceptedTerms: true,
       rifPhotoPath: rifPhoto.path,
-      mercantilRegistryPath: registryPhoto.path,
     );
 
     final formData = verify(
@@ -232,8 +229,7 @@ void main() {
     expect(payload['hasDelivery'], isTrue);
     expect(payload['acceptedTerms'], isTrue);
     expect(payload['password'], 'Lego1234!');
-    expect(formData.files.map((entry) => entry.key),
-        containsAll(['rifPhoto', 'mercantilRegistry']));
+    expect(formData.files.map((entry) => entry.key), ['rifPhoto']);
     verifyNoMoreInteractions(client);
   });
 }
