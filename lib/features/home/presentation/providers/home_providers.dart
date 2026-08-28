@@ -24,7 +24,7 @@ import '../../domain/usecases/get_promos_usecase.dart';
 import '../../domain/usecases/get_provider_detail_usecase.dart';
 import '../../domain/usecases/get_top_providers_usecase.dart';
 import '../../domain/usecases/search_providers_usecase.dart';
-import '../../../vehicles/domain/entities/user_car.dart';
+import '../../../../core/domain/entities/user_car.dart';
 import '../../../chat/presentation/providers/chat_providers.dart';
 
 int _compareKnownDistanceFirst(double? a, double? b) {

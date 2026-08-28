@@ -345,23 +345,39 @@ class AuthRemoteDataSource {
     String? name,
     String? photo,
     String? phone,
+    String? description,
     double? latitude,
     double? longitude,
   }) async {
     try {
-      final response = await _client.patch<Map<String, dynamic>>(
-        ApiEndpoints.me,
-        data: {
-          if (name != null) 'name': name,
-          if (photo != null) 'photo': photo,
-          if (phone != null) 'phone': phone,
-          if (latitude != null && longitude != null)
-            'location': {
-              'lat': latitude,
-              'lon': longitude,
-            },
-        },
-      );
+      final basePayload = {
+        if (name != null) 'name': name,
+        if (photo != null) 'photo': photo,
+        if (phone != null) 'phone': phone,
+        if (latitude != null && longitude != null)
+          'location': {
+            'lat': latitude,
+            'lon': longitude,
+          },
+      };
+
+      Response<Map<String, dynamic>>? response;
+      if (basePayload.isNotEmpty) {
+        response = await _client.patch<Map<String, dynamic>>(
+          ApiEndpoints.me,
+          data: basePayload,
+        );
+      }
+
+      if (description != null) {
+        await _client.patch<Map<String, dynamic>>(
+          'mechanics/me',
+          data: {'description': description},
+        );
+        response = await _client.get<Map<String, dynamic>>(ApiEndpoints.me);
+      }
+
+      response ??= await _client.get<Map<String, dynamic>>(ApiEndpoints.me);
 
       if (response.data == null) {
         throw const ParseException();

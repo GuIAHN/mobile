@@ -64,6 +64,14 @@ void main() {
     expect(decoration.color, isNot(AppColors.primaryMuted));
 
     final text = tester.widget<Text>(find.text('¿Todavía está disponible?'));
+    expect(text.style?.color, AppColors.textOnPrimary);
+  });
+
+  testWidgets('keeps incoming message text dark on its white surface',
+      (tester) async {
+    await pumpBubble(tester, message(isFromMe: false));
+
+    final text = tester.widget<Text>(find.text('¿Todavía está disponible?'));
     expect(text.style?.color, AppColors.textPrimary);
   });
 

@@ -11,6 +11,7 @@ import '../../../../core/utils/validators.dart';
 import '../../../../core/utils/venezuelan_phone_number.dart';
 import '../../../../shared/widgets/api_error_message.dart';
 import '../../../../shared/widgets/registration_page_chrome.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../catalog/domain/entities/category.dart';
 import '../../../vehicles/domain/entities/brand.dart';
 import '../providers/auth_provider.dart';
@@ -501,7 +502,7 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
         const SizedBox(width: 12),
         Expanded(
           flex: 2,
-          child: _PressableScale(
+          child: PressableScale(
             onTap: _pasoValido && !authState.isLoading ? _avanzar : null,
             child: ElevatedButton(
               key: const Key('register-store-continue'),
@@ -607,39 +608,5 @@ class _RegisterStorePageState extends ConsumerState<RegisterStorePage> {
         curve: Curves.easeOut,
       );
     });
-  }
-}
-
-class _PressableScale extends StatefulWidget {
-  final Widget child;
-  final VoidCallback? onTap;
-
-  const _PressableScale({
-    required this.child,
-    this.onTap,
-  });
-
-  @override
-  State<_PressableScale> createState() => _PressableScaleState();
-}
-
-class _PressableScaleState extends State<_PressableScale> {
-  bool _isPressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = widget.onTap != null;
-    return GestureDetector(
-      onTapDown: enabled ? (_) => setState(() => _isPressed = true) : null,
-      onTapUp: enabled ? (_) => setState(() => _isPressed = false) : null,
-      onTapCancel: enabled ? () => setState(() => _isPressed = false) : null,
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _isPressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.easeOut,
-        child: widget.child,
-      ),
-    );
   }
 }

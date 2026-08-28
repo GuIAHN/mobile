@@ -6,7 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../vehicles/domain/entities/user_car.dart';
+import '../../../../core/domain/entities/user_car.dart';
 import '../../../vehicles/presentation/widgets/garage_vehicle_selector_sheet.dart';
 import '../providers/home_providers.dart';
 

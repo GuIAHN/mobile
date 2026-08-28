@@ -54,6 +54,12 @@ abstract class ChatRepository {
     String? reason,
   });
 
+  Future<Either<Failure, void>> cancelSaleByStore(
+    String offerId, {
+    required String reasonCode,
+    String? note,
+  });
+
   Future<Either<Failure, void>> declineMatch(
     String searchMatchId,
     String reason,

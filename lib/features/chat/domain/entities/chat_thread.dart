@@ -41,6 +41,7 @@ class ChatThread extends Equatable {
   final DateTime? cancelledAt;
   final String? cancelSource;
   final String? cancelReason;
+  final String? cancelReasonCode;
 
   // Consumer Best Offer Info
   final double? bestOfferPrice;
@@ -85,6 +86,7 @@ class ChatThread extends Equatable {
     this.cancelledAt,
     this.cancelSource,
     this.cancelReason,
+    this.cancelReasonCode,
     this.bestOfferPrice,
     this.bestOfferStoreName,
     this.bestOfferStatus,
@@ -127,6 +129,7 @@ class ChatThread extends Equatable {
         cancelledAt,
         cancelSource,
         cancelReason,
+        cancelReasonCode,
         bestOfferPrice,
         bestOfferStoreName,
         bestOfferStatus,

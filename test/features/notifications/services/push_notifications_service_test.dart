@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:guiautomotriz_mobile/features/notifications/services/push_notifications_service.dart';
+import 'package:guiautomotriz_mobile/core/notifications/push_notifications_service.dart';
 
 void main() {
   test('normalizes the enriched FCM navigation contract', () {

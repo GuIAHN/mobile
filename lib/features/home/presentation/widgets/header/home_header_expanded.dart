@@ -77,32 +77,25 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
       return;
     }
 
-    final isShared = ref.read(isLocationSharedProvider);
-    if (!isShared) return;
-
     final storedPosition = ref.read(userLocationProvider).valueOrNull;
     if (storedPosition != null) {
+      ref.read(isLocationSharedProvider.notifier).state = true;
       await _resolveLocationName(storedPosition);
       return;
     }
 
-    final service = ref.read(locationServiceProvider);
-    final permission = await service.checkPermission();
+    // Solicita el permiso y obtiene la posición al entrar al Home. El diálogo
+    // del sistema aparece después del primer frame, sin bloquear el arranque.
+    final success =
+        await ref.read(userLocationProvider.notifier).updateLocation();
+    if (!mounted) return;
 
-    if (permission == LocationPermission.always ||
-        permission == LocationPermission.whileInUse) {
-      final success =
-          await ref.read(userLocationProvider.notifier).updateLocation();
-      if (!mounted) return;
-      final position = ref.read(userLocationProvider).valueOrNull;
-      if (success && position != null) {
-        await _resolveLocationName(position);
-      } else {
-        ref.read(isLocationSharedProvider.notifier).state = false;
-      }
+    final position = ref.read(userLocationProvider).valueOrNull;
+    if (success && position != null) {
+      ref.read(isLocationSharedProvider.notifier).state = true;
+      await _resolveLocationName(position);
     } else {
       ref.read(isLocationSharedProvider.notifier).state = false;
-      ref.read(userLocationProvider.notifier).clear();
     }
   }
 

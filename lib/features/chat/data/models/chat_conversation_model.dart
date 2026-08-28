@@ -19,6 +19,7 @@ class ChatConversationModel extends ChatConversation {
     super.cancelledAt,
     super.cancelSource,
     super.cancelReason,
+    super.cancelReasonCode,
     super.hasQuote,
     super.isInquiry,
     super.price,
@@ -99,6 +100,7 @@ class ChatConversationModel extends ChatConversation {
           : null,
       cancelSource: json['cancelSource'] as String?,
       cancelReason: json['cancelReason'] as String?,
+      cancelReasonCode: json['cancelReasonCode'] as String?,
       hasQuote: json['hasQuote'] as bool? ?? false,
       isInquiry: json['isInquiry'] as bool? ??
           (json['offerStatus'] as String?) == 'INQUIRY',

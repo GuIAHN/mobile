@@ -16,4 +16,19 @@ void main() {
     expect(user.latitude, 14.0723);
     expect(user.longitude, -87.1921);
   });
+
+  test('maps the mechanic description returned inside the provider profile',
+      () {
+    final user = UserModel.fromJson(const {
+      'id': 'mechanic-user-1',
+      'email': 'mechanic@example.com',
+      'name': 'Taller Central',
+      'userType': 'WORKSHOP',
+      'mechanicProfile': {
+        'description': 'Especialistas en diagnóstico y frenos.',
+      },
+    });
+
+    expect(user.description, 'Especialistas en diagnóstico y frenos.');
+  });
 }

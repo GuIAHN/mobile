@@ -660,27 +660,15 @@ class _SubmitButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(32),
           ),
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                'ENVIAR OFERTA',
-                maxLines: 2,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.5,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            const AppLineIcon(
-              AppIcons.send,
-              size: AppIconSize.inline,
-              color: Colors.white,
-            ),
-          ],
+        child: Text(
+          'ENVIAR OFERTA',
+          maxLines: 2,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+          ),
         ),
       ),
     );

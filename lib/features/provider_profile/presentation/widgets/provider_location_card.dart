@@ -183,41 +183,14 @@ class _ProviderLocationCardState extends ConsumerState<ProviderLocationCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final largeText =
-                  MediaQuery.textScalerOf(context).scale(13) >= 18;
-              final stackAction = constraints.maxWidth < 300 || largeText;
-              final heading = _LocationHeading(
-                title: 'Punto de tu $_businessLabel',
-              );
-              final edit = _LocationEditButton(
-                enabled: !_isSaving,
-                onPressed: _openPicker,
-              );
-
-              if (selection != null && stackAction) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    heading,
-                    const SizedBox(height: AppSpacing.sm),
-                    Align(alignment: Alignment.centerRight, child: edit),
-                  ],
-                );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: heading),
-                  if (selection != null) ...[
-                    const SizedBox(width: AppSpacing.sm),
-                    edit,
-                  ],
-                ],
-              );
-            },
+          _LocationHeading(
+            title: 'Punto de tu $_businessLabel',
+            action: selection == null
+                ? null
+                : _LocationEditButton(
+                    enabled: !_isSaving,
+                    onPressed: _openPicker,
+                  ),
           ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
@@ -271,11 +244,14 @@ class _ProviderLocationCardState extends ConsumerState<ProviderLocationCard> {
 
 class _LocationHeading extends StatelessWidget {
   final String title;
+  final Widget? action;
 
-  const _LocationHeading({required this.title});
+  const _LocationHeading({required this.title, this.action});
 
   @override
   Widget build(BuildContext context) {
+    final overlineStyle = AppTypography.overline;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -289,12 +265,31 @@ class _LocationHeading extends StatelessWidget {
         ),
         const SizedBox(width: AppSpacing.md),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              Text('UBICACIÓN', style: AppTypography.overline),
-              const SizedBox(height: AppSpacing.xs),
-              Text(title, style: AppTypography.title),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.only(
+                      right: action == null ? 0 : 112,
+                    ),
+                    child: Text(
+                      'UBICACIÓN',
+                      style: overlineStyle,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(title, style: AppTypography.title),
+                ],
+              ),
+              if (action != null)
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: action!,
+                ),
             ],
           ),
         ),

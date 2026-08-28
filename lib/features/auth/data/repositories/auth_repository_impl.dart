@@ -330,6 +330,7 @@ class AuthRepositoryImpl implements AuthRepository {
     String? name,
     String? photo,
     String? phone,
+    String? description,
     double? latitude,
     double? longitude,
   }) async {
@@ -338,6 +339,7 @@ class AuthRepositoryImpl implements AuthRepository {
         name: name,
         photo: photo,
         phone: phone,
+        description: description,
         latitude: latitude,
         longitude: longitude,
       );

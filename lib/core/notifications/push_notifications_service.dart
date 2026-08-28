@@ -59,6 +59,7 @@ class NotificationTap {
   }
 }
 
+/// Cross-cutting push infrastructure used by app composition and session flow.
 class PushNotificationsService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   static final StreamController<NotificationTap> _notificationTapController =

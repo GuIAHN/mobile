@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'features/notifications/services/push_notifications_service.dart';
+import 'core/notifications/push_notifications_service.dart';
 import 'app.dart';
 
 void main() {

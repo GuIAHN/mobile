@@ -44,6 +44,7 @@ abstract class ApiEndpoints {
   static const String searchMe = 'search/me';
   static String searchOffers(String id) => 'search/$id/offers';
   static String offerCancel(String id) => 'offers/$id/cancel';
+  static String offerCancelSale(String id) => 'offers/$id/cancel-sale';
 
   // ── Subida de imágenes ────────────────────────────────────────────────────
   static const String requestImageUpload = 'upload/requests';

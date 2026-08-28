@@ -12,7 +12,7 @@ import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../vehicles/presentation/providers/vehicle_providers.dart';
-import '../../../../vehicles/domain/entities/user_car.dart';
+import '../../../../../core/domain/entities/user_car.dart';
 import '../../providers/home_providers.dart';
 import '../spare_part_wizard/spare_part_wizard_page.dart';
 

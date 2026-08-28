@@ -52,7 +52,8 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
 
   bool _isExpired(ChatThread thread) {
     final expiresAt = thread.expiresAt;
-    return thread.isExpired ||
+    return !thread.isOpen ||
+        thread.isExpired ||
         (expiresAt != null && !expiresAt.isAfter(DateTime.now()));
   }
 
@@ -384,6 +385,9 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
             child: isProvider
                 ? ChatThreadCard(
                     thread: thread,
+                    onViewDetail: () {
+                      context.push(RouteNames.saleDetailPath(thread.id));
+                    },
                     onTap: () {
                       if (thread.conversationId != null &&
                           thread.conversationId!.isNotEmpty) {

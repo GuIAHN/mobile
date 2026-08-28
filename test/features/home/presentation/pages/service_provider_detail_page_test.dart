@@ -133,9 +133,10 @@ void main() {
     expect(find.byType(DetailContactTile), findsNothing);
     expect(find.text('Alineación'), findsNothing);
 
-    await tester.tap(
-      find.byKey(const Key('service-provider-services-row')),
-    );
+    final servicesRow = find.byKey(const Key('service-provider-services-row'));
+    await tester.ensureVisible(servicesRow);
+    await tester.pump();
+    await tester.tap(servicesRow);
     await tester.pump();
 
     expect(find.text('Servicios que ofrece'), findsOneWidget);
@@ -166,9 +167,10 @@ void main() {
       ),
     );
 
-    await tester.tap(
-      find.byKey(const Key('service-provider-services-row')),
-    );
+    final servicesRow = find.byKey(const Key('service-provider-services-row'));
+    await tester.ensureVisible(servicesRow);
+    await tester.pump();
+    await tester.tap(servicesRow);
     await tester.pump();
 
     expect(
@@ -231,8 +233,8 @@ void main() {
     expect(find.text('Consultar'), findsOneWidget);
     expect(find.text('Servicios por confirmar'), findsOneWidget);
     expect(
-      find.text('Este proveedor aún no agregó una presentación.'),
-      findsOneWidget,
+      find.byKey(const Key('service-provider-presentation-card')),
+      findsNothing,
     );
     expect(find.text('Ubicación por confirmar'), findsOneWidget);
     expect(
@@ -322,7 +324,7 @@ void main() {
     expect(flutterErrors, isEmpty);
   });
 
-  testWidgets('centers and opens the full provider presentation',
+  testWidgets('shows a compact presentation and opens long copy on demand',
       (tester) async {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.binding.setSurfaceSize(const Size(320, 720));
@@ -338,26 +340,34 @@ void main() {
       ),
     );
 
-    final presentationRow =
-        find.byKey(const Key('service-provider-presentation-row'));
+    final presentationCard =
+        find.byKey(const Key('service-provider-presentation-card'));
     final presentationIcon = find.byIcon(AppIcons.presentation);
-    expect(presentationRow, findsOneWidget);
+    expect(presentationCard, findsOneWidget);
     expect(presentationIcon, findsOneWidget);
+    expect(
+      find.byKey(const Key('service-provider-presentation-preview')),
+      findsOneWidget,
+    );
 
-    await tester.ensureVisible(presentationRow);
+    await tester.ensureVisible(presentationCard);
     await tester.pump();
 
     expect(
       (tester.getRect(presentationIcon).center.dy -
-              tester.getRect(presentationRow).center.dy)
+              tester.getRect(find.text('Sobre el mecánico')).center.dy)
           .abs(),
       lessThan(1),
     );
 
-    await tester.tap(presentationRow);
+    final moreButton =
+        find.byKey(const Key('service-provider-presentation-more'));
+    expect(moreButton, findsOneWidget);
+    expect(tester.getSize(moreButton).height, greaterThanOrEqualTo(48));
+    await tester.tap(moreButton);
     await tester.pump();
 
-    expect(find.text('Sobre el mecánico'), findsOneWidget);
+    expect(find.text('Sobre el mecánico'), findsWidgets);
     expect(
       find.byKey(const Key('service-provider-presentation-full')),
       findsOneWidget,

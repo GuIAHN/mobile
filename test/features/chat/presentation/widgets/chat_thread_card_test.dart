@@ -38,7 +38,11 @@ void main() {
         child: MaterialApp(
           home: Scaffold(
             body: SingleChildScrollView(
-              child: ChatThreadCard(thread: thread, onTap: () {}),
+              child: ChatThreadCard(
+                thread: thread,
+                onTap: () {},
+                onViewDetail: () {},
+              ),
             ),
           ),
         ),
@@ -55,5 +59,47 @@ void main() {
 
     verify(() => repository.declineMatch('match-1', 'SIN_STOCK')).called(1);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pending request opens its detail instead of quoting from card',
+      (tester) async {
+    var detailTapCount = 0;
+    var cardTapCount = 0;
+    final thread = ChatThread(
+      id: 'request-1',
+      title: 'Toyota Corolla',
+      requestType: ServiceType.spareParts,
+      unreadCount: 0,
+      conversationCount: 0,
+      lastActivityAt: DateTime.utc(2026, 8, 24),
+      searchMatchId: 'match-1',
+      matchState: 'PENDING',
+      subcategory: 'Pastillas de freno',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: ChatThreadCard(
+                thread: thread,
+                onTap: () => cardTapCount++,
+                onViewDetail: () => detailTapCount++,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Ver detalle'), findsOneWidget);
+    expect(find.text('Cotizar ahora'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('view-request-detail-button')));
+    await tester.pump();
+
+    expect(detailTapCount, 1);
+    expect(cardTapCount, 0);
   });
 }

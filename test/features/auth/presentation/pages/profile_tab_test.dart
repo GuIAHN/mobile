@@ -53,6 +53,77 @@ class _TestAuthNotifier extends AuthNotifier {
 }
 
 void main() {
+  testWidgets(
+      'shows and exposes description editing for mechanics and workshops',
+      (tester) async {
+    const description = 'Especialista en diagnóstico electrónico y frenos.';
+    const user = User(
+      id: 'mechanic-1',
+      email: 'mechanic@example.com',
+      name: 'Carlos Mecánico',
+      phone: '04121111111',
+      description: description,
+      role: UserRole.mechanic,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith((ref) => _TestAuthNotifier(user)),
+          providerSpecialtiesProvider.overrideWith((ref) async => const []),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ProfileTab())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('provider-description-panel')), findsOneWidget);
+    expect(find.text(description), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('edit-profile')));
+    await tester.pumpAndSettle();
+
+    final field = tester.widget<TextFormField>(
+      find.byKey(const Key('provider-description-field')),
+    );
+    expect(field.controller?.text, description);
+    final editable = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byKey(const Key('provider-description-field')),
+        matching: find.byType(EditableText),
+      ),
+    );
+    expect(editable.maxLines, 7);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('does not show provider description controls for consumers',
+      (tester) async {
+    const user = User(
+      id: 'consumer-description-1',
+      email: 'consumer@example.com',
+      name: 'Usuario Consumidor',
+      role: UserRole.consumer,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith((ref) => _TestAuthNotifier(user)),
+          userCarsProvider.overrideWith((ref) async => const []),
+          pendingReviewsProvider.overrideWith((ref) async => const []),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ProfileTab())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('provider-description-panel')), findsNothing);
+    await tester.tap(find.byKey(const Key('edit-profile')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('provider-description-field')), findsNothing);
+  });
+
   testWidgets('does not repeat the profile label inside the profile tab',
       (tester) async {
     const user = User(

@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../../../core/domain/enums/user_role.dart';
-import '../../../vehicles/domain/entities/user_car.dart';
+import '../../../../core/domain/entities/user_car.dart';
 
 /// Entidad de usuario autenticado (dominio puro, sin JSON ni Flutter).
 class User extends Equatable {
@@ -9,9 +9,10 @@ class User extends Equatable {
   final String name;
   final String? avatarUrl;
   final String? phone;
+  final String? description;
   final UserRole role;
   final bool approved;
-  
+
   // Ubicación y garage cacheados al login
   final double? latitude;
   final double? longitude;
@@ -23,6 +24,7 @@ class User extends Equatable {
     required this.name,
     this.avatarUrl,
     this.phone,
+    this.description,
     this.role = UserRole.unknown,
     this.approved = true,
     this.latitude,
@@ -37,6 +39,7 @@ class User extends Equatable {
         name,
         avatarUrl,
         phone,
+        description,
         role,
         approved,
         latitude,
@@ -50,6 +53,7 @@ class User extends Equatable {
     String? name,
     String? avatarUrl,
     String? phone,
+    String? description,
     UserRole? role,
     bool? approved,
     double? latitude,
@@ -62,6 +66,7 @@ class User extends Equatable {
       name: name ?? this.name,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       phone: phone ?? this.phone,
+      description: description ?? this.description,
       role: role ?? this.role,
       approved: approved ?? this.approved,
       latitude: latitude ?? this.latitude,

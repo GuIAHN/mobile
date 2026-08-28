@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/utils/media_url.dart';
 import '../../../../core/utils/venezuelan_phone_number.dart';
@@ -339,6 +340,21 @@ class ProfileHeader extends ConsumerWidget {
         ),
         const SizedBox(height: 10),
         _ContactInfoPanel(user: user),
+        if (user.role == UserRole.mechanic ||
+            user.role == UserRole.workshop) ...[
+          const SizedBox(height: 24),
+          Text(
+            'DESCRIPCIÓN PROFESIONAL',
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.5,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _ProviderDescriptionPanel(description: user.description),
+        ],
       ],
     );
   }
@@ -381,6 +397,67 @@ class ProfileHeader extends ConsumerWidget {
     } catch (e) {
       // Manejar error si es necesario
     }
+  }
+}
+
+class _ProviderDescriptionPanel extends StatelessWidget {
+  final String? description;
+
+  const _ProviderDescriptionPanel({required this.description});
+
+  @override
+  Widget build(BuildContext context) {
+    final value = description?.trim();
+    final isEmpty = value == null || value.isEmpty;
+
+    return Semantics(
+      label: isEmpty
+          ? 'Descripción profesional: sin descripción registrada'
+          : 'Descripción profesional: $value',
+      excludeSemantics: true,
+      child: Container(
+        key: const Key('provider-description-panel'),
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const AppLineIcon(
+              AppIcons.presentation,
+              size: AppIconSize.leading,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                isEmpty
+                    ? 'Aún no has agregado una descripción. Edita tu perfil para contarles a tus clientes sobre tu experiencia y servicios.'
+                    : value,
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 14,
+                  height: 1.5,
+                  fontWeight: isEmpty ? FontWeight.w500 : FontWeight.w600,
+                  color:
+                      isEmpty ? AppColors.textSecondary : AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -545,18 +622,22 @@ class _EditProfileBottomSheetState
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
+  late final TextEditingController _descriptionController;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.user.name);
     _phoneController = TextEditingController(text: widget.user.phone ?? '');
+    _descriptionController =
+        TextEditingController(text: widget.user.description ?? '');
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -668,8 +749,68 @@ class _EditProfileBottomSheetState
                   label: 'NÚMERO DE TELÉFONO',
                   controller: _phoneController,
                   enabled: !isLoading,
-                  textInputAction: TextInputAction.done,
+                  textInputAction: _isProfessionalProvider
+                      ? TextInputAction.next
+                      : TextInputAction.done,
                 ),
+                if (_isProfessionalProvider) ...[
+                  Text(
+                    'DESCRIPCIÓN PROFESIONAL',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    key: const Key('provider-description-field'),
+                    controller: _descriptionController,
+                    enabled: !isLoading,
+                    minLines: 4,
+                    maxLines: 7,
+                    maxLength: 2000,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 16,
+                      height: 1.45,
+                      color: AppColors.textPrimary,
+                    ),
+                    decoration: InputDecoration(
+                      hintText:
+                          'Cuenta tu experiencia, especialidades y los servicios que ofreces.',
+                      hintStyle: GoogleFonts.hankenGrotesk(
+                        fontSize: 15,
+                        height: 1.4,
+                        color: AppColors.textDisabled,
+                      ),
+                      helperText:
+                          'Esta información será visible para tus clientes.',
+                      helperStyle: GoogleFonts.hankenGrotesk(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                      alignLabelWithHint: true,
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.all(16),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: AppColors.primary,
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 const SizedBox(height: 28),
                 Row(
                   children: [
@@ -742,7 +883,14 @@ class _EditProfileBottomSheetState
       ref.read(authProvider.notifier).updateProfile(
             name: _nameController.text.trim(),
             phone: VenezuelanPhoneNumber.toApi(_phoneController.text),
+            description: _isProfessionalProvider
+                ? _descriptionController.text.trim()
+                : null,
           );
     }
   }
+
+  bool get _isProfessionalProvider =>
+      widget.user.role == UserRole.mechanic ||
+      widget.user.role == UserRole.workshop;
 }

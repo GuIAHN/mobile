@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/domain/enums/user_role.dart';
@@ -122,12 +123,10 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
                   final quotedCount = conversations
                       .where((conversation) => conversation.hasFormalQuote)
                       .length;
-                  final inquiryCount = conversations.length - quotedCount;
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
                     child: _OffersCountHeader(
                       quotedCount: quotedCount,
-                      inquiryCount: inquiryCount,
                       isStore: isStore,
                       currentSort: _currentSort,
                       onSortChanged: (val) {
@@ -753,14 +752,12 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
 
 class _OffersCountHeader extends StatelessWidget {
   final int quotedCount;
-  final int inquiryCount;
   final bool isStore;
   final _SortOption? currentSort;
   final ValueChanged<_SortOption>? onSortChanged;
 
   const _OffersCountHeader({
     required this.quotedCount,
-    required this.inquiryCount,
     required this.isStore,
     this.currentSort,
     this.onSortChanged,
@@ -768,16 +765,21 @@ class _OffersCountHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!isStore && currentSort != null && onSortChanged != null) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 14, top: 4),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: _buildSortButton(),
+        ),
+      );
+    }
+
     final label = isStore
         ? (quotedCount == 1 ? '1 cotización' : '$quotedCount cotizaciones')
         : (quotedCount == 1
             ? '1 cotización recibida'
             : '$quotedCount cotizaciones recibidas');
-    final companionLabel = inquiryCount > 0
-        ? '$inquiryCount ${inquiryCount == 1 ? 'conversación' : 'conversaciones'}'
-        : quotedCount > 0
-            ? 'Compara y elige'
-            : null;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14, top: 4),
@@ -808,32 +810,9 @@ class _OffersCountHeader extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (!isStore && companionLabel != null) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryMuted,
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                    child: Text(
-                      companionLabel,
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
-          if (!isStore && currentSort != null && onSortChanged != null) ...[
-            const SizedBox(width: 10),
-            _buildSortButton(),
-          ],
         ],
       ),
     );
@@ -845,15 +824,15 @@ class _OffersCountHeader extends StatelessWidget {
     switch (currentSort!) {
       case _SortOption.recent:
         sortLabel = 'Recientes';
-        sortIcon = Icons.access_time_rounded;
+        sortIcon = AppIcons.time;
         break;
       case _SortOption.priceAsc:
         sortLabel = 'Precio';
-        sortIcon = Icons.attach_money_rounded;
+        sortIcon = AppIcons.price;
         break;
       case _SortOption.distanceAsc:
         sortLabel = 'Distancia';
-        sortIcon = Icons.place_outlined;
+        sortIcon = AppIcons.location;
         break;
     }
 
@@ -864,6 +843,8 @@ class _OffersCountHeader extends StatelessWidget {
       color: Colors.white,
       position: PopupMenuPosition.under,
       child: Container(
+        key: const Key('conversation-sort-filter'),
+        constraints: const BoxConstraints(minHeight: 48),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -873,7 +854,11 @@ class _OffersCountHeader extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(sortIcon, size: 18, color: AppColors.textSecondary),
+            AppLineIcon(
+              sortIcon,
+              size: AppIconSize.action,
+              color: AppColors.textSecondary,
+            ),
             const SizedBox(width: 8),
             Text(
               sortLabel,
@@ -884,18 +869,19 @@ class _OffersCountHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 6),
-            const Icon(Icons.keyboard_arrow_down_rounded,
-                size: 20, color: AppColors.textSecondary),
+            const AppLineIcon(
+              AppIcons.expand,
+              size: AppIconSize.action,
+              color: AppColors.textSecondary,
+            ),
           ],
         ),
       ),
       itemBuilder: (context) => [
+        _buildPopupItem(_SortOption.recent, 'Más recientes', AppIcons.time),
+        _buildPopupItem(_SortOption.priceAsc, 'Menor precio', AppIcons.price),
         _buildPopupItem(
-            _SortOption.recent, 'Más recientes', Icons.access_time_rounded),
-        _buildPopupItem(
-            _SortOption.priceAsc, 'Menor precio', Icons.attach_money_rounded),
-        _buildPopupItem(
-            _SortOption.distanceAsc, 'Más cercanos', Icons.place_outlined),
+            _SortOption.distanceAsc, 'Más cercanos', AppIcons.location),
       ],
     );
   }
@@ -906,11 +892,13 @@ class _OffersCountHeader extends StatelessWidget {
       value: value,
       child: Row(
         children: [
-          Icon(icon,
-              size: 18,
-              color: currentSort == value
-                  ? AppColors.primary
-                  : AppColors.textSecondary),
+          AppLineIcon(
+            icon,
+            size: AppIconSize.action,
+            color: currentSort == value
+                ? AppColors.primary
+                : AppColors.textSecondary,
+          ),
           const SizedBox(width: 10),
           Text(
             text,

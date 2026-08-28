@@ -92,6 +92,7 @@ abstract class AuthRepository {
     String? name,
     String? photo,
     String? phone,
+    String? description,
     double? latitude,
     double? longitude,
   });

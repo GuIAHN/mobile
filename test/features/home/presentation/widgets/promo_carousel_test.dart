@@ -5,6 +5,27 @@ import 'package:guiautomotriz_mobile/features/home/domain/entities/promo.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/promo_carousel.dart';
 
 void main() {
+  group('externalAdUri', () {
+    test('keeps complete backend URLs', () {
+      expect(
+        externalAdUri('https://example.com/oferta?id=7'),
+        Uri.parse('https://example.com/oferta?id=7'),
+      );
+    });
+
+    test('adds https when the backend URL has no scheme', () {
+      expect(
+        externalAdUri('www.example.com/oferta'),
+        Uri.parse('https://www.example.com/oferta'),
+      );
+    });
+
+    test('rejects empty and unsupported URLs', () {
+      expect(externalAdUri('  '), isNull);
+      expect(externalAdUri('javascript:alert(1)'), isNull);
+    });
+  });
+
   const promos = [
     Promo(
       title: 'Primer destacado',

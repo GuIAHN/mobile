@@ -48,18 +48,17 @@ class ChatMessageComposer extends StatelessWidget {
                       ? AppColors.primary.withValues(alpha: 0.42)
                       : AppColors.border,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.055),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
-                  ),
-                  if (focusNode.hasFocus)
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      blurRadius: 14,
-                    ),
-                ],
+                // El campo ya tiene un borde definido. Una sombra desplazada
+                // debajo de esta cápsula se percibe como un segundo contorno,
+                // especialmente sobre el fondo gris del chat.
+                boxShadow: focusNode.hasFocus
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          blurRadius: 14,
+                        ),
+                      ]
+                    : const [],
               ),
               child: TextField(
                 controller: controller,

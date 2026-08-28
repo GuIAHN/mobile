@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../catalog/domain/entities/specialty.dart';
+import '../../../../core/domain/entities/specialty.dart';
 
 /// Funciones auxiliares para mapear especialidades dinámicas del backend a iconos e información estética.
 IconData getSpecialtyIcon(String name) {

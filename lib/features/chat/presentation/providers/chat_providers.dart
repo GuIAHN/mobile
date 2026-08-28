@@ -15,6 +15,7 @@ import '../../domain/usecases/buy_offer_usecase.dart';
 import '../../domain/usecases/deliver_offer_usecase.dart';
 import '../../domain/usecases/mark_as_read_usecase.dart';
 import '../../domain/usecases/cancel_offer_usecase.dart';
+import '../../domain/usecases/cancel_sale_by_store_usecase.dart';
 import '../../domain/usecases/decline_match_usecase.dart';
 import '../../domain/usecases/undo_decline_usecase.dart';
 import '../../../../core/providers/current_user_provider.dart';
@@ -22,6 +23,7 @@ import '../../../../core/providers/cache_for.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/services/socket_service.dart';
 import '../../../../core/session/session_generation_provider.dart';
+import '../../../../core/storage/secure_storage.dart';
 
 // ── Dependency Providers ─────────────────────────────────────────────────────
 
@@ -78,6 +80,11 @@ final markAsReadUseCaseProvider = Provider<MarkAsReadUseCase>((ref) {
 
 final cancelOfferUseCaseProvider = Provider<CancelOfferUseCase>((ref) {
   return CancelOfferUseCase(ref.watch(chatRepositoryProvider));
+});
+
+final cancelSaleByStoreUseCaseProvider =
+    Provider<CancelSaleByStoreUseCase>((ref) {
+  return CancelSaleByStoreUseCase(ref.watch(chatRepositoryProvider));
 });
 
 final declineMatchUseCaseProvider = Provider<DeclineMatchUseCase>((ref) {
@@ -460,11 +467,41 @@ final myConversationsProvider =
   );
 
   final result = await repository.getMyConversations();
-  return result.fold(
+  final conversations = result.fold(
     (failure) => throw Exception(failure.message),
     (conversations) => conversations,
   );
+  final storage = ref.watch(secureStorageProvider);
+  return filterVisibleChatConversations(
+    conversations,
+    hasHandledReview: storage.hasHandledStoreReview,
+  );
 });
+
+Future<List<ChatConversation>> filterVisibleChatConversations(
+  List<ChatConversation> conversations, {
+  required Future<bool> Function(String conversationId) hasHandledReview,
+}) async {
+  final visible = await Future.wait(
+    conversations.map((conversation) async {
+      if (conversation.isCompletedAfterReview) return null;
+      if (conversation.offerStatus?.toUpperCase() != 'DELIVERED') {
+        return conversation;
+      }
+
+      try {
+        final handled =
+            await hasHandledReview(conversation.realtimeConversationId);
+        return handled ? null : conversation;
+      } catch (_) {
+        // Si el almacenamiento local no está disponible, conservamos la
+        // conversación y dejamos que el estado del API decida su visibilidad.
+        return conversation;
+      }
+    }),
+  );
+  return visible.whereType<ChatConversation>().toList(growable: false);
+}
 
 final chatConversationDetailsProvider = FutureProvider.autoDispose
     .family<ChatConversation, String>((ref, conversationId) async {

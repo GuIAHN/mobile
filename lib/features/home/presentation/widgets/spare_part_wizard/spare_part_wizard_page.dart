@@ -17,7 +17,7 @@ import '../../../../../shared/widgets/error_view.dart';
 import '../../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../../core/services/location_service.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
-import '../../../../vehicles/domain/entities/user_car.dart';
+import '../../../../../core/domain/entities/user_car.dart';
 import '../../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../../../../vehicles/presentation/widgets/vehicle_selection_modal.dart';
 import '../../../../vehicles/presentation/widgets/_atoms/vehicle_type_illustration.dart';
@@ -39,6 +39,7 @@ part 'spare_part_wizard_step3.dart';
 part 'spare_part_wizard_chrome.dart';
 part 'spare_part_wizard_summary.dart';
 part 'vehicle_option_card.dart';
+part 'cbk_recommendation_dialog.dart';
 
 class SparePartWizardPage extends ConsumerStatefulWidget {
   final UserCar? initialVehicle;
@@ -214,6 +215,9 @@ class _PendingReviewsGateSheet extends StatelessWidget {
 }
 
 class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
+  static const _cbkPreference =
+      'Pastillas CBK preferiblemente para mi compra, por favor';
+
   int _currentStep = 1;
   late final PageController _pageController;
   bool _isSubmitting = false;
@@ -240,6 +244,7 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
   bool _isLocatingRequest = false;
   bool _requestedCurrentLocation = false;
   String? _requestLocationError;
+  String? _cbkPromptedSubcategoryId;
 
   @override
   void initState() {
@@ -268,8 +273,49 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
       _submitError = null;
     });
     if (nextStep == 3) {
+      await _showCbkRecommendationIfNeeded();
+      if (!mounted) return;
       await _loadCurrentRequestLocation();
     }
+  }
+
+  Future<void> _showCbkRecommendationIfNeeded() async {
+    final subcategory = _selectedSubcategory;
+    if (subcategory == null ||
+        !_isBrakePads(subcategory.name) ||
+        _cbkPromptedSubcategoryId == subcategory.id) {
+      return;
+    }
+
+    _cbkPromptedSubcategoryId = subcategory.id;
+    final acceptsRecommendation = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      builder: (context) => const _CbkRecommendationSheet(),
+    );
+    if (!mounted || acceptsRecommendation != true) return;
+
+    final currentDetails = _detailsController.text.trim();
+    if (currentDetails.toLowerCase().contains(_cbkPreference.toLowerCase())) {
+      return;
+    }
+
+    _detailsController.text = currentDetails.isEmpty
+        ? _cbkPreference
+        : '$currentDetails\n$_cbkPreference';
+    _detailsController.selection = TextSelection.collapsed(
+      offset: _detailsController.text.length,
+    );
+    setState(() => _isDirty = true);
+  }
+
+  bool _isBrakePads(String name) {
+    final normalized =
+        name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9áéíóúüñ]+'), ' ').trim();
+    return normalized.contains('pastilla') &&
+        (normalized.contains('freno') || normalized == 'pastillas');
   }
 
   Future<void> _loadCurrentRequestLocation() async {
@@ -722,6 +768,9 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
           selectedPartType: _selectedPartType,
           onCategoryChanged: (cat, subcat) {
             setState(() {
+              if (_selectedSubcategory?.id != subcat?.id) {
+                _cbkPromptedSubcategoryId = null;
+              }
               _selectedCategory = cat;
               _selectedSubcategory = subcat;
               _isDirty = true;

@@ -1,7 +1,7 @@
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/dio_client.dart';
-import '../../../catalog/data/models/specialty_model.dart';
+import '../../../../core/data/models/specialty_model.dart';
 import '../models/store_catalog_model.dart';
 
 class ProviderProfileRemoteDataSource {

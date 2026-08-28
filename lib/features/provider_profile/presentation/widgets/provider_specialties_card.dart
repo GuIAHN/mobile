@@ -8,7 +8,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../shared/widgets/count_pill.dart';
-import '../../../catalog/domain/entities/specialty.dart';
+import '../../../../core/domain/entities/specialty.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
 import '../providers/provider_profile_providers.dart';
 

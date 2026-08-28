@@ -163,6 +163,50 @@ void main() {
     verifyNoMoreInteractions(client);
   });
 
+  test('updateProfile sends and refreshes a mechanic description', () async {
+    final client = _MockDioClient();
+    final datasource = AuthRemoteDataSource(client);
+    const description = 'Especialista en diagnóstico electrónico.';
+
+    when(
+      () => client.patch<Map<String, dynamic>>(
+        'mechanics/me',
+        data: const {'description': description},
+      ),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: 'mechanics/me'),
+        statusCode: 200,
+        data: const {'description': description},
+      ),
+    );
+    when(() => client.get<Map<String, dynamic>>(ApiEndpoints.me)).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: ApiEndpoints.me),
+        statusCode: 200,
+        data: const {
+          'id': 'mechanic-user-1',
+          'email': 'mechanic@example.com',
+          'name': 'Carlos Mecánico',
+          'userType': 'MECHANIC',
+          'mechanicProfile': {'description': description},
+        },
+      ),
+    );
+
+    final user = await datasource.updateProfile(description: description);
+
+    expect(user.description, description);
+    verify(
+      () => client.patch<Map<String, dynamic>>(
+        'mechanics/me',
+        data: const {'description': description},
+      ),
+    ).called(1);
+    verify(() => client.get<Map<String, dynamic>>(ApiEndpoints.me)).called(1);
+    verifyNoMoreInteractions(client);
+  });
+
   test('registerStore omits the removed category startingPrice field',
       () async {
     final client = _MockDioClient();

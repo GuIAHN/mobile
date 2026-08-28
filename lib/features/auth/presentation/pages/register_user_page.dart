@@ -11,6 +11,7 @@ import '../../../../shared/widgets/app_phone_field.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/api_error_message.dart';
 import '../../../../shared/widgets/registration_page_chrome.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
 import '../providers/social_registration_state.dart';
@@ -391,7 +392,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
     final state = ref.watch(authProvider);
     final enabled = _formularioValido && !state.isLoading;
 
-    return _PressableScale(
+    return PressableScale(
       onTap: enabled ? _avanzar : null,
       child: SizedBox(
         width: double.infinity,
@@ -481,39 +482,5 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
         curve: Curves.easeOut,
       );
     });
-  }
-}
-
-class _PressableScale extends StatefulWidget {
-  final Widget child;
-  final VoidCallback? onTap;
-
-  const _PressableScale({
-    required this.child,
-    this.onTap,
-  });
-
-  @override
-  State<_PressableScale> createState() => _PressableScaleState();
-}
-
-class _PressableScaleState extends State<_PressableScale> {
-  bool _isPressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = widget.onTap != null;
-    return GestureDetector(
-      onTapDown: enabled ? (_) => setState(() => _isPressed = true) : null,
-      onTapUp: enabled ? (_) => setState(() => _isPressed = false) : null,
-      onTapCancel: enabled ? () => setState(() => _isPressed = false) : null,
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _isPressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.easeOut,
-        child: widget.child,
-      ),
-    );
   }
 }

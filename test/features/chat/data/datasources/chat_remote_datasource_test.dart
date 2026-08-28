@@ -169,6 +169,7 @@ void main() {
             'cancelledAt': '2026-08-22T09:00:00.000Z',
             'cancelSource': 'SYSTEM',
             'cancelReason': 'Sin confirmación de entrega',
+            'cancelReasonCode': 'SIN_CONFIRMACION_ENTREGA',
             'price': 125,
             'store': {
               'name': 'Repuestos Central',
@@ -190,6 +191,7 @@ void main() {
     expect(offer.offerStatus, 'CANCELLED');
     expect(offer.cancelSource, 'SYSTEM');
     expect(offer.cancelReason, 'Sin confirmación de entrega');
+    expect(offer.cancelReasonCode, 'SIN_CONFIRMACION_ENTREGA');
     expect(offer.storeRating, 4.6);
     expect(offer.storeReviewCount, 18);
   });
@@ -263,6 +265,19 @@ void main() {
     );
     when(
       () => client.post(
+        ApiEndpoints.offerCancelSale('offer-2'),
+        data: {
+          'reasonCode': 'OTRO',
+          'note': 'El local estará cerrado',
+        },
+      ),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: 'offers/offer-2/cancel-sale'),
+      ),
+    );
+    when(
+      () => client.post(
         ApiEndpoints.storeSearchRequestDecline('match-1'),
         data: {'reason': 'SIN_STOCK'},
       ),
@@ -282,6 +297,11 @@ void main() {
     );
 
     await dataSource.cancelOffer('offer-1', reason: 'Ya no lo necesito');
+    await dataSource.cancelSaleByStore(
+      'offer-2',
+      reasonCode: 'OTRO',
+      note: 'El local estará cerrado',
+    );
     await dataSource.declineMatch('match-1', 'SIN_STOCK');
     await dataSource.undoDecline('match-1');
 
@@ -289,6 +309,15 @@ void main() {
       () => client.post(
         ApiEndpoints.offerCancel('offer-1'),
         data: {'reason': 'Ya no lo necesito'},
+      ),
+    ).called(1);
+    verify(
+      () => client.post(
+        ApiEndpoints.offerCancelSale('offer-2'),
+        data: {
+          'reasonCode': 'OTRO',
+          'note': 'El local estará cerrado',
+        },
       ),
     ).called(1);
     verify(

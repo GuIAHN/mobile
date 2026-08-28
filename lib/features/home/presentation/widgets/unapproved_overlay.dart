@@ -108,7 +108,8 @@ class UnapprovedOverlay extends ConsumerWidget {
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.error,
-                      side: const BorderSide(color: AppColors.error, width: 1.5),
+                      side:
+                          const BorderSide(color: AppColors.error, width: 1.5),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),

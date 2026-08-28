@@ -7,6 +7,7 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../shared/widgets/registration_page_chrome.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/register_vehicles_provider.dart';
 import '../providers/vehicle_providers.dart';
@@ -201,7 +202,7 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
   }
 
   Widget _botonAgregarModal() {
-    return _PressableScale(
+    return PressableScale(
       onTap: () async {
         // Muestra el modal interactivo
         final result = await VehicleSelectionModal.show(context);
@@ -256,7 +257,7 @@ class _RegisterVehiclesPageState extends ConsumerState<RegisterVehiclesPage> {
     final vehiculos = ref.watch(registerVehiclesProvider);
     final enabled = vehiculos.isNotEmpty && !_isSaving;
 
-    return _PressableScale(
+    return PressableScale(
       onTap: enabled ? _finishRegistration : null,
       child: SizedBox(
         width: double.infinity,
@@ -466,40 +467,6 @@ class _BadgeCount extends StatelessWidget {
           fontWeight: FontWeight.w800,
           fontSize: 11,
         ),
-      ),
-    );
-  }
-}
-
-class _PressableScale extends StatefulWidget {
-  final Widget child;
-  final VoidCallback? onTap;
-
-  const _PressableScale({
-    required this.child,
-    this.onTap,
-  });
-
-  @override
-  State<_PressableScale> createState() => _PressableScaleState();
-}
-
-class _PressableScaleState extends State<_PressableScale> {
-  bool _isPressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = widget.onTap != null;
-    return GestureDetector(
-      onTapDown: enabled ? (_) => setState(() => _isPressed = true) : null,
-      onTapUp: enabled ? (_) => setState(() => _isPressed = false) : null,
-      onTapCancel: enabled ? () => setState(() => _isPressed = false) : null,
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _isPressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.easeOut,
-        child: widget.child,
       ),
     );
   }

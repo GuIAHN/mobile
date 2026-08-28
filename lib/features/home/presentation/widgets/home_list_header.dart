@@ -11,7 +11,7 @@ import '../../domain/entities/home_filters.dart';
 import '../../domain/entities/sort_option.dart';
 import '../providers/home_providers.dart';
 import '../../../catalog/presentation/providers/catalog_providers.dart';
-import '../../../catalog/domain/entities/specialty.dart';
+import '../../../../core/domain/entities/specialty.dart';
 import '../../../../shared/widgets/app_chip.dart';
 
 class HomeListHeader extends ConsumerWidget {

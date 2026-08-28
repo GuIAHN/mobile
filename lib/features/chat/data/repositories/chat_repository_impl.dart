@@ -188,6 +188,24 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
+  Future<Either<Failure, void>> cancelSaleByStore(
+    String offerId, {
+    required String reasonCode,
+    String? note,
+  }) async {
+    try {
+      await remoteDataSource.cancelSaleByStore(
+        offerId,
+        reasonCode: reasonCode,
+        note: note,
+      );
+      return const Right(null);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> declineMatch(
     String searchMatchId,
     String reason,

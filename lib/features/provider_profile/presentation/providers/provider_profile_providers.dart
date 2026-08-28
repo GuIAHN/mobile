@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/session/session_generation_provider.dart';
-import '../../../catalog/domain/entities/specialty.dart';
+import '../../../../core/domain/entities/specialty.dart';
 import '../../data/datasources/provider_profile_remote_datasource.dart';
 import '../../data/repositories/provider_profile_repository_impl.dart';
 import '../../domain/entities/store_catalog.dart';

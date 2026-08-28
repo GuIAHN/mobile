@@ -6,7 +6,7 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/services/socket_service.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../../../core/network/token_refresh_coordinator.dart';
-import '../../../../features/notifications/services/push_notifications_service.dart';
+import '../../../../core/notifications/push_notifications_service.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/entities/store_coverage_config.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -14,7 +14,7 @@ import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
 import '../../domain/usecases/update_profile_usecase.dart';
 import '../../domain/usecases/upload_avatar_usecase.dart';
-import '../../../vehicles/domain/entities/user_car.dart';
+import '../../../../core/domain/entities/user_car.dart';
 import 'auth_state.dart';
 
 /// Notifier that manages the app's authentication state (login and registration).
@@ -429,6 +429,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> updateProfile({
     String? name,
     String? phone,
+    String? description,
     double? latitude,
     double? longitude,
   }) async {
@@ -437,6 +438,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final result = await _updateProfileUseCase(
       name: name,
       phone: phone,
+      description: description,
       latitude: latitude,
       longitude: longitude,
     );
@@ -453,6 +455,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           status: AuthStatus.authenticated,
           user: _mergeUpdatedProfile(
             updatedUser,
+            description: description,
             latitude: latitude,
             longitude: longitude,
           ),
@@ -497,11 +500,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     User updatedUser, {
     double? latitude,
     double? longitude,
+    String? description,
   }) {
     final cachedUser = state.user;
     return updatedUser.copyWith(
       latitude: latitude ?? updatedUser.latitude ?? cachedUser?.latitude,
       longitude: longitude ?? updatedUser.longitude ?? cachedUser?.longitude,
+      description:
+          description ?? updatedUser.description ?? cachedUser?.description,
       cars: updatedUser.cars ?? cachedUser?.cars,
     );
   }

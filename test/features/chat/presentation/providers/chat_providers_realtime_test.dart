@@ -18,6 +18,35 @@ class _MockGetChatThreadsUseCase extends Mock
     implements GetChatThreadsUseCase {}
 
 void main() {
+  test('hides a delivered chat when its review was handled locally', () async {
+    ChatConversation conversation({
+      required String id,
+      required String status,
+      bool hasReviewed = false,
+    }) =>
+        ChatConversation(
+          id: id,
+          threadId: 'request-$id',
+          participantName: 'Tienda',
+          lastMessage: 'Pedido entregado',
+          unreadCount: 0,
+          lastMessageAt: DateTime.utc(2026, 8, 28),
+          offerStatus: status,
+          hasReviewed: hasReviewed,
+        );
+
+    final visible = await filterVisibleChatConversations(
+      [
+        conversation(id: 'handled', status: 'DELIVERED'),
+        conversation(id: 'pending', status: 'DELIVERED'),
+        conversation(id: 'active', status: 'BOUGHT'),
+      ],
+      hasHandledReview: (id) async => id == 'handled',
+    );
+
+    expect(visible.map((item) => item.id), ['pending', 'active']);
+  });
+
   test('hydrates authorship only for the exact current preview', () {
     final timestamp = DateTime.parse('2026-08-20T12:00:00.000Z');
     final conversation = ChatConversation(

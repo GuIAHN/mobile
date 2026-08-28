@@ -9,6 +9,22 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../ads/presentation/providers/ads_provider.dart';
 
+@visibleForTesting
+Uri? externalAdUri(String? rawUrl) {
+  final value = rawUrl?.trim();
+  if (value == null || value.isEmpty) return null;
+
+  final candidate = value.contains('://') ? value : 'https://$value';
+  final uri = Uri.tryParse(candidate);
+  if (uri == null ||
+      (uri.scheme != 'http' && uri.scheme != 'https') ||
+      uri.host.isEmpty) {
+    return null;
+  }
+
+  return uri;
+}
+
 class PromoCarousel extends ConsumerStatefulWidget {
   final List<Promo> promos;
 
@@ -150,33 +166,86 @@ class _BannerCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = promo.gradientColors.map((hex) => Color(hex)).toList();
+    final destination = externalAdUri(promo.ctaUrl);
+
+    Future<void> openAd() async {
+      if (destination == null) return;
+
+      ref.read(adTrackerProvider.notifier).trackClick(promo.id);
+
+      try {
+        final opened = await launchUrl(
+          destination,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!opened && context.mounted) {
+          _showOpenAdError(context);
+        }
+      } catch (_) {
+        if (context.mounted) {
+          _showOpenAdError(context);
+        }
+      }
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: GestureDetector(
-        onTap: () async {
-          if (promo.ctaUrl != null && promo.ctaUrl!.isNotEmpty) {
-            // Track click!
-            ref.read(adTrackerProvider.notifier).trackClick(promo.id);
-
-            final Uri url = Uri.parse(promo.ctaUrl!);
-            if (await canLaunchUrl(url)) {
-              await launchUrl(url, mode: LaunchMode.externalApplication);
-            }
-          }
-        },
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Stack(
-            children: [
-              // 1. Imagen de fondo (si está disponible)
-              if (promo.imageUrl != null)
-                Positioned.fill(
-                  child: Image.network(
-                    promo.imageUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return DecoratedBox(
+      child: Semantics(
+        button: destination != null,
+        link: destination != null,
+        label: destination == null
+            ? 'Publicidad: ${promo.title}'
+            : 'Publicidad: ${promo.title}. Abrir enlace externo',
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            onTap: destination == null ? null : openAd,
+            borderRadius: BorderRadius.circular(20),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Stack(
+                children: [
+                  // 1. Imagen de fondo (si está disponible)
+                  if (promo.imageUrl != null)
+                    Positioned.fill(
+                      child: Image.network(
+                        promo.imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: colors.isNotEmpty
+                                    ? colors
+                                    : [
+                                        AppColors.primary,
+                                        AppColors.primaryLight
+                                      ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                          );
+                        },
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            color: AppColors.grey100,
+                            child: const Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: AppColors.primary),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                  else
+                    Positioned.fill(
+                      child: DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: colors.isNotEmpty
@@ -186,134 +255,114 @@ class _BannerCard extends ConsumerWidget {
                             end: Alignment.bottomRight,
                           ),
                         ),
-                      );
-                    },
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        color: AppColors.grey100,
-                        child: const Center(
-                          child: SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: AppColors.primary),
-                          ),
+                      ),
+                    ),
+
+                  // 2. Capa de overlay degradado oscuro (del 80% al 20%) para legibilidad impecable
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.black.withValues(alpha: 0.8),
+                            Colors.black.withValues(alpha: 0.35),
+                            Colors.transparent,
+                          ],
+                          begin: Alignment.bottomLeft,
+                          end: Alignment.topRight,
                         ),
-                      );
-                    },
-                  ),
-                )
-              else
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: colors.isNotEmpty
-                            ? colors
-                            : [AppColors.primary, AppColors.primaryLight],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
                       ),
                     ),
                   ),
-                ),
 
-              // 2. Capa de overlay degradado oscuro (del 80% al 20%) para legibilidad impecable
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.black.withValues(alpha: 0.8),
-                        Colors.black.withValues(alpha: 0.35),
-                        Colors.transparent,
-                      ],
-                      begin: Alignment.bottomLeft,
-                      end: Alignment.topRight,
+                  // 3. Formas geométricas abstractas para profundidad visual
+                  Positioned(
+                    right: -30,
+                    top: -40,
+                    child: Container(
+                      width: 150,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.06),
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
-                ),
-              ),
 
-              // 3. Formas geométricas abstractas para profundidad visual
-              Positioned(
-                right: -30,
-                top: -40,
-                child: Container(
-                  width: 150,
-                  height: 150,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.06),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-
-              // 4. Icono de marca difuminado en la parte derecha
-              Positioned(
-                right: AppSpacing.xl,
-                top: 0,
-                bottom: 0,
-                child: Center(
-                  child: Icon(
-                    getIconData(promo.iconName),
-                    size: 80,
-                    color: Colors.white.withValues(alpha: 0.12),
-                  ),
-                ),
-              ),
-
-              // 5. Contenido textual
-              Positioned.fill(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 110, 36),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'DESTACADO',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.5,
-                          color: AppColors.primary,
-                        ),
+                  // 4. Icono de marca difuminado en la parte derecha
+                  Positioned(
+                    right: AppSpacing.xl,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: Icon(
+                        getIconData(promo.iconName),
+                        size: 80,
+                        color: Colors.white.withValues(alpha: 0.12),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        promo.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 21,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          height: 1.15,
-                        ),
-                      ),
-                      if (promo.subtitle.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          promo.subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.white.withValues(alpha: 0.8),
+                    ),
+                  ),
+
+                  // 5. Contenido textual
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 110, 36),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'DESTACADO',
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.5,
+                              color: AppColors.primary,
+                            ),
                           ),
-                        ),
-                      ],
-                    ],
+                          const SizedBox(height: 6),
+                          Text(
+                            promo.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 21,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              height: 1.15,
+                            ),
+                          ),
+                          if (promo.subtitle.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              promo.subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.white.withValues(alpha: 0.8),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+void _showOpenAdError(BuildContext context) {
+  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+    const SnackBar(
+      content: Text('No pudimos abrir el enlace de esta publicidad.'),
+    ),
+  );
 }

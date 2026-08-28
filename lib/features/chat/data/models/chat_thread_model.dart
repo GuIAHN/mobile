@@ -38,6 +38,7 @@ class ChatThreadModel extends ChatThread {
     super.cancelledAt,
     super.cancelSource,
     super.cancelReason,
+    super.cancelReasonCode,
     super.bestOfferPrice,
     super.bestOfferStoreName,
     super.bestOfferStatus,
@@ -110,6 +111,7 @@ class ChatThreadModel extends ChatThread {
           : null,
       cancelSource: json['cancelSource'] as String?,
       cancelReason: json['cancelReason'] as String?,
+      cancelReasonCode: json['cancelReasonCode'] as String?,
       bestOfferPrice: json['bestOfferPrice'] != null
           ? double.tryParse(json['bestOfferPrice'].toString())
           : null,

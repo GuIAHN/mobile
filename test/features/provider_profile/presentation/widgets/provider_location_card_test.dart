@@ -199,6 +199,33 @@ void main() {
     }
   });
 
+  testWidgets('keeps the edit action in the same row as the location label',
+      (tester) async {
+    await tester.pumpWidget(
+      _testApp(
+        user: const User(
+          id: 'store-1',
+          email: 'store@example.com',
+          name: 'Repuestos Centro',
+          role: UserRole.store,
+          latitude: 14.0723,
+          longitude: -87.1921,
+        ),
+        size: const Size(320, 700),
+      ),
+    );
+
+    final labelTop = tester.getTopLeft(find.text('UBICACIÓN')).dy;
+    final actionTop =
+        tester.getTopLeft(find.byKey(const Key('edit-provider-location'))).dy;
+    final titleTop = tester.getTopLeft(find.text('Punto de tu tienda')).dy;
+    final labelBottom = tester.getBottomLeft(find.text('UBICACIÓN')).dy;
+
+    expect((labelTop - actionTop).abs(), lessThanOrEqualTo(3));
+    expect(titleTop - labelBottom, lessThanOrEqualTo(8));
+    expect(tester.takeException(), isNull);
+  });
+
   test('auth notifier retains submitted coordinates when PATCH omits location',
       () async {
     final repository = _MockAuthRepository();

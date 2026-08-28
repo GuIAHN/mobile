@@ -21,7 +21,14 @@ import 'package:mocktail/mocktail.dart';
 
 class _FakeLocationService extends LocationService {
   @override
+  Future<bool> isLocationServiceEnabled() async => true;
+
+  @override
   Future<LocationPermission> checkPermission() async =>
+      LocationPermission.denied;
+
+  @override
+  Future<LocationPermission> requestPermission() async =>
       LocationPermission.denied;
 }
 
@@ -279,7 +286,8 @@ void main() {
     expect(find.text('Ubicación desactivada'), findsOneWidget);
   });
 
-  testWidgets('shows the current resolved location name', (tester) async {
+  testWidgets('activates and resolves the current location on entry',
+      (tester) async {
     final container = ProviderContainer(
       overrides: [
         authProvider.overrideWith(
@@ -289,7 +297,6 @@ void main() {
         ),
         userCarsProvider.overrideWith((ref) async => const [audi]),
         locationServiceProvider.overrideWithValue(_EnabledLocationService()),
-        isLocationSharedProvider.overrideWith((ref) => true),
       ],
     );
     addTearDown(container.dispose);
@@ -298,6 +305,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Sabana Grande, Caracas'), findsOneWidget);
+    expect(container.read(isLocationSharedProvider), isTrue);
+    expect(container.read(userLocationProvider).valueOrNull, isNotNull);
     expect(find.text('Ubicación activada'), findsNothing);
   });
 
@@ -318,7 +327,6 @@ void main() {
     addTearDown(container.dispose);
 
     await pumpHeader(tester, container);
-    await tester.tap(find.byKey(const Key('home-location-control')));
     await tester.pumpAndSettle();
 
     final position = container.read(userLocationProvider).valueOrNull;
@@ -346,7 +354,6 @@ void main() {
     addTearDown(container.dispose);
 
     await pumpHeader(tester, container);
-    await tester.tap(find.byKey(const Key('home-location-control')));
     await tester.pumpAndSettle();
     expect(container.read(userLocationProvider).valueOrNull, isNotNull);
 

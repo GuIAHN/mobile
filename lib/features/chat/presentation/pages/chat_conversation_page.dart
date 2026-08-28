@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:dartz/dartz.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../core/error/failures.dart';
 import '../providers/chat_providers.dart';
 import '../widgets/chat_message_bubble.dart';
 import '../widgets/chat_message_composer.dart';
 import '../widgets/active_offer_header_card.dart';
 import '../widgets/confirm_purchase_dialog.dart';
 import '../widgets/cancel_purchase_dialog.dart';
+import '../widgets/non_delivery_dialog.dart';
 import '../../domain/entities/chat_conversation.dart';
 import '../../../reviews/presentation/providers/reviews_providers.dart';
 import '../widgets/moderation_blocked_dialog.dart';
@@ -165,44 +168,62 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
     }
   }
 
-  Future<void> _cancelPurchase(ChatConversation details) async {
+  Future<void> _cancelPurchase(
+    ChatConversation details, {
+    required bool isStore,
+  }) async {
     if (_isCancelling || details.offerId == null) return;
 
-    final confirmation = await CancelPurchaseDialog.show(context);
-    if (confirmation == null || !mounted) return;
-
-    setState(() => _isCancelling = true);
-    try {
-      final result = await ref.read(cancelOfferUseCaseProvider)(
-        details.offerId!,
-        reason: confirmation.reason,
-      );
-
-      result.fold(
-        (failure) {
-          if (mounted) {
-            context.showSnackBar(
-              failure.code == 409
-                  ? 'La compra cambió de estado. Actualizamos la información.'
-                  : 'No se pudo cancelar: ${failure.message}',
-              isError: true,
-            );
-          }
-        },
-        (_) {},
-      );
-
-      // También se refresca ante 409: el servidor es la fuente de verdad.
-      ref.invalidate(
-        chatConversationDetailsProvider(widget.conversationId),
-      );
-      ref.invalidate(myConversationsProvider);
-      ref.invalidate(consumerRequestsProvider);
-      ref.invalidate(storeSalesRequestsProvider);
-      ref.invalidate(storeDashboardProvider);
-    } finally {
-      if (mounted) setState(() => _isCancelling = false);
+    if (isStore) {
+      final selection = await NonDeliveryDialog.show(context);
+      if (selection == null || !mounted) return;
+      setState(() => _isCancelling = true);
+      try {
+        final result = await ref.read(cancelSaleByStoreUseCaseProvider)(
+          details.offerId!,
+          reasonCode: selection.reasonCode,
+          note: selection.note,
+        );
+        _handleCancellationResult(result);
+      } finally {
+        if (mounted) setState(() => _isCancelling = false);
+      }
+      return;
+    } else {
+      final confirmation = await CancelPurchaseDialog.show(context);
+      if (confirmation == null || !mounted) return;
+      setState(() => _isCancelling = true);
+      try {
+        final result = await ref.read(cancelOfferUseCaseProvider)(
+          details.offerId!,
+          reason: confirmation.reason,
+        );
+        _handleCancellationResult(result);
+      } finally {
+        if (mounted) setState(() => _isCancelling = false);
+      }
     }
+  }
+
+  void _handleCancellationResult(Either<Failure, void> result) {
+    result.fold(
+      (failure) {
+        if (mounted) {
+          context.showSnackBar(
+            failure.code == 409
+                ? 'La compra cambió de estado. Actualizamos la información.'
+                : 'No se pudo cancelar: ${failure.message}',
+            isError: true,
+          );
+        }
+      },
+      (_) {},
+    );
+    ref.invalidate(chatConversationDetailsProvider(widget.conversationId));
+    ref.invalidate(myConversationsProvider);
+    ref.invalidate(consumerRequestsProvider);
+    ref.invalidate(storeSalesRequestsProvider);
+    ref.invalidate(storeDashboardProvider);
   }
 
   Future<void> _deliverOffer(ChatConversation details) async {
@@ -526,6 +547,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                 isDelivering: _isDelivering,
                 onCancelPressed: () => _cancelPurchase(
                   detailsAsync.valueOrNull!,
+                  isStore: isStore,
                 ),
                 onBuyPressed: () async {
                   final details = detailsAsync.valueOrNull!;

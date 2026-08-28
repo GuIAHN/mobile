@@ -47,17 +47,6 @@ class DashboardResponse extends Equatable {
           )
         : this;
   }
-
-  factory DashboardResponse.fromJson(Map<String, dynamic> json) {
-    return DashboardResponse(
-      scope: json['scope'] as String? ?? '',
-      computedAt: json['computedAt'] as String? ?? '',
-      groups: (json['groups'] as List<dynamic>?)
-              ?.map((e) => DashboardGroup.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-    );
-  }
 }
 
 class DashboardGroup extends Equatable {
@@ -71,16 +60,6 @@ class DashboardGroup extends Equatable {
 
   @override
   List<Object?> get props => [title, panels];
-
-  factory DashboardGroup.fromJson(Map<String, dynamic> json) {
-    return DashboardGroup(
-      title: json['title'] as String? ?? '',
-      panels: (json['panels'] as List<dynamic>?)
-              ?.map((e) => DashboardPanel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-    );
-  }
 }
 
 class DashboardPanel extends Equatable {
@@ -96,16 +75,6 @@ class DashboardPanel extends Equatable {
 
   @override
   List<Object?> get props => [id, span, metric];
-
-  factory DashboardPanel.fromJson(Map<String, dynamic> json) {
-    return DashboardPanel(
-      id: json['id'] as String? ?? '',
-      span: json['span'] as int? ?? 12,
-      metric: json['metric'] != null
-          ? MetricResult.fromJson(json['metric'] as Map<String, dynamic>)
-          : null,
-    );
-  }
 }
 
 class MetricResult extends Equatable {
@@ -137,18 +106,6 @@ class MetricResult extends Equatable {
         payload,
         computedAt,
       ];
-
-  factory MetricResult.fromJson(Map<String, dynamic> json) {
-    return MetricResult(
-      id: json['id'] as String? ?? '',
-      title: json['title'] as String? ?? '',
-      subtitle: json['subtitle'] as String?,
-      unit: json['unit'] as String? ?? '',
-      availability: json['availability'] as String? ?? '',
-      payload: json['payload'] as Map<String, dynamic>? ?? {},
-      computedAt: json['computedAt'] as String?,
-    );
-  }
 }
 
 class StoreResponseStatus extends Equatable {
@@ -167,17 +124,6 @@ class StoreResponseStatus extends Equatable {
     this.minSample,
     this.windowDays,
   });
-
-  factory StoreResponseStatus.fromJson(Map<String, dynamic> json) {
-    return StoreResponseStatus(
-      blocked: json['blocked'] as bool? ?? true,
-      sampleSize: json['sampleSize'] as num?,
-      medianMinutes: json['medianMinutes'] as num?,
-      thresholdMinutes: json['thresholdMinutes'] as num?,
-      minSample: json['minSample'] as num?,
-      windowDays: json['windowDays'] as num?,
-    );
-  }
 
   @override
   List<Object?> get props => [

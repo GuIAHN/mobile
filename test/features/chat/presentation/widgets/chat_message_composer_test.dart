@@ -72,6 +72,11 @@ void main() {
     final sendDecoration = send.decoration! as BoxDecoration;
 
     expect(inputDecoration.borderRadius, BorderRadius.circular(999));
+    expect(
+      inputDecoration.boxShadow,
+      isEmpty,
+      reason: 'La sombra inferior se percibe como un segundo borde.',
+    );
     expect(sendDecoration.shape, BoxShape.circle);
     expect(sendDecoration.color, AppColors.primaryMuted);
     expect(

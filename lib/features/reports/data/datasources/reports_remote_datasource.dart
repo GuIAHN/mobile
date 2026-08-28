@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../domain/entities/store_dashboard.dart';
+import '../models/store_dashboard_model.dart';
 
 abstract class ReportsRemoteDataSource {
   Future<DashboardResponse> getStoreDashboard({String? from, String? to});
@@ -41,7 +42,7 @@ class ReportsRemoteDataSourceImpl implements ReportsRemoteDataSource {
         queryParameters: queryParameters,
       );
 
-      return MetricResult.fromJson(response.data ?? const {});
+      return MetricResultModel.fromJson(response.data ?? const {});
     } on DioException catch (e) {
       _throwIfStoreMetricsBlocked(e);
       throw Exception('Failed to fetch store metric: ${e.message}');
@@ -55,7 +56,7 @@ class ReportsRemoteDataSourceImpl implements ReportsRemoteDataSource {
     final response = await _dioClient.get<Map<String, dynamic>>(
       ApiEndpoints.storeResponseStatus,
     );
-    return StoreResponseStatus.fromJson(response.data ?? const {});
+    return StoreResponseStatusModel.fromJson(response.data ?? const {});
   }
 
   @override
@@ -75,7 +76,7 @@ class ReportsRemoteDataSourceImpl implements ReportsRemoteDataSource {
         queryParameters: queryParameters,
       );
 
-      return DashboardResponse.fromJson(response.data ?? const {});
+      return DashboardResponseModel.fromJson(response.data ?? const {});
     } on DioException catch (e) {
       _throwIfStoreMetricsBlocked(e);
       throw Exception('Failed to fetch dashboard: ${e.message}');
@@ -98,7 +99,7 @@ class ReportsRemoteDataSourceImpl implements ReportsRemoteDataSource {
     throw StoreMetricsBlockedException(
       message: bodyMap['message'] as String? ??
           'Responde más rápido para recuperar el acceso al dashboard.',
-      status: StoreResponseStatus.fromJson({
+      status: StoreResponseStatusModel.fromJson({
         ...data,
         'blocked': true,
       }),

@@ -94,15 +94,22 @@ void main() {
     expect(tester.getSize(find.byTooltip('Cerrar selector')).shortestSide, 48);
   });
 
-  testWidgets('shows one root accordion expanded at a time', (tester) async {
+  testWidgets('starts collapsed and expands one root accordion at a time',
+      (tester) async {
     await tester.pumpWidget(buildSubject());
     await tester.pump(const Duration(milliseconds: 360));
     await tester.pumpAndSettle();
 
     expect(
+        find.byKey(const ValueKey('category-children-frenos')), findsNothing);
+    expect(find.byKey(const ValueKey('category-children-motor')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('category-root-frenos')));
+    await tester.pumpAndSettle();
+
+    expect(
         find.byKey(const ValueKey('category-children-frenos')), findsOneWidget);
     expect(find.text('Pastillas de freno'), findsOneWidget);
-    expect(find.byKey(const ValueKey('category-children-motor')), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('category-root-motor')));
     await tester.pumpAndSettle();
@@ -127,6 +134,8 @@ void main() {
       ),
       findsOneWidget,
     );
+    await tester.tap(find.byKey(const ValueKey('category-root-frenos')));
+    await tester.pumpAndSettle();
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('category-node-pastillas')),
@@ -203,6 +212,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 360));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('category-sheet-content')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('category-root-frenos')));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Pastillas de freno'));
     await tester.pumpAndSettle();
 

@@ -38,10 +38,12 @@ class _ConversationsInboxPageState
   }
 
   List<ChatConversation> _filter(List<ChatConversation> conversations) {
+    final visibleConversations = conversations
+        .where((conversation) => !conversation.isCompletedAfterReview);
     final query = _query.trim().toLowerCase();
-    if (query.isEmpty) return conversations;
+    if (query.isEmpty) return visibleConversations.toList();
 
-    return conversations.where((conversation) {
+    return visibleConversations.where((conversation) {
       return conversation.participantName.toLowerCase().contains(query) ||
           (conversation.spareBrand?.toLowerCase().contains(query) ?? false) ||
           conversation.lastMessage.toLowerCase().contains(query) ||

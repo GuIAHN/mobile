@@ -7,6 +7,7 @@ import '../../../../core/utils/media_url.dart';
 import '../../../../shared/widgets/image_viewer_dialog.dart';
 import '../../../../shared/widgets/catalog_summary_card.dart';
 import '../../domain/entities/chat_conversation.dart';
+import '../../domain/entities/non_delivery_reason.dart';
 import '_atoms/offer_price_breakdown.dart';
 import 'store_contact_sheet.dart';
 
@@ -67,7 +68,7 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                         ? 'CONSULTA ABIERTA'
                         : 'OFERTA COTIZADA';
     final usesNeutralStatus = isDeclined || details.isInquiry;
-    final canCancel = !isStore && isBought && !isDelivered && !isCancelled;
+    final canCancel = isBought && !isDelivered && !isCancelled;
     final usesStackedSummary = MediaQuery.sizeOf(context).width < 360 ||
         MediaQuery.textScalerOf(context).scale(1) > 1.25;
 
@@ -115,7 +116,11 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                                 color: AppColors.errorInk,
                               ),
                         label: Text(
-                          widget.isCancelling ? 'Cancelando…' : 'Cancelar',
+                          widget.isCancelling
+                              ? 'Cancelando…'
+                              : isStore
+                                  ? 'No lo entregaré'
+                                  : 'Cancelar',
                           style: GoogleFonts.hankenGrotesk(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -544,8 +549,8 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
-                            Icons.block_rounded,
+                          const AppLineIcon(
+                            AppIcons.cancellation,
                             color: AppColors.errorInk,
                             size: 20,
                           ),
@@ -555,14 +560,35 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  details.cancelSource == 'SYSTEM'
-                                      ? 'Compra cancelada automáticamente'
-                                      : 'Compra cancelada',
+                                  switch (details.cancelSource) {
+                                    'SYSTEM' =>
+                                      'Compra cancelada automáticamente',
+                                    'STORE' => 'Compra cancelada por la tienda',
+                                    'CONSUMER' =>
+                                      'Compra cancelada por el comprador',
+                                    _ => 'Compra cancelada',
+                                  },
                                   style: GoogleFonts.hankenGrotesk(
                                     fontWeight: FontWeight.w800,
                                     color: AppColors.errorInk,
                                   ),
                                 ),
+                                if (details.cancelReasonCode != null &&
+                                    details.cancelReasonCode!.trim().isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      nonDeliveryReasonLabel(
+                                        details.cancelReasonCode!,
+                                      ),
+                                      style: GoogleFonts.hankenGrotesk(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        height: 1.35,
+                                        color: AppColors.errorInk,
+                                      ),
+                                    ),
+                                  ),
                                 if (details.cancelReason != null &&
                                     details.cancelReason!
                                         .trim()

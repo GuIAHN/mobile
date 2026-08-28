@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/domain/enums/offer_status.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../domain/entities/chat_thread.dart';
+import '../../domain/entities/non_delivery_reason.dart';
 import '../../../reports/presentation/providers/reports_provider.dart';
 import '../providers/chat_providers.dart';
-import 'quote_input_dialog.dart';
 import 'decline_match_dialog.dart';
+import 'non_delivery_dialog.dart';
 import '_atoms/card_shell.dart';
 import '_atoms/card_tokens.dart';
 import '_atoms/status_badge.dart';
@@ -23,11 +25,13 @@ import '_atoms/expiration_label.dart';
 class ChatThreadCard extends ConsumerStatefulWidget {
   final ChatThread thread;
   final VoidCallback onTap;
+  final VoidCallback onViewDetail;
 
   const ChatThreadCard({
     super.key,
     required this.thread,
     required this.onTap,
+    required this.onViewDetail,
   });
 
   @override
@@ -36,43 +40,6 @@ class ChatThreadCard extends ConsumerStatefulWidget {
 
 class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
   bool _isSubmitting = false;
-
-  void _openQuoteDialog() async {
-    final thread = widget.thread;
-    final result = await QuoteInputDialog.show(context, thread.title);
-    if (result == null || !mounted) return;
-
-    setState(() => _isSubmitting = true);
-    try {
-      final useCase = ref.read(createQuoteUseCaseProvider);
-      final quoteRes = await useCase(
-        threadId: thread.id,
-        searchMatchId: thread.searchMatchId,
-        price: result['price'] as double?,
-        deliveryCost: result['deliveryCost'] as double?,
-        brand: result['brand'] as String?,
-        photoPath: result['photoPath'] as String?,
-      );
-
-      quoteRes.fold(
-        (failure) {
-          if (mounted) {
-            context.showSnackBar(
-              'Error al enviar cotización: ${failure.message}',
-              isError: true,
-            );
-          }
-        },
-        (_) {
-          if (mounted) {
-            ref.invalidate(storeSalesRequestsProvider);
-          }
-        },
-      );
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
-  }
 
   void _markDelivered() async {
     final thread = widget.thread;
@@ -97,6 +64,37 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
             ref.invalidate(storeSalesRequestsProvider);
             ref.invalidate(storeDashboardProvider);
           }
+        },
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _markNotDelivered() async {
+    final offerId = widget.thread.offerId;
+    if (offerId == null || _isSubmitting) return;
+    final selection = await NonDeliveryDialog.show(context);
+    if (selection == null || !mounted) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      final result = await ref.read(cancelSaleByStoreUseCaseProvider)(
+        offerId,
+        reasonCode: selection.reasonCode,
+        note: selection.note,
+      );
+      if (!mounted) return;
+      result.fold(
+        (failure) => context.showSnackBar(
+          failure.code == 409
+              ? 'La compra cambió de estado. Actualizamos la información.'
+              : 'No se pudo cancelar el pedido: ${failure.message}',
+          isError: true,
+        ),
+        (_) {
+          ref.invalidate(storeSalesRequestsProvider);
+          ref.invalidate(storeDashboardProvider);
         },
       );
     } finally {
@@ -387,9 +385,13 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton.icon(
-                    onPressed: _openQuoteDialog,
-                    icon: const Icon(Icons.local_offer_rounded, size: 18),
-                    label: Text('Cotizar ahora', style: CardTokens.button),
+                    key: const Key('view-request-detail-button'),
+                    onPressed: widget.onViewDetail,
+                    icon: const AppLineIcon(
+                      AppIcons.services,
+                      size: AppIconSize.action,
+                    ),
+                    label: Text('Ver detalle', style: CardTokens.button),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryDark,
                       foregroundColor: Colors.white,
@@ -478,13 +480,35 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                 color: AppColors.errorLight,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Text(
-                thread.cancelReason?.trim().isNotEmpty == true
-                    ? thread.cancelReason!
-                    : 'La compra fue cancelada.',
-                style: CardTokens.metaStrong.copyWith(
-                  color: AppColors.errorInk,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    switch (thread.cancelSource) {
+                      'SYSTEM' => 'Compra cancelada automáticamente',
+                      'STORE' => 'Compra cancelada por la tienda',
+                      'CONSUMER' => 'Compra cancelada por el comprador',
+                      _ => 'La compra fue cancelada.',
+                    },
+                    style: CardTokens.metaStrong.copyWith(
+                      color: AppColors.errorInk,
+                    ),
+                  ),
+                  if (thread.cancelReasonCode?.trim().isNotEmpty == true)
+                    Text(
+                      nonDeliveryReasonLabel(thread.cancelReasonCode!),
+                      style: CardTokens.meta.copyWith(
+                        color: AppColors.errorInk,
+                      ),
+                    ),
+                  if (thread.cancelReason?.trim().isNotEmpty == true)
+                    Text(
+                      thread.cancelReason!,
+                      style: CardTokens.meta.copyWith(
+                        color: AppColors.errorInk,
+                      ),
+                    ),
+                ],
               ),
             )
           else if (isBought)
@@ -515,7 +539,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                 const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
-                  height: 46,
+                  height: 48,
                   child: ElevatedButton.icon(
                     onPressed: _markDelivered,
                     icon: const Icon(Icons.local_shipping_rounded, size: 18),
@@ -527,6 +551,20 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: TextButton.icon(
+                    key: const Key('not-deliver-thread-button'),
+                    onPressed: _markNotDelivered,
+                    icon: const Icon(Icons.block_rounded),
+                    label: Text('No lo entregaré', style: CardTokens.button),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.errorInk,
                     ),
                   ),
                 ),

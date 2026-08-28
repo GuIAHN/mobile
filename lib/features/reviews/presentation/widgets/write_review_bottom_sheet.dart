@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../chat/presentation/providers/chat_providers.dart';
 import '../../domain/entities/my_review_status.dart';
 import '../providers/reviews_providers.dart';
 import 'star_rating_input.dart';
@@ -71,6 +72,7 @@ class _WriteReviewBottomSheetState
       // Invalidate once here so every successful entry point refreshes the
       // badge/gate without requiring caller-specific duplicate requests.
       ref.invalidate(pendingReviewsProvider);
+      ref.invalidate(myConversationsProvider);
       context.pop(true);
     }
   }

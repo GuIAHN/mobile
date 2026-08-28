@@ -117,6 +117,7 @@ class ChatRemoteDataSource {
               : null,
           cancelSource: json['cancelSource'] as String?,
           cancelReason: json['cancelReason'] as String?,
+          cancelReasonCode: json['cancelReasonCode'] as String?,
         );
       } else {
         final vehicle = json['vehicle'] as Map<String, dynamic>?;
@@ -207,6 +208,7 @@ class ChatRemoteDataSource {
             : null,
         cancelSource: json['cancelSource'] as String?,
         cancelReason: json['cancelReason'] as String?,
+        cancelReasonCode: json['cancelReasonCode'] as String?,
         hasQuote: true,
         isInquiry: json['status'] == 'INQUIRY',
         price: json['price'] != null
@@ -427,6 +429,20 @@ class ChatRemoteDataSource {
       ApiEndpoints.offerCancel(offerId),
       data: {
         if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      },
+    );
+  }
+
+  Future<void> cancelSaleByStore(
+    String offerId, {
+    required String reasonCode,
+    String? note,
+  }) async {
+    await _dioClient.post(
+      ApiEndpoints.offerCancelSale(offerId),
+      data: {
+        'reasonCode': reasonCode,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
       },
     );
   }

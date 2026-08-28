@@ -91,7 +91,9 @@ class ChatMessageBubble extends StatelessWidget {
                               fontSize: 15.5,
                               fontWeight:
                                   isMe ? FontWeight.w600 : FontWeight.w500,
-                              color: AppColors.textPrimary,
+                              color: isMe
+                                  ? AppColors.textOnPrimary
+                                  : AppColors.textPrimary,
                               height: 1.42,
                             ),
                           ),

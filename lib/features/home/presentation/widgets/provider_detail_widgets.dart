@@ -9,7 +9,7 @@ import '../../../../core/utils/extensions.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/guia_map.dart';
-import '../../../vehicles/domain/entities/user_car.dart';
+import '../../../../core/domain/entities/user_car.dart';
 
 /// Widgets compartidos por las pantallas de detalle de proveedor
 /// (mecánico, taller y tienda). Mantienen el sistema de diseño GuIA:

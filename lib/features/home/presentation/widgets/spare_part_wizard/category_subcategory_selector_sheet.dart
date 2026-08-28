@@ -124,11 +124,6 @@ class _CategorySubcategorySelectorSheetState
         }
       }
     }
-    initialRoot ??= roots.cast<CategoryNode?>().firstWhere(
-          (root) => root?.children.isNotEmpty ?? false,
-          orElse: () => null,
-        );
-
     if (initialRoot != null && initialRoot.children.isNotEmpty) {
       _expandedPath = <String>[initialRoot.id];
     }
@@ -781,9 +776,7 @@ class _CategoryRow extends StatelessWidget {
                     width: 7,
                     height: 7,
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primary
-                          : AppColors.grey300,
+                      color: isSelected ? AppColors.primary : AppColors.grey300,
                       shape: BoxShape.circle,
                     ),
                   ),

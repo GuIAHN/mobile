@@ -296,8 +296,7 @@ void main() {
     }
   });
 
-  testWidgets(
-      'shows the saved profile location in step 3 without opening the map',
+  testWidgets('recommends CBK for brake pads and fills the request description',
       (tester) async {
     const user = User(
       id: 'user-1',
@@ -343,6 +342,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Selecciona categoría y subcategoría'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('category-root-brakes')));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Pastillas de freno'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('OEM'));
@@ -352,23 +353,22 @@ void main() {
     await tester.tap(find.text('Continuar'));
     await tester.pumpAndSettle();
 
-    expect(find.text('14.0723, -87.1921'), findsOneWidget);
-    expect(find.text('Última ubicación guardada'), findsOneWidget);
-
-    var submitButton = tester.widget<ElevatedButton>(
-      find.widgetWithText(ElevatedButton, 'Enviar solicitud'),
+    expect(find.text('¿Quieres priorizar pastillas CBK?'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('CBK'),
+      findsOneWidget,
     );
-    expect(submitButton.onPressed, isNull);
-
-    await tester.enterText(
-      find.byType(TextField),
-      'Pastillas delanteras con sensor de desgaste',
+    expect(
+      find.textContaining('Te recomendamos CBK'),
+      findsOneWidget,
     );
-    await tester.pump();
+    await tester.tap(find.text('BUSCAR CBK PRIMERO'));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 500));
 
-    submitButton = tester.widget<ElevatedButton>(
-      find.widgetWithText(ElevatedButton, 'Enviar solicitud'),
+    expect(
+      find.text('Pastillas CBK preferiblemente para mi compra, por favor'),
+      findsOneWidget,
     );
-    expect(submitButton.onPressed, isNotNull);
   });
 }

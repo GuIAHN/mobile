@@ -28,6 +28,7 @@ class ChatConversation extends Equatable {
   final DateTime? cancelledAt;
   final String? cancelSource;
   final String? cancelReason;
+  final String? cancelReasonCode;
 
   // Pricing Quote Fields
   final bool hasQuote;
@@ -82,6 +83,7 @@ class ChatConversation extends Equatable {
     this.cancelledAt,
     this.cancelSource,
     this.cancelReason,
+    this.cancelReasonCode,
     this.hasQuote = false,
     this.isInquiry = false,
     this.price,
@@ -144,6 +146,11 @@ class ChatConversation extends Equatable {
       offerStatus == 'DELIVERED' ||
       offerStatus == 'CANCELLED';
 
+  /// Una conversación deja de ser accionable en la bandeja cuando la compra
+  /// ya fue entregada y el consumidor completó su reseña.
+  bool get isCompletedAfterReview =>
+      offerStatus?.toUpperCase() == 'DELIVERED' && hasReviewed;
+
   ChatConversation withRealtimePreview({
     required String lastMessage,
     required bool lastMessageIsFromMe,
@@ -168,6 +175,7 @@ class ChatConversation extends Equatable {
       cancelledAt: cancelledAt,
       cancelSource: cancelSource,
       cancelReason: cancelReason,
+      cancelReasonCode: cancelReasonCode,
       hasQuote: hasQuote,
       isInquiry: isInquiry,
       price: price,
@@ -219,6 +227,7 @@ class ChatConversation extends Equatable {
         cancelledAt,
         cancelSource,
         cancelReason,
+        cancelReasonCode,
         hasQuote,
         isInquiry,
         price,

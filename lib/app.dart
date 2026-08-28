@@ -15,7 +15,7 @@ import 'core/notifications/foreground_notification_toast_provider.dart';
 import 'core/notifications/notification_model.dart';
 import 'features/notifications/presentation/providers/notifications_providers.dart';
 import 'features/notifications/services/notification_route_resolver.dart';
-import 'features/notifications/services/push_notifications_service.dart';
+import 'core/notifications/push_notifications_service.dart';
 
 class GuiAutomotrizApp extends ConsumerStatefulWidget {
   const GuiAutomotrizApp({super.key});

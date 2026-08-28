@@ -104,7 +104,7 @@ void main() {
     expect(selectedLocation, const LatLng(14.0723, -87.1921));
     expect(confirmed, isFalse);
     expect(find.text('Tegucigalpa'), findsOneWidget);
-    expect(find.text('Ubicación GPS'), findsOneWidget);
+    expect(find.text('Tu ubicación actual'), findsOneWidget);
   });
 
   testWidgets('remains usable on a small phone with scaled text',

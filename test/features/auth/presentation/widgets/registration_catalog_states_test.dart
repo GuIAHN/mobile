@@ -260,6 +260,8 @@ void main() {
       300,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(find.byKey(continueButton));
+    await tester.pump();
     await tester.tap(find.byKey(continueButton));
     await tester.pumpAndSettle();
     expect(find.text('Protege tu Cuenta'), findsOneWidget);
@@ -268,6 +270,8 @@ void main() {
       300,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(find.byKey(continueButton));
+    await tester.pump();
     await tester.tap(find.byKey(continueButton));
     await tester.pumpAndSettle();
 

@@ -1,6 +1,6 @@
 import '../../domain/entities/user.dart';
 import '../../../../core/domain/enums/user_role.dart';
-import '../../../vehicles/data/models/user_car_model.dart';
+import '../../../../core/data/models/user_car_model.dart';
 
 /// User model with JSON serialization.
 /// Extends the [User] entity without polluting it.
@@ -11,6 +11,7 @@ class UserModel extends User {
     required super.name,
     super.avatarUrl,
     super.phone,
+    super.description,
     super.role,
     super.approved,
     super.latitude,
@@ -50,6 +51,10 @@ class UserModel extends User {
       name: json['name'] as String? ?? json['fullName'] as String? ?? '',
       avatarUrl: json['avatarUrl'] as String? ?? json['photo'] as String?,
       phone: parsedPhone,
+      description: json['description'] as String? ??
+          (json['mechanicProfile'] is Map
+              ? (json['mechanicProfile'] as Map)['description'] as String?
+              : null),
       role: UserRole.fromString(roleStr),
       approved: json['approved'] as bool? ?? true,
       latitude: lat,

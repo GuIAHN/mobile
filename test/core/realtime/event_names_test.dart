@@ -6,9 +6,19 @@ import 'package:guiautomotriz_mobile/core/realtime/event_names.dart';
 
 void main() {
   test('Dart event names match the backend contract manifest', () {
+    final candidates = [
+      '../GuIA-HN-Backend/backend/src/shared/realtime/events.manifest.json',
+      '../GuIA-HN-Backend/src/shared/realtime/events.manifest.json',
+      '../backend/src/shared/realtime/events.manifest.json',
+    ];
+    final manifestFile = candidates.map(File.new).firstWhere(
+          (file) => file.existsSync(),
+          orElse: () => throw StateError(
+            'Backend realtime manifest not found in: ${candidates.join(', ')}',
+          ),
+        );
     final manifest = jsonDecode(
-      File('../backend/src/shared/realtime/events.manifest.json')
-          .readAsStringSync(),
+      manifestFile.readAsStringSync(),
     ) as Map<String, dynamic>;
 
     expect(manifest['version'], realtimeContractVersion);

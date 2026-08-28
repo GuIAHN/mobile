@@ -62,6 +62,7 @@ void main() {
     required UserRole role,
     required Widget page,
     ChatThreadsResult? storeResult,
+    List<ChatConversation>? conversations,
     double textScale = 1,
     bool disableAnimations = false,
   }) async {
@@ -69,7 +70,9 @@ void main() {
       ProviderScope(
         overrides: [
           currentRoleProvider.overrideWithValue(role),
-          myConversationsProvider.overrideWith((ref) async => [conversation]),
+          myConversationsProvider.overrideWith(
+            (ref) async => conversations ?? [conversation],
+          ),
           consumerRequestsProvider.overrideWith(
             (ref) async => resultFor(consumerRequest),
           ),
@@ -128,6 +131,40 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('Chats hides delivered requests after the review was submitted',
+      (tester) async {
+    final deliveredAndReviewed = ChatConversation(
+      id: 'conversation-reviewed',
+      threadId: 'request-reviewed',
+      participantName: 'Tienda reseñada',
+      lastMessage: 'Pedido entregado',
+      unreadCount: 0,
+      lastMessageAt: DateTime.utc(2026, 8, 14),
+      offerStatus: 'DELIVERED',
+      hasReviewed: true,
+    );
+    final deliveredPendingReview = ChatConversation(
+      id: 'conversation-pending-review',
+      threadId: 'request-pending-review',
+      participantName: 'Tienda pendiente',
+      lastMessage: 'Pedido entregado',
+      unreadCount: 0,
+      lastMessageAt: DateTime.utc(2026, 8, 14),
+      offerStatus: 'DELIVERED',
+      hasReviewed: false,
+    );
+
+    await pumpPage(
+      tester,
+      role: UserRole.consumer,
+      page: const ConversationsInboxPage(),
+      conversations: [deliveredAndReviewed, deliveredPendingReview],
+    );
+
+    expect(find.text('Tienda reseñada'), findsNothing);
+    expect(find.text('Tienda pendiente'), findsOneWidget);
   });
 
   testWidgets('consumer Compras contains the complete request management',
@@ -404,6 +441,34 @@ void main() {
     expect(find.text('Bomba de gasolina'), findsOneWidget);
     expect(find.text('Solicitud expirada por estado'), findsNothing);
     expect(find.text('Solicitud expirada por fecha'), findsNothing);
+    expect(find.text('1'), findsOneWidget);
+  });
+
+  testWidgets('closed requests are hidden from store Pendientes',
+      (tester) async {
+    final boughtElsewhere = ChatThread(
+      id: 'closed-after-other-purchase',
+      title: 'Comprada en otra tienda',
+      requestType: ServiceType.spareParts,
+      unreadCount: 0,
+      conversationCount: 0,
+      lastActivityAt: DateTime.utc(2026, 8, 14),
+      matchState: 'PENDING',
+      isOpen: false,
+    );
+
+    await pumpPage(
+      tester,
+      role: UserRole.store,
+      page: const StoreSalesPage(),
+      storeResult: ChatThreadsResult(
+        threads: [storeRequest, boughtElsewhere],
+        counts: const {'pending': 2},
+      ),
+    );
+
+    expect(find.text('Bomba de gasolina'), findsOneWidget);
+    expect(find.text('Comprada en otra tienda'), findsNothing);
     expect(find.text('1'), findsOneWidget);
   });
 
