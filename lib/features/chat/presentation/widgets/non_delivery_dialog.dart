@@ -62,6 +62,42 @@ class _NonDeliveryDialogState extends State<NonDeliveryDialog> {
   @override
   Widget build(BuildContext context) {
     final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final backButton = SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: OutlinedButton(
+        onPressed: () => Navigator.of(context).pop(),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(32),
+          ),
+        ),
+        child: const Text('Volver', maxLines: 1),
+      ),
+    );
+    final confirmButton = SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ElevatedButton(
+        key: const Key('confirm-non-delivery'),
+        onPressed: _submit,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.error,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(32),
+          ),
+        ),
+        child: const Text(
+          'Cancelar pedido',
+          maxLines: 1,
+          overflow: TextOverflow.visible,
+        ),
+      ),
+    );
+
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Material(
@@ -163,42 +199,22 @@ class _NonDeliveryDialogState extends State<NonDeliveryDialog> {
                 ),
               ],
               const SizedBox(height: 16),
-              Flex(
-                direction: textScale > 1.3 ? Axis.vertical : Axis.horizontal,
-                children: [
-                  Expanded(
-                    flex: textScale > 1.3 ? 0 : 1,
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Volver'),
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: textScale > 1.3 ? 0 : 12,
-                    height: textScale > 1.3 ? 12 : 0,
-                  ),
-                  Expanded(
-                    flex: textScale > 1.3 ? 0 : 1,
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        key: const Key('confirm-non-delivery'),
-                        onPressed: _submit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.error,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('Cancelar pedido'),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              if (textScale > 1.3)
+                Column(
+                  children: [
+                    confirmButton,
+                    const SizedBox(height: 12),
+                    backButton,
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(flex: 2, child: backButton),
+                    const SizedBox(width: 12),
+                    Expanded(flex: 3, child: confirmButton),
+                  ],
+                ),
             ],
           ),
         ),
