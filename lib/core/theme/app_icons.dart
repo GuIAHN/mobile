@@ -26,6 +26,7 @@ abstract class AppIcons {
   static const IconData purchases = LucideIcons.shoppingBag;
   static const IconData requests = LucideIcons.clipboardList;
   static const IconData offer = LucideIcons.tag;
+  static const IconData question = LucideIcons.circleQuestionMark;
   static const IconData delivery = LucideIcons.truck;
   static const IconData store = LucideIcons.store;
   static const IconData catalog = LucideIcons.packageOpen;

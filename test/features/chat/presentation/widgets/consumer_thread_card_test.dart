@@ -13,6 +13,8 @@ ChatThread _thread({
   bool isOpen = true,
   bool isExpired = false,
   int totalOffersCount = 0,
+  int quotesCount = 0,
+  int questionsCount = 0,
   double? bestOfferPrice,
   String? bestOfferStoreName,
   String? bestOfferStatus,
@@ -31,6 +33,8 @@ ChatThread _thread({
     expiresAt: DateTime.now().add(const Duration(days: 2)),
     isExpired: isExpired,
     totalOffersCount: totalOffersCount,
+    quotesCount: quotesCount,
+    questionsCount: questionsCount,
     bestOfferPrice: bestOfferPrice,
     bestOfferStoreName: bestOfferStoreName,
     bestOfferStatus: bestOfferStatus,
@@ -81,6 +85,15 @@ void main() {
 
     expect(find.text('BUSCANDO'), findsNothing);
     expect(find.text('0 cotizaciones'), findsOneWidget);
+    expect(find.text('0 preguntas'), findsOneWidget);
+    expect(
+      find.byKey(const Key('consumer-request-quotes-icon')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('consumer-request-questions-icon')),
+      findsOneWidget,
+    );
     expect(find.text('COTIZACIONES'), findsNothing);
     expect(find.text('Esperando respuestas'), findsNothing);
     expect(find.textContaining('Expira en'), findsOneWidget);
@@ -109,7 +122,7 @@ void main() {
           .icon,
       AppIcons.search,
     );
-    expect(tester.getSize(card).height, lessThanOrEqualTo(150));
+    expect(tester.getSize(card).height, lessThanOrEqualTo(170));
   }, semanticsEnabled: true);
 
   testWidgets('long request copy does not make the card grow vertically',
@@ -137,7 +150,7 @@ void main() {
         .height;
 
     expect(longHeight, lessThanOrEqualTo(shortHeight + 2));
-    expect(longHeight, lessThanOrEqualTo(150));
+    expect(longHeight, lessThanOrEqualTo(170));
     expect(tester.takeException(), isNull);
   }, semanticsEnabled: true);
 
@@ -152,12 +165,14 @@ void main() {
     expect(find.text('OFERTAS RECIBIDAS'), findsNothing);
   });
 
-  testWidgets('keeps the best offer readable without turning it into a hero',
+  testWidgets('shows quote and question counts supplied by the backend',
       (tester) async {
     await tester.pumpWidget(
       _subject(
         _thread(
           totalOffersCount: 2,
+          quotesCount: 2,
+          questionsCount: 3,
           bestOfferPrice: 1250,
           bestOfferStoreName: 'Repuestos El Pana',
         ),
@@ -166,12 +181,13 @@ void main() {
 
     expect(find.text('OFERTAS RECIBIDAS'), findsNothing);
     expect(find.text('MEJOR OFERTA'), findsNothing);
-    expect(find.textContaining('1,250'), findsOneWidget);
+    expect(find.textContaining('1,250'), findsNothing);
     expect(find.textContaining('Repuestos El Pana'), findsNothing);
     expect(
       find.textContaining('2 cotizaciones', findRichText: true),
       findsOneWidget,
     );
+    expect(find.text('3 preguntas'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -195,11 +211,12 @@ void main() {
 
     await expectCenteredChevron(_thread());
     await expectCenteredChevron(
-      _thread(totalOffersCount: 2, bestOfferPrice: 1250),
+      _thread(totalOffersCount: 2, quotesCount: 2, bestOfferPrice: 1250),
     );
     await expectCenteredChevron(
       _thread(
         totalOffersCount: 1,
+        quotesCount: 1,
         bestOfferPrice: 900,
         bestOfferStatus: 'BOUGHT',
       ),
@@ -212,6 +229,7 @@ void main() {
       _subject(
         _thread(
           totalOffersCount: 1,
+          quotesCount: 1,
           bestOfferPrice: 900,
           bestOfferStoreName: 'Auto Partes Centro',
           bestOfferStatus: 'BOUGHT',
@@ -235,6 +253,17 @@ void main() {
     expect(find.text('0 cotizaciones'), findsOneWidget);
     expect(find.text('Esperando respuestas'), findsNothing);
     expect(find.textContaining('Expira en'), findsNothing);
+    final thumbnail = tester.getRect(
+      find.byKey(const Key('consumer-request-thumbnail')),
+    );
+    final terminalStatus = tester.getRect(
+      find.byKey(const Key('consumer-request-terminal-status')),
+    );
+    final textContent = tester.getRect(
+      find.byKey(const Key('consumer-request-text-content')),
+    );
+    expect(thumbnail.contains(terminalStatus.center), isTrue);
+    expect(textContent.center.dy, closeTo(thumbnail.center.dy, 0.01));
     expect(tester.takeException(), isNull);
   });
 
@@ -244,6 +273,8 @@ void main() {
       _subject(
         _thread(
           totalOffersCount: 12,
+          quotesCount: 12,
+          questionsCount: 8,
           bestOfferPrice: 123456.78,
           bestOfferStoreName:
               'Distribuidora Internacional de Repuestos Automotrices',
@@ -258,6 +289,7 @@ void main() {
       find.textContaining('12 cotizaciones', findRichText: true),
       findsOneWidget,
     );
+    expect(find.text('8 preguntas'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
