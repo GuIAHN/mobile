@@ -1181,49 +1181,61 @@ class _OffersCountHeader extends StatelessWidget {
 
   Widget _buildSegmentedSortControl(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final useVerticalSegments = MediaQuery.textScalerOf(context).scale(13) > 18;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final segmentTextScale = textScale > 1.3 ? 1.3 : textScale;
     const options = [
       (_SortOption.recent, 'Recientes', AppIcons.time),
-      (_SortOption.priceAsc, 'Precio', AppIcons.price),
-      (_SortOption.distanceAsc, 'Distancia', AppIcons.location),
+      (_SortOption.priceAsc, 'Mejor precio', AppIcons.price),
+      (_SortOption.distanceAsc, 'Más cercanos', AppIcons.location),
     ];
 
-    return Container(
-      key: const Key('conversation-sort-filter'),
-      width: double.infinity,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.grey100,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: SizedBox(
-        height: useVerticalSegments ? 112 : 56,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (final option in options)
-              Expanded(
-                child: _buildSortSegment(
-                  option: option.$1,
-                  label: option.$2,
-                  icon: option.$3,
-                  useVerticalLayout: useVerticalSegments,
-                  reduceMotion: reduceMotion,
-                ),
-              ),
-          ],
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useVerticalSegments =
+            constraints.maxWidth < 390 || textScale > 1.35;
+
+        return Container(
+          key: const Key('conversation-sort-filter'),
+          width: double.infinity,
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: AppColors.grey100,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: SizedBox(
+            height: useVerticalSegments ? (textScale > 1.35 ? 120 : 84) : 56,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final option in options)
+                  Expanded(
+                    child: _buildSortSegment(
+                      context: context,
+                      option: option.$1,
+                      label: option.$2,
+                      icon: option.$3,
+                      useVerticalLayout: useVerticalSegments,
+                      reduceMotion: reduceMotion,
+                      textScale: segmentTextScale,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildSortSegment({
+    required BuildContext context,
     required _SortOption option,
     required String label,
     required IconData icon,
     required bool useVerticalLayout,
     required bool reduceMotion,
+    required double textScale,
   }) {
     final isSelected = currentSort == option;
     final foreground =
@@ -1291,7 +1303,12 @@ class _OffersCountHeader extends StatelessWidget {
                       ]
                     : const [],
               ),
-              child: content,
+              child: MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: TextScaler.linear(textScale),
+                ),
+                child: content,
+              ),
             ),
           ),
         ),

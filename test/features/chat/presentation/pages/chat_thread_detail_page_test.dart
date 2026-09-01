@@ -236,8 +236,8 @@ void main() {
         greaterThan(tester.getBottomLeft(hero).dy));
     expect(find.text('Ofertas recibidas'), findsNothing);
     expect(find.text('Recientes'), findsOneWidget);
-    expect(find.text('Precio'), findsOneWidget);
-    expect(find.text('Distancia'), findsOneWidget);
+    expect(find.text('Mejor precio'), findsOneWidget);
+    expect(find.text('Más cercanos'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('conversation-sort-recent-selected')),
       findsOneWidget,
