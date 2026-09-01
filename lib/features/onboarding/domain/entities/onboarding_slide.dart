@@ -19,7 +19,7 @@ class OnboardingSlide {
       tagline: 'MECÁNICA DE PRECISIÓN',
       title: 'Encuentra Repuestos',
       description:
-          'Accede al inventario más completo de piezas originales y certificadas para mantener tu motor en máxima performance.',
+          'Una sola búsqueda te conecta con todas las tiendas. Recibe en tiempo récord todas las cotizaciones del repuesto que buscas para elegir la mejor opción.',
       imagePath:
           'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=1200&q=80',
     ),
@@ -41,4 +41,3 @@ class OnboardingSlide {
     ),
   ];
 }
-

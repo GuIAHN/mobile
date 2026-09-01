@@ -193,7 +193,7 @@ class _ChannelBarChart extends StatelessWidget {
                   label: BarChartRodLabel(
                     show: channels[index].value > 0,
                     text: '${channels[index].value}',
-                    offset: const Offset(0, -8),
+                    offset: const Offset(0, AppSpacing.sm),
                     style: AppTypography.label.copyWith(
                       color: AppColors.textPrimary,
                       fontFeatures: const [FontFeature.tabularFigures()],

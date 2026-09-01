@@ -23,11 +23,21 @@ abstract class RouteNames {
   // ── Notificaciones ───────────────────────────────────────────────────────
   static const String notifications = '/notifications';
 
-  // ── Proveedores: Mecánicos y Talleres ─────────────────────────────────────
+  // ── Proveedores: Mecánicos, Talleres y Tiendas ────────────────────────────
   static const String mechanicDetail = '/mechanics/:id';
   static String mechanicDetailPath(String id) => '/mechanics/$id';
+  static const String workshopDetail = '/workshops/:id';
+  static String workshopDetailPath(String id) => '/workshops/$id';
   static const String storeDetail = '/stores/:id';
   static String storeDetailPath(String id) => '/stores/$id';
+  static String storeDetailForReviewPath(
+    String id, {
+    required String conversationId,
+  }) =>
+      Uri(
+        path: storeDetailPath(id),
+        queryParameters: {'reviewConversationId': conversationId},
+      ).toString();
 
   // ── Vehículos ─────────────────────────────────────────────────────────────
   static const String vehicles = '/vehicles';
@@ -51,4 +61,23 @@ abstract class RouteNames {
         queryParameters: const {'view': 'received'},
       ).toString();
   static const String pendingReviews = '/reviews-pending';
+  static const String reviewEditor = '/review-editor';
+
+  static String reviewEditorPath({
+    String? targetId,
+    String? conversationId,
+    required String providerName,
+    bool readOnly = false,
+  }) {
+    return Uri(
+      path: reviewEditor,
+      queryParameters: {
+        if (targetId?.trim().isNotEmpty == true) 'targetId': targetId!.trim(),
+        if (conversationId?.trim().isNotEmpty == true)
+          'conversationId': conversationId!.trim(),
+        'providerName': providerName,
+        if (readOnly) 'readOnly': 'true',
+      },
+    ).toString();
+  }
 }

@@ -21,6 +21,8 @@ class ChatThreadModel extends ChatThread {
     super.expiresAt,
     super.isExpired,
     super.totalOffersCount,
+    super.quotesCount,
+    super.questionsCount,
     super.consumerAvatar,
     super.distance,
     super.hasOffer,
@@ -80,6 +82,8 @@ class ChatThreadModel extends ChatThread {
       totalOffersCount: json['totalOffersCount'] as int? ??
           json['conversationCount'] as int? ??
           0,
+      quotesCount: json['quotesCount'] as int? ?? 0,
+      questionsCount: json['questionsCount'] as int? ?? 0,
       consumerAvatar: json['consumerAvatar'] as String?,
       distance: json['distance'] != null
           ? double.tryParse(json['distance'].toString())

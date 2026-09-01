@@ -74,6 +74,13 @@ void main() {
       ),
       findsOneWidget,
     );
+
+    final chart = tester.widget<BarChart>(find.byType(BarChart));
+    for (final group in chart.data.barGroups) {
+      for (final rod in group.barRods.where((rod) => rod.label.show)) {
+        expect(rod.label.offset.dy, greaterThanOrEqualTo(8));
+      }
+    }
   });
 
   testWidgets('shows a purposeful zero state instead of flat empty bars',

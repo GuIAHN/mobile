@@ -13,12 +13,14 @@ class ProviderReviewActionCard extends ConsumerWidget {
   final String targetId;
   final String providerProfileId;
   final String providerName;
+  final String? conversationId;
 
   const ProviderReviewActionCard({
     super.key,
     required this.targetId,
     required this.providerProfileId,
     required this.providerName,
+    this.conversationId,
   });
 
   Future<void> _openForm(BuildContext context, WidgetRef ref) async {
@@ -28,6 +30,7 @@ class ProviderReviewActionCard extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       builder: (_) => WriteReviewBottomSheet(
         targetId: targetId,
+        conversationId: conversationId,
         providerName: providerName,
       ),
     );
@@ -39,8 +42,10 @@ class ProviderReviewActionCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final myReview = ref.watch(myReviewProvider(targetId));
-    final contacted =
-        ref.watch(hasContactedProviderProvider(providerProfileId));
+    final hasPurchaseContext = conversationId?.trim().isNotEmpty == true;
+    final contacted = hasPurchaseContext
+        ? const AsyncValue<bool>.data(true)
+        : ref.watch(hasContactedProviderProvider(providerProfileId));
 
     if (myReview.isLoading || contacted.isLoading) {
       return Container(
@@ -83,7 +88,11 @@ class ProviderReviewActionCard extends ConsumerWidget {
             TextButton(
               onPressed: () {
                 ref.invalidate(myReviewProvider(targetId));
-                ref.invalidate(hasContactedProviderProvider(providerProfileId));
+                if (!hasPurchaseContext) {
+                  ref.invalidate(
+                    hasContactedProviderProvider(providerProfileId),
+                  );
+                }
               },
               style: TextButton.styleFrom(
                 minimumSize: const Size(48, 48),

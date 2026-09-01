@@ -133,10 +133,10 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                           width: 132,
                           fit: BoxFit.contain,
                           alignment: Alignment.centerLeft,
-                          semanticLabel: 'guIAutomotriz HN',
+                          semanticLabel: 'GuIA Automotriz HN',
                           errorBuilder: (context, error, stackTrace) {
                             return const Text(
-                              'guIAutomotriz HN',
+                              'GuIA Automotriz HN',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(

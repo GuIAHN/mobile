@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
-        android:label="GuIA HN"
+        android:label="GuIA Automotriz HN"
         android:name="${applicationName}"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher">

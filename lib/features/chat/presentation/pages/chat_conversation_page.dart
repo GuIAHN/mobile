@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/error/failures.dart';
 import '../providers/chat_providers.dart';
@@ -15,7 +16,6 @@ import '../widgets/confirm_purchase_dialog.dart';
 import '../widgets/cancel_purchase_dialog.dart';
 import '../widgets/non_delivery_dialog.dart';
 import '../../domain/entities/chat_conversation.dart';
-import '../../../reviews/presentation/providers/reviews_providers.dart';
 import '../widgets/moderation_blocked_dialog.dart';
 import '../widgets/store_contact_sheet.dart';
 import '../widgets/quote_input_dialog.dart';
@@ -25,7 +25,6 @@ import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/services/socket_service.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../reports/presentation/providers/reports_provider.dart';
-import '../../../reviews/presentation/widgets/write_review_bottom_sheet.dart';
 
 class ChatConversationPage extends ConsumerStatefulWidget {
   final String conversationId;
@@ -317,8 +316,6 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
 
     final detailsAsync =
         ref.watch(chatConversationDetailsProvider(widget.conversationId));
-    final reviewHandledLocally =
-        ref.watch(handledStoreReviewProvider(widget.conversationId));
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -540,8 +537,6 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                 detailsAsync.valueOrNull!.hasQuote)
               ActiveOfferHeaderCard(
                 details: detailsAsync.valueOrNull!,
-                reviewHandledLocally: reviewHandledLocally.valueOrNull ?? false,
-                reviewHandlingStatusLoading: reviewHandledLocally.isLoading,
                 isStore: isStore,
                 isCancelling: _isCancelling,
                 isDelivering: _isDelivering,
@@ -596,20 +591,17 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                     _deliverOffer(detailsAsync.valueOrNull!),
                 onReviewPressed: () async {
                   final details = detailsAsync.valueOrNull!;
-                  final res = await showModalBottomSheet<bool>(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) => WriteReviewBottomSheet(
-                      targetId: details.storeUserId ?? '',
+                  final res = await context.push<bool>(
+                    RouteNames.reviewEditorPath(
+                      targetId: details.storeUserId,
                       conversationId: widget.conversationId,
                       providerName: details.participantName,
                     ),
                   );
                   if (res == true && mounted) {
-                    await markStoreReviewHandled(ref, widget.conversationId);
                     ref.invalidate(
                         chatConversationDetailsProvider(widget.conversationId));
+                    ref.invalidate(myConversationsProvider);
                   }
                 },
               ),

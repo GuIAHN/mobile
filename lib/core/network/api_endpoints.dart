@@ -43,6 +43,7 @@ abstract class ApiEndpoints {
   // ── Búsqueda de Repuestos ─────────────────────────────────────────────────
   static const String searchMe = 'search/me';
   static String searchOffers(String id) => 'search/$id/offers';
+  static const String consumerPurchases = 'me/purchases';
   static String offerCancel(String id) => 'offers/$id/cancel';
   static String offerCancelSale(String id) => 'offers/$id/cancel-sale';
 

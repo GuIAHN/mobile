@@ -9,6 +9,8 @@ import 'package:guiautomotriz_mobile/core/session/session_state_coordinator.dart
 import 'package:guiautomotriz_mobile/core/session/session_generation_provider.dart';
 import 'package:guiautomotriz_mobile/features/auth/presentation/providers/social_registration_state.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/providers/chat_providers.dart';
+import 'package:guiautomotriz_mobile/features/purchases/domain/entities/consumer_purchase.dart';
+import 'package:guiautomotriz_mobile/features/purchases/presentation/providers/purchases_providers.dart';
 
 final _resetTriggerProvider = StateProvider<int>((ref) => 0);
 
@@ -48,8 +50,9 @@ void main() {
     container.read(_resetSessionHarnessProvider);
     container.read(_resetTriggerProvider.notifier).state += 1;
 
-    expect(container.read(storeStatusFilterProvider), 'PENDING');
-    expect(container.read(consumerStatusFilterProvider), 'OPEN');
+    expect(container.read(storeStatusFilterProvider), 'TO_ANSWER');
+    expect(container.read(consumerStatusFilterProvider), 'ALL');
+    expect(container.read(purchaseFilterProvider), PurchaseFilter.all);
     expect(container.read(isLocationSharedProvider), isFalse);
     expect(container.read(socialRegistrationProvider), isNull);
     expect(container.read(notificationProvider), isEmpty);
@@ -69,7 +72,8 @@ void main() {
 
     container.read(sessionGenerationProvider.notifier).state += 1;
 
-    expect(container.read(storeStatusFilterProvider), 'PENDING');
-    expect(container.read(consumerStatusFilterProvider), 'OPEN');
+    expect(container.read(storeStatusFilterProvider), 'TO_ANSWER');
+    expect(container.read(consumerStatusFilterProvider), 'ALL');
+    expect(container.read(purchaseFilterProvider), PurchaseFilter.all);
   });
 }

@@ -3,26 +3,35 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../chat/presentation/providers/chat_providers.dart';
 import '../../domain/entities/my_review_status.dart';
 import '../providers/reviews_providers.dart';
 import 'star_rating_input.dart';
 
 class WriteReviewBottomSheet extends ConsumerStatefulWidget {
-  final String targetId;
+  final String? targetId;
   final String? conversationId;
   final String providerName;
   final MyReviewStatus? initialStatus;
+  final bool readOnly;
 
   const WriteReviewBottomSheet({
     super.key,
-    required this.targetId,
+    this.targetId,
     this.conversationId,
     this.providerName = 'este proveedor',
     this.initialStatus,
-  });
+    this.readOnly = false,
+  })  : assert(
+          targetId != null || conversationId != null,
+          'A review needs a targetId or conversationId',
+        ),
+        assert(
+          initialStatus != null || targetId != null,
+          'An initialStatus is required when reviewing by conversationId only',
+        );
 
   @override
   ConsumerState<WriteReviewBottomSheet> createState() =>
@@ -66,13 +75,20 @@ class _WriteReviewBottomSheetState
           );
 
     if (success && mounted) {
-      ref.invalidate(reviewsProvider(widget.targetId));
-      ref.invalidate(myReviewProvider(widget.targetId));
+      final targetId = widget.targetId;
+      if (targetId != null && targetId.isNotEmpty) {
+        ref.invalidate(reviewsProvider(targetId));
+        ref.invalidate(myReviewProvider(targetId));
+      }
       // This sheet is shared by pending reviews, chat and provider profiles.
       // Invalidate once here so every successful entry point refreshes the
       // badge/gate without requiring caller-specific duplicate requests.
       ref.invalidate(pendingReviewsProvider);
-      ref.invalidate(myConversationsProvider);
+      final conversationId = widget.conversationId;
+      if (conversationId != null && conversationId.isNotEmpty) {
+        await markStoreReviewHandled(ref, conversationId);
+      }
+      if (!mounted) return;
       context.pop(true);
     }
   }
@@ -80,114 +96,139 @@ class _WriteReviewBottomSheetState
   @override
   Widget build(BuildContext context) {
     final statusAsync = widget.initialStatus == null
-        ? ref.watch(myReviewProvider(widget.targetId))
+        ? ref.watch(myReviewProvider(widget.targetId!))
         : AsyncValue.data(widget.initialStatus!);
     final submitState = ref.watch(createReviewProvider);
 
-    return SafeArea(
-      top: false,
-      child: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppSpacing.radiusXl),
+    return Container(
+      key: const Key('write-review-sheet-surface'),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppSpacing.radiusXl),
+        ),
+      ),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.88,
+      ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.viewInsetsOf(context).bottom +
+            MediaQuery.paddingOf(context).bottom +
+            AppSpacing.xl2,
+        top: AppSpacing.md,
+        left: AppSpacing.xl2,
+        right: AppSpacing.xl2,
+      ),
+      child: statusAsync.when(
+        loading: () => const SizedBox(
+          height: 300,
+          child: Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
           ),
         ),
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.88,
-        ),
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(context).bottom + AppSpacing.xl2,
-          top: AppSpacing.md,
-          left: AppSpacing.xl2,
-          right: AppSpacing.xl2,
-        ),
-        child: statusAsync.when(
-          loading: () => const SizedBox(
-            height: 300,
-            child: Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            ),
-          ),
-          error: (error, _) => SizedBox(
-            height: 300,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.cloud_off_rounded,
-                    size: 48, color: AppColors.textSecondary),
-                const SizedBox(height: AppSpacing.md),
-                Text('No pudimos cargar tu valoración',
-                    style: AppTypography.title, textAlign: TextAlign.center),
-                const SizedBox(height: AppSpacing.sm),
-                TextButton(
-                  onPressed: () =>
-                      ref.invalidate(myReviewProvider(widget.targetId)),
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(48, 48),
-                    foregroundColor: AppColors.primaryInk,
+        error: (error, _) => SizedBox(
+          height: 300,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const AppLineIcon(
+                AppIcons.cloudError,
+                size: AppIconSize.feature,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text('No pudimos cargar tu valoración',
+                  style: AppTypography.title, textAlign: TextAlign.center),
+              const SizedBox(height: AppSpacing.sm),
+              TextButton(
+                onPressed: () =>
+                    ref.invalidate(myReviewProvider(widget.targetId!)),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(48, 48),
+                  foregroundColor: AppColors.primaryInk,
+                ),
+                child: Text(
+                  'Reintentar',
+                  style: AppTypography.label.copyWith(
+                    color: AppColors.primaryInk,
                   ),
-                  child: Text(
-                    'Reintentar',
-                    style: AppTypography.label.copyWith(
-                      color: AppColors.primaryInk,
+                ),
+              ),
+            ],
+          ),
+        ),
+        data: (status) {
+          _initialize(status);
+          return SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-          data: (status) {
-            _initialize(status);
-            return SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.border,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
+                const SizedBox(height: AppSpacing.xl2),
+                Text(
+                  status.hasReviewed
+                      ? widget.readOnly
+                          ? 'Tu reseña'
+                          : 'Editar valoración'
+                      : '¿Cómo fue tu experiencia?',
+                  style: AppTypography.h2,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  widget.readOnly
+                      ? 'Esta fue tu valoración para ${widget.providerName}.'
+                      : 'Califica a ${widget.providerName}. Las estrellas son obligatorias.',
+                  style: AppTypography.bodySm,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.xl3),
+                Center(
+                  child: StarRatingInput(
+                    rating: _rating,
+                    onChanged: widget.readOnly
+                        ? null
+                        : (value) => setState(() => _rating = value),
+                    size: 36,
+                    readOnly: widget.readOnly,
                   ),
-                  const SizedBox(height: AppSpacing.xl2),
-                  Text(
-                    status.hasReviewed
-                        ? 'Editar valoración'
-                        : '¿Cómo fue tu experiencia?',
-                    style: AppTypography.h2,
-                    textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  _rating == 0
+                      ? widget.readOnly
+                          ? 'Sin puntuación'
+                          : 'Selecciona de 1 a 5 estrellas'
+                      : '$_rating de 5 estrellas',
+                  style: AppTypography.meta.copyWith(
+                    color: _rating == 0
+                        ? AppColors.errorInk
+                        : AppColors.textSecondary,
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    'Califica a ${widget.providerName}. Las estrellas son obligatorias.',
-                    style: AppTypography.bodySm,
-                    textAlign: TextAlign.center,
-                  ),
+                  textAlign: TextAlign.center,
+                ),
+                if (widget.readOnly) ...[
                   const SizedBox(height: AppSpacing.xl3),
-                  Center(
-                    child: StarRatingInput(
-                      rating: _rating,
-                      onChanged: (value) => setState(() => _rating = value),
-                      size: 36,
-                    ),
-                  ),
+                  Text('TU COMENTARIO', style: AppTypography.overline),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    _rating == 0
-                        ? 'Selecciona de 1 a 5 estrellas'
-                        : '$_rating de 5 estrellas',
-                    style: AppTypography.meta.copyWith(
-                      color: _rating == 0
-                          ? AppColors.errorInk
-                          : AppColors.textSecondary,
-                    ),
-                    textAlign: TextAlign.center,
+                    _commentController.text.trim().isEmpty
+                        ? 'No agregaste un comentario.'
+                        : _commentController.text.trim(),
+                    key: const Key('review-read-only-comment'),
+                    style: AppTypography.body,
                   ),
+                ] else ...[
                   const SizedBox(height: AppSpacing.xl3),
                   Text('COMENTARIO (OPCIONAL)', style: AppTypography.overline),
                   const SizedBox(height: AppSpacing.sm),
@@ -269,10 +310,10 @@ class _WriteReviewBottomSheetState
                     ),
                   ),
                 ],
-              ),
-            );
-          },
-        ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

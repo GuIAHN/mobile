@@ -193,7 +193,7 @@ class _GuiAutomotrizAppState extends ConsumerState<GuiAutomotrizApp>
     ref.watch(sessionStateCoordinatorProvider);
 
     return MaterialApp.router(
-      title: 'guIAutomotriz',
+      title: 'GuIA Automotriz HN',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),

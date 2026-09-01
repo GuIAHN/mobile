@@ -12,6 +12,8 @@ import 'package:guiautomotriz_mobile/features/home/presentation/pages/store_deta
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/provider_detail_widgets.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/service_provider_detail_view.dart';
+import 'package:guiautomotriz_mobile/features/reviews/domain/entities/my_review_status.dart';
+import 'package:guiautomotriz_mobile/features/reviews/presentation/providers/reviews_providers.dart';
 import 'package:guiautomotriz_mobile/shared/widgets/guia_map.dart';
 
 typedef _DetailLoader = Future<ProviderDetail> Function(
@@ -25,14 +27,24 @@ const _description =
 
 ProviderDetail _fixture({
   bool isWorkshop = false,
+  bool isStore = false,
   bool empty = false,
   List<String>? specialties,
   String? description,
 }) {
   return ProviderDetail(
-    id: isWorkshop ? 'workshop-1' : 'mechanic-1',
-    nombre: isWorkshop ? 'Taller Auto-Sport' : 'Carlos Mendoza',
-    esTaller: isWorkshop,
+    id: isStore
+        ? 'store-1'
+        : isWorkshop
+            ? 'workshop-1'
+            : 'mechanic-1',
+    nombre: isStore
+        ? 'Multirepuestos El Pana'
+        : isWorkshop
+            ? 'Taller Auto-Sport'
+            : 'Carlos Mendoza',
+    esTaller: isWorkshop || isStore,
+    userId: isStore ? 'store-user-1' : null,
     descripcion: empty ? null : description ?? _description,
     rating: empty ? null : 4.8,
     ratingCount: empty ? 0 : 24,
@@ -47,6 +59,12 @@ ProviderDetail _fixture({
     direccion: empty ? null : 'Av. Principal, Caracas',
     lat: empty ? null : 10.5438,
     lng: empty ? null : -66.8576,
+    categorias: isStore
+        ? const [
+            ProviderCategory(name: 'Pastillas de frenos'),
+            ProviderCategory(name: 'Amortiguadores'),
+          ]
+        : const [],
   );
 }
 
@@ -57,17 +75,30 @@ Widget _subject({
   EdgeInsets padding = const EdgeInsets.only(top: 44, bottom: 20),
   double textScale = 1,
   bool disableAnimations = true,
+  String? reviewConversationId,
 }) {
-  final page = type == ServiceType.mechanic
-      ? const MechanicDetailPage(mechanicId: 'mechanic-1')
-      : const StoreDetailPage(
-          storeId: 'workshop-1',
-          serviceType: ServiceType.workshops,
-        );
+  final page = switch (type) {
+    ServiceType.mechanic => const MechanicDetailPage(mechanicId: 'mechanic-1'),
+    ServiceType.spareParts => StoreDetailPage(
+        storeId: 'store-1',
+        reviewConversationId: reviewConversationId,
+      ),
+    ServiceType.workshops ||
+    ServiceType.storeDashboard =>
+      const StoreDetailPage(
+        storeId: 'workshop-1',
+        serviceType: ServiceType.workshops,
+      ),
+  };
 
   return ProviderScope(
     key: UniqueKey(),
-    overrides: [providerDetailProvider.overrideWith((ref, args) => load(args))],
+    overrides: [
+      providerDetailProvider.overrideWith((ref, args) => load(args)),
+      myReviewProvider.overrideWith(
+        (ref, targetId) async => const MyReviewStatus(hasReviewed: false),
+      ),
+    ],
     child: MediaQuery(
       data: MediaQueryData(
         size: size,
@@ -217,6 +248,37 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(DetailLocationCard), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('uses the same compact component for spare-parts stores',
+      (tester) async {
+    await _pumpResolved(
+      tester,
+      _subject(
+        type: ServiceType.spareParts,
+        reviewConversationId: 'conversation-cancelled',
+        load: (args) async {
+          expect(args.type, ServiceType.spareParts);
+          return _fixture(isStore: true);
+        },
+      ),
+    );
+
+    expect(find.text('Multirepuestos El Pana'), findsOneWidget);
+    expect(find.text('Tienda de repuestos'), findsOneWidget);
+    expect(find.text('Sobre la tienda'), findsOneWidget);
+    expect(find.text('Catálogo'), findsOneWidget);
+    expect(find.text('DEJAR VALORACIÓN'), findsOneWidget);
+    expect(
+      find.text('Pastillas de frenos · Amortiguadores'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('service-provider-overview-card')),
+      findsOneWidget,
+    );
+    expect(find.byType(DetailHeaderBackground), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

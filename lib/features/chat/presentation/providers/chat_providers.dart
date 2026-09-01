@@ -97,17 +97,17 @@ final undoDeclineUseCaseProvider = Provider<UndoDeclineUseCase>((ref) {
 
 // ── State Providers ──────────────────────────────────────────────────────────
 
-/// Filtro activo para solicitudes de tiendas. `UNQUOTED` ya no es válido.
+/// Filtro activo para solicitudes de tiendas. Los nombres corresponden al
+/// contrato de `StoreSearchStatusFilter` del backend.
 final storeStatusFilterProvider = StateProvider<String>((ref) {
   ref.watch(sessionGenerationProvider);
-  return 'PENDING';
+  return 'TO_ANSWER';
 });
 
-/// Mis compras abre en solicitudes activas. El usuario puede cambiar a
-/// cotizadas, compradas o canceladas desde el grupo segmentado visible.
+/// Solicitudes del consumidor abre mostrando todos sus pedidos activos.
 final consumerStatusFilterProvider = StateProvider<String>((ref) {
   ref.watch(sessionGenerationProvider);
-  return 'OPEN';
+  return 'ALL';
 });
 
 /// Stable, targeted revisions for chat queries. Subscriptions live outside the
@@ -421,7 +421,7 @@ ChatConversation applyLatestMessageAuthorship(
   );
 }
 
-/// Solicitudes creadas por el consumidor. Viven en Compras, no en Chats.
+/// Solicitudes creadas por el consumidor. Viven en Solicitudes, no en Chats.
 final consumerRequestsProvider = FutureProvider<ChatThreadsResult>((ref) async {
   ref.watch(sessionGenerationProvider);
   final useCase = ref.watch(getChatThreadsUseCaseProvider);
@@ -451,6 +451,27 @@ final storeSalesRequestsProvider =
   final result = await useCase(
     role: UserRole.store,
     statusFilter: ref.watch(storeStatusFilterProvider),
+  );
+  return result.fold(
+    (failure) => throw Exception(failure.message),
+    (requests) => requests,
+  );
+});
+
+/// Variante parametrizada para destinos comerciales independientes.
+/// Evita que "Solicitudes" y "Mis ventas" compartan accidentalmente el
+/// filtro activo al cambiar de pestaña.
+final storeRequestsByStatusProvider = FutureProvider.family
+    .autoDispose<ChatThreadsResult, String>((ref, statusFilter) async {
+  ref.watch(sessionGenerationProvider);
+  final useCase = ref.watch(getChatThreadsUseCaseProvider);
+  ref.watch(
+    _chatRealtimeRevisionProvider.select((value) => value.storeSales),
+  );
+
+  final result = await useCase(
+    role: UserRole.store,
+    statusFilter: statusFilter,
   );
   return result.fold(
     (failure) => throw Exception(failure.message),

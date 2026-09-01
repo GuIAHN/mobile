@@ -11,6 +11,7 @@ import '../../../../shared/widgets/error_view.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../../shared/widgets/staggered_entrance.dart';
+import '../../../../shared/layout/bottom_navigation_insets.dart';
 import '../../../provider_profile/presentation/widgets/provider_location_card.dart';
 import '../../../provider_profile/presentation/widgets/provider_specialties_card.dart';
 import '../../../provider_profile/presentation/widgets/store_catalog_card.dart';
@@ -19,7 +20,6 @@ import '../providers/auth_provider.dart';
 import '../widgets/profile_action_card.dart';
 import '../widgets/profile_header.dart';
 import '../widgets/security_section.dart';
-import '../../../home/presentation/widgets/navigation/bottom_nav_bar.dart';
 import '../../../reviews/presentation/providers/reviews_providers.dart';
 
 class ProfileTab extends ConsumerWidget {
@@ -84,7 +84,7 @@ class ProfileTab extends ConsumerWidget {
                 left: AppSpacing.xl2,
                 right: AppSpacing.xl2,
                 top: AppSpacing.xl2,
-                bottom: bottomNavContentInset(context) + AppSpacing.lg,
+                bottom: bottomNavigationContentInset(context) + AppSpacing.lg,
               ),
               child: Column(
                 key: const Key('profile-content'),

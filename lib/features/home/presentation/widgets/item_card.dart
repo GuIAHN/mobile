@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_decorations.dart';
@@ -22,7 +21,6 @@ class ItemCard extends StatefulWidget {
 }
 
 class _ItemCardState extends State<ItemCard> {
-  bool _isFavorite = false;
   bool _isPressed = false;
 
   void _onTap() {
@@ -34,12 +32,12 @@ class _ItemCardState extends State<ItemCard> {
         context.push(RouteNames.mechanicDetailPath(item.id!));
         break;
       case ServiceType.workshops:
-        context.push(RouteNames.storeDetailPath(item.id!));
+        context.push(RouteNames.workshopDetailPath(item.id!));
         break;
       case ServiceType.storeDashboard:
         break;
       case ServiceType.spareParts:
-        context.push('${RouteNames.storeDetailPath(item.id!)}?type=spareParts');
+        context.push(RouteNames.storeDetailPath(item.id!));
         break;
     }
   }
@@ -109,37 +107,6 @@ class _ItemCardState extends State<ItemCard> {
                         left: 10,
                         top: 10,
                         child: _TypeLabel(label: providerType),
-                      ),
-                      Positioned(
-                        right: 4,
-                        top: 4,
-                        child: Semantics(
-                          button: true,
-                          toggled: _isFavorite,
-                          label: _isFavorite
-                              ? 'Quitar de favoritos'
-                              : 'Agregar a favoritos',
-                          child: SizedBox.square(
-                            dimension: 48,
-                            child: IconButton(
-                              onPressed: () {
-                                HapticFeedback.lightImpact();
-                                setState(() => _isFavorite = !_isFavorite);
-                              },
-                              icon: Icon(
-                                AppIcons.favorite,
-                                size: AppIconSize.action,
-                                color: _isFavorite
-                                    ? AppColors.primary
-                                    : AppColors.textSecondary,
-                              ),
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                side: const BorderSide(color: AppColors.border),
-                              ),
-                            ),
-                          ),
-                        ),
                       ),
                     ],
                   ),

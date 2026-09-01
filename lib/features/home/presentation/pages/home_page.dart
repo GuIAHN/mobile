@@ -15,11 +15,13 @@ import '../widgets/promo_carousel.dart';
 import '../../../auth/presentation/pages/profile_tab.dart';
 import '../widgets/unapproved_overlay.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../chat/presentation/pages/conversations_inbox_page.dart';
-import '../../../chat/presentation/pages/mis_compras_page.dart';
+import '../../../purchases/presentation/pages/consumer_purchases_page.dart';
+import '../../../chat/presentation/pages/consumer_requests_page.dart';
 import '../../../chat/presentation/pages/store_sales_page.dart';
+import '../../../chat/presentation/pages/store_requests_page.dart';
 import '../../../notifications/presentation/providers/notifications_providers.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
+import '../../../../shared/layout/bottom_navigation_insets.dart';
 
 // Componentes del Home (hub de navegación)
 import '../widgets/header/home_header_expanded.dart';
@@ -107,9 +109,10 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     final Widget page = switch (activeTab) {
       MainNavigationTab.home => _buildHomeHub(),
-      MainNavigationTab.chats => const ConversationsInboxPage(),
-      MainNavigationTab.commerce =>
+      MainNavigationTab.purchases =>
         isStore ? const StoreSalesPage() : const ConsumerPurchasesPage(),
+      MainNavigationTab.requests =>
+        isStore ? const StoreRequestsPage() : const ConsumerRequestsPage(),
       MainNavigationTab.profile => const ProfileTab(),
     };
 
@@ -171,7 +174,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       controller: _scrollController,
       physics: const BouncingScrollPhysics(),
       padding: EdgeInsets.only(
-        bottom: bottomNavContentInset(context) + AppSpacing.lg,
+        bottom: bottomNavigationContentInset(context) + AppSpacing.lg,
       ),
       children: [
         // ── Header expandido: color sólido hasta la barra de estado

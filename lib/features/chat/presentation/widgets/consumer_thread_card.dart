@@ -52,8 +52,9 @@ class ConsumerThreadCard extends StatelessWidget {
     return '$count ${count == 1 ? 'cotización' : 'cotizaciones'}';
   }
 
-  int get _formalOffersCount =>
-      thread.bestOfferPrice == null ? 0 : thread.totalOffersCount;
+  int get _formalOffersCount => thread.bestOfferPrice == null
+      ? 0
+      : (thread.quotesCount > 0 ? thread.quotesCount : thread.totalOffersCount);
 
   @override
   Widget build(BuildContext context) {

@@ -19,6 +19,12 @@ abstract class AppIcons {
   static const IconData warning = LucideIcons.triangleAlert;
   static const IconData account = LucideIcons.userRound;
   static const IconData search = LucideIcons.search;
+  static const IconData searchEmpty = LucideIcons.searchX;
+  static const IconData filter = LucideIcons.listFilter;
+  static const IconData inbox = LucideIcons.inbox;
+  static const IconData home = LucideIcons.house;
+  static const IconData purchases = LucideIcons.shoppingBag;
+  static const IconData requests = LucideIcons.clipboardList;
   static const IconData offer = LucideIcons.tag;
   static const IconData delivery = LucideIcons.truck;
   static const IconData store = LucideIcons.store;

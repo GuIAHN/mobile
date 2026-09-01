@@ -271,7 +271,7 @@ class _ProviderCard extends StatelessWidget {
         context.push(RouteNames.mechanicDetailPath(item.id!));
         break;
       case ServiceType.workshops:
-        context.push(RouteNames.storeDetailPath(item.id!));
+        context.push(RouteNames.workshopDetailPath(item.id!));
         break;
       case ServiceType.spareParts:
       case ServiceType.storeDashboard:

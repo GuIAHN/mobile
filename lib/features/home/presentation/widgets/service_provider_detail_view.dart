@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/domain/enums/service_type.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_decorations.dart';
 import '../../../../core/theme/app_icons.dart';
@@ -25,11 +26,15 @@ import 'provider_photo.dart';
 class ServiceProviderDetailView extends ConsumerWidget {
   final ProviderDetail detail;
   final String heroTag;
+  final ServiceType serviceType;
+  final String? reviewConversationId;
 
   const ServiceProviderDetailView({
     super.key,
     required this.detail,
     required this.heroTag,
+    this.serviceType = ServiceType.mechanic,
+    this.reviewConversationId,
   });
 
   @override
@@ -38,14 +43,17 @@ class ServiceProviderDetailView extends ConsumerWidget {
     final hasPhone = phone != null && phone.isNotEmpty;
     final compactHero = MediaQuery.sizeOf(context).height < 760;
     final selectedVehicle = ref.watch(searchVehicleProvider);
+    final isStore = serviceType == ServiceType.spareParts;
 
     Future<void> contact(String channel) async {
       HapticFeedback.lightImpact();
-      await registerProviderContact(
-        ref,
-        providerProfileId: detail.id,
-        channel: channel,
-      );
+      if (!isStore) {
+        await registerProviderContact(
+          ref,
+          providerProfileId: detail.id,
+          channel: channel,
+        );
+      }
       if (!context.mounted) return;
       if (channel == 'PHONE') {
         await ContactActions.call(context, phone!);
@@ -83,6 +91,7 @@ class ServiceProviderDetailView extends ConsumerWidget {
                   background: _ProviderHero(
                     detail: detail,
                     heroTag: heroTag,
+                    serviceType: serviceType,
                   ),
                 ),
               ),
@@ -96,7 +105,10 @@ class ServiceProviderDetailView extends ConsumerWidget {
                   ),
                   child: Column(
                     children: [
-                      _ProviderOverviewCard(detail: detail),
+                      _ProviderOverviewCard(
+                        detail: detail,
+                        serviceType: serviceType,
+                      ),
                       if (detail.userId != null) ...[
                         const SizedBox(height: AppSpacing.md),
                         ProviderReviewsButton(
@@ -107,6 +119,7 @@ class ServiceProviderDetailView extends ConsumerWidget {
                           targetId: detail.userId!,
                           providerProfileId: detail.id,
                           providerName: detail.nombre,
+                          conversationId: reviewConversationId,
                         ),
                       ],
                     ],
@@ -130,8 +143,13 @@ class ServiceProviderDetailView extends ConsumerWidget {
 class _ProviderHero extends StatelessWidget {
   final ProviderDetail detail;
   final String heroTag;
+  final ServiceType serviceType;
 
-  const _ProviderHero({required this.detail, required this.heroTag});
+  const _ProviderHero({
+    required this.detail,
+    required this.heroTag,
+    required this.serviceType,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -148,12 +166,12 @@ class _ProviderHero extends StatelessWidget {
             providerName: detail.nombre,
             networkKey: const Key('service-provider-hero-photo'),
             loadingFallback: _HeroFallback(
-              icon: detail.esTaller ? AppIcons.workshop : AppIcons.mechanic,
+              icon: _providerIcon(serviceType),
               showProgress: true,
             ),
             fallback: _HeroFallback(
               key: const Key('service-provider-hero-fallback'),
-              icon: detail.esTaller ? AppIcons.workshop : AppIcons.mechanic,
+              icon: _providerIcon(serviceType),
             ),
           ),
         ),
@@ -190,13 +208,13 @@ class _ProviderHero extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 AppLineIcon(
-                  detail.esTaller ? AppIcons.workshop : AppIcons.mechanic,
+                  _providerIcon(serviceType),
                   size: AppIconSize.inline,
                   color: AppColors.primaryInk,
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
-                  detail.esTaller ? 'Taller mecánico' : 'Mecánico',
+                  _providerTypeLabel(serviceType),
                   style: AppTypography.label.copyWith(
                     color: AppColors.primaryInk,
                   ),
@@ -254,8 +272,12 @@ class _HeroFallback extends StatelessWidget {
 
 class _ProviderOverviewCard extends StatelessWidget {
   final ProviderDetail detail;
+  final ServiceType serviceType;
 
-  const _ProviderOverviewCard({required this.detail});
+  const _ProviderOverviewCard({
+    required this.detail,
+    required this.serviceType,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -265,6 +287,11 @@ class _ProviderOverviewCard extends StatelessWidget {
         detail.lat != null ||
         detail.lng != null;
     final hasPhone = detail.telefono?.trim().isNotEmpty ?? false;
+    final isStore = serviceType == ServiceType.spareParts;
+    final offerings = isStore
+        ? detail.categorias.map((category) => category.name).toList()
+        : detail.especialidades;
+    final offeringsTitle = isStore ? 'Catálogo' : 'Servicios';
 
     return Container(
       key: const Key('service-provider-overview-card'),
@@ -309,7 +336,7 @@ class _ProviderOverviewCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.lg),
             _ProviderIntroduction(
               description: description,
-              isWorkshop: detail.esTaller,
+              serviceType: serviceType,
             ),
           ],
           const SizedBox(height: AppSpacing.lg),
@@ -317,13 +344,19 @@ class _ProviderOverviewCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           _CompactInfoRow(
             key: const Key('service-provider-services-row'),
-            icon: AppIcons.services,
-            title: 'Servicios',
-            value: _specialtiesSummary(detail.especialidades),
-            enabled: detail.especialidades.isNotEmpty,
-            onTap: detail.especialidades.isEmpty
+            icon: isStore ? AppIcons.catalog : AppIcons.services,
+            title: offeringsTitle,
+            value: _offeringsSummary(offerings, isStore: isStore),
+            enabled: offerings.isNotEmpty,
+            onTap: offerings.isEmpty
                 ? null
-                : () => _showServicesSheet(context, detail.especialidades),
+                : () => _showServicesSheet(
+                      context,
+                      offerings,
+                      title: isStore
+                          ? 'Catálogo de repuestos'
+                          : 'Servicios que ofrece',
+                    ),
           ),
           const Divider(height: 1, color: AppColors.border),
           _CompactInfoRow(
@@ -352,16 +385,16 @@ class _ProviderOverviewCard extends StatelessWidget {
 
 class _ProviderIntroduction extends StatelessWidget {
   final String description;
-  final bool isWorkshop;
+  final ServiceType serviceType;
 
   const _ProviderIntroduction({
     required this.description,
-    required this.isWorkshop,
+    required this.serviceType,
   });
 
   @override
   Widget build(BuildContext context) {
-    final title = isWorkshop ? 'Sobre el taller' : 'Sobre el mecánico';
+    final title = _providerAboutLabel(serviceType);
     final textStyle = AppTypography.bodySm.copyWith(height: 1.5);
 
     return LayoutBuilder(
@@ -819,11 +852,31 @@ class _ContactButton extends StatelessWidget {
   }
 }
 
-String _specialtiesSummary(List<String> specialties) {
-  if (specialties.isEmpty) return 'Servicios por confirmar';
-  if (specialties.length == 1) return specialties.first;
-  if (specialties.length == 2) return specialties.join(' · ');
-  return '${specialties.take(2).join(' · ')} · +${specialties.length - 2}';
+IconData _providerIcon(ServiceType serviceType) => switch (serviceType) {
+      ServiceType.spareParts => AppIcons.store,
+      ServiceType.workshops || ServiceType.storeDashboard => AppIcons.workshop,
+      ServiceType.mechanic => AppIcons.mechanic,
+    };
+
+String _providerTypeLabel(ServiceType serviceType) => switch (serviceType) {
+      ServiceType.spareParts => 'Tienda de repuestos',
+      ServiceType.workshops || ServiceType.storeDashboard => 'Taller mecánico',
+      ServiceType.mechanic => 'Mecánico',
+    };
+
+String _providerAboutLabel(ServiceType serviceType) => switch (serviceType) {
+      ServiceType.spareParts => 'Sobre la tienda',
+      ServiceType.workshops || ServiceType.storeDashboard => 'Sobre el taller',
+      ServiceType.mechanic => 'Sobre el mecánico',
+    };
+
+String _offeringsSummary(List<String> offerings, {required bool isStore}) {
+  if (offerings.isEmpty) {
+    return isStore ? 'Catálogo por confirmar' : 'Servicios por confirmar';
+  }
+  if (offerings.length == 1) return offerings.first;
+  if (offerings.length == 2) return offerings.join(' · ');
+  return '${offerings.take(2).join(' · ')} · +${offerings.length - 2}';
 }
 
 String _locationSummary(ProviderDetail detail) {
@@ -835,13 +888,11 @@ String _locationSummary(ProviderDetail detail) {
   return 'Ubicación por confirmar';
 }
 
-Future<void> _showServicesSheet(
-  BuildContext context,
-  List<String> specialties,
-) {
+Future<void> _showServicesSheet(BuildContext context, List<String> specialties,
+    {required String title}) {
   return _showDetailSheet(
     context,
-    title: 'Servicios que ofrece',
+    title: title,
     child: _ServicesSheetContent(specialties: specialties),
   );
 }

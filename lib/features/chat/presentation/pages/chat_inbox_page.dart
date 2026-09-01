@@ -1,54 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../providers/chat_providers.dart';
 import '../../domain/entities/chat_thread.dart';
 import '../widgets/chat_thread_card.dart';
 import '../widgets/consumer_thread_card.dart';
-import '../../../home/presentation/widgets/navigation/bottom_nav_bar.dart';
+import '../../../../shared/layout/bottom_navigation_insets.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/staggered_entrance.dart';
+import '../../../../shared/widgets/status_filter_selector.dart';
 
 /// Filtro por estado de la solicitud/oferta.
 enum _StatusFilter {
   all,
-  active,
-  closed,
   pending,
   inquiring,
-  declined,
   quoted,
   bought,
   delivered,
   cancelled,
-  discarded,
 }
 
-/// Bandeja comercial reutilizada por Compras (consumidor) y Ventas (tienda).
-/// Las conversaciones reales viven en [ConversationsInboxPage].
-class RequestManagementPage extends ConsumerStatefulWidget {
-  final bool isStore;
+enum RequestInboxMode { consumerRequests, storeRequests, storeSales }
 
-  const RequestManagementPage({
+extension on RequestInboxMode {
+  bool get isStore => this != RequestInboxMode.consumerRequests;
+  bool get showsSalesHistory => this == RequestInboxMode.storeSales;
+}
+
+/// Bandeja reutilizada exclusivamente por solicitudes y ventas.
+/// Las conversaciones reales viven en [ConversationsInboxPage].
+class RequestsInboxPage extends ConsumerStatefulWidget {
+  final RequestInboxMode mode;
+
+  const RequestsInboxPage({
     super.key,
-    required this.isStore,
+    required this.mode,
   });
 
   @override
-  ConsumerState<RequestManagementPage> createState() =>
-      _RequestManagementPageState();
+  ConsumerState<RequestsInboxPage> createState() => _RequestsInboxPageState();
 }
 
-class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
+class _RequestsInboxPageState extends ConsumerState<RequestsInboxPage> {
   final _searchController = TextEditingController();
   String _query = '';
-  _StatusFilter _statusFilter = _StatusFilter.active;
-  bool _initializedProviderFilter = false;
+  _StatusFilter _statusFilter = _StatusFilter.all;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.mode.isStore) {
+      _statusFilter = widget.mode.showsSalesHistory
+          ? _StatusFilter.delivered
+          : _StatusFilter.pending;
+    }
+  }
 
   bool _isExpired(ChatThread thread) {
     final expiresAt = thread.expiresAt;
@@ -77,50 +90,39 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
 
   /// Filtro por estado.
   List<ChatThread> _applyStatus(List<ChatThread> threads, bool isStore) {
-    switch (_statusFilter) {
+    return threads
+        .where((thread) => _matchesFilter(thread, _statusFilter, isStore))
+        .toList();
+  }
+
+  bool _matchesFilter(
+    ChatThread thread,
+    _StatusFilter filter,
+    bool isStore,
+  ) {
+    switch (filter) {
       case _StatusFilter.all:
-        return threads;
-      case _StatusFilter.active:
-        return threads.where((t) => t.isOpen && !t.isExpired).toList();
-      case _StatusFilter.closed:
-        return threads.where((t) => !t.isOpen || t.isExpired).toList();
+        return true;
       case _StatusFilter.pending:
-        return threads
-            .where(
-              (t) =>
-                  !_isExpired(t) &&
-                  (t.matchState == 'PENDING' || t.matchState == 'INQUIRING'),
-            )
-            .toList();
+        return !_isExpired(thread) &&
+            (thread.matchState == 'PENDING' ||
+                thread.matchState == 'INQUIRING');
       case _StatusFilter.inquiring:
-        return threads.where((t) => t.matchState == 'INQUIRING').toList();
-      case _StatusFilter.declined:
-        return threads.where((t) => t.matchState == 'DECLINED').toList();
+        return isStore
+            ? thread.matchState == 'INQUIRING'
+            : thread.questionsCount > 0;
       case _StatusFilter.quoted:
         return isStore
-            ? threads.where((t) => t.matchState == 'QUOTED').toList()
-            : threads.where((t) => t.bestOfferPrice != null).toList();
+            ? thread.matchState == 'QUOTED'
+            : thread.bestOfferPrice != null;
       case _StatusFilter.bought:
-        return threads
-            .where((t) => isStore
-                ? t.offerStatus == 'BOUGHT'
-                : t.bestOfferStatus == 'BOUGHT' ||
-                    t.bestOfferStatus == 'DELIVERED' ||
-                    t.bestOfferStatus == 'CANCELLED')
-            .toList();
+        return isStore && thread.offerStatus == 'BOUGHT';
       case _StatusFilter.delivered:
-        return threads
-            .where((t) =>
-                t.offerStatus == 'DELIVERED' && (!isStore || !t.isExpired))
-            .toList();
+        return thread.offerStatus == 'DELIVERED';
       case _StatusFilter.cancelled:
-        return threads
-            .where((t) => isStore
-                ? t.offerStatus == 'CANCELLED' && !t.isExpired
-                : t.bestOfferStatus == 'CANCELLED')
-            .toList();
-      case _StatusFilter.discarded:
-        return threads.where((t) => t.offerStatus == 'DISCARDED').toList();
+        return isStore
+            ? thread.offerStatus == 'CANCELLED'
+            : thread.bestOfferStatus == 'CANCELLED';
     }
   }
 
@@ -128,39 +130,32 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
     if (isProvider) {
       switch (filter) {
         case _StatusFilter.pending:
-          return 'PENDING';
+          return 'TO_ANSWER';
         case _StatusFilter.inquiring:
           return 'INQUIRING';
-        case _StatusFilter.declined:
-          return 'DECLINED';
         case _StatusFilter.quoted:
           return 'QUOTED';
         case _StatusFilter.bought:
-          return 'BOUGHT';
+          return 'TO_DELIVER';
         case _StatusFilter.delivered:
           return 'DELIVERED';
         case _StatusFilter.cancelled:
           return 'CANCELLED';
-        case _StatusFilter.discarded:
-          return 'DISCARDED';
         case _StatusFilter.all:
-        default:
           return 'ALL';
       }
     } else {
       switch (filter) {
-        case _StatusFilter.active:
-          return 'OPEN';
         case _StatusFilter.quoted:
           return 'WITH_OFFER';
+        // El API de solicitudes expone questionsCount por solicitud. Para
+        // "Con preguntas" traemos ALL y filtramos esa señal en la vista.
+        case _StatusFilter.pending:
+        case _StatusFilter.inquiring:
         case _StatusFilter.bought:
-          return 'BOUGHT';
-        case _StatusFilter.closed:
-          return 'CLOSED';
+        case _StatusFilter.delivered:
         case _StatusFilter.cancelled:
-          return 'CANCELLED';
         case _StatusFilter.all:
-        default:
           return 'ALL';
       }
     }
@@ -168,15 +163,14 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isStore = widget.isStore;
+    final isStore = widget.mode.isStore;
     final threadsAsync = ref.watch(
-      isStore ? storeSalesRequestsProvider : consumerRequestsProvider,
+      isStore
+          ? storeRequestsByStatusProvider(
+              _mapFilterToParam(_statusFilter, true),
+            )
+          : consumerRequestsProvider,
     );
-
-    if (isStore && !_initializedProviderFilter) {
-      _statusFilter = _StatusFilter.pending;
-      _initializedProviderFilter = true;
-    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -197,8 +191,10 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
 
   Future<void> _refreshRequests() {
     return ref.refresh(
-      widget.isStore
-          ? storeSalesRequestsProvider.future
+      widget.mode.isStore
+          ? storeRequestsByStatusProvider(
+              _mapFilterToParam(_statusFilter, true),
+            ).future
           : consumerRequestsProvider.future,
     );
   }
@@ -218,7 +214,7 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
               24,
               8,
               24,
-              bottomNavContentInset(context) + 24,
+              bottomNavigationContentInset(context) + AppSpacing.xl2,
             ),
             itemCount: 4,
             itemBuilder: (context, index) => StaggeredEntrance(
@@ -241,9 +237,38 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
         ),
         Expanded(
           child: Center(
-            child: Text(
-              'Error al cargar solicitudes: $err',
-              style: GoogleFonts.hankenGrotesk(color: AppColors.error),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl3),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const AppLineIcon(
+                    AppIcons.cloudError,
+                    size: AppIconSize.hero,
+                    color: AppColors.error,
+                  ),
+                  const SizedBox(height: AppSpacing.xl2),
+                  Text(
+                    'No pudimos cargar las solicitudes',
+                    style: AppTypography.h2,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(err, style: AppTypography.bodySm),
+                  const SizedBox(height: AppSpacing.xl2),
+                  SizedBox(
+                    height: AppSpacing.buttonHeightMd,
+                    child: OutlinedButton.icon(
+                      onPressed: _refreshRequests,
+                      icon: const AppLineIcon(
+                        AppIcons.retry,
+                        size: AppIconSize.inline,
+                      ),
+                      label: const Text('Reintentar'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -258,38 +283,38 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
   ) {
     final searchFiltered = _applySearch(threads);
     final activeCount = counts['open'] ??
+        counts['toReceive'] ??
         searchFiltered.where((t) => t.isOpen && !t.isExpired).length;
     // El contador debe representar exactamente lo que puede abrirse desde
     // Pendientes. No usamos los conteos del servidor porque una respuesta
     // desactualizada podría seguir incluyendo solicitudes ya vencidas.
     final pendingCount = searchFiltered
-        .where(
-          (t) =>
-              !_isExpired(t) &&
-              (t.matchState == 'PENDING' || t.matchState == 'INQUIRING'),
-        )
+        .where((thread) =>
+            _matchesFilter(thread, _StatusFilter.pending, isProvider))
         .length;
     final quotedCount = counts['quoted'] ??
         counts['withOffer'] ??
         searchFiltered
-            .where((t) => isProvider ? t.hasOffer : t.bestOfferPrice != null)
+            .where((thread) =>
+                _matchesFilter(thread, _StatusFilter.quoted, isProvider))
             .length;
     final boughtCount = counts['bought'] ??
         searchFiltered
-            .where((t) => isProvider
-                ? t.offerStatus == 'BOUGHT'
-                : t.bestOfferStatus == 'BOUGHT' ||
-                    t.bestOfferStatus == 'DELIVERED' ||
-                    t.bestOfferStatus == 'CANCELLED')
+            .where((thread) =>
+                _matchesFilter(thread, _StatusFilter.bought, isProvider))
             .length;
     final deliveredCount = counts['delivered'] ??
-        searchFiltered.where((t) => t.offerStatus == 'DELIVERED').length;
+        searchFiltered
+            .where((thread) =>
+                _matchesFilter(thread, _StatusFilter.delivered, isProvider))
+            .length;
     final cancelledCount = counts['cancelled'] ??
         searchFiltered
-            .where((t) => isProvider
-                ? t.offerStatus == 'CANCELLED'
-                : t.bestOfferStatus == 'CANCELLED')
+            .where((thread) =>
+                _matchesFilter(thread, _StatusFilter.cancelled, isProvider))
             .length;
+    final questionsCount =
+        searchFiltered.where((thread) => thread.questionsCount > 0).length;
     final visible = _applyStatus(searchFiltered, isProvider);
 
     return Column(
@@ -303,6 +328,7 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
           boughtCount: boughtCount,
           deliveredCount: deliveredCount,
           cancelledCount: cancelledCount,
+          questionsCount: questionsCount,
         ),
         Expanded(
           child: _buildListBody(threads, searchFiltered, visible, isProvider),
@@ -328,21 +354,21 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
         subtitle: isProvider
             ? 'No hay solicitudes activas para cotizar en este momento.'
             : 'Cuando solicites un repuesto, podrás darle seguimiento desde aquí.',
-        icon: isProvider ? Icons.inbox_outlined : Icons.local_offer_outlined,
+        icon: isProvider ? AppIcons.inbox : AppIcons.offer,
       );
     } else if (searchFiltered.isEmpty) {
       // La búsqueda por texto no arrojó resultados.
       emptyWidget = EmptyState(
         title: 'Sin resultados',
         subtitle: 'No encontramos nada para "$_query".',
-        icon: Icons.search_off_rounded,
+        icon: AppIcons.searchEmpty,
       );
     } else if (visible.isEmpty) {
       // El filtro de estado dejó la lista vacía.
       emptyWidget = const EmptyState(
         title: 'Sin solicitudes en esta categoría',
         subtitle: 'No hay elementos para el filtro seleccionado por ahora.',
-        icon: Icons.filter_alt_off_outlined,
+        icon: AppIcons.filter,
       );
     }
 
@@ -354,7 +380,7 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
           physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics()),
           padding: EdgeInsets.only(
-            bottom: bottomNavContentInset(context) + 24,
+            bottom: bottomNavigationContentInset(context) + AppSpacing.xl2,
           ),
           children: [
             const SizedBox(height: 80),
@@ -374,7 +400,7 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
           24,
           8,
           24,
-          bottomNavContentInset(context) + 24,
+          bottomNavigationContentInset(context) + AppSpacing.xl2,
         ),
         itemCount: visible.length,
         itemBuilder: (context, index) {
@@ -422,6 +448,7 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
     int boughtCount = 0,
     int deliveredCount = 0,
     int cancelledCount = 0,
+    int questionsCount = 0,
   }) {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 14, 24, 14),
@@ -441,6 +468,7 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
             const SizedBox(height: 12),
             _StatusFilterSelector(
               isProvider: isProvider,
+              showsSalesHistory: widget.mode.showsSalesHistory,
               selected: _statusFilter,
               activeCount: activeCount,
               pendingCount: pendingCount,
@@ -448,6 +476,7 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
               boughtCount: boughtCount,
               deliveredCount: deliveredCount,
               cancelledCount: cancelledCount,
+              questionsCount: questionsCount,
               onChanged: (f) {
                 setState(() => _statusFilter = f);
                 final param = _mapFilterToParam(f, isProvider);
@@ -483,19 +512,18 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.search_rounded,
-              color: AppColors.textSecondary, size: 19),
-          const SizedBox(width: 10),
+          const AppLineIcon(
+            AppIcons.search,
+            size: AppIconSize.action,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: TextField(
               controller: _searchController,
               enabled: !isLoading,
               onChanged: (val) => setState(() => _query = val),
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
+              style: AppTypography.body,
               decoration: InputDecoration(
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
@@ -509,25 +537,27 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
                 hintText: isProvider
                     ? 'Buscar por cliente o solicitud...'
                     : 'Buscar por tienda o solicitud...',
-                hintStyle: GoogleFonts.hankenGrotesk(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
+                hintStyle: AppTypography.body.copyWith(
                   color: AppColors.textDisabled,
                 ),
               ),
             ),
           ),
           if (_query.isNotEmpty)
-            GestureDetector(
-              onTap: () {
+            IconButton(
+              tooltip: 'Limpiar búsqueda',
+              onPressed: () {
                 _searchController.clear();
                 setState(() => _query = '');
               },
-              behavior: HitTestBehavior.opaque,
-              child: const Padding(
-                padding: EdgeInsets.all(4),
-                child: Icon(Icons.cancel_rounded,
-                    color: AppColors.textDisabled, size: 17),
+              constraints: const BoxConstraints.tightFor(
+                width: AppSpacing.buttonHeightMd,
+                height: AppSpacing.buttonHeightMd,
+              ),
+              icon: const AppLineIcon(
+                AppIcons.close,
+                size: AppIconSize.inline,
+                color: AppColors.textSecondary,
               ),
             ),
         ],
@@ -540,6 +570,7 @@ class _RequestManagementPageState extends ConsumerState<RequestManagementPage> {
 /// las opciones a un bottom sheet con blancos táctiles cómodos.
 class _StatusFilterSelector extends StatelessWidget {
   final bool isProvider;
+  final bool showsSalesHistory;
   final _StatusFilter selected;
   final int activeCount;
   final int pendingCount;
@@ -547,10 +578,12 @@ class _StatusFilterSelector extends StatelessWidget {
   final int boughtCount;
   final int deliveredCount;
   final int cancelledCount;
+  final int questionsCount;
   final ValueChanged<_StatusFilter> onChanged;
 
   const _StatusFilterSelector({
     this.isProvider = false,
+    this.showsSalesHistory = false,
     required this.selected,
     required this.activeCount,
     this.pendingCount = 0,
@@ -558,44 +591,48 @@ class _StatusFilterSelector extends StatelessWidget {
     this.boughtCount = 0,
     this.deliveredCount = 0,
     this.cancelledCount = 0,
+    this.questionsCount = 0,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     final options = isProvider
-        ? <({String label, int count, _StatusFilter filter})>[
-            (
-              label: 'Pendientes',
-              count: pendingCount,
-              filter: _StatusFilter.pending,
-            ),
-            (
-              label: 'Cotizadas',
-              count: quotedCount,
-              filter: _StatusFilter.quoted,
-            ),
-            (
-              label: 'Vendidas',
-              count: boughtCount,
-              filter: _StatusFilter.bought,
-            ),
-            (
-              label: 'Entregadas',
-              count: deliveredCount,
-              filter: _StatusFilter.delivered,
-            ),
-            (
-              label: 'Canceladas',
-              count: cancelledCount,
-              filter: _StatusFilter.cancelled,
-            ),
-          ]
+        ? !showsSalesHistory
+            ? <({String label, int count, _StatusFilter filter})>[
+                (
+                  label: 'Por responder',
+                  count: pendingCount,
+                  filter: _StatusFilter.pending,
+                ),
+                (
+                  label: 'Cotizada',
+                  count: quotedCount,
+                  filter: _StatusFilter.quoted,
+                ),
+                (
+                  label: 'Por entregar',
+                  count: boughtCount,
+                  filter: _StatusFilter.bought,
+                ),
+              ]
+            : <({String label, int count, _StatusFilter filter})>[
+                (
+                  label: 'Entregadas',
+                  count: deliveredCount,
+                  filter: _StatusFilter.delivered,
+                ),
+                (
+                  label: 'Canceladas',
+                  count: cancelledCount,
+                  filter: _StatusFilter.cancelled,
+                ),
+              ]
         : <({String label, int count, _StatusFilter filter})>[
             (
-              label: 'Activas',
+              label: 'Todas',
               count: activeCount,
-              filter: _StatusFilter.active,
+              filter: _StatusFilter.all,
             ),
             (
               label: 'Cotizadas',
@@ -603,90 +640,34 @@ class _StatusFilterSelector extends StatelessWidget {
               filter: _StatusFilter.quoted,
             ),
             (
-              label: 'Compradas',
-              count: boughtCount,
-              filter: _StatusFilter.bought,
-            ),
-            (
-              label: 'Canceladas',
-              count: cancelledCount,
-              filter: _StatusFilter.cancelled,
+              label: 'Con preguntas',
+              count: questionsCount,
+              filter: _StatusFilter.inquiring,
             ),
           ];
-    final selectedOption = options.firstWhere(
-      (option) => option.filter == selected,
-      orElse: () => options.first,
-    );
-
-    return Semantics(
-      button: true,
-      label:
-          'Filtrar por estado. Seleccionado: ${selectedOption.label}, ${selectedOption.count}',
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          key: Key(
-            isProvider
-                ? 'store-sales-filter-group'
-                : 'consumer-purchase-filter-group',
-          ),
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => _showOptions(context, options),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 52),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'ESTADO',
-                        maxLines: 1,
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        selectedOption.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _StatusCount(count: selectedOption.count, isSelected: true),
-                const SizedBox(width: 10),
-                const AppLineIcon(
-                  AppIcons.expand,
-                  size: AppIconSize.inline,
-                  color: AppColors.textSecondary,
-                ),
-              ],
-            ),
-          ),
-        ),
+    return AppStatusFilterSelector<_StatusFilter>(
+      controlKey: Key(
+        isProvider
+            ? !showsSalesHistory
+                ? 'store-requests-filter-group'
+                : 'store-sales-filter-group'
+            : 'consumer-request-filter-group',
       ),
+      selected: selected,
+      options: [
+        for (final option in options)
+          StatusFilterOption(
+            value: option.filter,
+            label: option.label,
+            count: option.count,
+          ),
+      ],
+      optionKeyBuilder: (filter) => Key('status-filter-${filter.name}'),
+      onChanged: onChanged,
     );
   }
 
+  // ignore: unused_element
   Future<void> _showOptions(
     BuildContext context,
     List<({String label, int count, _StatusFilter filter})> options,
@@ -730,11 +711,7 @@ class _StatusFilterSelector extends StatelessWidget {
                 child: Text(
                   'Filtrar por estado',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
+                  style: AppTypography.h2,
                 ),
               ),
               Flexible(
@@ -771,12 +748,10 @@ class _StatusFilterSelector extends StatelessWidget {
                                   Expanded(
                                     child: Text(
                                       option.label,
-                                      style: GoogleFonts.hankenGrotesk(
-                                        fontSize: 16,
+                                      style: AppTypography.body.copyWith(
                                         fontWeight: option.filter == selected
                                             ? FontWeight.w800
                                             : FontWeight.w600,
-                                        color: AppColors.textPrimary,
                                       ),
                                     ),
                                   ),
@@ -834,8 +809,7 @@ class _StatusCount extends StatelessWidget {
       ),
       child: Text(
         '$count',
-        style: GoogleFonts.hankenGrotesk(
-          fontSize: 12,
+        style: AppTypography.meta.copyWith(
           fontWeight: FontWeight.w800,
           color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
         ),

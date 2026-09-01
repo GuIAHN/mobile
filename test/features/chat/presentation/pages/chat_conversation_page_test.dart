@@ -13,7 +13,6 @@ import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_conversa
 import 'package:guiautomotriz_mobile/features/chat/domain/repositories/chat_repository.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/pages/chat_conversation_page.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/providers/chat_providers.dart';
-import 'package:guiautomotriz_mobile/features/reviews/presentation/providers/reviews_providers.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockChatRepository extends Mock implements ChatRepository {}
@@ -60,8 +59,6 @@ void main() {
           currentRoleProvider.overrideWithValue(UserRole.store),
           chatRepositoryProvider.overrideWithValue(repository),
           socketServiceProvider.overrideWithValue(socket),
-          handledStoreReviewProvider('conversation-1')
-              .overrideWith((ref) async => false),
         ],
         child: const MaterialApp(
           home: ChatConversationPage(conversationId: 'conversation-1'),
@@ -130,8 +127,6 @@ void main() {
           currentRoleProvider.overrideWithValue(UserRole.store),
           chatRepositoryProvider.overrideWithValue(repository),
           socketServiceProvider.overrideWithValue(socket),
-          handledStoreReviewProvider('conversation-1')
-              .overrideWith((ref) async => false),
         ],
         child: MaterialApp(
           builder: (context, child) => MediaQuery(

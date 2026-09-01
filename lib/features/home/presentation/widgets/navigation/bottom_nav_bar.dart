@@ -1,39 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../core/providers/current_user_provider.dart';
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_icons.dart';
+import '../../../../../core/theme/app_typography.dart';
+import '../../../../../shared/layout/bottom_navigation_insets.dart';
 import '../../providers/home_providers.dart';
 
 const double _kLogoSize = 56;
 const double _kHorizontalMargin = 14;
-const double _kBottomMargin = 8;
 const double _kActiveStageSize = 48;
-const double _kNavLabelFontSize = 11;
+const double _kNavLabelFontSize = bottomNavigationLabelFontSize;
 const Duration _kAnimationDuration = Duration(milliseconds: 300);
 
 /// Espacio superior donde el logo central y la muesca activa se integran con la cápsula.
 const double kBottomNavOverhang = 18;
 
 /// Alto base del área táctil de la cápsula.
-const double kBottomNavBarHeight = 72;
-
-/// Padding inferior que deben reservar las vistas que extienden su contenido.
-double bottomNavContentInset(BuildContext context) {
-  final mediaQuery = MediaQuery.of(context);
-  final scaledLabelHeight = mediaQuery.textScaler.scale(_kNavLabelFontSize);
-  final labelGrowth = (scaledLabelHeight - _kNavLabelFontSize).clamp(
-    0.0,
-    double.infinity,
-  );
-
-  return kBottomNavBarHeight +
-      labelGrowth +
-      mediaQuery.padding.bottom +
-      _kBottomMargin;
-}
+const double kBottomNavBarHeight = bottomNavigationBarHeight;
 
 class BottomNavBar extends ConsumerWidget {
   const BottomNavBar({super.key});
@@ -60,7 +46,7 @@ class BottomNavBar extends ConsumerWidget {
       padding: const EdgeInsets.only(
         left: _kHorizontalMargin,
         right: _kHorizontalMargin,
-        bottom: _kBottomMargin,
+        bottom: bottomNavigationBottomMargin,
       ),
       child: SafeArea(
         top: false,
@@ -77,9 +63,9 @@ class BottomNavBar extends ConsumerWidget {
                 switch (tab) {
                   case MainNavigationTab.home:
                     return slotWidth * 0.5;
-                  case MainNavigationTab.chats:
+                  case MainNavigationTab.purchases:
                     return slotWidth * 1.5;
-                  case MainNavigationTab.commerce:
+                  case MainNavigationTab.requests:
                     return slotWidth * 3.5;
                   case MainNavigationTab.profile:
                     return slotWidth * 4.5;
@@ -92,15 +78,13 @@ class BottomNavBar extends ConsumerWidget {
               IconData getActiveIcon(MainNavigationTab tab) {
                 switch (tab) {
                   case MainNavigationTab.home:
-                    return Icons.home_rounded;
-                  case MainNavigationTab.chats:
-                    return Icons.chat_bubble_rounded;
-                  case MainNavigationTab.commerce:
-                    return isStore
-                        ? Icons.point_of_sale_rounded
-                        : Icons.shopping_bag_rounded;
+                    return AppIcons.home;
+                  case MainNavigationTab.purchases:
+                    return isStore ? AppIcons.sales : AppIcons.purchases;
+                  case MainNavigationTab.requests:
+                    return AppIcons.requests;
                   case MainNavigationTab.profile:
-                    return Icons.person_rounded;
+                    return AppIcons.account;
                 }
               }
 
@@ -144,44 +128,45 @@ class BottomNavBar extends ConsumerWidget {
                             SizedBox(
                               width: slotWidth,
                               child: _NavItemSlot(
-                                outline: Icons.home_outlined,
+                                outline: AppIcons.home,
                                 label: 'Inicio',
                                 isSelected: activeTab == MainNavigationTab.home,
                                 onTap: () => selectTab(MainNavigationTab.home),
                               ),
                             ),
-                            // Slot 1: Chats
-                            SizedBox(
-                              width: slotWidth,
-                              child: _NavItemSlot(
-                                outline: Icons.chat_bubble_outline_rounded,
-                                label: 'Chats',
-                                isSelected:
-                                    activeTab == MainNavigationTab.chats,
-                                onTap: () => selectTab(MainNavigationTab.chats),
-                              ),
-                            ),
-                            // Slot 2: Espacio del Logo Central
-                            SizedBox(width: slotWidth),
-                            // Slot 3: operación comercial según rol
+                            // Slot 1: Mis ventas para tienda, Compras para consumidor
                             SizedBox(
                               width: slotWidth,
                               child: _NavItemSlot(
                                 outline: isStore
-                                    ? Icons.point_of_sale_outlined
-                                    : Icons.shopping_bag_outlined,
-                                label: isStore ? 'Ventas' : 'Compras',
+                                    ? AppIcons.sales
+                                    : AppIcons.purchases,
+                                label: isStore ? 'Mis ventas' : 'Compras',
                                 isSelected:
-                                    activeTab == MainNavigationTab.commerce,
+                                    activeTab == MainNavigationTab.purchases,
                                 onTap: () =>
-                                    selectTab(MainNavigationTab.commerce),
+                                    selectTab(MainNavigationTab.purchases),
+                              ),
+                            ),
+                            // Slot 2: Espacio del Logo Central
+                            SizedBox(width: slotWidth),
+                            // Slot 3: Solicitudes para tienda y consumidor
+                            SizedBox(
+                              width: slotWidth,
+                              child: _NavItemSlot(
+                                outline: AppIcons.requests,
+                                label: 'Solicitudes',
+                                isSelected:
+                                    activeTab == MainNavigationTab.requests,
+                                onTap: () =>
+                                    selectTab(MainNavigationTab.requests),
                               ),
                             ),
                             // Slot 4: Perfil
                             SizedBox(
                               width: slotWidth,
                               child: _NavItemSlot(
-                                outline: Icons.person_outline_rounded,
+                                outline: AppIcons.account,
                                 label: 'Perfil',
                                 isSelected:
                                     activeTab == MainNavigationTab.profile,
@@ -366,10 +351,10 @@ class _ActiveIndicatorStage extends StatelessWidget {
               child: FadeTransition(opacity: animation, child: child),
             );
           },
-          child: Icon(
+          child: AppLineIcon(
             icon,
             key: ValueKey<IconData>(icon),
-            size: 24,
+            size: AppIconSize.leading,
             color: AppColors.primary,
           ),
         ),
@@ -433,9 +418,9 @@ class _NavItemSlotState extends State<_NavItemSlot> {
                 AnimatedOpacity(
                   duration: const Duration(milliseconds: 180),
                   opacity: widget.isSelected ? 0.0 : 1.0,
-                  child: Icon(
+                  child: AppLineIcon(
                     widget.outline,
-                    size: 22,
+                    size: AppIconSize.action,
                     color: AppColors.grey600,
                   ),
                 ),
@@ -443,8 +428,7 @@ class _NavItemSlotState extends State<_NavItemSlot> {
                 AnimatedDefaultTextStyle(
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeOutCubic,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: _kNavLabelFontSize,
+                  style: AppTypography.meta.copyWith(
                     fontWeight:
                         widget.isSelected ? FontWeight.w800 : FontWeight.w600,
                     color: widget.isSelected
@@ -542,9 +526,9 @@ class _CenterLogoButtonState extends State<_CenterLogoButton> {
                     errorBuilder: (context, error, stackTrace) {
                       return const ColoredBox(
                         color: AppColors.primaryMuted,
-                        child: Icon(
-                          Icons.home_rounded,
-                          size: 26,
+                        child: AppLineIcon(
+                          AppIcons.home,
+                          size: AppIconSize.leading,
                           color: AppColors.primary,
                         ),
                       );

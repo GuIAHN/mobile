@@ -21,10 +21,11 @@ import '../../features/home/presentation/pages/store_detail_page.dart';
 import '../../features/chat/presentation/pages/conversations_inbox_page.dart';
 import '../../features/chat/presentation/pages/chat_thread_detail_page.dart';
 import '../../features/chat/presentation/pages/chat_conversation_page.dart';
-import '../../features/chat/presentation/pages/mis_compras_page.dart';
+import '../../features/purchases/presentation/pages/consumer_purchases_page.dart';
 import '../../features/chat/presentation/pages/store_sales_page.dart';
 import '../../features/reviews/presentation/pages/provider_reviews_page.dart';
 import '../../features/reviews/presentation/pages/pending_reviews_page.dart';
+import '../../features/reviews/presentation/pages/review_editor_sheet.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import 'route_names.dart';
 
@@ -153,17 +154,25 @@ class AppRouter {
             },
           ),
           GoRoute(
+            path: RouteNames.workshopDetail,
+            name: 'workshopDetail',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return StoreDetailPage(
+                storeId: id,
+                serviceType: ServiceType.workshops,
+              );
+            },
+          ),
+          GoRoute(
             path: RouteNames.storeDetail,
             name: 'storeDetail',
             builder: (context, state) {
               final id = state.pathParameters['id']!;
-              final isSpareParts =
-                  state.uri.queryParameters['type'] == 'spareParts';
               return StoreDetailPage(
                 storeId: id,
-                serviceType: isSpareParts
-                    ? ServiceType.spareParts
-                    : ServiceType.workshops,
+                reviewConversationId:
+                    state.uri.queryParameters['reviewConversationId'],
               );
             },
           ),
@@ -185,6 +194,47 @@ class AppRouter {
             path: RouteNames.pendingReviews,
             name: 'pendingReviews',
             builder: (context, state) => const PendingReviewsPage(),
+          ),
+          GoRoute(
+            path: RouteNames.reviewEditor,
+            name: 'reviewEditor',
+            pageBuilder: (context, state) {
+              final query = state.uri.queryParameters;
+              final reduceMotion = MediaQuery.disableAnimationsOf(context);
+              return CustomTransitionPage<bool>(
+                key: state.pageKey,
+                opaque: false,
+                barrierDismissible: true,
+                barrierColor: Colors.black.withValues(alpha: 0.48),
+                transitionDuration: reduceMotion
+                    ? Duration.zero
+                    : const Duration(milliseconds: 280),
+                reverseTransitionDuration: reduceMotion
+                    ? Duration.zero
+                    : const Duration(milliseconds: 180),
+                child: ReviewEditorSheet(
+                  targetId: query['targetId'],
+                  conversationId: query['conversationId'],
+                  providerName: query['providerName'] ?? 'la tienda',
+                  readOnly: query['readOnly'] == 'true',
+                ),
+                transitionsBuilder: (_, animation, __, child) {
+                  return SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 1),
+                      end: Offset.zero,
+                    ).animate(
+                      CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutCubic,
+                        reverseCurve: Curves.easeInCubic,
+                      ),
+                    ),
+                    child: child,
+                  );
+                },
+              );
+            },
           ),
 
           // ── Vehículos ────────────────────────────────────────────────────

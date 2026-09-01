@@ -87,6 +87,8 @@ class ChatRemoteDataSource {
               : null,
           isExpired: json['isExpired'] as bool? ?? false,
           totalOffersCount: json['totalOffersCount'] as int? ?? 0,
+          quotesCount: json['quotesCount'] as int? ?? 0,
+          questionsCount: json['questionsCount'] as int? ?? 0,
           consumerAvatar: json['consumerAvatar'] as String?,
           distance: json['distancia'] != null
               ? double.tryParse(json['distancia'].toString())
@@ -155,6 +157,8 @@ class ChatRemoteDataSource {
           totalOffersCount: json['totalOffersCount'] as int? ??
               json['_count']?['offers'] as int? ??
               0,
+          quotesCount: json['quotesCount'] as int? ?? 0,
+          questionsCount: json['questionsCount'] as int? ?? 0,
           bestOfferPrice: json['bestOfferPrice'] != null
               ? double.tryParse(json['bestOfferPrice'].toString())
               : null,
@@ -180,7 +184,8 @@ class ChatRemoteDataSource {
 
     // Consumer side
     final response = await _dioClient.get(ApiEndpoints.searchOffers(threadId));
-    final data = response.data as List;
+    final raw = response.data;
+    final data = raw is Map ? (raw['items'] as List? ?? const []) : raw as List;
 
     return data.map((json) {
       final store = json['store'] as Map<String, dynamic>?;

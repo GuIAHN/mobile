@@ -102,7 +102,7 @@ void main() {
     when(
       () => getThreads(
         role: UserRole.store,
-        statusFilter: 'PENDING',
+        statusFilter: 'TO_ANSWER',
       ),
     ).thenAnswer(
       (_) async => const Right(
@@ -128,7 +128,7 @@ void main() {
     verify(
       () => getThreads(
         role: UserRole.store,
-        statusFilter: 'PENDING',
+        statusFilter: 'TO_ANSWER',
       ),
     ).called(1);
 
@@ -139,7 +139,7 @@ void main() {
     verify(
       () => getThreads(
         role: UserRole.store,
-        statusFilter: 'PENDING',
+        statusFilter: 'TO_ANSWER',
       ),
     ).called(1);
   });
@@ -168,7 +168,7 @@ void main() {
     when(
       () => getThreads(
         role: UserRole.consumer,
-        statusFilter: 'OPEN',
+        statusFilter: 'ALL',
       ),
     ).thenAnswer(
       (_) async => const Right(
@@ -279,7 +279,7 @@ void main() {
     verify(
       () => getThreads(
         role: UserRole.consumer,
-        statusFilter: 'OPEN',
+        statusFilter: 'ALL',
       ),
     ).called(1);
   });

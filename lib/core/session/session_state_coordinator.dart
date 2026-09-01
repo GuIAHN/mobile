@@ -8,6 +8,8 @@ import '../../features/auth/presentation/providers/social_registration_state.dar
 import '../../features/chat/presentation/providers/chat_providers.dart';
 import '../../features/home/presentation/providers/home_providers.dart';
 import '../../features/home/domain/entities/home_filters.dart';
+import '../../features/purchases/domain/entities/consumer_purchase.dart';
+import '../../features/purchases/presentation/providers/purchases_providers.dart';
 import '../../features/reports/presentation/providers/reports_provider.dart';
 import '../../features/vehicles/presentation/providers/register_vehicles_provider.dart';
 import '../notifications/notification_provider.dart';
@@ -57,8 +59,9 @@ void resetSessionScopedState(Ref ref) {
   // no disparar consultas durante el logout.
   ref.read(notificationProvider.notifier).dismissAll();
 
-  ref.read(storeStatusFilterProvider.notifier).state = 'PENDING';
-  ref.read(consumerStatusFilterProvider.notifier).state = 'OPEN';
+  ref.read(storeStatusFilterProvider.notifier).state = 'TO_ANSWER';
+  ref.read(consumerStatusFilterProvider.notifier).state = 'ALL';
+  ref.read(purchaseFilterProvider.notifier).state = PurchaseFilter.all;
   ref.read(homeTabProvider.notifier).state = MainNavigationTab.home;
   ref.read(homeFiltersProvider.notifier).state = const HomeFilters();
   ref.read(searchQueryProvider.notifier).state = '';

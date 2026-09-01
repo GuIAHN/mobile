@@ -8,8 +8,9 @@ import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_conversa
 import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_thread.dart';
 import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_threads_result.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/pages/conversations_inbox_page.dart';
-import 'package:guiautomotriz_mobile/features/chat/presentation/pages/mis_compras_page.dart';
+import 'package:guiautomotriz_mobile/features/chat/presentation/pages/consumer_requests_page.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/pages/store_sales_page.dart';
+import 'package:guiautomotriz_mobile/features/chat/presentation/pages/store_requests_page.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/providers/chat_providers.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -37,6 +38,7 @@ void main() {
     conversationCount: 1,
     lastActivityAt: DateTime.utc(2026, 8, 14),
     totalOffersCount: 1,
+    subcategory: 'Frenos',
     bestOfferPrice: 125,
     bestOfferStoreName: 'Repuestos Central',
   );
@@ -51,7 +53,6 @@ void main() {
     searchMatchId: 'match-1',
     matchState: 'PENDING',
   );
-
   ChatThreadsResult resultFor(ChatThread thread) => ChatThreadsResult(
         threads: [thread],
         counts: const {'all': 1, 'open': 1, 'closed': 0},
@@ -63,6 +64,7 @@ void main() {
     required Widget page,
     ChatThreadsResult? storeResult,
     List<ChatConversation>? conversations,
+    List<String>? requestedStoreStatuses,
     double textScale = 1,
     bool disableAnimations = false,
   }) async {
@@ -78,6 +80,12 @@ void main() {
           ),
           storeSalesRequestsProvider.overrideWith(
             (ref) async => storeResult ?? resultFor(storeRequest),
+          ),
+          storeRequestsByStatusProvider.overrideWith(
+            (ref, status) async {
+              requestedStoreStatuses?.add(status);
+              return storeResult ?? resultFor(storeRequest);
+            },
           ),
         ],
         child: MaterialApp(
@@ -109,6 +117,21 @@ void main() {
     await tester.tap(find.byKey(Key('status-filter-$status')));
     await tester.pumpAndSettle();
   }
+
+  testWidgets('store requests use the backend TO_ANSWER filter',
+      (tester) async {
+    final requestedStatuses = <String>[];
+
+    await pumpPage(
+      tester,
+      role: UserRole.store,
+      page: const StoreRequestsPage(),
+      requestedStoreStatuses: requestedStatuses,
+    );
+
+    expect(requestedStatuses, contains('TO_ANSWER'));
+    expect(requestedStatuses, isNot(contains('PENDING')));
+  });
 
   testWidgets('consumer Chats contains conversations, not requests',
       (tester) async {
@@ -167,28 +190,27 @@ void main() {
     expect(find.text('Tienda pendiente'), findsOneWidget);
   });
 
-  testWidgets('consumer Compras contains the complete request management',
+  testWidgets('consumer Solicitudes exposes only the three approved filters',
       (tester) async {
     await pumpPage(
       tester,
       role: UserRole.consumer,
-      page: const ConsumerPurchasesPage(),
+      page: const ConsumerRequestsPage(),
     );
 
     expect(find.text('Compras'), findsNothing);
     expect(find.text('Administra tus solicitudes y compara ofertas'),
         findsNothing);
     expect(find.text('Motor BMW N55'), findsOneWidget);
-    expect(find.text('Activas'), findsOneWidget);
+    expect(find.text('Todas'), findsOneWidget);
     expect(find.text('Cotizadas'), findsNothing);
     expect(find.text('Compradas'), findsNothing);
     expect(find.text('Canceladas'), findsNothing);
-    expect(find.text('Todas'), findsNothing);
     expect(find.text('Cerradas'), findsNothing);
     expect(
       tester
           .getCenter(
-            find.byKey(const Key('consumer-purchase-filter-group')),
+            find.byKey(const Key('consumer-request-filter-group')),
           )
           .dx,
       closeTo(tester.view.physicalSize.width / tester.view.devicePixelRatio / 2,
@@ -196,25 +218,19 @@ void main() {
     );
 
     final container = ProviderScope.containerOf(
-      tester.element(find.byType(ConsumerPurchasesPage)),
+      tester.element(find.byType(ConsumerRequestsPage)),
     );
-    expect(container.read(consumerStatusFilterProvider), 'OPEN');
+    expect(container.read(consumerStatusFilterProvider), 'ALL');
 
     await openStatusSelector(
       tester,
-      const Key('consumer-purchase-filter-group'),
+      const Key('consumer-request-filter-group'),
     );
     expect(find.text('Filtrar por estado'), findsOneWidget);
-    expect(find.byKey(const Key('status-filter-active')), findsOneWidget);
+    expect(find.byKey(const Key('status-filter-all')), findsOneWidget);
     expect(find.byKey(const Key('status-filter-quoted')), findsOneWidget);
-    expect(find.byKey(const Key('status-filter-bought')), findsOneWidget);
-    expect(
-      find.byKey(
-        const Key('status-filter-cancelled'),
-        skipOffstage: false,
-      ),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('status-filter-inquiring')), findsOneWidget);
+    expect(find.byKey(const Key('status-filter-cancelled')), findsNothing);
 
     await tester.tap(find.byKey(const Key('status-filter-quoted')));
     await tester.pumpAndSettle();
@@ -222,31 +238,25 @@ void main() {
 
     await selectStatus(
       tester,
-      selectorKey: const Key('consumer-purchase-filter-group'),
-      status: 'bought',
+      selectorKey: const Key('consumer-request-filter-group'),
+      status: 'inquiring',
     );
-    expect(container.read(consumerStatusFilterProvider), 'BOUGHT');
-
-    await selectStatus(
-      tester,
-      selectorKey: const Key('consumer-purchase-filter-group'),
-      status: 'cancelled',
-    );
-    expect(container.read(consumerStatusFilterProvider), 'CANCELLED');
+    expect(container.read(consumerStatusFilterProvider), 'ALL');
   });
 
-  testWidgets('Compras selector stays compact with large text', (tester) async {
+  testWidgets('Solicitudes selector stays compact with large text',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 700));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await pumpPage(
       tester,
       role: UserRole.consumer,
-      page: const ConsumerPurchasesPage(),
+      page: const ConsumerRequestsPage(),
       textScale: 2,
     );
 
-    final group = find.byKey(const Key('consumer-purchase-filter-group'));
+    final group = find.byKey(const Key('consumer-request-filter-group'));
     expect(group, findsOneWidget);
     expect(
       find.ancestor(
@@ -260,18 +270,11 @@ void main() {
 
     await openStatusSelector(
       tester,
-      const Key('consumer-purchase-filter-group'),
+      const Key('consumer-request-filter-group'),
     );
-    expect(find.byKey(const Key('status-filter-active')), findsOneWidget);
+    expect(find.byKey(const Key('status-filter-all')), findsOneWidget);
     expect(find.byKey(const Key('status-filter-quoted')), findsOneWidget);
-    expect(find.byKey(const Key('status-filter-bought')), findsOneWidget);
-    expect(
-      find.byKey(
-        const Key('status-filter-cancelled'),
-        skipOffstage: false,
-      ),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('status-filter-inquiring')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -294,15 +297,15 @@ void main() {
     await pumpPage(
       tester,
       role: UserRole.store,
-      page: const StoreSalesPage(),
+      page: const StoreRequestsPage(),
     );
 
     expect(find.text('Ventas'), findsNothing);
     expect(find.text('Cotiza solicitudes y da seguimiento a tus ventas'),
         findsNothing);
     expect(find.text('Bomba de gasolina'), findsOneWidget);
-    expect(find.text('Pendientes'), findsAtLeastNWidgets(1));
-    expect(find.text('Cotizadas'), findsNothing);
+    expect(find.text('Por responder'), findsAtLeastNWidgets(1));
+    expect(find.text('Cotizada'), findsNothing);
     expect(find.text('Compradas'), findsNothing);
     expect(find.text('Canceladas'), findsNothing);
     expect(find.text('Entregadas'), findsNothing);
@@ -314,18 +317,18 @@ void main() {
 
     await openStatusSelector(
       tester,
-      const Key('store-sales-filter-group'),
+      const Key('store-requests-filter-group'),
     );
     expect(find.byKey(const Key('status-filter-pending')), findsOneWidget);
     expect(find.byKey(const Key('status-filter-quoted')), findsOneWidget);
     expect(find.byKey(const Key('status-filter-bought')), findsOneWidget);
-    expect(find.text('Vendidas'), findsOneWidget);
+    expect(find.text('Por entregar'), findsOneWidget);
     expect(find.text('Compradas'), findsNothing);
-    expect(find.byKey(const Key('status-filter-delivered')), findsOneWidget);
-    expect(find.byKey(const Key('status-filter-cancelled')), findsOneWidget);
+    expect(find.byKey(const Key('status-filter-delivered')), findsNothing);
+    expect(find.byKey(const Key('status-filter-cancelled')), findsNothing);
   });
 
-  testWidgets('Ventas selector exposes five touch-friendly states',
+  testWidgets('Solicitudes selector exposes three touch-friendly states',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 700));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -333,12 +336,12 @@ void main() {
     await pumpPage(
       tester,
       role: UserRole.store,
-      page: const StoreSalesPage(),
+      page: const StoreRequestsPage(),
       textScale: 2,
       disableAnimations: true,
     );
 
-    final group = find.byKey(const Key('store-sales-filter-group'));
+    final group = find.byKey(const Key('store-requests-filter-group'));
     expect(group, findsOneWidget);
     expect(
       find.ancestor(
@@ -350,22 +353,12 @@ void main() {
     expect(tester.getSize(group).height, greaterThanOrEqualTo(48));
     expect(tester.getSize(group).height, lessThan(100));
 
-    await openStatusSelector(tester, const Key('store-sales-filter-group'));
+    await openStatusSelector(tester, const Key('store-requests-filter-group'));
     final boughtTarget = find.byKey(const Key('status-filter-bought'));
     expect(boughtTarget, findsOneWidget);
     expect(tester.getSize(boughtTarget).height, greaterThanOrEqualTo(48));
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('status-filter-delivered')),
-      120,
-      scrollable: find.byType(Scrollable).last,
-    );
-    expect(find.byKey(const Key('status-filter-delivered')), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('status-filter-cancelled')),
-      120,
-      scrollable: find.byType(Scrollable).last,
-    );
-    expect(find.byKey(const Key('status-filter-cancelled')), findsOneWidget);
+    expect(find.byKey(const Key('status-filter-delivered')), findsNothing);
+    expect(find.byKey(const Key('status-filter-cancelled')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -389,7 +382,7 @@ void main() {
     await pumpPage(
       tester,
       role: UserRole.store,
-      page: const StoreSalesPage(),
+      page: const StoreRequestsPage(),
       storeResult: ChatThreadsResult(
         threads: [storeRequest, inquiry],
         counts: const {
@@ -431,7 +424,7 @@ void main() {
     await pumpPage(
       tester,
       role: UserRole.store,
-      page: const StoreSalesPage(),
+      page: const StoreRequestsPage(),
       storeResult: ChatThreadsResult(
         threads: [storeRequest, expiredByFlag, expiredByDate],
         counts: const {'pending': 2, 'inquiring': 1},
@@ -460,7 +453,7 @@ void main() {
     await pumpPage(
       tester,
       role: UserRole.store,
-      page: const StoreSalesPage(),
+      page: const StoreRequestsPage(),
       storeResult: ChatThreadsResult(
         threads: [storeRequest, boughtElsewhere],
         counts: const {'pending': 2},
@@ -473,7 +466,7 @@ void main() {
   });
 
   testWidgets(
-      'store exposes bought sales and keeps terminal sales until expiration',
+      'Mis ventas exposes delivered and cancelled sales including history',
       (tester) async {
     ChatThread sale({
       required String id,
@@ -495,12 +488,6 @@ void main() {
 
     final result = ChatThreadsResult(
       threads: [
-        sale(
-          id: 'bought-current',
-          title: 'Comprada por entregar',
-          status: 'BOUGHT',
-          isExpired: false,
-        ),
         sale(
           id: 'cancelled-current',
           title: 'Cancelada vigente',
@@ -526,7 +513,7 @@ void main() {
           isExpired: true,
         ),
       ],
-      counts: const {'bought': 1, 'cancelled': 2, 'delivered': 2},
+      counts: const {'cancelled': 2, 'delivered': 2},
     );
 
     await pumpPage(
@@ -540,13 +527,8 @@ void main() {
       tester.element(find.byType(StoreSalesPage)),
     );
 
-    await selectStatus(
-      tester,
-      selectorKey: const Key('store-sales-filter-group'),
-      status: 'bought',
-    );
-    expect(container.read(storeStatusFilterProvider), 'BOUGHT');
-    expect(find.text('Comprada por entregar'), findsOneWidget);
+    expect(find.text('Entregada vigente'), findsOneWidget);
+    expect(find.text('Entregada expirada'), findsOneWidget);
 
     await selectStatus(
       tester,
@@ -555,7 +537,7 @@ void main() {
     );
     expect(container.read(storeStatusFilterProvider), 'CANCELLED');
     expect(find.text('Cancelada vigente'), findsOneWidget);
-    expect(find.text('Cancelada expirada'), findsNothing);
+    expect(find.text('Cancelada expirada'), findsOneWidget);
 
     await selectStatus(
       tester,
@@ -564,7 +546,7 @@ void main() {
     );
     expect(container.read(storeStatusFilterProvider), 'DELIVERED');
     expect(find.text('Entregada vigente'), findsOneWidget);
-    expect(find.text('Entregada expirada'), findsNothing);
+    expect(find.text('Entregada expirada'), findsOneWidget);
   });
 
   testWidgets('Ventas search field does not draw an inner border',
@@ -586,8 +568,7 @@ void main() {
     expect(decoration.focusedErrorBorder, InputBorder.none);
   });
 
-  testWidgets('Chats and Compras start with compact search controls',
-      (tester) async {
+  testWidgets('Chats starts with a compact search control', (tester) async {
     await pumpPage(
       tester,
       role: UserRole.consumer,
@@ -597,16 +578,6 @@ void main() {
     final chatsSearch = find.byKey(const Key('conversations-search-bar'));
     expect(tester.getTopLeft(chatsSearch).dy, 14);
     expect(tester.getSize(chatsSearch).height, greaterThanOrEqualTo(48));
-
-    await pumpPage(
-      tester,
-      role: UserRole.consumer,
-      page: const ConsumerPurchasesPage(),
-    );
-
-    final purchasesSearch = find.byKey(const Key('request-search-bar'));
-    expect(tester.getTopLeft(purchasesSearch).dy, 14);
-    expect(tester.getSize(purchasesSearch).height, greaterThanOrEqualTo(48));
   });
 
   testWidgets('Chats search filters only the conversation list',

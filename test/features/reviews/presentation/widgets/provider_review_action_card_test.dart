@@ -7,6 +7,43 @@ import 'package:guiautomotriz_mobile/features/reviews/presentation/providers/rev
 import 'package:guiautomotriz_mobile/features/reviews/presentation/widgets/provider_review_action_card.dart';
 
 void main() {
+  testWidgets('purchase context exposes the store review action',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          myReviewProvider.overrideWith(
+            (ref, targetId) async => const MyReviewStatus(hasReviewed: false),
+          ),
+          hasContactedProviderProvider.overrideWith(
+            (ref, providerProfileId) async => false,
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ProviderReviewActionCard(
+              targetId: 'store-user-1',
+              providerProfileId: 'store-1',
+              providerName: 'Repuestos Centro',
+              conversationId: 'conversation-cancelled',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('DEJAR VALORACIÓN'), findsOneWidget);
+    expect(find.text('Valora tu experiencia'), findsOneWidget);
+    await tester.tap(find.text('DEJAR VALORACIÓN'));
+    await tester.pumpAndSettle();
+    expect(find.text('¿Cómo fue tu experiencia?'), findsOneWidget);
+    expect(
+        find.text(
+            'Califica a Repuestos Centro. Las estrellas son obligatorias.'),
+        findsOneWidget);
+  });
+
   testWidgets('centers the existing provider rating stars', (tester) async {
     final review = Review(
       id: 'review-1',

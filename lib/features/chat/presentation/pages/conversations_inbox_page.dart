@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/staggered_entrance.dart';
+import '../../../../shared/layout/bottom_navigation_insets.dart';
 import '../../domain/entities/chat_conversation.dart';
 import '../providers/chat_providers.dart';
 import '../widgets/store_chat_card.dart';
-import '../../../home/presentation/widgets/navigation/bottom_nav_bar.dart';
 
 /// Bandeja transversal de conversaciones.
 ///
@@ -97,7 +98,7 @@ class _ConversationsInboxPageState
         24,
         8,
         24,
-        bottomNavContentInset(context) + 24,
+        bottomNavigationContentInset(context) + 24,
       ),
       itemCount: 4,
       itemBuilder: (_, index) => StaggeredEntrance(
@@ -122,7 +123,7 @@ class _ConversationsInboxPageState
             parent: BouncingScrollPhysics(),
           ),
           padding: EdgeInsets.only(
-            bottom: bottomNavContentInset(context) + 24,
+            bottom: bottomNavigationContentInset(context) + 24,
           ),
           children: [
             const SizedBox(height: 80),
@@ -132,9 +133,7 @@ class _ConversationsInboxPageState
               subtitle: _query.isNotEmpty
                   ? 'No encontramos conversaciones para "$_query".'
                   : 'Cuando inicies una conversación, aparecerá aquí.',
-              icon: _query.isNotEmpty
-                  ? Icons.search_off_rounded
-                  : Icons.chat_bubble_outline_rounded,
+              icon: _query.isNotEmpty ? AppIcons.searchEmpty : AppIcons.message,
             ),
           ],
         ),
@@ -152,7 +151,7 @@ class _ConversationsInboxPageState
           24,
           8,
           24,
-          bottomNavContentInset(context) + 24,
+          bottomNavigationContentInset(context) + 24,
         ),
         itemCount: filtered.length,
         itemBuilder: (context, index) {
@@ -211,10 +210,10 @@ class _ConversationsHeader extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(
-              Icons.search_rounded,
+            const AppLineIcon(
+              AppIcons.search,
               color: AppColors.textSecondary,
-              size: 20,
+              size: AppIconSize.action,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -222,11 +221,7 @@ class _ConversationsHeader extends StatelessWidget {
                 controller: controller,
                 enabled: enabled,
                 onChanged: onChanged,
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
+                style: AppTypography.body,
                 decoration: InputDecoration(
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
@@ -238,8 +233,7 @@ class _ConversationsHeader extends StatelessWidget {
                   isCollapsed: true,
                   contentPadding: EdgeInsets.zero,
                   hintText: 'Buscar una conversación...',
-                  hintStyle: GoogleFonts.hankenGrotesk(
-                    fontSize: 14,
+                  hintStyle: AppTypography.body.copyWith(
                     color: AppColors.textPlaceholder,
                   ),
                 ),
@@ -251,10 +245,10 @@ class _ConversationsHeader extends StatelessWidget {
                 child: IconButton(
                   onPressed: onClear,
                   tooltip: 'Limpiar búsqueda',
-                  icon: const Icon(
-                    Icons.cancel_rounded,
+                  icon: const AppLineIcon(
+                    AppIcons.close,
                     color: AppColors.textSecondary,
-                    size: 19,
+                    size: AppIconSize.inline,
                   ),
                 ),
               ),
@@ -278,20 +272,16 @@ class _ConversationsError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.cloud_off_rounded,
+            const AppLineIcon(
+              AppIcons.cloudError,
               color: AppColors.error,
-              size: 36,
+              size: AppIconSize.feature,
             ),
             const SizedBox(height: 12),
             Text(
               'No pudimos cargar tus chats',
               textAlign: TextAlign.center,
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
+              style: AppTypography.title,
             ),
             const SizedBox(height: 12),
             SizedBox(

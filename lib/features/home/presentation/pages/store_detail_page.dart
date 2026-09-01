@@ -15,11 +15,13 @@ import '../../../reviews/presentation/widgets/provider_reviews_button.dart';
 class StoreDetailPage extends ConsumerWidget {
   final String storeId;
   final ServiceType serviceType;
+  final String? reviewConversationId;
 
   const StoreDetailPage({
     super.key,
     required this.storeId,
-    this.serviceType = ServiceType.workshops,
+    this.serviceType = ServiceType.spareParts,
+    this.reviewConversationId,
   });
 
   @override
@@ -33,9 +35,7 @@ class StoreDetailPage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: detailAsync.when(
-        loading: () => isStore
-            ? const DetailSkeleton()
-            : const ServiceProviderDetailSkeleton(),
+        loading: () => const ServiceProviderDetailSkeleton(),
         error: (e, _) => DetailErrorView(
           title: 'No se pudo cargar la $providerLabel',
           message:
@@ -43,10 +43,12 @@ class StoreDetailPage extends ConsumerWidget {
           onRetry: () => ref.invalidate(providerDetailProvider(args)),
         ),
         data: (detail) {
-          if (!isStore) {
+          if (serviceType != ServiceType.storeDashboard) {
             return ServiceProviderDetailView(
               detail: detail,
               heroTag: 'provider-avatar-$storeId',
+              serviceType: serviceType,
+              reviewConversationId: reviewConversationId,
             );
           }
 

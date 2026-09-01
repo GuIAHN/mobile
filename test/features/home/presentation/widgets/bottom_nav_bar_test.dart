@@ -8,6 +8,7 @@ import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
 import 'package:guiautomotriz_mobile/core/providers/current_user_provider.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/navigation/bottom_nav_bar.dart';
+import 'package:guiautomotriz_mobile/shared/layout/bottom_navigation_insets.dart';
 
 void main() {
   const logoSemantics = 'Volver al inicio, logo guIAutomotriz';
@@ -74,7 +75,7 @@ void main() {
 
     await tester.pumpWidget(subject(container));
 
-    for (final label in const ['Inicio', 'Chats', 'Compras', 'Perfil']) {
+    for (final label in const ['Inicio', 'Compras', 'Solicitudes', 'Perfil']) {
       expect(find.text(label), findsOneWidget);
     }
     expect(logoFinder(), findsOneWidget);
@@ -90,8 +91,8 @@ void main() {
 
     final slotRects = <Rect>[
       tester.getRect(find.bySemanticsLabel('Inicio')),
-      tester.getRect(find.bySemanticsLabel('Chats')),
       tester.getRect(find.bySemanticsLabel('Compras')),
+      tester.getRect(find.bySemanticsLabel('Solicitudes')),
       tester.getRect(find.bySemanticsLabel('Perfil')),
     ];
     for (final slot in slotRects.skip(1)) {
@@ -127,7 +128,7 @@ void main() {
     testWidgets('center logo responds at its $edge edge', (tester) async {
       final container = containerFor(
         role: UserRole.consumer,
-        initialTab: MainNavigationTab.chats,
+        initialTab: MainNavigationTab.purchases,
       );
       addTearDown(container.dispose);
 
@@ -150,7 +151,7 @@ void main() {
 
   for (final initialTab in const [
     MainNavigationTab.home,
-    MainNavigationTab.chats,
+    MainNavigationTab.purchases,
   ]) {
     testWidgets('logo bounds remain exactly 56 dp on tab $initialTab at rest',
         (tester) async {
@@ -174,7 +175,7 @@ void main() {
       (tester) async {
     final container = containerFor(
       role: UserRole.consumer,
-      initialTab: MainNavigationTab.chats,
+      initialTab: MainNavigationTab.purchases,
     );
     addTearDown(container.dispose);
 
@@ -202,7 +203,7 @@ void main() {
       (tester) async {
     final container = containerFor(
       role: UserRole.consumer,
-      initialTab: MainNavigationTab.chats,
+      initialTab: MainNavigationTab.purchases,
     );
     addTearDown(container.dispose);
 
@@ -210,7 +211,11 @@ void main() {
 
     await tester.tap(find.text('Compras'));
     await tester.pump();
-    expect(container.read(homeTabProvider), MainNavigationTab.commerce);
+    expect(container.read(homeTabProvider), MainNavigationTab.purchases);
+
+    await tester.tap(find.text('Solicitudes'));
+    await tester.pump();
+    expect(container.read(homeTabProvider), MainNavigationTab.requests);
 
     await tester.tap(find.text('Perfil'));
     await tester.pump();
@@ -221,11 +226,11 @@ void main() {
     expect(container.read(homeTabProvider), MainNavigationTab.home);
   });
 
-  testWidgets('store exposes Ventas and preserves semantic tab mapping',
+  testWidgets('store exposes Home, Mis ventas, Solicitudes and Perfil',
       (tester) async {
     final container = containerFor(
       role: UserRole.store,
-      initialTab: MainNavigationTab.chats,
+      initialTab: MainNavigationTab.purchases,
     );
     addTearDown(container.dispose);
 
@@ -233,7 +238,8 @@ void main() {
 
     expect(find.text('Compras'), findsNothing);
     expect(find.text('Mis Compras'), findsNothing);
-    expect(find.text('Ventas'), findsOneWidget);
+    expect(find.text('Mis ventas'), findsOneWidget);
+    expect(find.text('Solicitudes'), findsOneWidget);
     expect(find.bySemanticsLabel(logoSemantics), findsOneWidget);
     expect(logoFinder(), findsOneWidget);
 
@@ -241,7 +247,12 @@ void main() {
       find.byKey(const Key('bottom-nav-surface')),
     );
     final actionRects = [
-      for (final label in const ['Inicio', 'Chats', 'Ventas', 'Perfil'])
+      for (final label in const [
+        'Inicio',
+        'Mis ventas',
+        'Solicitudes',
+        'Perfil'
+      ])
         tester.getRect(find.bySemanticsLabel(label)),
     ];
     for (final rect in actionRects) {
@@ -249,17 +260,17 @@ void main() {
       expect(rect.height, greaterThanOrEqualTo(48));
     }
 
-    await tester.tap(find.text('Ventas'));
+    await tester.tap(find.text('Solicitudes'));
     await tester.pump();
-    expect(container.read(homeTabProvider), MainNavigationTab.commerce);
+    expect(container.read(homeTabProvider), MainNavigationTab.requests);
 
     await tester.tap(find.text('Perfil'));
     await tester.pump();
     expect(container.read(homeTabProvider), MainNavigationTab.profile);
 
-    await tester.tap(find.text('Chats'));
+    await tester.tap(find.text('Mis ventas'));
     await tester.pump();
-    expect(container.read(homeTabProvider), MainNavigationTab.chats);
+    expect(container.read(homeTabProvider), MainNavigationTab.purchases);
 
     await tester.tap(find.text('Inicio'));
     await tester.pump();
@@ -270,7 +281,7 @@ void main() {
       (tester) async {
     final container = containerFor(
       role: UserRole.store,
-      initialTab: MainNavigationTab.commerce,
+      initialTab: MainNavigationTab.requests,
     );
     addTearDown(container.dispose);
 
@@ -288,7 +299,12 @@ void main() {
     final surfaceRect = tester.getRect(
       find.byKey(const Key('bottom-nav-surface')),
     );
-    for (final label in const ['Inicio', 'Chats', 'Ventas', 'Perfil']) {
+    for (final label in const [
+      'Inicio',
+      'Mis ventas',
+      'Solicitudes',
+      'Perfil'
+    ]) {
       final actionRect = tester.getRect(find.bySemanticsLabel(label));
       final labelRect = visualRect(tester, find.text(label));
       expect(actionRect.width, closeTo(surfaceRect.width / 5, 0.01));
@@ -303,7 +319,7 @@ void main() {
       (tester) async {
     final container = containerFor(
       role: UserRole.consumer,
-      initialTab: MainNavigationTab.chats,
+      initialTab: MainNavigationTab.purchases,
     );
     addTearDown(container.dispose);
 
@@ -311,7 +327,12 @@ void main() {
 
     final semantics = tester.ensureSemantics();
     try {
-      for (final label in const ['Inicio', 'Chats', 'Compras', 'Perfil']) {
+      for (final label in const [
+        'Inicio',
+        'Compras',
+        'Solicitudes',
+        'Perfil'
+      ]) {
         final action = find.bySemanticsLabel(label);
         expect(action, findsOneWidget);
         final data = tester.getSemantics(action).getSemanticsData();
@@ -321,7 +342,7 @@ void main() {
         expect(tester.getSize(action).height, greaterThanOrEqualTo(48));
         expect(
           data.flagsCollection.isSelected,
-          label == 'Chats' ? Tristate.isTrue : Tristate.isFalse,
+          label == 'Compras' ? Tristate.isTrue : Tristate.isFalse,
         );
       }
 
@@ -343,7 +364,12 @@ void main() {
 
     await tester.pumpWidget(subject(container));
 
-    for (final label in const ['Inicio', 'Chats', 'Ventas', 'Perfil']) {
+    for (final label in const [
+      'Inicio',
+      'Mis ventas',
+      'Solicitudes',
+      'Perfil'
+    ]) {
       final inkWell = tester.widget<InkWell>(
         find.descendant(
           of: find.bySemanticsLabel(label),
@@ -371,7 +397,8 @@ void main() {
     );
 
     final selectedRect = tester.getRect(find.bySemanticsLabel(logoSemantics));
-    container.read(homeTabProvider.notifier).state = MainNavigationTab.chats;
+    container.read(homeTabProvider.notifier).state =
+        MainNavigationTab.purchases;
     await tester.pump();
     final unselectedRect = tester.getRect(find.bySemanticsLabel(logoSemantics));
     final positionTween = tester.widget<TweenAnimationBuilder<double>>(
@@ -419,7 +446,12 @@ void main() {
         );
         await tester.pump();
 
-        for (final label in const ['Inicio', 'Chats', 'Compras', 'Perfil']) {
+        for (final label in const [
+          'Inicio',
+          'Compras',
+          'Solicitudes',
+          'Perfil'
+        ]) {
           final labelRect = visualRect(tester, find.text(label));
           final slotRect = tester.getRect(find.bySemanticsLabel(label));
           if (labelRect.left < slotRect.left - 0.01 ||
@@ -459,8 +491,8 @@ void main() {
     final baselineBottoms = <String, double>{
       for (final label in const [
         'Inicio',
-        'Chats',
         'Compras',
+        'Solicitudes',
         'Perfil',
         logoSemantics,
       ])
@@ -479,8 +511,8 @@ void main() {
     expect(tester.getRect(find.byType(BottomNavBar)).bottom, height);
     for (final label in const [
       'Inicio',
-      'Chats',
       'Compras',
+      'Solicitudes',
       'Perfil',
       logoSemantics,
     ]) {
@@ -513,7 +545,7 @@ void main() {
             alignment: Alignment.bottomCenter,
             child: Padding(
               padding: EdgeInsets.only(
-                bottom: bottomNavContentInset(context),
+                bottom: bottomNavigationContentInset(context),
               ),
               child: const SizedBox(
                 key: markerKey,
@@ -536,7 +568,12 @@ void main() {
             'surface=$surfaceRect marker=$markerRect',
       );
 
-      for (final label in const ['Inicio', 'Chats', 'Compras', 'Perfil']) {
+      for (final label in const [
+        'Inicio',
+        'Compras',
+        'Solicitudes',
+        'Perfil'
+      ]) {
         final actionRect = tester.getRect(find.bySemanticsLabel(label));
         expect(actionRect.top, greaterThanOrEqualTo(surfaceRect.top));
         expect(

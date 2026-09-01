@@ -465,9 +465,9 @@ class _BrandHeader extends StatelessWidget {
             'assets/images/logo.png',
             width: double.infinity,
             fit: BoxFit.contain,
-            semanticLabel: 'guIAutomotriz HN',
+            semanticLabel: 'GuIA Automotriz HN',
             errorBuilder: (_, __, ___) => Text(
-              'guIAutomotriz HN',
+              'GuIA Automotriz HN',
               textAlign: TextAlign.center,
               style: _font(24, FontWeight.w800, _ink, letterSpacing: -0.3),
             ),

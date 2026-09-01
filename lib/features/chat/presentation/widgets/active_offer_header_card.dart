@@ -18,8 +18,6 @@ class ActiveOfferHeaderCard extends StatefulWidget {
   final VoidCallback? onDeliverPressed;
   final VoidCallback? onCancelPressed;
   final VoidCallback? onReviewPressed;
-  final bool reviewHandledLocally;
-  final bool reviewHandlingStatusLoading;
   final bool isCancelling;
   final bool isDelivering;
 
@@ -31,8 +29,6 @@ class ActiveOfferHeaderCard extends StatefulWidget {
     this.onDeliverPressed,
     this.onCancelPressed,
     this.onReviewPressed,
-    this.reviewHandledLocally = false,
-    this.reviewHandlingStatusLoading = false,
     this.isCancelling = false,
     this.isDelivering = false,
   });
@@ -620,18 +616,6 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
 
   Widget _buildReviewSection(
       BuildContext context, ChatConversation details, bool isStore) {
-    if (widget.reviewHandlingStatusLoading && !isStore) {
-      return const SizedBox(
-        height: 48,
-        child: Center(
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: AppColors.primary,
-          ),
-        ),
-      );
-    }
-
     if (details.hasReviewed) {
       return Container(
         width: double.infinity,
@@ -688,37 +672,6 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                 ),
               ),
             ],
-          ],
-        ),
-      );
-    }
-
-    if (widget.reviewHandledLocally && !isStore) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.successLight.withValues(alpha: 0.45),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: AppColors.success.withValues(alpha: 0.3),
-          ),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.check_circle_rounded,
-                color: AppColors.successInk, size: 20),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'VALORACIÓN ENVIADA',
-                style: GoogleFonts.hankenGrotesk(
-                  color: AppColors.successInk,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12,
-                ),
-              ),
-            ),
           ],
         ),
       );

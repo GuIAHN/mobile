@@ -9,6 +9,41 @@ import 'package:mocktail/mocktail.dart';
 class _MockDioClient extends Mock implements DioClient {}
 
 void main() {
+  test('reads offers from the new paginated response envelope', () async {
+    final client = _MockDioClient();
+    final endpoint = ApiEndpoints.searchOffers('request-paginated');
+    when(() => client.get(endpoint)).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: endpoint),
+        statusCode: 200,
+        data: const {
+          'items': [
+            {
+              'id': 'offer-1',
+              'createdAt': '2026-08-30T12:00:00.000Z',
+              'status': 'SENT',
+              'price': 100,
+              'store': {'name': 'Tienda 01'},
+            },
+          ],
+          'total': 1,
+          'page': 1,
+          'pageSize': 50,
+          'counts': {'all': 1, 'quotes': 1, 'questions': 0},
+        },
+      ),
+    );
+    final dataSource = ChatRemoteDataSource(client, () => 'consumer-1');
+
+    final result = await dataSource.getConversations(
+      'request-paginated',
+      UserRole.consumer,
+    );
+
+    expect(result.single.offerId, 'offer-1');
+    expect(result.single.price, 100);
+  });
+
   test('loads only the latest message and resolves its authorship', () async {
     final client = _MockDioClient();
     const endpoint = 'conversations/conversation-1/messages?limit=1';

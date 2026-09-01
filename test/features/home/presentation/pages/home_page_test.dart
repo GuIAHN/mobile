@@ -26,9 +26,9 @@ import 'package:guiautomotriz_mobile/features/home/domain/entities/home_item.dar
 import 'package:guiautomotriz_mobile/features/home/domain/entities/promo.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/pages/home_page.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
-import 'package:guiautomotriz_mobile/features/home/presentation/widgets/navigation/bottom_nav_bar.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/promo_carousel.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/sections/top_providers_section.dart';
+import 'package:guiautomotriz_mobile/shared/layout/bottom_navigation_insets.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/header/home_header_expanded.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/spare_part_wizard_page.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/store_dashboard/store_dashboard_view.dart';
@@ -423,7 +423,7 @@ void main() {
     );
     expect(mechanicsSection.serviceType, ServiceType.mechanic);
     expect(find.text('Mi garage'), findsNothing);
-    expect(find.text('Chats'), findsOneWidget);
+    expect(find.text('Solicitudes'), findsOneWidget);
     expect(find.text('Compras'), findsOneWidget);
     expect(
       find.byWidgetPredicate(
@@ -859,7 +859,7 @@ void main() {
       ),
     );
     addTearDown(container.dispose);
-    container.read(homeTabProvider.notifier).state = MainNavigationTab.commerce;
+    container.read(homeTabProvider.notifier).state = MainNavigationTab.requests;
 
     for (final configuration in const [
       (size: Size(375, 812), textScale: 1.0),
@@ -902,7 +902,7 @@ void main() {
       );
       expect(
         (list.padding! as EdgeInsets).bottom,
-        greaterThanOrEqualTo(bottomNavContentInset(
+        greaterThanOrEqualTo(bottomNavigationContentInset(
           tester.element(chatList),
         )),
         reason: 'The list still needs enough trailing scroll space for its '

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/entities/pending_review.dart';
@@ -12,7 +13,6 @@ import '../../domain/entities/review.dart';
 import '../../../../core/utils/media_url.dart';
 import '../providers/reviews_providers.dart';
 import '../widgets/write_review_bottom_sheet.dart';
-import '../../../home/presentation/providers/home_providers.dart';
 
 class PendingReviewsPage extends ConsumerWidget {
   const PendingReviewsPage({super.key});
@@ -35,12 +35,6 @@ class PendingReviewsPage extends ConsumerWidget {
     );
     if (!context.mounted) return;
     if (saved == true) {
-      final conversationId = item.conversationId;
-      if (conversationId != null) {
-        await markStoreReviewHandled(ref, conversationId);
-      }
-      if (!context.mounted) return;
-      ref.read(homeTabProvider.notifier).state = MainNavigationTab.home;
       context.go(RouteNames.home);
     }
   }
@@ -77,7 +71,7 @@ class PendingReviewsPage extends ConsumerWidget {
         leading: IconButton(
           tooltip: 'Volver',
           onPressed: () => context.pop(),
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          icon: const AppLineIcon(AppIcons.back),
         ),
         title: Text('Reseñas pendientes', style: AppTypography.title),
       ),
@@ -155,8 +149,8 @@ class _PendingReviewCard extends StatelessWidget {
                     child: photoUrl == null
                         ? const ColoredBox(
                             color: AppColors.primaryMuted,
-                            child: Icon(
-                              Icons.storefront_rounded,
+                            child: AppLineIcon(
+                              AppIcons.store,
                               color: AppColors.primaryInk,
                             ),
                           )
@@ -165,8 +159,8 @@ class _PendingReviewCard extends StatelessWidget {
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => const ColoredBox(
                               color: AppColors.primaryMuted,
-                              child: Icon(
-                                Icons.storefront_rounded,
+                              child: AppLineIcon(
+                                AppIcons.store,
                                 color: AppColors.primaryInk,
                               ),
                             ),
@@ -200,7 +194,10 @@ class _PendingReviewCard extends StatelessWidget {
               height: AppSpacing.buttonHeightMd,
               child: ElevatedButton.icon(
                 onPressed: onPressed,
-                icon: const Icon(Icons.star_outline_rounded, size: 20),
+                icon: const AppLineIcon(
+                  AppIcons.rating,
+                  size: AppIconSize.action,
+                ),
                 label: Text(
                   item.hasReviewed ? 'EDITAR VALORACIÓN' : 'DEJAR VALORACIÓN',
                   style: AppTypography.label.copyWith(color: Colors.white),
@@ -259,8 +256,11 @@ class _PendingError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded,
-                size: 56, color: AppColors.textSecondary),
+            const AppLineIcon(
+              AppIcons.cloudError,
+              size: 56,
+              color: AppColors.textSecondary,
+            ),
             const SizedBox(height: AppSpacing.lg),
             Text('No pudimos cargar tus reseñas', style: AppTypography.h2),
             const SizedBox(height: AppSpacing.sm),
@@ -305,8 +305,13 @@ class _PendingEmpty extends ConsumerWidget {
                 color: AppColors.successLight,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.check_rounded,
-                  size: 36, color: AppColors.successInk),
+              child: const Center(
+                child: AppLineIcon(
+                  AppIcons.selected,
+                  size: 36,
+                  color: AppColors.successInk,
+                ),
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text('Estás al día', style: AppTypography.h2),
@@ -316,8 +321,6 @@ class _PendingEmpty extends ConsumerWidget {
             const SizedBox(height: AppSpacing.xl2),
             ElevatedButton(
               onPressed: () {
-                ref.read(homeTabProvider.notifier).state =
-                    MainNavigationTab.home;
                 context.go(RouteNames.home);
               },
               style: ElevatedButton.styleFrom(

@@ -193,10 +193,7 @@ final searchVehicleModelIdProvider = StateProvider<String?>((ref) {
 
 /// Destinos estables de la navegación principal.
 ///
-/// [commerce] se presenta como "Compras" para quien solicita repuestos y
-/// como "Ventas" para la tienda. Mantener un valor semántico evita que el
-/// índice de Perfil cambie según el rol, como ocurría con los enteros.
-enum MainNavigationTab { home, chats, commerce, profile }
+enum MainNavigationTab { home, purchases, requests, profile }
 
 final homeTabProvider = StateProvider<MainNavigationTab>((ref) {
   ref.watch(sessionGenerationProvider);
