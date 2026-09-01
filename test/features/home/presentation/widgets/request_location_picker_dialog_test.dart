@@ -1,10 +1,17 @@
+import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:guiautomotriz_mobile/core/services/location_service.dart';
-import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/request_location_picker_dialog.dart';
-import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/request_location_selection.dart';
+import 'package:guiautomotriz_mobile/core/error/failures.dart';
+import 'package:guiautomotriz_mobile/core/theme/app_icons.dart';
+import 'package:guiautomotriz_mobile/shared/location/domain/entities/place_search_result.dart';
+import 'package:guiautomotriz_mobile/shared/location/domain/entities/places_search_response.dart';
+import 'package:guiautomotriz_mobile/shared/location/domain/entities/request_location_selection.dart';
+import 'package:guiautomotriz_mobile/shared/location/domain/repositories/places_repository.dart';
+import 'package:guiautomotriz_mobile/shared/location/presentation/providers/places_providers.dart';
+import 'package:guiautomotriz_mobile/shared/location/presentation/widgets/request_location_picker_dialog.dart';
 import 'package:latlong2/latlong.dart';
 
 class _FakeLocationService extends LocationService {
@@ -58,6 +65,24 @@ class _DeniedLocationService extends LocationService {
       LocationPermission.denied;
 }
 
+class _FakePlacesRepository implements PlacesRepository {
+  _FakePlacesRepository({
+    this.response = const PlacesSearchResponse(results: []),
+    this.failure,
+  });
+
+  final PlacesSearchResponse response;
+  final Failure? failure;
+  String? lastQuery;
+
+  @override
+  Future<Either<Failure, PlacesSearchResponse>> search(String query) async {
+    lastQuery = query;
+    if (failure != null) return Left(failure!);
+    return Right(response);
+  }
+}
+
 Widget _testApp({
   required ValueChanged<RequestLocationSelection?> onResult,
   RequestLocationSelection? initialSelection,
@@ -65,6 +90,7 @@ Widget _testApp({
   double textScale = 1,
   bool disableAnimations = false,
   ProviderContainer? container,
+  PlacesRepository? placesRepository,
 }) {
   final app = MaterialApp(
     builder: (context, child) => MediaQuery(
@@ -114,12 +140,126 @@ Widget _testApp({
       locationServiceProvider.overrideWithValue(
         locationService ?? _FakeLocationService(),
       ),
+      placesRepositoryProvider.overrideWithValue(
+        placesRepository ?? _FakePlacesRepository(),
+      ),
     ],
     child: app,
   );
 }
 
 void main() {
+  testWidgets('a Google Places result selects its coordinates and label',
+      (tester) async {
+    final places = _FakePlacesRepository(
+      response: const PlacesSearchResponse(
+        results: [
+          PlaceSearchResult(
+            placeId: 'place-1',
+            name: 'Mall Multiplaza',
+            formattedAddress: 'Tegucigalpa, Francisco Morazán, Honduras',
+            latitude: 14.0847,
+            longitude: -87.1842,
+          ),
+        ],
+      ),
+    );
+    RequestLocationSelection? result;
+    await tester.pumpWidget(
+      _testApp(
+        placesRepository: places,
+        onResult: (value) => result = value,
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('open-location-picker')));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(AppIcons.search), findsOneWidget);
+    expect(find.text('Buscar'), findsOneWidget);
+    expect(
+      tester
+          .getSize(
+            find.byKey(const Key('submit-request-location-search')),
+          )
+          .height,
+      greaterThanOrEqualTo(48),
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('request-location-search')),
+      'Multiplaza',
+    );
+    await tester.tap(
+      find.byKey(const Key('submit-request-location-search')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(places.lastQuery, 'Multiplaza');
+    expect(find.text('Mall Multiplaza'), findsOneWidget);
+    expect(find.text('Google Maps'), findsOneWidget);
+
+    await tester.tap(find.text('Mall Multiplaza'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Tegucigalpa, Francisco Morazán, Honduras'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('confirm-request-location')));
+    await tester.pumpAndSettle();
+
+    expect(result?.latitude, 14.0847);
+    expect(result?.longitude, -87.1842);
+    expect(result?.source, RequestLocationSource.search);
+  });
+
+  testWidgets('an empty Places response remains recoverable', (tester) async {
+    await tester.pumpWidget(_testApp(onResult: (_) {}));
+
+    await tester.tap(find.byKey(const Key('open-location-picker')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('request-location-search')),
+      'Lugar inexistente',
+    );
+    await tester.tap(
+      find.byKey(const Key('submit-request-location-search')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('No encontramos resultados. Prueba otra búsqueda.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('request-location-search')), findsOneWidget);
+  });
+
+  testWidgets('a Places failure exposes a retry action', (tester) async {
+    await tester.pumpWidget(
+      _testApp(
+        placesRepository: _FakePlacesRepository(
+          failure: const ServerFailure(message: 'Servicio no disponible.'),
+        ),
+        onResult: (_) {},
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('open-location-picker')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('request-location-search')),
+      'Tegucigalpa',
+    );
+    await tester.tap(
+      find.byKey(const Key('submit-request-location-search')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Servicio no disponible.'), findsOneWidget);
+    expect(find.text('Reintentar'), findsOneWidget);
+  });
+
   testWidgets('a map tap updates the draft returned by confirmation',
       (tester) async {
     final container = ProviderContainer(
@@ -265,7 +405,7 @@ void main() {
     expect(result?.source, RequestLocationSource.mapTap);
   });
 
-  testWidgets('a tile failure shows a retryable map notice', (tester) async {
+  testWidgets('a map failure shows a retryable notice', (tester) async {
     await tester.pumpWidget(_testApp(onResult: (_) {}));
 
     await tester.tap(find.byKey(const Key('open-location-picker')));

@@ -27,10 +27,10 @@ import '../../../../reviews/presentation/providers/reviews_providers.dart';
 import '../../providers/home_providers.dart';
 import '../form_parts/form_part_type_selector.dart';
 import 'category_subcategory_selector_sheet.dart';
-import 'request_location_picker_dialog.dart';
-import 'request_location_preview.dart';
 import 'request_location_seed.dart';
-import 'request_location_selection.dart';
+import '../../../../../shared/location/domain/entities/request_location_selection.dart';
+import '../../../../../shared/location/presentation/widgets/request_location_picker_dialog.dart';
+import '../../../../../shared/location/presentation/widgets/request_location_preview.dart';
 
 // Parts
 part 'spare_part_wizard_step1.dart';

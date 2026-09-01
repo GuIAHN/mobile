@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/request_location_preview.dart';
-import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/request_location_selection.dart';
+import 'package:guiautomotriz_mobile/shared/location/domain/entities/request_location_selection.dart';
+import 'package:guiautomotriz_mobile/shared/location/presentation/widgets/request_location_preview.dart';
 
 Widget _testApp(Widget child, {double textScale = 1}) {
   return MaterialApp(

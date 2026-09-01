@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../../../../core/config/env.dart';
-import '../../../../../core/theme/app_colors.dart';
-import '../../../../../core/theme/app_icons.dart';
-import '../../../../../core/theme/app_spacing.dart';
-import '../../../../../core/theme/app_typography.dart';
-import 'request_location_selection.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../widgets/guia_map.dart';
+import '../../domain/entities/request_location_selection.dart';
 
 class RequestLocationPreview extends StatefulWidget {
   final RequestLocationSelection? selection;
@@ -28,19 +27,6 @@ class RequestLocationPreview extends StatefulWidget {
 }
 
 class _RequestLocationPreviewState extends State<RequestLocationPreview> {
-  bool _mapError = false;
-  int _mapRevision = 0;
-
-  @override
-  void didUpdateWidget(covariant RequestLocationPreview oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.selection?.latitude != widget.selection?.latitude ||
-        oldWidget.selection?.longitude != widget.selection?.longitude) {
-      _mapError = false;
-      _mapRevision++;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final selection = widget.selection;
@@ -92,52 +78,18 @@ class _RequestLocationPreviewState extends State<RequestLocationPreview> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        if (!_mapError)
-          IgnorePointer(
-            child: RepaintBoundary(
-              child: FlutterMap(
-                key: ValueKey('request-preview-map-$_mapRevision'),
-                options: MapOptions(
-                  initialCenter: point,
-                  initialZoom: 15,
-                  interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.none,
-                  ),
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate: Env.cartoBasemapUrl,
-                    userAgentPackageName: 'com.guiautomotriz.mobile',
-                    retinaMode: RetinaMode.isHighDensity(context),
-                    errorTileCallback: (_, __, ___) {
-                      if (mounted && !_mapError) {
-                        setState(() => _mapError = true);
-                      }
-                    },
-                  ),
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: point,
-                        width: 46,
-                        height: 46,
-                        child: _PreviewPin(source: selection.source),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+        IgnorePointer(
+          child: RepaintBoundary(
+            child: GuiaMap(
+              point: point,
+              height: double.infinity,
+              borderRadius: 0,
+              interactive: false,
+              showCoordinateLabel: false,
+              mapPadding: const EdgeInsets.only(bottom: 72),
             ),
-          )
-        else
-          _MapFallback(
-            onRetry: () {
-              setState(() {
-                _mapError = false;
-                _mapRevision++;
-              });
-            },
           ),
+        ),
         Align(
           alignment: Alignment.bottomCenter,
           child: Container(
@@ -267,56 +219,6 @@ class _EmptyMapPreview extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _PreviewPin extends StatelessWidget {
-  final RequestLocationSource source;
-
-  const _PreviewPin({required this.source});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.22),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Icon(
-        source == RequestLocationSource.gps
-            ? AppIcons.account
-            : AppIcons.location,
-        color: Colors.white,
-        size: 24,
-      ),
-    );
-  }
-}
-
-class _MapFallback extends StatelessWidget {
-  final VoidCallback onRetry;
-  const _MapFallback({required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: AppColors.grey100,
-      child: Center(
-        child: TextButton.icon(
-          onPressed: onRetry,
-          icon: const Icon(Icons.refresh_rounded),
-          label: const Text('Recargar mapa'),
-        ),
-      ),
     );
   }
 }

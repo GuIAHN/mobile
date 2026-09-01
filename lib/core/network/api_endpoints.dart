@@ -33,6 +33,9 @@ abstract class ApiEndpoints {
   // ── Home / Dashboard ──────────────────────────────────────────────────────
   static const String homeTopProviders = 'home/top-providers';
 
+  // ── Google Places (proxied by the backend) ───────────────────────────────
+  static const String placesSearch = 'places/search';
+
   // ── Notificaciones ────────────────────────────────────────────────────────
   static const String notifications = 'me/notifications';
   static const String notificationsReadAll = 'me/notifications/read-all';

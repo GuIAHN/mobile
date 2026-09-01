@@ -97,6 +97,19 @@ class ChatThread extends Equatable {
     this.lastMessage,
   });
 
+  /// Una consulta ya abrió una conversación, pero todavía no constituye una
+  /// cotización. Se toleran las tres señales que el API ha usado para este
+  /// estado para evitar que la UI la presente como una oferta enviada.
+  bool get isInquiryState =>
+      isInquiry ||
+      matchState?.toUpperCase() == 'INQUIRING' ||
+      offerStatus?.toUpperCase() == 'INQUIRY';
+
+  /// `hasOffer` también es true para consultas porque el backend conserva una
+  /// oferta INQUIRY como soporte del chat. Solo las no-consultas son una
+  /// cotización formal desde la perspectiva de la tienda.
+  bool get hasFormalQuote => hasOffer && !isInquiryState;
+
   @override
   List<Object?> get props => [
         id,

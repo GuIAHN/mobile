@@ -550,6 +550,22 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
   ChatThread get thread => widget.thread;
   bool get isStore => widget.isStore;
 
+  void _continueInquiry() {
+    final conversationId = thread.conversationId?.trim();
+    if (conversationId == null || conversationId.isEmpty) {
+      context.showSnackBar(
+        'No pudimos abrir la consulta. Actualiza e inténtalo nuevamente.',
+        isError: true,
+      );
+      ref.invalidate(storeSalesRequestsProvider);
+      return;
+    }
+
+    context.pushReplacement(
+      RouteNames.chatConversationPath(conversationId),
+    );
+  }
+
   Future<void> _startChat() async {
     if (_isStartingChat) return;
     setState(() => _isStartingChat = true);
@@ -788,83 +804,125 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
           const SizedBox(height: 24),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: thread.hasOffer
-                ? ElevatedButton.icon(
-                    onPressed: () {
-                      context.showSnackBar(
-                        'Ya enviaste una cotización para esta solicitud.',
-                      );
-                    },
-                    icon: const AppLineIcon(
-                      AppIcons.success,
-                      size: AppIconSize.action,
-                      color: AppColors.textOnPrimary,
-                    ),
-                    label: Text(
-                      thread.offerPrice != null
-                          ? 'COTIZACIÓN ENVIADA (\$${thread.offerPrice!.toStringAsFixed(2)})'
-                          : 'COTIZACIÓN ENVIADA',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.8,
-                        color: Colors.white,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.success,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(32),
-                      ),
-                    ),
-                  )
-                : ElevatedButton(
-                    onPressed: _isStartingChat ? null : _startChat,
+            child: thread.isInquiryState
+                ? ElevatedButton(
+                    key: const Key('continue-inquiry-button'),
+                    onPressed: _continueInquiry,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      minimumSize: const Size.fromHeight(56),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
                       elevation: 4,
                       shadowColor: AppColors.primary.withValues(alpha: 0.4),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(32),
                       ),
                     ),
-                    child: _isStartingChat
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const AppLineIcon(
+                          AppIcons.message,
+                          size: AppIconSize.action,
+                          color: AppColors.textOnPrimary,
+                        ),
+                        const SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            'CONTINUAR CONSULTA',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
                               color: Colors.white,
                             ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const AppLineIcon(
-                                AppIcons.message,
-                                size: AppIconSize.action,
-                                color: AppColors.textOnPrimary,
-                              ),
-                              const SizedBox(width: 10),
-                              Flexible(
-                                child: Text(
-                                  'INICIAR CHAT CON EL CLIENTE',
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.hankenGrotesk(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.2,
-                                  ),
-                                ),
-                              ),
-                            ],
                           ),
-                  ),
+                        ),
+                      ],
+                    ),
+                  )
+                : thread.hasFormalQuote
+                    ? ElevatedButton.icon(
+                        onPressed: () {
+                          context.showSnackBar(
+                            'Ya enviaste una cotización para esta solicitud.',
+                          );
+                        },
+                        icon: const AppLineIcon(
+                          AppIcons.success,
+                          size: AppIconSize.action,
+                          color: AppColors.textOnPrimary,
+                        ),
+                        label: Text(
+                          thread.offerPrice != null
+                              ? 'COTIZACIÓN ENVIADA (\$${thread.offerPrice!.toStringAsFixed(2)})'
+                              : 'COTIZACIÓN ENVIADA',
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.8,
+                            color: Colors.white,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.success,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(32),
+                          ),
+                        ),
+                      )
+                    : ElevatedButton(
+                        onPressed: _isStartingChat ? null : _startChat,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          elevation: 4,
+                          shadowColor: AppColors.primary.withValues(alpha: 0.4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(32),
+                          ),
+                        ),
+                        child: _isStartingChat
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const AppLineIcon(
+                                    AppIcons.message,
+                                    size: AppIconSize.action,
+                                    color: AppColors.textOnPrimary,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Flexible(
+                                    child: Text(
+                                      'INICIAR CHAT CON EL CLIENTE',
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.hankenGrotesk(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
           ),
         ],
       ],

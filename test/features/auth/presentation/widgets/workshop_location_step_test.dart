@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:guiautomotriz_mobile/core/services/location_service.dart';
 import 'package:guiautomotriz_mobile/features/auth/presentation/widgets/workshop_location_step.dart';
-import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/request_location_preview.dart';
+import 'package:guiautomotriz_mobile/shared/location/presentation/widgets/request_location_preview.dart';
 import 'package:latlong2/latlong.dart';
 
 class _FakeLocationService extends LocationService {

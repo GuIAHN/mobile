@@ -723,7 +723,7 @@ abstract class ContactActions {
 
 // ── Card de Ubicación y Mapa ──────────────────────────────────────────────
 
-/// Card de ubicación con mapa interactivo OpenStreetMap y botón para abrir en Google Maps.
+/// Card de ubicación con Google Maps y botón para abrir la navegación externa.
 class DetailLocationCard extends StatelessWidget {
   final String? direccion;
   final double? lat;
@@ -776,7 +776,7 @@ class DetailLocationCard extends StatelessWidget {
           const SizedBox(height: 14),
         ],
 
-        // Mapa real con OpenStreetMap via flutter_map usando el widget compartido
+        // Google Maps compartido por todas las superficies de ubicación.
         GuiaMap(
           point: point,
           isApproximate: !hasCoordinates,

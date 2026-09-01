@@ -13,8 +13,8 @@ import '../../../../shared/widgets/guia_map.dart';
 import '../../../../shared/widgets/primary_button.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../home/presentation/widgets/spare_part_wizard/request_location_picker_dialog.dart';
-import '../../../home/presentation/widgets/spare_part_wizard/request_location_selection.dart';
+import '../../../../shared/location/domain/entities/request_location_selection.dart';
+import '../../../../shared/location/presentation/widgets/request_location_picker_dialog.dart';
 
 typedef ProviderLocationPicker = Future<RequestLocationSelection?> Function(
   BuildContext context,

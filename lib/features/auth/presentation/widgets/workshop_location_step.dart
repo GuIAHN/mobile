@@ -6,9 +6,9 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../../core/services/location_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../home/presentation/widgets/spare_part_wizard/request_location_picker_dialog.dart';
-import '../../../home/presentation/widgets/spare_part_wizard/request_location_preview.dart';
-import '../../../home/presentation/widgets/spare_part_wizard/request_location_selection.dart';
+import '../../../../shared/location/domain/entities/request_location_selection.dart';
+import '../../../../shared/location/presentation/widgets/request_location_picker_dialog.dart';
+import '../../../../shared/location/presentation/widgets/request_location_preview.dart';
 
 /// Selector de ubicación compartido por los registros de proveedores.
 /// Usa la misma vista previa y el mismo mapa de la solicitud de repuestos.

@@ -1,4 +1,6 @@
-enum RequestLocationSource { gps, profile, mapTap }
+/// Origin of a reusable location selection across registration, requests and
+/// provider-profile flows.
+enum RequestLocationSource { gps, profile, mapTap, search }
 
 class RequestLocationSelection {
   final double latitude;
@@ -21,5 +23,6 @@ class RequestLocationSelection {
         RequestLocationSource.gps => 'Tu ubicación actual',
         RequestLocationSource.profile => 'Última ubicación guardada',
         RequestLocationSource.mapTap => 'Punto elegido en el mapa',
+        RequestLocationSource.search => 'Resultado de Google Maps',
       };
 }

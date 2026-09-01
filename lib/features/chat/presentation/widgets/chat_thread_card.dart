@@ -184,10 +184,9 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
     final bool isDiscarded = hasStoreOffer && thread.offerStatus == 'DISCARDED';
     final bool isCancelled = hasStoreOffer && thread.offerStatus == 'CANCELLED';
     final bool isDeclined = thread.matchState == 'DECLINED';
-    final bool isInquiry = thread.matchState == 'INQUIRING' || thread.isInquiry;
+    final bool isInquiry = thread.isInquiryState;
     final bool isQuoted = thread.matchState == 'QUOTED' ||
-        (hasStoreOffer &&
-            !isInquiry &&
+        (thread.hasFormalQuote &&
             !isBought &&
             !isDelivered &&
             !isDiscarded &&

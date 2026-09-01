@@ -13,7 +13,7 @@ import 'package:guiautomotriz_mobile/features/auth/domain/usecases/update_profil
 import 'package:guiautomotriz_mobile/features/auth/domain/usecases/upload_avatar_usecase.dart';
 import 'package:guiautomotriz_mobile/features/auth/presentation/providers/auth_provider.dart';
 import 'package:guiautomotriz_mobile/features/auth/presentation/providers/auth_state.dart';
-import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/request_location_selection.dart';
+import 'package:guiautomotriz_mobile/shared/location/domain/entities/request_location_selection.dart';
 import 'package:guiautomotriz_mobile/features/provider_profile/presentation/widgets/provider_location_card.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:mocktail/mocktail.dart';

@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../core/config/env.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as google;
+import 'package:latlong2/latlong.dart';
+
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_icons.dart';
+import 'guia_google_map.dart';
 
 class GuiaMap extends StatefulWidget {
   final LatLng point;
@@ -14,6 +18,8 @@ class GuiaMap extends StatefulWidget {
   final double borderRadius;
   final bool interactive;
   final ValueChanged<LatLng>? onTap;
+  final EdgeInsets mapPadding;
+  final bool showCoordinateLabel;
 
   const GuiaMap({
     super.key,
@@ -25,6 +31,8 @@ class GuiaMap extends StatefulWidget {
     this.borderRadius = 16,
     this.interactive = true,
     this.onTap,
+    this.mapPadding = EdgeInsets.zero,
+    this.showCoordinateLabel = true,
   });
 
   @override
@@ -32,28 +40,67 @@ class GuiaMap extends StatefulWidget {
 }
 
 class _GuiaMapState extends State<GuiaMap> {
+  google.GoogleMapController? _controller;
+  Timer? _readinessTimer;
+  bool _isReady = false;
   bool _mapError = false;
   int _mapRevision = 0;
 
   @override
+  void initState() {
+    super.initState();
+    _startReadinessTimer();
+  }
+
+  @override
   void didUpdateWidget(covariant GuiaMap oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.point != widget.point && _mapError) {
-      _mapError = false;
-      _mapRevision++;
+    if (oldWidget.point != widget.point) {
+      _controller?.animateCamera(
+        google.CameraUpdate.newLatLng(_googlePoint(widget.point)),
+      );
+      if (_mapError) _retryMap();
     }
   }
 
-  void _handleMapError() {
-    if (!mounted || _mapError) return;
-    setState(() => _mapError = true);
+  @override
+  void dispose() {
+    _readinessTimer?.cancel();
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  google.LatLng _googlePoint(LatLng point) =>
+      google.LatLng(point.latitude, point.longitude);
+
+  void _startReadinessTimer() {
+    _readinessTimer?.cancel();
+    _readinessTimer = Timer(const Duration(seconds: 8), () {
+      if (mounted && !_isReady) setState(() => _mapError = true);
+    });
+  }
+
+  void _handleMapCreated(google.GoogleMapController controller) {
+    _controller?.dispose();
+    _controller = controller;
+    _readinessTimer?.cancel();
+    if (mounted) {
+      setState(() {
+        _isReady = true;
+        _mapError = false;
+      });
+    }
   }
 
   void _retryMap() {
+    _controller?.dispose();
+    _controller = null;
     setState(() {
       _mapError = false;
+      _isReady = false;
       _mapRevision++;
     });
+    _startReadinessTimer();
   }
 
   @override
@@ -61,6 +108,7 @@ class _GuiaMapState extends State<GuiaMap> {
     final semanticsLabel = widget.onTap == null
         ? 'Mapa de la ubicación'
         : 'Mapa interactivo. Toca un punto para elegir la ubicación.';
+    final target = _googlePoint(widget.point);
 
     return Semantics(
       container: true,
@@ -80,63 +128,44 @@ class _GuiaMapState extends State<GuiaMap> {
         child: Stack(
           children: [
             if (!_mapError)
-              FlutterMap(
+              GuiaGoogleMap(
                 key: ValueKey('${widget.mapKey ?? 'guia-map'}-$_mapRevision'),
-                options: MapOptions(
-                  initialCenter: widget.point,
-                  initialZoom: widget.isApproximate ? 12.0 : 15.0,
-                  interactionOptions: InteractionOptions(
-                    flags: widget.interactive
-                        ? InteractiveFlag.drag | InteractiveFlag.pinchZoom
-                        : InteractiveFlag.none,
-                  ),
-                  onTap: widget.onTap == null
-                      ? null
-                      : (_, point) => widget.onTap!(point),
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate: Env.cartoBasemapUrl,
-                    userAgentPackageName: 'com.guiautomotriz.mobile',
-                    retinaMode: RetinaMode.isHighDensity(context),
-                    errorTileCallback: (_, __, ___) => _handleMapError(),
-                  ),
-                  if (!widget.isApproximate)
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: widget.point,
-                          width: 44,
-                          height: 44,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color:
-                                      AppColors.primary.withValues(alpha: 0.4),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.near_me_rounded,
-                              color: Colors.white,
-                              size: 22,
-                            ),
+                initialCenter: widget.point,
+                initialZoom: widget.isApproximate ? 12 : 15,
+                onMapCreated: _handleMapCreated,
+                onTap: widget.onTap,
+                padding: widget.mapPadding,
+                markers: widget.isApproximate || !widget.interactive
+                    ? const <google.Marker>{}
+                    : {
+                        google.Marker(
+                          markerId: const google.MarkerId('selected-location'),
+                          position: target,
+                          icon: google.BitmapDescriptor.defaultMarkerWithHue(
+                            google.BitmapDescriptor.hueOrange,
                           ),
                         ),
-                      ],
-                    ),
-                ],
+                      },
+                interactive: widget.interactive,
               )
             else
               _MapErrorState(onRetry: _retryMap),
-            if (!_mapError)
+            if (!_mapError && !widget.isApproximate && !widget.interactive)
+              const Positioned.fill(
+                child: IgnorePointer(
+                  child: Center(child: _BrandedMapMarker()),
+                ),
+              ),
+            if (!_mapError && !_isReady)
+              const ColoredBox(
+                color: AppColors.grey100,
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+              ),
+            if (!_mapError && _isReady && widget.showCoordinateLabel)
               Positioned(
-                bottom: 10,
+                bottom: 28,
                 left: 10,
                 child: Container(
                   padding:
@@ -161,10 +190,10 @@ class _GuiaMapState extends State<GuiaMap> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        !widget.isApproximate
-                            ? '${widget.point.latitude.toStringAsFixed(4)}, '
-                                '${widget.point.longitude.toStringAsFixed(4)}'
-                            : 'Ubicación aproximada',
+                        widget.isApproximate
+                            ? 'Ubicación aproximada'
+                            : '${widget.point.latitude.toStringAsFixed(4)}, '
+                                '${widget.point.longitude.toStringAsFixed(4)}',
                         style: GoogleFonts.hankenGrotesk(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -177,6 +206,38 @@ class _GuiaMapState extends State<GuiaMap> {
               ),
             if (widget.overlay != null) widget.overlay!,
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BrandedMapMarker extends StatelessWidget {
+  const _BrandedMapMarker();
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: Container(
+        key: const Key('guia-map-branded-marker'),
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.surface, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const AppLineIcon(
+          AppIcons.location,
+          size: AppIconSize.leading,
+          color: AppColors.surface,
         ),
       ),
     );

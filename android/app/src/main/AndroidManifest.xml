@@ -11,6 +11,9 @@
         android:name="${applicationName}"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher">
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
         <!-- Compatibility fallback for devices whose Vulkan/OpenGL drivers
              fail while Flutter initializes Impeller. -->
         <meta-data

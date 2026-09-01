@@ -37,6 +37,8 @@
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>GIDClientID</key>
 		<string>1062705330448-6nego3r9aaijmelviu38b7f5g09lb4te.apps.googleusercontent.com</string>
+		<key>GOOGLE_MAPS_API_KEY</key>
+		<string>$(GOOGLE_MAPS_API_KEY)</string>
 		<key>LSApplicationQueriesSchemes</key>
 		<array>
 			<string>tel</string>

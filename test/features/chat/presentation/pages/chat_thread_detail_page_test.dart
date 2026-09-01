@@ -26,6 +26,12 @@ void main() {
     String? details,
     String? partType,
     int? vehicleYear,
+    bool hasOffer = false,
+    bool isInquiry = false,
+    String? matchState,
+    String? offerStatus,
+    double? offerPrice,
+    String? conversationId,
   }) =>
       ChatThread(
         id: id,
@@ -40,6 +46,12 @@ void main() {
         details: details,
         partType: partType,
         vehicleYear: vehicleYear,
+        hasOffer: hasOffer,
+        isInquiry: isInquiry,
+        matchState: matchState,
+        offerStatus: offerStatus,
+        offerPrice: offerPrice,
+        conversationId: conversationId,
       );
 
   ChatConversation inquiry(String id) => ChatConversation(
@@ -176,6 +188,87 @@ void main() {
     completer.complete(Right(inquiry('conversation-1')));
     await tester.pumpAndSettle();
     expect(find.text('Chat abierto'), findsOneWidget);
+  });
+
+  testWidgets('existing inquiry continues chat and never looks quoted',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repository = _MockChatRepository();
+
+    await tester.pumpWidget(
+      subject(
+        repository: repository,
+        threads: [
+          thread(
+            'request-1',
+            hasOffer: true,
+            isInquiry: true,
+            matchState: 'INQUIRING',
+            offerStatus: 'INQUIRY',
+            conversationId: 'conversation-1',
+          ),
+        ],
+        textScaler: const TextScaler.linear(2),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('CONTINUAR CONSULTA'), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const Key('continue-inquiry-button'))).height,
+      greaterThanOrEqualTo(48),
+    );
+    expect(find.textContaining('COTIZACIÓN ENVIADA'), findsNothing);
+    expect(find.textContaining('Ya enviaste una cotización'), findsNothing);
+    expect(find.text('INICIAR CHAT CON EL CLIENTE'), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    await tester.ensureVisible(
+      find.byKey(const Key('continue-inquiry-button')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('continue-inquiry-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chat abierto'), findsOneWidget);
+    verifyNever(
+      () => repository.createQuote(
+        threadId: any(named: 'threadId'),
+        searchMatchId: any(named: 'searchMatchId'),
+        price: any(named: 'price'),
+        deliveryCost: any(named: 'deliveryCost'),
+        brand: any(named: 'brand'),
+        photoPath: any(named: 'photoPath'),
+      ),
+    );
+  });
+
+  testWidgets('formal quote keeps its quoted confirmation', (tester) async {
+    final repository = _MockChatRepository();
+
+    await tester.pumpWidget(
+      subject(
+        repository: repository,
+        threads: [
+          thread(
+            'request-1',
+            hasOffer: true,
+            matchState: 'QUOTED',
+            offerStatus: 'SENT',
+            offerPrice: 125,
+            conversationId: 'conversation-1',
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('COTIZACIÓN ENVIADA (\$125.00)'), findsOneWidget);
+    expect(find.text('CONTINUAR CONSULTA'), findsNothing);
   });
 
   testWidgets('places request text over the photo hero and offers filter below',
