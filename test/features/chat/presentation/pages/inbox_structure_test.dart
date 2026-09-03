@@ -133,6 +133,36 @@ void main() {
     expect(requestedStatuses, isNot(contains('PENDING')));
   });
 
+  testWidgets('store requests show the backend toDeliver count immediately',
+      (tester) async {
+    await pumpPage(
+      tester,
+      role: UserRole.store,
+      page: const StoreRequestsPage(),
+      storeResult: ChatThreadsResult(
+        threads: [storeRequest],
+        counts: const {
+          'toAnswer': 1,
+          'quoted': 0,
+          'toDeliver': 3,
+        },
+      ),
+    );
+
+    await openStatusSelector(
+      tester,
+      const Key('store-requests-filter-group'),
+    );
+
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('status-filter-bought')),
+        matching: find.text('3'),
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('consumer Chats contains conversations, not requests',
       (tester) async {
     await pumpPage(

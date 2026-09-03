@@ -298,7 +298,8 @@ class _RequestsInboxPageState extends ConsumerState<RequestsInboxPage> {
             .where((thread) =>
                 _matchesFilter(thread, _StatusFilter.quoted, isProvider))
             .length;
-    final boughtCount = counts['bought'] ??
+    final boughtCount = counts['toDeliver'] ??
+        counts['bought'] ??
         searchFiltered
             .where((thread) =>
                 _matchesFilter(thread, _StatusFilter.bought, isProvider))

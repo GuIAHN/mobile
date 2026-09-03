@@ -558,6 +558,7 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
         isError: true,
       );
       ref.invalidate(storeSalesRequestsProvider);
+      ref.invalidate(storeRequestsByStatusProvider);
       return;
     }
 
@@ -584,6 +585,7 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
         (newConv) {
           ref.invalidate(chatConversationsProvider(thread.id));
           ref.invalidate(storeSalesRequestsProvider);
+          ref.invalidate(storeRequestsByStatusProvider);
           ref.invalidate(myConversationsProvider);
           context.pushReplacement(
             RouteNames.chatConversationPath(newConv.id),

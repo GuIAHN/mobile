@@ -160,6 +160,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
               chatConversationDetailsProvider(widget.conversationId));
           ref.invalidate(myConversationsProvider);
           ref.invalidate(storeSalesRequestsProvider);
+          ref.invalidate(storeRequestsByStatusProvider);
         },
       );
     } finally {
@@ -222,6 +223,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
     ref.invalidate(myConversationsProvider);
     ref.invalidate(consumerRequestsProvider);
     ref.invalidate(storeSalesRequestsProvider);
+    ref.invalidate(storeRequestsByStatusProvider);
     ref.invalidate(storeDashboardProvider);
   }
 
@@ -249,6 +251,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
           );
           ref.invalidate(myConversationsProvider);
           ref.invalidate(storeSalesRequestsProvider);
+          ref.invalidate(storeRequestsByStatusProvider);
           ref.invalidate(storeDashboardProvider);
         },
       );
@@ -288,6 +291,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
       ref.invalidate(chatConversationDetailsProvider(widget.conversationId));
       ref.invalidate(myConversationsProvider);
       ref.invalidate(storeSalesRequestsProvider);
+      ref.invalidate(storeRequestsByStatusProvider);
       ref.invalidate(storeDashboardProvider);
       await ref
           .read(chatMessagesProvider(widget.conversationId).notifier)

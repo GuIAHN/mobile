@@ -144,6 +144,71 @@ void main() {
     ).called(1);
   });
 
+  test('store request counts refresh after an offer status event', () async {
+    final socket = _MockSocketService();
+    final getThreads = _MockGetChatThreadsUseCase();
+    final reconnected = StreamController<void>.broadcast();
+    final matched = StreamController<Map<String, dynamic>>.broadcast();
+    final offers = StreamController<Map<String, dynamic>>.broadcast();
+    final messages = StreamController<Map<String, dynamic>>.broadcast();
+    final notifications = StreamController<Map<String, dynamic>>.broadcast();
+    addTearDown(reconnected.close);
+    addTearDown(matched.close);
+    addTearDown(offers.close);
+    addTearDown(messages.close);
+    addTearDown(notifications.close);
+
+    when(() => socket.onReconnect).thenAnswer((_) => reconnected.stream);
+    when(() => socket.onSearchMatched).thenAnswer((_) => matched.stream);
+    when(() => socket.onOfferUpdated).thenAnswer((_) => offers.stream);
+    when(() => socket.onMessage).thenAnswer((_) => messages.stream);
+    when(() => socket.onNotification).thenAnswer((_) => notifications.stream);
+
+    var fetchCount = 0;
+    when(
+      () => getThreads(
+        role: UserRole.store,
+        statusFilter: 'TO_ANSWER',
+      ),
+    ).thenAnswer((_) async {
+      fetchCount += 1;
+      return Right(
+        ChatThreadsResult(
+          threads: const [],
+          counts: {'toDeliver': fetchCount == 1 ? 0 : 1},
+        ),
+      );
+    });
+
+    final container = ProviderContainer(
+      overrides: [
+        socketServiceProvider.overrideWithValue(socket),
+        getChatThreadsUseCaseProvider.overrideWithValue(getThreads),
+      ],
+    );
+    addTearDown(container.dispose);
+    final provider = storeRequestsByStatusProvider('TO_ANSWER');
+    final subscription = container.listen(
+      provider,
+      (_, __) {},
+      fireImmediately: true,
+    );
+    addTearDown(subscription.close);
+
+    final initial = await container.read(provider.future);
+    expect(initial.counts['toDeliver'], 0);
+
+    offers.add(const {
+      'offerId': 'offer-1',
+      'status': 'BOUGHT',
+    });
+    await pumpEventQueue();
+
+    final refreshed = await container.read(provider.future);
+    expect(refreshed.counts['toDeliver'], 1);
+    expect(fetchCount, 2);
+  });
+
   test(
       'consumer requests stay loaded while only the matching chat card updates',
       () async {

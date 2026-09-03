@@ -62,6 +62,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
         (_) {
           if (mounted) {
             ref.invalidate(storeSalesRequestsProvider);
+            ref.invalidate(storeRequestsByStatusProvider);
             ref.invalidate(storeDashboardProvider);
           }
         },
@@ -94,6 +95,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
         ),
         (_) {
           ref.invalidate(storeSalesRequestsProvider);
+          ref.invalidate(storeRequestsByStatusProvider);
           ref.invalidate(storeDashboardProvider);
         },
       );
@@ -123,6 +125,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
         ),
         (_) {
           ref.invalidate(storeSalesRequestsProvider);
+          ref.invalidate(storeRequestsByStatusProvider);
           ref.invalidate(storeDashboardProvider);
         },
       );
@@ -146,6 +149,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
         ),
         (_) {
           ref.invalidate(storeSalesRequestsProvider);
+          ref.invalidate(storeRequestsByStatusProvider);
           ref.invalidate(storeDashboardProvider);
         },
       );
