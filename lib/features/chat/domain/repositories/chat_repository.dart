@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/chat_threads_result.dart';
+import '../entities/chat_thread.dart';
 import '../entities/chat_conversation.dart';
 import '../entities/chat_message.dart';
 import '../../../../core/domain/enums/user_role.dart';
@@ -11,6 +12,11 @@ abstract class ChatRepository {
     String? statusFilter,
     int page = 1,
     int pageSize = 20,
+  });
+
+  Future<Either<Failure, ChatThread>> getRequestDetail(
+    String requestId, {
+    UserRole? role,
   });
 
   Future<Either<Failure, List<ChatConversation>>> getConversations(

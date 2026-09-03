@@ -15,6 +15,7 @@ import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_threads_
 import 'package:guiautomotriz_mobile/features/chat/domain/repositories/chat_repository.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/pages/chat_thread_detail_page.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/providers/chat_providers.dart';
+import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockChatRepository extends Mock implements ChatRepository {}
@@ -32,6 +33,7 @@ void main() {
     String? offerStatus,
     double? offerPrice,
     String? conversationId,
+    String? fotoUrl,
   }) =>
       ChatThread(
         id: id,
@@ -52,6 +54,7 @@ void main() {
         offerStatus: offerStatus,
         offerPrice: offerPrice,
         conversationId: conversationId,
+        fotoUrl: fotoUrl,
       );
 
   ChatConversation inquiry(String id) => ChatConversation(
@@ -72,10 +75,23 @@ void main() {
     List<ChatConversation> conversations = const [],
     TextScaler textScaler = TextScaler.noScaling,
     EdgeInsets safeAreaPadding = EdgeInsets.zero,
+    List<ChatThread>? listThreads,
+    Future<ChatThread?> Function()? loadDetail,
   }) {
     final router = GoRouter(
       initialLocation: '/sales/request-1',
       routes: [
+        GoRoute(
+          path: '/home',
+          builder: (_, __) => const Scaffold(
+            key: Key('home-shell'),
+            body: Text('Solicitudes'),
+            bottomNavigationBar: SizedBox(
+              key: Key('main-menu'),
+              height: 80,
+            ),
+          ),
+        ),
         GoRoute(
           path: '/sales',
           builder: (_, __) => const Scaffold(body: Text('Ventas')),
@@ -99,7 +115,7 @@ void main() {
         chatRepositoryProvider.overrideWithValue(repository),
         storeSalesRequestsProvider.overrideWith(
           (ref) async => ChatThreadsResult(
-            threads: threads,
+            threads: listThreads ?? threads,
           ),
         ),
         consumerRequestsProvider.overrideWith(
@@ -110,6 +126,14 @@ void main() {
         chatConversationsProvider('request-1').overrideWith(
           (ref) async => conversations,
         ),
+        requestDetailProvider((requestId: 'request-1', role: role))
+            .overrideWith((ref) async {
+          if (loadDetail != null) return loadDetail();
+          for (final candidate in threads) {
+            if (candidate.id == 'request-1') return candidate;
+          }
+          return null;
+        }),
       ],
       child: MaterialApp.router(
         routerConfig: router,
@@ -136,6 +160,19 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Solicitud no disponible'), findsOneWidget);
+    expect(
+      find.text('Puede haber expirado, sido cerrada o ya no estar disponible.'),
+      findsOneWidget,
+    );
+    expect(find.text('Volver a solicitudes'), findsOneWidget);
+    expect(
+      tester
+          .getSize(
+            find.widgetWithText(OutlinedButton, 'Volver a solicitudes'),
+          )
+          .height,
+      greaterThanOrEqualTo(48),
+    );
     expect(find.text('Toyota Corolla'), findsNothing);
     expect(find.text('INICIAR CHAT CON EL CLIENTE'), findsNothing);
     verifyNever(
@@ -148,6 +185,94 @@ void main() {
         photoPath: any(named: 'photoPath'),
       ),
     );
+  });
+
+  testWidgets('loads a new request detail independently from a stale list',
+      (tester) async {
+    final repository = _MockChatRepository();
+
+    await tester.pumpWidget(
+      subject(
+        repository: repository,
+        threads: [thread('request-1')],
+        listThreads: const [],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Toyota Corolla'), findsOneWidget);
+    expect(find.text('Solicitud no disponible'), findsNothing);
+  });
+
+  testWidgets('request detail exposes loading before rendering data',
+      (tester) async {
+    final repository = _MockChatRepository();
+    final completer = Completer<ChatThread?>();
+    final request = thread('request-1');
+
+    await tester.pumpWidget(
+      subject(
+        repository: repository,
+        threads: [request],
+        loadDetail: () => completer.future,
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const Key('request-detail-loading')), findsOneWidget);
+
+    completer.complete(request);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Toyota Corolla'), findsOneWidget);
+  });
+
+  testWidgets('missing deep link returns to the requests tab with its menu',
+      (tester) async {
+    final repository = _MockChatRepository();
+
+    await tester.pumpWidget(
+      subject(repository: repository, threads: const []),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Volver a solicitudes'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('home-shell')), findsOneWidget);
+    expect(find.byKey(const Key('main-menu')), findsOneWidget);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const Key('home-shell'))),
+    );
+    expect(container.read(homeTabProvider), MainNavigationTab.requests);
+  });
+
+  testWidgets('request detail error keeps a retry path', (tester) async {
+    final repository = _MockChatRepository();
+    var attempts = 0;
+    final request = thread('request-1');
+
+    await tester.pumpWidget(
+      subject(
+        repository: repository,
+        threads: [request],
+        loadDetail: () async {
+          attempts += 1;
+          if (attempts == 1) throw Exception('network');
+          return request;
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No pudimos cargar la solicitud'), findsOneWidget);
+    expect(find.text('Reintentar'), findsOneWidget);
+
+    await tester.tap(find.text('Reintentar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Toyota Corolla'), findsOneWidget);
+    expect(attempts, 2);
   });
 
   testWidgets('submits the start-chat inquiry only once while pending',
@@ -269,6 +394,44 @@ void main() {
 
     expect(find.text('COTIZACIÓN ENVIADA (\$125.00)'), findsOneWidget);
     expect(find.text('CONTINUAR CONSULTA'), findsNothing);
+  });
+
+  testWidgets('does not show a generic car when the request has no photo',
+      (tester) async {
+    final repository = _MockChatRepository();
+
+    await tester.pumpWidget(
+      subject(repository: repository, threads: [thread('request-1')]),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.image(const AssetImage('assets/images/header_car.png')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('request-no-photo-background')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('shows only the photo uploaded with the request', (tester) async {
+    const photoUrl = 'https://example.com/request-photo.jpg';
+    final repository = _MockChatRepository();
+
+    await tester.pumpWidget(
+      subject(
+        repository: repository,
+        threads: [thread('request-1', fotoUrl: photoUrl)],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.image(const NetworkImage(photoUrl)), findsOneWidget);
+    expect(
+      find.image(const AssetImage('assets/images/header_car.png')),
+      findsNothing,
+    );
   });
 
   testWidgets('places request text over the photo hero and offers filter below',

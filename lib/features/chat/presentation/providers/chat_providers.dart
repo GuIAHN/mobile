@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/datasources/chat_remote_datasource.dart';
 import '../../data/repositories/chat_repository_impl.dart';
 import '../../domain/entities/chat_threads_result.dart';
+import '../../domain/entities/chat_thread.dart';
 import '../../domain/entities/chat_conversation.dart';
 import '../../domain/entities/chat_message.dart';
 import '../../domain/repositories/chat_repository.dart';
 import '../../domain/usecases/get_chat_threads_usecase.dart';
+import '../../domain/usecases/get_request_detail_usecase.dart';
 import '../../domain/usecases/get_conversations_usecase.dart';
 import '../../domain/usecases/get_messages_usecase.dart';
 import '../../domain/usecases/create_quote_usecase.dart';
@@ -21,6 +23,7 @@ import '../../domain/usecases/undo_decline_usecase.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/providers/cache_for.dart';
 import '../../../../core/domain/enums/user_role.dart';
+import '../../../../core/error/failures.dart';
 import '../../../../core/services/socket_service.dart';
 import '../../../../core/session/session_generation_provider.dart';
 import '../../../../core/storage/secure_storage.dart';
@@ -47,6 +50,11 @@ final chatRepositoryProvider = Provider<ChatRepository>((ref) {
 
 final getChatThreadsUseCaseProvider = Provider<GetChatThreadsUseCase>((ref) {
   return GetChatThreadsUseCase(ref.watch(chatRepositoryProvider));
+});
+
+final getRequestDetailUseCaseProvider =
+    Provider<GetRequestDetailUseCase>((ref) {
+  return GetRequestDetailUseCase(ref.watch(chatRepositoryProvider));
 });
 
 final getConversationsUseCaseProvider =
@@ -476,6 +484,28 @@ final storeRequestsByStatusProvider = FutureProvider.family
   return result.fold(
     (failure) => throw Exception(failure.message),
     (requests) => requests,
+  );
+});
+
+typedef RequestDetailKey = ({String requestId, UserRole role});
+
+/// Detalle estable por ID, independiente del filtro y de la página visible en
+/// las bandejas. Un 404 se representa como ausencia real; los demás fallos
+/// conservan el estado de error y la acción de reintento de la pantalla.
+final requestDetailProvider = FutureProvider.autoDispose
+    .family<ChatThread?, RequestDetailKey>((ref, key) async {
+  ref.watch(sessionGenerationProvider);
+  ref.watch(
+    _chatRealtimeRevisionProvider.select((value) => value.details),
+  );
+  final useCase = ref.watch(getRequestDetailUseCaseProvider);
+  final result = await useCase(key.requestId, role: key.role);
+  return result.fold(
+    (failure) {
+      if (failure is NotFoundFailure) return null;
+      throw Exception(failure.message);
+    },
+    (request) => request,
   );
 });
 

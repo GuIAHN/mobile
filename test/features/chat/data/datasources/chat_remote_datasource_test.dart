@@ -504,4 +504,97 @@ void main() {
     expect(result.searchMatchId, 'match-fallback');
     verify(() => client.get(fallbackEndpoint)).called(1);
   });
+
+  test('loads a store request detail by id and maps the nested offer',
+      () async {
+    final client = _MockDioClient();
+    final endpoint = ApiEndpoints.storeSearchRequestDetail('request-1');
+    when(() => client.get(endpoint)).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: endpoint),
+        statusCode: 200,
+        data: const {
+          'id': 'request-1',
+          'searchMatchId': 'match-1',
+          'matchState': 'INQUIRING',
+          'vehicle': {
+            'brand': 'Audi',
+            'model': '80',
+            'year': 1992,
+          },
+          'subcategory': {'id': 'subcategory-1', 'name': 'Conexiones'},
+          'consumerName': 'Carlos',
+          'createdAt': '2026-09-03T12:00:00.000Z',
+          'lastMessageAt': '2026-09-03T12:05:00.000Z',
+          'expiresAt': '2026-09-05T12:00:00.000Z',
+          'requestStatus': 'OPEN',
+          'isExpired': false,
+          'conversationId': 'conversation-1',
+          'myOffer': {
+            'id': 'offer-1',
+            'status': 'INQUIRY',
+            'price': null,
+            'deliveryCost': 5,
+            'totalCost': 5,
+          },
+        },
+      ),
+    );
+    final dataSource = ChatRemoteDataSource(client, () => 'store-1');
+
+    final result =
+        await dataSource.getRequestDetail('request-1', UserRole.store);
+
+    expect(result.title, 'Audi 80');
+    expect(result.subcategory, 'Conexiones');
+    expect(result.searchMatchId, 'match-1');
+    expect(result.offerId, 'offer-1');
+    expect(result.conversationId, 'conversation-1');
+    expect(result.isInquiryState, isTrue);
+    expect(result.deliveryCost, 5);
+    verify(() => client.get(endpoint)).called(1);
+  });
+
+  test('loads a consumer request detail by id', () async {
+    final client = _MockDioClient();
+    final endpoint = ApiEndpoints.searchDetail('request-2');
+    when(() => client.get(endpoint)).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: endpoint),
+        statusCode: 200,
+        data: const {
+          'id': 'request-2',
+          'consumerId': 'consumer-1',
+          'vehicle': {
+            'model': {
+              'name': 'Corolla',
+              'brand': {'name': 'Toyota'},
+            },
+            'year': 2020,
+          },
+          'subcategory': {'id': 'subcategory-2', 'name': 'Frenos'},
+          'createdAt': '2026-09-03T12:00:00.000Z',
+          'expiresAt': '2026-09-05T12:00:00.000Z',
+          'status': 'OPEN',
+          'isExpired': false,
+          'quotesCount': 2,
+          'questionsCount': 1,
+          'bestOfferPrice': 125,
+          'bestOfferStoreName': 'Repuestos Central',
+        },
+      ),
+    );
+    final dataSource = ChatRemoteDataSource(client, () => 'consumer-1');
+
+    final result =
+        await dataSource.getRequestDetail('request-2', UserRole.consumer);
+
+    expect(result.title, 'Toyota Corolla');
+    expect(result.vehicleYear, 2020);
+    expect(result.subcategory, 'Frenos');
+    expect(result.quotesCount, 2);
+    expect(result.questionsCount, 1);
+    expect(result.bestOfferPrice, 125);
+    verify(() => client.get(endpoint)).called(1);
+  });
 }

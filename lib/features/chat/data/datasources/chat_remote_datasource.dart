@@ -57,115 +57,10 @@ class ChatRemoteDataSource {
     }
 
     final threads = dataList.map((jsonMap) {
-      final json = jsonMap as Map<String, dynamic>;
-      if (isStore) {
-        final brandName = json['vehicle']?['brand'] ?? '';
-        final modelName = json['vehicle']?['model'] ?? '';
-        final title = '$brandName $modelName'.trim();
-        final subcategoryName = json['subcategory']?['name'];
-
-        return ChatThreadModel(
-          id: json['id'] as String,
-          title: title.isEmpty ? (subcategoryName ?? 'Solicitud') : title,
-          requestType: ServiceType.spareParts,
-          unreadCount: json['unreadCount'] as int? ?? 0,
-          conversationCount: json['totalOffersCount'] as int? ??
-              (json['hasOffer'] == true ? 1 : 0),
-          lastActivityAt: DateTime.parse(
-            (json['lastMessageAt'] ?? json['createdAt']).toString(),
-          ),
-          isOpen: json['requestStatus'] != 'CLOSED',
-          clientName: json['consumerName'] as String? ?? 'Cliente',
-          clientId: null,
-          fotoUrl: json['photoUrl'] as String?,
-          details: json['details'] as String?,
-          partType: json['partType'] as String?,
-          vehicleYear: json['vehicle']?['year'] as int?,
-          subcategory: subcategoryName as String?,
-          expiresAt: json['expiresAt'] != null
-              ? DateTime.tryParse(json['expiresAt'].toString())
-              : null,
-          isExpired: json['isExpired'] as bool? ?? false,
-          totalOffersCount: json['totalOffersCount'] as int? ?? 0,
-          quotesCount: json['quotesCount'] as int? ?? 0,
-          questionsCount: json['questionsCount'] as int? ?? 0,
-          consumerAvatar: json['consumerAvatar'] as String?,
-          distance: json['distancia'] != null
-              ? double.tryParse(json['distancia'].toString())
-              : null,
-          hasOffer: json['hasOffer'] as bool? ?? false,
-          offerId: json['offerId'] as String?,
-          offerStatus: json['offerStatus'] as String?,
-          offerPrice: json['offerPrice'] != null
-              ? double.tryParse(json['offerPrice'].toString())
-              : null,
-          deliveryCost: json['deliveryCost'] != null
-              ? double.tryParse(json['deliveryCost'].toString())
-              : null,
-          totalCost: json['totalCost'] != null
-              ? double.tryParse(json['totalCost'].toString())
-              : null,
-          lastMessage: json['lastMessage'] as String?,
-          conversationId: json['conversationId'] as String?,
-          searchMatchId: json['searchMatchId'] as String?,
-          matchState: json['matchState'] as String?,
-          declinedAt: json['declinedAt'] != null
-              ? DateTime.tryParse(json['declinedAt'].toString())
-              : null,
-          declineReason: json['declineReason'] as String?,
-          isInquiry: json['isInquiry'] as bool? ?? false,
-          cancelledAt: json['cancelledAt'] != null
-              ? DateTime.tryParse(json['cancelledAt'].toString())
-              : null,
-          cancelSource: json['cancelSource'] as String?,
-          cancelReason: json['cancelReason'] as String?,
-          cancelReasonCode: json['cancelReasonCode'] as String?,
-        );
-      } else {
-        final vehicle = json['vehicle'] as Map<String, dynamic>?;
-        final model = vehicle?['model'] as Map<String, dynamic>?;
-        final brandName = model?['brand']?['name'] ?? '';
-        final modelName = model?['name'] ?? '';
-        final title = '$brandName $modelName'.trim();
-        final subcategoryName = json['subcategory']?['name'];
-
-        return ChatThreadModel(
-          id: json['id'] as String,
-          title: title.isEmpty
-              ? (subcategoryName ?? 'Vehículo no especificado')
-              : title,
-          requestType: ServiceType.spareParts,
-          unreadCount: json['unreadCount'] as int? ??
-              json['_count']?['offers'] as int? ??
-              0,
-          conversationCount: json['totalOffersCount'] as int? ??
-              json['_count']?['offers'] as int? ??
-              0,
-          lastActivityAt: DateTime.parse(json['createdAt'] as String),
-          isOpen: json['status'] == 'OPEN',
-          clientName: null,
-          clientId: json['consumerId'] as String?,
-          fotoUrl: json['photoUrl'] as String?,
-          details: json['details'] as String?,
-          partType: json['partType'] as String?,
-          vehicleYear: vehicle?['year'] as int?,
-          subcategory: subcategoryName as String?,
-          expiresAt: json['expiresAt'] != null
-              ? DateTime.tryParse(json['expiresAt'].toString())
-              : null,
-          isExpired: json['isExpired'] as bool? ?? false,
-          totalOffersCount: json['totalOffersCount'] as int? ??
-              json['_count']?['offers'] as int? ??
-              0,
-          quotesCount: json['quotesCount'] as int? ?? 0,
-          questionsCount: json['questionsCount'] as int? ?? 0,
-          bestOfferPrice: json['bestOfferPrice'] != null
-              ? double.tryParse(json['bestOfferPrice'].toString())
-              : null,
-          bestOfferStoreName: json['bestOfferStoreName'] as String?,
-          bestOfferStatus: json['bestOfferStatus'] as String?,
-        );
-      }
+      final json = Map<String, dynamic>.from(jsonMap as Map);
+      return isStore
+          ? _storeThreadFromJson(json)
+          : _consumerThreadFromJson(json);
     }).toList();
 
     return ChatThreadsResult(
@@ -173,6 +68,154 @@ class ChatRemoteDataSource {
       counts: counts,
     );
   }
+
+  Future<ChatThreadModel> getRequestDetail(
+    String requestId,
+    UserRole role,
+  ) async {
+    final endpoint = role == UserRole.store
+        ? ApiEndpoints.storeSearchRequestDetail(requestId)
+        : ApiEndpoints.searchDetail(requestId);
+    final response = await _dioClient.get(endpoint);
+    final raw = response.data;
+    if (raw is! Map) {
+      throw const FormatException('Invalid request detail response');
+    }
+    final json = Map<String, dynamic>.from(raw);
+    return role == UserRole.store
+        ? _storeThreadFromJson(json)
+        : _consumerThreadFromJson(json);
+  }
+
+  ChatThreadModel _storeThreadFromJson(Map<String, dynamic> json) {
+    final vehicle = _asJsonMap(json['vehicle']);
+    final brandName = _namedValue(vehicle?['brand']);
+    final modelName = _namedValue(vehicle?['model']);
+    final subcategoryName = _namedValue(json['subcategory']);
+    final offer = _asJsonMap(json['myOffer']);
+    final offerStatus = (json['offerStatus'] ?? offer?['status'])?.toString();
+    final hasOffer = json['hasOffer'] as bool? ?? offer != null;
+    final requestStatus = json['requestStatus']?.toString();
+
+    return ChatThreadModel(
+      id: json['id'].toString(),
+      title: '$brandName $modelName'.trim().isEmpty
+          ? (subcategoryName.isEmpty ? 'Solicitud' : subcategoryName)
+          : '$brandName $modelName'.trim(),
+      requestType: ServiceType.spareParts,
+      unreadCount: _asInt(json['unreadCount']) ?? 0,
+      conversationCount: _asInt(json['totalOffersCount']) ?? (hasOffer ? 1 : 0),
+      lastActivityAt: DateTime.parse(
+        (json['lastMessageAt'] ?? json['createdAt']).toString(),
+      ),
+      isOpen: requestStatus == null || requestStatus == 'OPEN',
+      clientName: json['consumerName']?.toString() ?? 'Cliente',
+      fotoUrl: json['photoUrl']?.toString(),
+      details: json['details']?.toString(),
+      partType: json['partType']?.toString(),
+      vehicleYear: _asInt(vehicle?['year']),
+      subcategory: subcategoryName.isEmpty ? null : subcategoryName,
+      expiresAt: _asDateTime(json['expiresAt']),
+      isExpired: json['isExpired'] as bool? ?? false,
+      totalOffersCount: _asInt(json['totalOffersCount']) ?? 0,
+      quotesCount: _asInt(json['quotesCount']) ?? 0,
+      questionsCount: _asInt(json['questionsCount']) ?? 0,
+      consumerAvatar: json['consumerAvatar']?.toString(),
+      distance: _asDouble(json['distancia'] ?? json['distance']),
+      hasOffer: hasOffer,
+      offerId: (json['offerId'] ?? offer?['id'])?.toString(),
+      offerStatus: offerStatus,
+      offerPrice: _asDouble(json['offerPrice'] ?? offer?['price']),
+      deliveryCost: _asDouble(json['deliveryCost'] ?? offer?['deliveryCost']),
+      totalCost: _asDouble(json['totalCost'] ?? offer?['totalCost']),
+      lastMessage: json['lastMessage']?.toString(),
+      conversationId: json['conversationId']?.toString(),
+      searchMatchId: json['searchMatchId']?.toString(),
+      matchState: json['matchState']?.toString(),
+      declinedAt: _asDateTime(json['declinedAt']),
+      declineReason: json['declineReason']?.toString(),
+      isInquiry: json['isInquiry'] as bool? ??
+          offerStatus == 'INQUIRY' || json['matchState'] == 'INQUIRING',
+      cancelledAt: _asDateTime(json['cancelledAt'] ?? offer?['cancelledAt']),
+      cancelSource:
+          (json['cancelSource'] ?? offer?['cancelSource'])?.toString(),
+      cancelReason:
+          (json['cancelReason'] ?? offer?['cancelReason'])?.toString(),
+      cancelReasonCode:
+          (json['cancelReasonCode'] ?? offer?['cancelReasonCode'])?.toString(),
+    );
+  }
+
+  ChatThreadModel _consumerThreadFromJson(Map<String, dynamic> json) {
+    final vehicle = _asJsonMap(json['vehicle']);
+    final model = _asJsonMap(vehicle?['model']);
+    final brandName = _namedValue(model?['brand']);
+    final modelName = _namedValue(model);
+    final subcategoryName = _namedValue(json['subcategory']);
+    final count = _asInt(_asJsonMap(json['_count'])?['offers']) ?? 0;
+    final purchasedOffer = _asJsonMap(json['purchasedOffer']);
+
+    return ChatThreadModel(
+      id: json['id'].toString(),
+      title: '$brandName $modelName'.trim().isEmpty
+          ? (subcategoryName.isEmpty
+              ? 'Vehículo no especificado'
+              : subcategoryName)
+          : '$brandName $modelName'.trim(),
+      requestType: ServiceType.spareParts,
+      unreadCount: _asInt(json['unreadCount']) ?? count,
+      conversationCount: _asInt(json['totalOffersCount']) ?? count,
+      lastActivityAt: DateTime.parse(
+        (json['lastMessageAt'] ?? json['createdAt']).toString(),
+      ),
+      isOpen: json['status'] == 'OPEN',
+      clientId: json['consumerId']?.toString(),
+      fotoUrl: json['photoUrl']?.toString(),
+      details: json['details']?.toString(),
+      partType: json['partType']?.toString(),
+      vehicleYear: _asInt(vehicle?['year']),
+      subcategory: subcategoryName.isEmpty ? null : subcategoryName,
+      expiresAt: _asDateTime(json['expiresAt']),
+      isExpired: json['isExpired'] as bool? ?? false,
+      totalOffersCount: _asInt(json['totalOffersCount']) ?? count,
+      quotesCount: _asInt(json['quotesCount']) ?? 0,
+      questionsCount: _asInt(json['questionsCount']) ?? 0,
+      hasOffer: purchasedOffer != null,
+      offerId: purchasedOffer?['offerId']?.toString(),
+      offerStatus: purchasedOffer?['status']?.toString(),
+      offerPrice: _asDouble(purchasedOffer?['price']),
+      deliveryCost: _asDouble(purchasedOffer?['deliveryCost']),
+      totalCost: _asDouble(purchasedOffer?['totalCost']),
+      conversationId: purchasedOffer?['conversationId']?.toString(),
+      cancelledAt: _asDateTime(purchasedOffer?['cancelledAt']),
+      cancelSource: purchasedOffer?['cancelSource']?.toString(),
+      cancelReason: purchasedOffer?['cancelReason']?.toString(),
+      cancelReasonCode: purchasedOffer?['cancelReasonCode']?.toString(),
+      bestOfferPrice: _asDouble(json['bestOfferPrice']),
+      bestOfferStoreName: json['bestOfferStoreName']?.toString(),
+      bestOfferStatus: json['bestOfferStatus']?.toString(),
+    );
+  }
+
+  Map<String, dynamic>? _asJsonMap(Object? value) {
+    if (value is! Map) return null;
+    return Map<String, dynamic>.from(value);
+  }
+
+  String _namedValue(Object? value) {
+    if (value is Map) return value['name']?.toString() ?? '';
+    return value?.toString() ?? '';
+  }
+
+  int? _asInt(Object? value) =>
+      value is num ? value.toInt() : int.tryParse(value?.toString() ?? '');
+
+  double? _asDouble(Object? value) => value is num
+      ? value.toDouble()
+      : double.tryParse(value?.toString() ?? '');
+
+  DateTime? _asDateTime(Object? value) =>
+      value == null ? null : DateTime.tryParse(value.toString());
 
   Future<List<ChatConversationModel>> getConversations(
       String threadId, UserRole role) async {

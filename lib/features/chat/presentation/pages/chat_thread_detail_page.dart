@@ -13,6 +13,7 @@ import '../../../../core/router/route_names.dart';
 import '../providers/chat_providers.dart';
 import '../widgets/chat_conversation_card.dart';
 import '../../domain/entities/chat_thread.dart';
+import '../../../home/presentation/providers/home_providers.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/staggered_entrance.dart';
 
@@ -34,6 +35,24 @@ class ChatThreadDetailPage extends ConsumerStatefulWidget {
 class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
   _SortOption _currentSort = _SortOption.recent;
 
+  RequestDetailKey _detailKey(UserRole role) => (
+        requestId: widget.threadId,
+        role: role,
+      );
+
+  void _returnToRequests() {
+    ref.read(homeTabProvider.notifier).state = MainNavigationTab.requests;
+    context.go(RouteNames.home);
+  }
+
+  void _goBack() {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    _returnToRequests();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -46,9 +65,8 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
   Widget build(BuildContext context) {
     final currentRole = ref.watch(currentRoleProvider);
     final isStore = currentRole == UserRole.store;
-    final threadsAsync = ref.watch(
-      isStore ? storeSalesRequestsProvider : consumerRequestsProvider,
-    );
+    final detailKey = _detailKey(currentRole);
+    final requestAsync = ref.watch(requestDetailProvider(detailKey));
     final conversationsAsync =
         ref.watch(chatConversationsProvider(widget.threadId));
 
@@ -65,9 +83,7 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
           child: RefreshIndicator(
             edgeOffset: MediaQuery.paddingOf(context).top,
             onRefresh: () async {
-              ref.invalidate(
-                isStore ? storeSalesRequestsProvider : consumerRequestsProvider,
-              );
+              ref.invalidate(requestDetailProvider(detailKey));
               ref.invalidate(chatConversationsProvider(widget.threadId));
             },
             color: AppColors.primary,
@@ -77,37 +93,26 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
               slivers: [
                 // 1. Resumen de la Solicitud
                 SliverToBoxAdapter(
-                  child: threadsAsync.when(
+                  child: requestAsync.when(
                     loading: () => _RequestHeroSkeleton(
-                      onBack: () => context.pop(),
+                      onBack: _goBack,
                     ),
                     error: (_, __) => _RequestSummaryError(
-                      onBack: () => context.pop(),
-                      onRetry: () => ref.invalidate(
-                        isStore
-                            ? storeSalesRequestsProvider
-                            : consumerRequestsProvider,
-                      ),
+                      onBack: _goBack,
+                      onRetry: () =>
+                          ref.invalidate(requestDetailProvider(detailKey)),
                     ),
-                    data: (result) {
-                      final threads = result.threads;
-                      ChatThread? thread;
-                      for (final candidate in threads) {
-                        if (candidate.id == widget.threadId) {
-                          thread = candidate;
-                          break;
-                        }
-                      }
+                    data: (thread) {
                       if (thread == null) {
                         return _MissingRequestSummary(
-                          isStore: isStore,
-                          onBack: () => context.pop(),
+                          onBack: _goBack,
+                          onReturn: _returnToRequests,
                         );
                       }
                       return _RequestSummaryCard(
                         thread: thread,
                         isStore: isStore,
-                        onBack: () => context.pop(),
+                        onBack: _goBack,
                       );
                     },
                   ),
@@ -298,12 +303,12 @@ Widget _motionAwareSkeleton(BuildContext context, Widget child) {
 
 class _MissingRequestSummary extends StatelessWidget {
   const _MissingRequestSummary({
-    required this.isStore,
     required this.onBack,
+    required this.onReturn,
   });
 
-  final bool isStore;
   final VoidCallback onBack;
+  final VoidCallback onReturn;
 
   @override
   Widget build(BuildContext context) {
@@ -331,7 +336,7 @@ class _MissingRequestSummary extends StatelessWidget {
                 Text('Solicitud no disponible', style: AppTypography.h2),
                 const SizedBox(height: 8),
                 Text(
-                  'Puede haber cambiado de estado o no pertenecer al filtro actual.',
+                  'Puede haber expirado, sido cerrada o ya no estar disponible.',
                   textAlign: TextAlign.center,
                   style: AppTypography.bodySm,
                 ),
@@ -339,12 +344,8 @@ class _MissingRequestSummary extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: () => context.go(
-                      isStore ? RouteNames.sales : RouteNames.purchases,
-                    ),
-                    child: Text(
-                      isStore ? 'Volver a ventas' : 'Volver a compras',
-                    ),
+                    onPressed: onReturn,
+                    child: const Text('Volver a solicitudes'),
                   ),
                 ),
               ],
@@ -470,6 +471,7 @@ class _RequestHeroSkeleton extends StatelessWidget {
         label: 'Cargando detalle de solicitud',
         container: true,
         child: SizedBox(
+          key: const Key('request-detail-loading'),
           height: 360 + topInset,
           child: ColoredBox(
             color: AppColors.secondary,
@@ -559,6 +561,10 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
       );
       ref.invalidate(storeSalesRequestsProvider);
       ref.invalidate(storeRequestsByStatusProvider);
+      ref.invalidate(requestDetailProvider((
+        requestId: thread.id,
+        role: UserRole.store,
+      )));
       return;
     }
 
@@ -586,6 +592,10 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
           ref.invalidate(chatConversationsProvider(thread.id));
           ref.invalidate(storeSalesRequestsProvider);
           ref.invalidate(storeRequestsByStatusProvider);
+          ref.invalidate(requestDetailProvider((
+            requestId: thread.id,
+            role: UserRole.store,
+          )));
           ref.invalidate(myConversationsProvider);
           context.pushReplacement(
             RouteNames.chatConversationPath(newConv.id),
@@ -933,8 +943,8 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
 
   Widget _buildHeroMedia(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final hasPhoto =
-        thread.fotoUrl != null && thread.fotoUrl!.trim().isNotEmpty;
+    final photoUrl = thread.fotoUrl?.trim();
+    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
 
     return Stack(
       fit: StackFit.expand,
@@ -943,7 +953,7 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
         if (hasPhoto)
           ExcludeSemantics(
             child: Image.network(
-              thread.fotoUrl!,
+              photoUrl,
               fit: BoxFit.cover,
               filterQuality: FilterQuality.medium,
               gaplessPlayback: true,
@@ -966,17 +976,9 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
   }
 
   Widget _buildFallbackBackground() {
-    return ColoredBox(
-      color: AppColors.grey900,
-      child: Opacity(
-        opacity: 0.72,
-        child: Image.asset(
-          'assets/images/header_car.png',
-          fit: BoxFit.cover,
-          alignment: Alignment.center,
-          excludeFromSemantics: true,
-        ),
-      ),
+    return const ColoredBox(
+      key: Key('request-no-photo-background'),
+      color: AppColors.secondary,
     );
   }
 
