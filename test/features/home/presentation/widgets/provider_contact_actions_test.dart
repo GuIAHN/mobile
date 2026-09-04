@@ -39,4 +39,10 @@ void main() {
 
     expect(message, contains('Versión: No especificada'));
   });
+
+  test('converts the API Venezuelan format to the WhatsApp country code', () {
+    expect(ContactActions.whatsappUri('4121234567').path, '/584121234567');
+    expect(ContactActions.whatsappUri('04121234567').path, '/584121234567');
+    expect(ContactActions.whatsappUri('+1 4121234567').path, '/584121234567');
+  });
 }
