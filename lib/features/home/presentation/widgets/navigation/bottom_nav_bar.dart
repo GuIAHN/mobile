@@ -484,7 +484,7 @@ class _CenterLogoButtonState extends State<_CenterLogoButton> {
       excludeSemantics: true,
       selected: widget.isSelected,
       button: true,
-      label: 'Volver al inicio, logo guIAutomotriz',
+      label: 'Volver al inicio, logo GuIA Automotriz HN',
       onTap: widget.onTap,
       child: AnimatedScale(
         scale: _isPressed ? 0.94 : 1.0,

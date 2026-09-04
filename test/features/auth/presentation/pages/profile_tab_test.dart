@@ -53,6 +53,41 @@ class _TestAuthNotifier extends AuthNotifier {
 }
 
 void main() {
+  testWidgets('uses the canonical product name in the logout confirmation',
+      (tester) async {
+    const user = User(
+      id: 'consumer-brand-1',
+      email: 'consumer@example.com',
+      name: 'Usuario Consumidor',
+      role: UserRole.consumer,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith((ref) => _TestAuthNotifier(user)),
+          userCarsProvider.overrideWith((ref) async => const []),
+          pendingReviewsProvider.overrideWith((ref) async => const []),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ProfileTab())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.bySemanticsLabel('Cerrar sesión'));
+    await tester.tap(find.bySemanticsLabel('Cerrar sesión'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Deberás ingresar tus credenciales nuevamente para acceder a '
+        'GuIA Automotriz HN.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('guIAutomotriz'), findsNothing);
+  });
+
   testWidgets(
       'shows and exposes description editing for mechanics and workshops',
       (tester) async {

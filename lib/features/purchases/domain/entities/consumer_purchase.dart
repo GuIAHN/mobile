@@ -24,6 +24,10 @@ class ConsumerPurchase extends Equatable {
     this.storeId,
     this.photoUrl,
     this.partName,
+    this.subcategoryId,
+    this.subcategoryIsCatchAll = false,
+    this.categoryId,
+    this.categoryName,
     this.partType,
     this.vehicleYear,
     this.offerId,
@@ -49,6 +53,10 @@ class ConsumerPurchase extends Equatable {
   final String? storeId;
   final String? photoUrl;
   final String? partName;
+  final String? subcategoryId;
+  final bool subcategoryIsCatchAll;
+  final String? categoryId;
+  final String? categoryName;
   final String? partType;
   final int? vehicleYear;
   final String? offerId;
@@ -77,6 +85,10 @@ class ConsumerPurchase extends Equatable {
         storeId,
         photoUrl,
         partName,
+        subcategoryId,
+        subcategoryIsCatchAll,
+        categoryId,
+        categoryName,
         partType,
         vehicleYear,
         offerId,

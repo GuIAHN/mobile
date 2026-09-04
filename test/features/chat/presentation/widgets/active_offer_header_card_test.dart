@@ -25,6 +25,7 @@ void main() {
     ChatConversation details, {
     VoidCallback? onCancel,
     double textScale = 1,
+    bool isStore = false,
   }) {
     return tester.pumpWidget(
       MaterialApp(
@@ -38,7 +39,7 @@ void main() {
           body: SingleChildScrollView(
             child: ActiveOfferHeaderCard(
               details: details,
-              isStore: false,
+              isStore: isStore,
               onCancelPressed: onCancel,
             ),
           ),
@@ -46,6 +47,72 @@ void main() {
       ),
     );
   }
+
+  testWidgets('uses audience-specific catch-all copy in chat offer context',
+      (tester) async {
+    final details = ChatConversation(
+      id: 'conversation-1',
+      threadId: 'request-1',
+      participantName: 'Repuestos Central',
+      lastMessage: '',
+      unreadCount: 0,
+      lastMessageAt: DateTime.utc(2026, 8, 22),
+      offerId: 'offer-1',
+      offerStatus: 'INQUIRY',
+      isInquiry: true,
+      subcategoryName: 'Otro',
+      subcategoryIsCatchAll: true,
+      categoryName: 'Electricidad',
+    );
+
+    await pumpCard(tester, details);
+    expect(
+      find.text('Electricidad › No sé cuál exactamente'),
+      findsOneWidget,
+    );
+
+    await pumpCard(tester, details, isStore: true);
+    expect(
+      find.text('Electricidad › Sin categoría exacta — ver descripción'),
+      findsOneWidget,
+    );
+    expect(find.text('Otro'), findsNothing);
+  });
+
+  testWidgets('keeps spare brand together with the catch-all category path',
+      (tester) async {
+    final details = ChatConversation(
+      id: 'conversation-brand-category',
+      threadId: 'request-1',
+      participantName: 'Repuestos Central',
+      lastMessage: '',
+      unreadCount: 0,
+      lastMessageAt: DateTime.utc(2026, 9, 3),
+      offerStatus: 'SENT',
+      hasQuote: true,
+      price: 125,
+      spareBrand: 'Denso Premium',
+      subcategoryName: 'Nombre administrativo variable',
+      subcategoryIsCatchAll: true,
+      categoryName: 'Electricidad',
+    );
+
+    await pumpCard(tester, details);
+    expect(
+      find.text('Denso Premium · Electricidad › No sé cuál exactamente'),
+      findsOneWidget,
+    );
+
+    await pumpCard(tester, details, isStore: true);
+    expect(
+      find.text(
+        'Denso Premium · Electricidad › '
+        'Sin categoría exacta — ver descripción',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Nombre administrativo variable'), findsNothing);
+  });
 
   testWidgets('places subtle cancellation above the store details action',
       (tester) async {

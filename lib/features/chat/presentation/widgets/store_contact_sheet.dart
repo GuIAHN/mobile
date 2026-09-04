@@ -7,6 +7,7 @@ import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../shared/utils/subcategory_presentation.dart';
 import '../../../home/presentation/providers/home_providers.dart';
 import '../../../home/presentation/widgets/provider_detail_widgets.dart';
 import '../../domain/entities/chat_conversation.dart';
@@ -51,9 +52,13 @@ class StoreContactSheet extends ConsumerWidget {
     final hasLocation = (address != null && address.isNotEmpty) ||
         (details.storeLat != null && details.storeLng != null);
     final storeName = details.participantName;
-    final itemTitle = details.spareBrand?.trim().isNotEmpty == true
-        ? details.spareBrand!.trim()
-        : (details.subcategoryName ?? 'Repuesto');
+    final itemTitle = presentSparePartTitle(
+      spareBrand: details.spareBrand,
+      categoryName: details.categoryName,
+      subcategoryName: details.subcategoryName,
+      isCatchAll: details.subcategoryIsCatchAll,
+      audience: SubcategoryPresentationAudience.requester,
+    );
     final total = details.totalCost ?? details.price;
     final selectedVehicle = ref.watch(searchVehicleProvider);
 

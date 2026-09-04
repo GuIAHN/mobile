@@ -46,6 +46,9 @@ class ChatConversationModel extends ChatConversation {
     super.reviewComment,
     super.vehicleTitle,
     super.subcategoryName,
+    super.subcategoryIsCatchAll,
+    super.categoryId,
+    super.categoryName,
     super.partType,
     super.requestDetails,
     super.offerMessage,
@@ -67,6 +70,9 @@ class ChatConversationModel extends ChatConversation {
         (json['lastMessageSenderId'] ?? json['lastMessageSender']?['id'])
             ?.toString();
     final explicitAuthorship = json['lastMessageIsFromMe'];
+    final category = json['category'];
+    final categoryMap =
+        category is Map ? Map<String, dynamic>.from(category) : null;
 
     return ChatConversationModel(
       id: json['id'] as String,
@@ -126,6 +132,9 @@ class ChatConversationModel extends ChatConversation {
       reviewComment: json['reviewComment'] as String?,
       vehicleTitle: json['vehicleTitle'] as String?,
       subcategoryName: json['subcategoryName'] as String?,
+      subcategoryIsCatchAll: json['subcategoryIsCatchAll'] as bool? ?? false,
+      categoryId: categoryMap?['id']?.toString(),
+      categoryName: categoryMap?['name']?.toString(),
       partType: json['partType'] as String?,
       requestDetails: json['requestDetails'] as String?,
       offerMessage: json['offerMessage'] as String?,

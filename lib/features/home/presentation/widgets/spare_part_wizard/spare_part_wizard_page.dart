@@ -15,6 +15,7 @@ import '../../../../../core/domain/enums/part_type.dart';
 import '../../../../../shared/widgets/image_source_selector_sheet.dart';
 import '../../../../../shared/widgets/error_view.dart';
 import '../../../../../shared/widgets/skeleton_loader.dart';
+import '../../../../../shared/utils/subcategory_presentation.dart';
 import '../../../../../core/services/location_service.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../../core/domain/entities/user_car.dart';
@@ -632,7 +633,14 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
                       child: Text(
                         '${_selectedVehicle!.brand} '
                         '${_selectedVehicle!.model} · '
-                        '${_selectedSubcategory!.name}',
+                        '${presentSubcategoryPath(
+                          categoryName: _selectedCategory?.name,
+                          subcategoryName: _selectedSubcategory?.name,
+                          isCatchAll: _selectedSubcategory!.isCatchAll,
+                          audience: SubcategoryPresentationAudience.requester,
+                          sameCategoryAndSubcategory:
+                              _selectedCategory?.id == _selectedSubcategory?.id,
+                        )}',
                         textAlign: TextAlign.center,
                         style: AppTypography.title,
                       ),

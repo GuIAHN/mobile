@@ -19,6 +19,10 @@ class ChatThread extends Equatable {
   final int? vehicleYear;
   final String? vehicleType;
   final String? subcategory;
+  final String? subcategoryId;
+  final bool subcategoryIsCatchAll;
+  final String? categoryId;
+  final String? categoryName;
   final DateTime? expiresAt;
   final bool isExpired;
   final int totalOffersCount;
@@ -68,6 +72,10 @@ class ChatThread extends Equatable {
     this.vehicleYear,
     this.vehicleType,
     this.subcategory,
+    this.subcategoryId,
+    this.subcategoryIsCatchAll = false,
+    this.categoryId,
+    this.categoryName,
     this.expiresAt,
     this.isExpired = false,
     this.totalOffersCount = 0,
@@ -127,6 +135,10 @@ class ChatThread extends Equatable {
         vehicleYear,
         vehicleType,
         subcategory,
+        subcategoryId,
+        subcategoryIsCatchAll,
+        categoryId,
+        categoryName,
         expiresAt,
         isExpired,
         totalOffersCount,

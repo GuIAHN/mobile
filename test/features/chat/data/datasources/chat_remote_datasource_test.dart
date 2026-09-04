@@ -269,6 +269,9 @@ void main() {
           'declinedAt': '2026-08-24T12:00:00.000Z',
           'declineReason': 'SIN_STOCK',
           'isInquiry': true,
+          'subcategoryName': 'Otro',
+          'subcategoryIsCatchAll': true,
+          'category': {'id': 'frenos', 'name': 'Frenos'},
         },
       ),
     );
@@ -283,6 +286,10 @@ void main() {
       DateTime.parse('2026-08-24T12:00:00.000Z'),
     );
     expect(conversation.declineReason, 'SIN_STOCK');
+    expect(conversation.subcategoryName, 'Otro');
+    expect(conversation.subcategoryIsCatchAll, isTrue);
+    expect(conversation.categoryId, 'frenos');
+    expect(conversation.categoryName, 'Frenos');
   });
 
   test('uses the cancellation and decline endpoints', () async {
@@ -522,7 +529,12 @@ void main() {
             'model': '80',
             'year': 1992,
           },
-          'subcategory': {'id': 'subcategory-1', 'name': 'Conexiones'},
+          'subcategory': {
+            'id': 'subcategory-1',
+            'name': 'Otro',
+            'isCatchAll': true,
+            'parent': {'id': 'electricidad', 'name': 'Electricidad'},
+          },
           'consumerName': 'Carlos',
           'createdAt': '2026-09-03T12:00:00.000Z',
           'lastMessageAt': '2026-09-03T12:05:00.000Z',
@@ -546,13 +558,50 @@ void main() {
         await dataSource.getRequestDetail('request-1', UserRole.store);
 
     expect(result.title, 'Audi 80');
-    expect(result.subcategory, 'Conexiones');
+    expect(result.subcategory, 'Otro');
+    expect(result.subcategoryId, 'subcategory-1');
+    expect(result.subcategoryIsCatchAll, isTrue);
+    expect(result.categoryId, 'electricidad');
+    expect(result.categoryName, 'Electricidad');
     expect(result.searchMatchId, 'match-1');
     expect(result.offerId, 'offer-1');
     expect(result.conversationId, 'conversation-1');
     expect(result.isInquiryState, isTrue);
     expect(result.deliveryCost, 5);
     verify(() => client.get(endpoint)).called(1);
+  });
+
+  test('store title fallback never exposes a catch-all stored name', () async {
+    final client = _MockDioClient();
+    final endpoint = ApiEndpoints.storeSearchRequestDetail('request-no-car');
+    when(() => client.get(endpoint)).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: endpoint),
+        statusCode: 200,
+        data: const {
+          'id': 'request-no-car',
+          'subcategory': {
+            'id': 'misc',
+            'name': 'Nombre administrativo variable',
+            'isCatchAll': true,
+            'parent': {'id': 'electricidad', 'name': 'Electricidad'},
+          },
+          'createdAt': '2026-09-03T12:00:00.000Z',
+          'requestStatus': 'OPEN',
+        },
+      ),
+    );
+    final dataSource = ChatRemoteDataSource(client, () => 'store-1');
+
+    final result = await dataSource.getRequestDetail(
+      'request-no-car',
+      UserRole.store,
+    );
+
+    expect(
+      result.title,
+      'Electricidad › Sin categoría exacta — ver descripción',
+    );
   });
 
   test('loads a consumer request detail by id', () async {
@@ -572,7 +621,12 @@ void main() {
             },
             'year': 2020,
           },
-          'subcategory': {'id': 'subcategory-2', 'name': 'Frenos'},
+          'subcategory': {
+            'id': 'subcategory-2',
+            'name': 'Pastillas',
+            'isCatchAll': false,
+            'parent': {'id': 'frenos', 'name': 'Frenos'},
+          },
           'createdAt': '2026-09-03T12:00:00.000Z',
           'expiresAt': '2026-09-05T12:00:00.000Z',
           'status': 'OPEN',
@@ -591,7 +645,11 @@ void main() {
 
     expect(result.title, 'Toyota Corolla');
     expect(result.vehicleYear, 2020);
-    expect(result.subcategory, 'Frenos');
+    expect(result.subcategory, 'Pastillas');
+    expect(result.subcategoryId, 'subcategory-2');
+    expect(result.subcategoryIsCatchAll, isFalse);
+    expect(result.categoryId, 'frenos');
+    expect(result.categoryName, 'Frenos');
     expect(result.quotesCount, 2);
     expect(result.questionsCount, 1);
     expect(result.bestOfferPrice, 125);

@@ -25,6 +25,7 @@ import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/services/socket_service.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../reports/presentation/providers/reports_provider.dart';
+import '../../../../shared/utils/subcategory_presentation.dart';
 
 class ChatConversationPage extends ConsumerStatefulWidget {
   final String conversationId;
@@ -488,8 +489,17 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                               ? null
                               : () => _quoteFromChat(
                                     detailsAsync.valueOrNull!.offerId!,
-                                    detailsAsync.valueOrNull!.subcategoryName ??
-                                        'la solicitud',
+                                    presentSubcategoryPath(
+                                      categoryName: detailsAsync
+                                          .valueOrNull!.categoryName,
+                                      subcategoryName: detailsAsync
+                                          .valueOrNull!.subcategoryName,
+                                      isCatchAll: detailsAsync
+                                          .valueOrNull!.subcategoryIsCatchAll,
+                                      audience:
+                                          SubcategoryPresentationAudience.store,
+                                      fallback: 'la solicitud',
+                                    ),
                                   ),
                           icon: _isQuoting
                               ? const SizedBox.square(

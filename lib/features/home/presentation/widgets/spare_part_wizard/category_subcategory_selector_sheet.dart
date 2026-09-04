@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
+import '../../../../../shared/utils/subcategory_presentation.dart';
 import '../../../../catalog/domain/entities/category.dart';
 import '../../../../catalog/domain/entities/category_node.dart';
 import '../../../../catalog/presentation/providers/catalog_providers.dart';
@@ -18,7 +19,7 @@ import '../../../../catalog/presentation/providers/catalog_providers.dart';
 /// pieza. Se reconoce por [CategoryNode.isCatchAll] — nunca por su nombre ni
 /// por un UUID fijo — para que renombrarla desde el panel de admin no rompa
 /// el wizard.
-const kCatchAllLabel = 'No sé cuál exactamente';
+const kCatchAllLabel = requesterCatchAllSubcategoryLabel;
 
 class CategorySubcategoryResult {
   final Category category;
@@ -754,8 +755,9 @@ class _CategoryRow extends StatelessWidget {
                         height: 1.25,
                         fontWeight:
                             isSelected ? FontWeight.w700 : FontWeight.w500,
-                        fontStyle:
-                            node.isCatchAll ? FontStyle.italic : FontStyle.normal,
+                        fontStyle: node.isCatchAll
+                            ? FontStyle.italic
+                            : FontStyle.normal,
                         color: node.isCatchAll
                             ? AppColors.textSecondary
                             : AppColors.textPrimary,

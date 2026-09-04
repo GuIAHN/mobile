@@ -6,6 +6,7 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/media_url.dart';
 import '../../../../shared/widgets/image_viewer_dialog.dart';
 import '../../../../shared/widgets/catalog_summary_card.dart';
+import '../../../../shared/utils/subcategory_presentation.dart';
 import '../../domain/entities/chat_conversation.dart';
 import '../../domain/entities/non_delivery_reason.dart';
 import '_atoms/offer_price_breakdown.dart';
@@ -44,6 +45,16 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
   Widget build(BuildContext context) {
     final details = widget.details;
     final isStore = widget.isStore;
+    final itemTitle = presentSparePartTitle(
+      spareBrand: details.spareBrand,
+      categoryName: details.categoryName,
+      subcategoryName: details.subcategoryName,
+      isCatchAll: details.subcategoryIsCatchAll,
+      audience: isStore
+          ? SubcategoryPresentationAudience.store
+          : SubcategoryPresentationAudience.requester,
+      fallback: 'Repuesto solicitado',
+    );
     final hasDetails = (details.requestDetails != null &&
             details.requestDetails!.isNotEmpty) ||
         (details.offerMessage != null && details.offerMessage!.isNotEmpty);
@@ -142,9 +153,7 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                   children: [
                     _OfferPhoto(
                       imageUrl: details.sparePhotoUrl,
-                      title: details.spareBrand ??
-                          details.subcategoryName ??
-                          'Imagen de la oferta',
+                      title: itemTitle,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -192,11 +201,7 @@ class _ActiveOfferHeaderCardState extends State<ActiveOfferHeaderCard> {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            details.spareBrand != null &&
-                                    details.spareBrand!.isNotEmpty
-                                ? details.spareBrand!
-                                : (details.subcategoryName ??
-                                    'Repuesto solicitado'),
+                            itemTitle,
                             style: GoogleFonts.hankenGrotesk(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,

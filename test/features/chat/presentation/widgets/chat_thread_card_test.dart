@@ -12,6 +12,51 @@ import 'package:mocktail/mocktail.dart';
 class _MockChatRepository extends Mock implements ChatRepository {}
 
 void main() {
+  testWidgets('presents a catch-all store label with its root path',
+      (tester) async {
+    final thread = ChatThread(
+      id: 'request-1',
+      title: 'Toyota Corolla',
+      requestType: ServiceType.spareParts,
+      unreadCount: 0,
+      conversationCount: 0,
+      lastActivityAt: DateTime.utc(2026, 8, 24),
+      searchMatchId: 'match-1',
+      matchState: 'PENDING',
+      subcategory: 'Otro',
+      subcategoryIsCatchAll: true,
+      categoryName: 'Electricidad',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: ChatThreadCard(
+                thread: thread,
+                onTap: () {},
+                onViewDetail: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.text('Electricidad › Sin categoría exacta — ver descripción'),
+      findsOneWidget,
+    );
+    expect(find.text('Otro'), findsNothing);
+    expect(
+      find.bySemanticsLabel(
+        RegExp(r'Electricidad › Sin categoría exacta — ver descripción'),
+      ),
+      findsOneWidget,
+    );
+  }, semanticsEnabled: true);
+
   testWidgets('the no-stock flow declines the exact store match once',
       (tester) async {
     final repository = _MockChatRepository();

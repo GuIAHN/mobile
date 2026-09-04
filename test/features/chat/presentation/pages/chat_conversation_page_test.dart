@@ -106,7 +106,9 @@ void main() {
       searchMatchId: 'match-1',
       hasQuote: true,
       isInquiry: true,
-      subcategoryName: 'Pastillas de freno',
+      subcategoryName: 'Otro',
+      subcategoryIsCatchAll: true,
+      categoryName: 'Electricidad',
     );
 
     when(() => repository.getConversationDetails('conversation-1'))
@@ -146,6 +148,11 @@ void main() {
     expect(tester.takeException(), isNull);
 
     expect(find.text('CONSULTA ABIERTA'), findsOneWidget);
+    expect(
+      find.text('Electricidad › Sin categoría exacta — ver descripción'),
+      findsOneWidget,
+    );
+    expect(find.text('Otro'), findsNothing);
     expect(find.text('Cotizar'), findsOneWidget);
     expect(find.text('Declinar'), findsOneWidget);
 

@@ -61,6 +61,9 @@ class ChatConversation extends Equatable {
   // Contextual Request & Offer Details
   final String? vehicleTitle;
   final String? subcategoryName;
+  final bool subcategoryIsCatchAll;
+  final String? categoryId;
+  final String? categoryName;
   final String? partType;
   final String? requestDetails;
   final String? offerMessage;
@@ -110,6 +113,9 @@ class ChatConversation extends Equatable {
     this.reviewComment,
     this.vehicleTitle,
     this.subcategoryName,
+    this.subcategoryIsCatchAll = false,
+    this.categoryId,
+    this.categoryName,
     this.partType,
     this.requestDetails,
     this.offerMessage,
@@ -202,6 +208,9 @@ class ChatConversation extends Equatable {
       reviewComment: reviewComment,
       vehicleTitle: vehicleTitle,
       subcategoryName: subcategoryName,
+      subcategoryIsCatchAll: subcategoryIsCatchAll,
+      categoryId: categoryId,
+      categoryName: categoryName,
       partType: partType,
       requestDetails: requestDetails,
       offerMessage: offerMessage,
@@ -254,6 +263,9 @@ class ChatConversation extends Equatable {
         reviewComment,
         vehicleTitle,
         subcategoryName,
+        subcategoryIsCatchAll,
+        categoryId,
+        categoryName,
         partType,
         requestDetails,
         offerMessage,

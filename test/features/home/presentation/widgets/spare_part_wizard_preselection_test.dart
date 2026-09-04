@@ -1,6 +1,9 @@
+import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:guiautomotriz_mobile/core/domain/enums/part_type.dart';
+import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
 import 'package:guiautomotriz_mobile/core/storage/secure_storage.dart';
 import 'package:guiautomotriz_mobile/features/auth/domain/entities/user.dart';
 import 'package:guiautomotriz_mobile/features/auth/domain/repositories/auth_repository.dart';
@@ -12,6 +15,8 @@ import 'package:guiautomotriz_mobile/features/auth/presentation/providers/auth_p
 import 'package:guiautomotriz_mobile/features/auth/presentation/providers/auth_state.dart';
 import 'package:guiautomotriz_mobile/features/catalog/domain/entities/category_node.dart';
 import 'package:guiautomotriz_mobile/features/catalog/presentation/providers/catalog_providers.dart';
+import 'package:guiautomotriz_mobile/features/home/domain/repositories/search_repository.dart';
+import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/spare_part_wizard_page.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/domain/entities/user_car.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/presentation/providers/vehicle_providers.dart';
@@ -20,6 +25,8 @@ import 'package:mocktail/mocktail.dart';
 class _MockAuthRepository extends Mock implements AuthRepository {}
 
 class _MockSecureStorage extends Mock implements SecureStorage {}
+
+class _MockSearchRepository extends Mock implements SearchRepository {}
 
 class _TestAuthNotifier extends AuthNotifier {
   _TestAuthNotifier(AuthState initialState)
@@ -143,6 +150,150 @@ void main() {
     final logoBox = tester.widget<SizedBox>(logo);
     expect(logoBox.width, greaterThan(48));
     expect(logoBox.width, greaterThan(logoBox.height!));
+  });
+
+  testWidgets('step 2 keeps the catch-all intent inside the selected root',
+      (tester) async {
+    const tree = <CategoryNode>[
+      CategoryNode(
+        id: 'frenos',
+        name: 'Frenos',
+        children: [
+          CategoryNode(
+            id: 'frenos-otro',
+            name: 'Otro',
+            parentId: 'frenos',
+            isCatchAll: true,
+          ),
+        ],
+      ),
+    ];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          userCarsProvider.overrideWith((ref) async => [fixtureCar]),
+          categoryTreeProvider.overrideWith((ref) async => tree),
+        ],
+        child: const MaterialApp(
+          home: SparePartWizardPage(initialVehicle: fixtureCar),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Audi 4000'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Continuar'));
+    await tester.tap(find.text('Continuar'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Selecciona categoría y subcategoría'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('category-root-frenos')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('No sé cuál exactamente'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Frenos › No sé cuál exactamente'), findsOneWidget);
+    expect(find.text('Otro'), findsNothing);
+  });
+
+  testWidgets('final confirmation keeps the root path for a catch-all request',
+      (tester) async {
+    const user = User(
+      id: 'workshop-requester-1',
+      email: 'requester@example.com',
+      name: 'Requester',
+      role: UserRole.workshop,
+      latitude: 14.0723,
+      longitude: -87.1921,
+    );
+    const tree = <CategoryNode>[
+      CategoryNode(
+        id: 'frenos',
+        name: 'Frenos',
+        children: [
+          CategoryNode(
+            id: 'frenos-otro',
+            name: 'Otro',
+            parentId: 'frenos',
+            isCatchAll: true,
+          ),
+        ],
+      ),
+    ];
+    final authNotifier = _TestAuthNotifier(
+      const AuthState(status: AuthStatus.authenticated, user: user),
+    );
+    final searchRepository = _MockSearchRepository();
+    when(
+      () => searchRepository.createSearchRequest(
+        userCarId: 'car-1',
+        subcategoryId: 'frenos-otro',
+        details: 'Necesito identificar la pieza',
+        fotoUrl: null,
+        partType: PartType.original,
+        lat: 14.0723,
+        lon: -87.1921,
+      ),
+    ).thenAnswer((_) async => const Right({'id': 'request-1'}));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith((ref) => authNotifier),
+          userCarsProvider.overrideWith((ref) async => [fixtureCar]),
+          categoryTreeProvider.overrideWith((ref) async => tree),
+          searchRepositoryProvider.overrideWithValue(searchRepository),
+        ],
+        child: const MaterialApp(
+          home: SparePartWizardPage(initialVehicle: fixtureCar),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text('Continuar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Selecciona categoría y subcategoría'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('category-root-frenos')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('No sé cuál exactamente'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('OEM'));
+    await tester.tap(find.text('OEM'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Continuar'));
+    await tester.tap(find.text('Continuar'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byType(TextField),
+      'Necesito identificar la pieza',
+    );
+    await tester.pump();
+    await tester.tap(find.text('Enviar solicitud'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Solicitud enviada'), findsOneWidget);
+    expect(
+      find.text('Audi 4000 · Frenos › No sé cuál exactamente'),
+      findsOneWidget,
+    );
+    expect(find.text('Otro'), findsNothing);
+    verify(
+      () => searchRepository.createSearchRequest(
+        userCarId: 'car-1',
+        subcategoryId: 'frenos-otro',
+        details: 'Necesito identificar la pieza',
+        fotoUrl: null,
+        partType: PartType.original,
+        lat: 14.0723,
+        lon: -87.1921,
+      ),
+    ).called(1);
   });
 
   testWidgets('reports the visible vehicle position while swiping the garage',

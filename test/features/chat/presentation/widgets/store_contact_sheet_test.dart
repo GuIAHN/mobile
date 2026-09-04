@@ -37,6 +37,34 @@ Widget _subject(ChatConversation details, {double textScale = 1}) {
 }
 
 void main() {
+  testWidgets('keeps spare brand together with catch-all requester context',
+      (tester) async {
+    final details = ChatConversation(
+      id: 'conversation-category',
+      threadId: 'request-1',
+      participantName: 'Repuestos Central',
+      lastMessage: '',
+      unreadCount: 0,
+      lastMessageAt: DateTime.utc(2026, 9, 3),
+      offerStatus: 'BOUGHT',
+      hasQuote: true,
+      price: 1250,
+      spareBrand: 'Alternador Denso',
+      subcategoryName: 'Nombre administrativo variable',
+      subcategoryIsCatchAll: true,
+      categoryName: 'Electricidad',
+      storePhone: '+504 9999-0000',
+    );
+
+    await tester.pumpWidget(_subject(details));
+
+    expect(
+      find.text('Alternador Denso · Electricidad › No sé cuál exactamente'),
+      findsOneWidget,
+    );
+    expect(find.text('Nombre administrativo variable'), findsNothing);
+  });
+
   testWidgets('presents a clear purchase confirmation and one primary action',
       (tester) async {
     await tester.pumpWidget(_subject(_details()));

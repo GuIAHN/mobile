@@ -302,10 +302,12 @@ void main() {
 
     // Last resort, so it sits below the real parts even though the tree
     // returns it first.
-    final catchAllY =
-        tester.getTopLeft(find.byKey(const ValueKey('category-node-frenos-otro'))).dy;
-    final padsY =
-        tester.getTopLeft(find.byKey(const ValueKey('category-node-pastillas'))).dy;
+    final catchAllY = tester
+        .getTopLeft(find.byKey(const ValueKey('category-node-frenos-otro')))
+        .dy;
+    final padsY = tester
+        .getTopLeft(find.byKey(const ValueKey('category-node-pastillas')))
+        .dy;
     expect(catchAllY, greaterThan(padsY));
 
     await tester.tap(find.text(kCatchAllLabel));

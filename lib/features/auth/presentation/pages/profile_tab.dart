@@ -178,7 +178,7 @@ class ProfileTab extends ConsumerWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Deberás ingresar tus credenciales nuevamente para acceder a guIAutomotriz.',
+                    'Deberás ingresar tus credenciales nuevamente para acceder a GuIA Automotriz HN.',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.hankenGrotesk(
                       fontSize: 13.5,

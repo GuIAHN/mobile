@@ -10,6 +10,10 @@ class ConsumerPurchaseModel extends ConsumerPurchase {
     super.storeId,
     super.photoUrl,
     super.partName,
+    super.subcategoryId,
+    super.subcategoryIsCatchAll,
+    super.categoryId,
+    super.categoryName,
     super.partType,
     super.vehicleYear,
     super.offerId,
@@ -30,6 +34,10 @@ class ConsumerPurchaseModel extends ConsumerPurchase {
   factory ConsumerPurchaseModel.fromJson(Map<String, dynamic> json) {
     final vehicle = Map<String, dynamic>.from(json['vehicle'] as Map? ?? {});
     final store = Map<String, dynamic>.from(json['store'] as Map? ?? {});
+    final subcategory =
+        Map<String, dynamic>.from(json['subcategory'] as Map? ?? {});
+    final category =
+        Map<String, dynamic>.from(subcategory['parent'] as Map? ?? {});
     final brand = vehicle['brand']?.toString() ?? '';
     final model = vehicle['model']?.toString() ?? '';
     final vehicleName = '$brand $model'.trim();
@@ -45,7 +53,11 @@ class ConsumerPurchaseModel extends ConsumerPurchase {
       lastActivityAt: DateTime.tryParse(activityValue?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
       photoUrl: (json['sparePhotoUrl'] ?? json['requestPhotoUrl'])?.toString(),
-      partName: (json['subcategory'] as Map?)?['name']?.toString(),
+      partName: subcategory['name']?.toString(),
+      subcategoryId: subcategory['id']?.toString(),
+      subcategoryIsCatchAll: subcategory['isCatchAll'] as bool? ?? false,
+      categoryId: category['id']?.toString(),
+      categoryName: category['name']?.toString(),
       partType: json['partType']?.toString(),
       vehicleYear: (vehicle['year'] as num?)?.toInt(),
       offerId: json['offerId']?.toString(),

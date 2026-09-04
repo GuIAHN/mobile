@@ -6,6 +6,7 @@ import '../models/chat_message_model.dart';
 import '../../domain/entities/chat_threads_result.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../../../core/domain/enums/user_role.dart';
+import '../../../../shared/utils/subcategory_presentation.dart';
 
 class ChatRemoteDataSource {
   final DioClient _dioClient;
@@ -92,6 +93,17 @@ class ChatRemoteDataSource {
     final brandName = _namedValue(vehicle?['brand']);
     final modelName = _namedValue(vehicle?['model']);
     final subcategoryName = _namedValue(json['subcategory']);
+    final subcategory = _asJsonMap(json['subcategory']);
+    final category = _asJsonMap(subcategory?['parent']);
+    final subcategoryIsCatchAll = subcategory?['isCatchAll'] as bool? ?? false;
+    final vehicleTitle = '$brandName $modelName'.trim();
+    final subcategoryTitle = presentSubcategoryPath(
+      categoryName: category?['name']?.toString(),
+      subcategoryName: subcategoryName,
+      isCatchAll: subcategoryIsCatchAll,
+      audience: SubcategoryPresentationAudience.store,
+      fallback: 'Solicitud',
+    );
     final offer = _asJsonMap(json['myOffer']);
     final offerStatus = (json['offerStatus'] ?? offer?['status'])?.toString();
     final hasOffer = json['hasOffer'] as bool? ?? offer != null;
@@ -99,9 +111,7 @@ class ChatRemoteDataSource {
 
     return ChatThreadModel(
       id: json['id'].toString(),
-      title: '$brandName $modelName'.trim().isEmpty
-          ? (subcategoryName.isEmpty ? 'Solicitud' : subcategoryName)
-          : '$brandName $modelName'.trim(),
+      title: vehicleTitle.isEmpty ? subcategoryTitle : vehicleTitle,
       requestType: ServiceType.spareParts,
       unreadCount: _asInt(json['unreadCount']) ?? 0,
       conversationCount: _asInt(json['totalOffersCount']) ?? (hasOffer ? 1 : 0),
@@ -115,6 +125,10 @@ class ChatRemoteDataSource {
       partType: json['partType']?.toString(),
       vehicleYear: _asInt(vehicle?['year']),
       subcategory: subcategoryName.isEmpty ? null : subcategoryName,
+      subcategoryId: subcategory?['id']?.toString(),
+      subcategoryIsCatchAll: subcategoryIsCatchAll,
+      categoryId: category?['id']?.toString(),
+      categoryName: category?['name']?.toString(),
       expiresAt: _asDateTime(json['expiresAt']),
       isExpired: json['isExpired'] as bool? ?? false,
       totalOffersCount: _asInt(json['totalOffersCount']) ?? 0,
@@ -152,16 +166,23 @@ class ChatRemoteDataSource {
     final brandName = _namedValue(model?['brand']);
     final modelName = _namedValue(model);
     final subcategoryName = _namedValue(json['subcategory']);
+    final subcategory = _asJsonMap(json['subcategory']);
+    final category = _asJsonMap(subcategory?['parent']);
+    final subcategoryIsCatchAll = subcategory?['isCatchAll'] as bool? ?? false;
+    final vehicleTitle = '$brandName $modelName'.trim();
+    final subcategoryTitle = presentSubcategoryPath(
+      categoryName: category?['name']?.toString(),
+      subcategoryName: subcategoryName,
+      isCatchAll: subcategoryIsCatchAll,
+      audience: SubcategoryPresentationAudience.requester,
+      fallback: 'Vehículo no especificado',
+    );
     final count = _asInt(_asJsonMap(json['_count'])?['offers']) ?? 0;
     final purchasedOffer = _asJsonMap(json['purchasedOffer']);
 
     return ChatThreadModel(
       id: json['id'].toString(),
-      title: '$brandName $modelName'.trim().isEmpty
-          ? (subcategoryName.isEmpty
-              ? 'Vehículo no especificado'
-              : subcategoryName)
-          : '$brandName $modelName'.trim(),
+      title: vehicleTitle.isEmpty ? subcategoryTitle : vehicleTitle,
       requestType: ServiceType.spareParts,
       unreadCount: _asInt(json['unreadCount']) ?? count,
       conversationCount: _asInt(json['totalOffersCount']) ?? count,
@@ -175,6 +196,10 @@ class ChatRemoteDataSource {
       partType: json['partType']?.toString(),
       vehicleYear: _asInt(vehicle?['year']),
       subcategory: subcategoryName.isEmpty ? null : subcategoryName,
+      subcategoryId: subcategory?['id']?.toString(),
+      subcategoryIsCatchAll: subcategoryIsCatchAll,
+      categoryId: category?['id']?.toString(),
+      categoryName: category?['name']?.toString(),
       expiresAt: _asDateTime(json['expiresAt']),
       isExpired: json['isExpired'] as bool? ?? false,
       totalOffersCount: _asInt(json['totalOffersCount']) ?? count,

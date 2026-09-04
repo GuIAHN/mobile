@@ -5,6 +5,7 @@ import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../shared/utils/subcategory_presentation.dart';
 import '../../domain/entities/consumer_purchase.dart';
 
 class ConsumerPurchaseCard extends StatelessWidget {
@@ -51,9 +52,13 @@ class ConsumerPurchaseCard extends StatelessWidget {
         purchase.reviewTargetId?.trim().isNotEmpty == true;
     final showReviewAction =
         onReview != null && (canLeaveReview || canViewReview);
-    final partName = purchase.partName?.trim().isNotEmpty == true
-        ? purchase.partName!.trim()
-        : 'Repuesto comprado';
+    final partName = presentSubcategoryPath(
+      categoryName: purchase.categoryName,
+      subcategoryName: purchase.partName,
+      isCatchAll: purchase.subcategoryIsCatchAll,
+      audience: SubcategoryPresentationAudience.requester,
+      fallback: 'Repuesto comprado',
+    );
     final semantics = StringBuffer(
       'Compra de $partName para ${purchase.vehicleName}, $_statusLabel, '
       'tienda ${purchase.storeName}',

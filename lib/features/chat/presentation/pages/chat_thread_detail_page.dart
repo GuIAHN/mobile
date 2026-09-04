@@ -16,6 +16,7 @@ import '../../domain/entities/chat_thread.dart';
 import '../../../home/presentation/providers/home_providers.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/staggered_entrance.dart';
+import '../../../../shared/utils/subcategory_presentation.dart';
 
 enum _SortOption { recent, priceAsc, distanceAsc }
 
@@ -609,6 +610,15 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
 
   @override
   Widget build(BuildContext context) {
+    final subcategoryLabel = presentSubcategoryPath(
+      categoryName: thread.categoryName,
+      subcategoryName: thread.subcategory,
+      isCatchAll: thread.subcategoryIsCatchAll,
+      audience: isStore
+          ? SubcategoryPresentationAudience.store
+          : SubcategoryPresentationAudience.requester,
+      fallback: 'Repuesto',
+    );
     String partTypeLabel = 'Cualquiera';
     if (thread.partType != null) {
       if (thread.partType == 'ORIGINAL') {
@@ -638,8 +648,7 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
               ),
               child: Semantics(
                 container: true,
-                label:
-                    'Resumen de la solicitud de ${thread.subcategory ?? 'repuesto'}',
+                label: 'Resumen de la solicitud de $subcategoryLabel',
                 child: Container(
                   key: const Key('request-photo-hero'),
                   width: double.infinity,
@@ -699,7 +708,7 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
                                       ),
                                       const SizedBox(height: 14),
                                       Text(
-                                        thread.subcategory ?? 'Repuesto',
+                                        subcategoryLabel,
                                         style: AppTypography.display.copyWith(
                                           color: AppColors.textOnPrimary,
                                           shadows: const [

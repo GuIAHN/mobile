@@ -168,11 +168,15 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
   }
 
   String get _partTitle {
-    final category = widget.selectedCategory?.name;
-    final subcategory = widget.selectedSubcategory?.name;
-    if (category == null) return subcategory ?? 'Repuesto';
-    if (subcategory == null || category == subcategory) return category;
-    return '$category › $subcategory';
+    final subcategory = widget.selectedSubcategory;
+    return presentSubcategoryPath(
+      categoryName: widget.selectedCategory?.name,
+      subcategoryName: subcategory?.name,
+      isCatchAll: subcategory?.isCatchAll ?? false,
+      audience: SubcategoryPresentationAudience.requester,
+      sameCategoryAndSubcategory:
+          widget.selectedCategory?.id == subcategory?.id,
+    );
   }
 
   Widget _buildPhotoArea(BuildContext context) {

@@ -34,6 +34,9 @@ void main() {
     double? offerPrice,
     String? conversationId,
     String? fotoUrl,
+    String subcategory = 'Pastillas de freno',
+    bool subcategoryIsCatchAll = false,
+    String? categoryName,
   }) =>
       ChatThread(
         id: id,
@@ -43,7 +46,9 @@ void main() {
         conversationCount: 0,
         lastActivityAt: DateTime.utc(2026, 8, 24),
         clientName: 'Carlos',
-        subcategory: 'Pastillas de freno',
+        subcategory: subcategory,
+        subcategoryIsCatchAll: subcategoryIsCatchAll,
+        categoryName: categoryName,
         searchMatchId: searchMatchId,
         details: details,
         partType: partType,
@@ -203,6 +208,35 @@ void main() {
     expect(find.text('Toyota Corolla'), findsOneWidget);
     expect(find.text('Solicitud no disponible'), findsNothing);
   });
+
+  testWidgets('store detail presents catch-all intent and root in semantics',
+      (tester) async {
+    final repository = _MockChatRepository();
+    final request = thread(
+      'request-1',
+      subcategory: 'Otro',
+      subcategoryIsCatchAll: true,
+      categoryName: 'Electricidad',
+    );
+
+    await tester.pumpWidget(
+      subject(repository: repository, threads: [request]),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Electricidad › Sin categoría exacta — ver descripción'),
+      findsOneWidget,
+    );
+    expect(find.text('Otro'), findsNothing);
+    expect(
+      tester.getSemantics(find.byKey(const Key('request-photo-hero'))).label,
+      contains(
+        'Resumen de la solicitud de Electricidad › '
+        'Sin categoría exacta — ver descripción',
+      ),
+    );
+  }, semanticsEnabled: true);
 
   testWidgets('request detail exposes loading before rendering data',
       (tester) async {

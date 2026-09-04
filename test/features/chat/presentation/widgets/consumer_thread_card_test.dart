@@ -10,6 +10,8 @@ ChatThread _thread({
   String title = 'BMW 5 Series 1984 con un nombre de vehículo largo',
   String? details = 'Tornillo lateral del banco uno',
   String? subcategory = 'Motor',
+  bool subcategoryIsCatchAll = false,
+  String? categoryName,
   bool isOpen = true,
   bool isExpired = false,
   int totalOffersCount = 0,
@@ -30,6 +32,8 @@ ChatThread _thread({
     details: details,
     partType: 'ORIGINAL',
     subcategory: subcategory,
+    subcategoryIsCatchAll: subcategoryIsCatchAll,
+    categoryName: categoryName,
     expiresAt: DateTime.now().add(const Duration(days: 2)),
     isExpired: isExpired,
     totalOffersCount: totalOffersCount,
@@ -76,6 +80,31 @@ Widget _subject(
 }
 
 void main() {
+  testWidgets('presents a catch-all requester label with its root path',
+      (tester) async {
+    await tester.pumpWidget(
+      _subject(
+        _thread(
+          subcategory: 'Otro',
+          subcategoryIsCatchAll: true,
+          categoryName: 'Electricidad',
+        ),
+      ),
+    );
+
+    expect(
+      find.textContaining('Electricidad › No sé cuál exactamente'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Otro'), findsNothing);
+    expect(
+      find.bySemanticsLabel(
+        RegExp(r'Electricidad › No sé cuál exactamente'),
+      ),
+      findsOneWidget,
+    );
+  }, semanticsEnabled: true);
+
   testWidgets('shows a clear waiting state and exposes one card action',
       (tester) async {
     var taps = 0;

@@ -4,6 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/domain/enums/offer_status.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../shared/utils/subcategory_presentation.dart';
 import '../../domain/entities/chat_thread.dart';
 import '../../domain/entities/non_delivery_reason.dart';
 import '../../../reports/presentation/providers/reports_provider.dart';
@@ -178,6 +179,12 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
   @override
   Widget build(BuildContext context) {
     final thread = widget.thread;
+    final subcategoryLabel = presentSubcategoryPath(
+      categoryName: thread.categoryName,
+      subcategoryName: thread.subcategory,
+      isCatchAll: thread.subcategoryIsCatchAll,
+      audience: SubcategoryPresentationAudience.store,
+    );
     final expStr =
         expirationLabel(thread.expiresAt, isExpired: thread.isExpired);
 
@@ -237,7 +244,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
       'Solicitud de ${thread.clientName ?? "cliente"}, ${thread.title}',
     );
     if (thread.subcategory != null) {
-      semanticLabel.write(', ${thread.subcategory}');
+      semanticLabel.write(', $subcategoryLabel');
     }
     semanticLabel.write(', ${(labelOverride ?? status.label).toLowerCase()}');
     if (thread.distance != null) {
@@ -321,7 +328,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                     MetaLine(
                       items: [
                         if (thread.subcategory != null)
-                          MetaItem(thread.subcategory!),
+                          MetaItem(subcategoryLabel),
                         if (thread.partType != null)
                           MetaItem(_partTypeLabel(thread.partType!)),
                       ],

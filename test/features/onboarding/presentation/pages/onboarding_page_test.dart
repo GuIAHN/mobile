@@ -45,7 +45,7 @@ void main() {
     final logo = tester.widget<Image>(logoFinder);
 
     expect(logo.image, const AssetImage('assets/images/logo.png'));
-    expect(logo.semanticLabel, 'guIAutomotriz HN');
+    expect(logo.semanticLabel, 'GuIA Automotriz HN');
     expect(logo.width, 132);
     expect(tester.getTopLeft(logoFinder).dx, 20);
     expect(tester.getTopLeft(logoFinder).dy, lessThanOrEqualTo(48));

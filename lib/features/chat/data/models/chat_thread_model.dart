@@ -18,6 +18,10 @@ class ChatThreadModel extends ChatThread {
     super.vehicleYear,
     super.vehicleType,
     super.subcategory,
+    super.subcategoryId,
+    super.subcategoryIsCatchAll,
+    super.categoryId,
+    super.categoryName,
     super.expiresAt,
     super.isExpired,
     super.totalOffersCount,
@@ -52,6 +56,11 @@ class ChatThreadModel extends ChatThread {
     final model = vehicle?['model'] as Map<String, dynamic>?;
     final parsedVehicleType =
         model?['vehicleType'] as String? ?? json['vehicleType'] as String?;
+    final subcategory = json['subcategory'];
+    final subcategoryMap =
+        subcategory is Map ? Map<String, dynamic>.from(subcategory) : null;
+    final parent = subcategoryMap?['parent'];
+    final parentMap = parent is Map ? Map<String, dynamic>.from(parent) : null;
 
     return ChatThreadModel(
       id: json['id'] as String,
@@ -74,7 +83,12 @@ class ChatThreadModel extends ChatThread {
       partType: json['partType'] as String?,
       vehicleYear: json['vehicleYear'] as int? ?? vehicle?['year'] as int?,
       vehicleType: parsedVehicleType,
-      subcategory: json['subcategory'] as String?,
+      subcategory: subcategoryMap?['name']?.toString() ??
+          (subcategory is String ? subcategory : null),
+      subcategoryId: subcategoryMap?['id']?.toString(),
+      subcategoryIsCatchAll: subcategoryMap?['isCatchAll'] as bool? ?? false,
+      categoryId: parentMap?['id']?.toString(),
+      categoryName: parentMap?['name']?.toString(),
       expiresAt: json['expiresAt'] != null
           ? DateTime.tryParse(json['expiresAt'].toString())
           : null,

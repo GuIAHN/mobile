@@ -11,7 +11,7 @@ import 'package:guiautomotriz_mobile/features/home/presentation/widgets/navigati
 import 'package:guiautomotriz_mobile/shared/layout/bottom_navigation_insets.dart';
 
 void main() {
-  const logoSemantics = 'Volver al inicio, logo guIAutomotriz';
+  const logoSemantics = 'Volver al inicio, logo GuIA Automotriz HN';
   const logoAsset = AssetImage('assets/images/logo_icon_zoom.png');
 
   ProviderContainer containerFor({

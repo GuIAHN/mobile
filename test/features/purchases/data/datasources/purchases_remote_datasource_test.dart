@@ -2,12 +2,31 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:guiautomotriz_mobile/core/network/dio_client.dart';
 import 'package:guiautomotriz_mobile/features/purchases/data/datasources/purchases_remote_datasource.dart';
+import 'package:guiautomotriz_mobile/features/purchases/data/models/consumer_purchase_model.dart';
 import 'package:guiautomotriz_mobile/features/purchases/domain/entities/consumer_purchase.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockDioClient extends Mock implements DioClient {}
 
 void main() {
+  test('keeps legacy purchases compatible when catch-all metadata is absent',
+      () {
+    final purchase = ConsumerPurchaseModel.fromJson(const {
+      'searchRequestId': 'request-legacy',
+      'status': 'BOUGHT',
+      'boughtAt': '2026-08-30T12:00:00.000Z',
+      'vehicle': {'brand': 'Toyota', 'model': 'Corolla'},
+      'subcategory': {'name': 'Pastillas de freno'},
+      'store': {'name': 'Repuestos Central'},
+    });
+
+    expect(purchase.partName, 'Pastillas de freno');
+    expect(purchase.subcategoryIsCatchAll, isFalse);
+    expect(purchase.subcategoryId, isNull);
+    expect(purchase.categoryId, isNull);
+    expect(purchase.categoryName, isNull);
+  });
+
   test('maps the paginated purchases contract into purchase entities',
       () async {
     final client = _MockDioClient();
@@ -28,7 +47,12 @@ void main() {
               'totalCost': 150,
               'boughtAt': '2026-08-30T12:00:00.000Z',
               'vehicle': {'brand': 'Toyota', 'model': 'Corolla', 'year': 2020},
-              'subcategory': {'id': 'subcategory-1', 'name': 'Frenos'},
+              'subcategory': {
+                'id': 'subcategory-1',
+                'name': 'Nombre administrativo variable',
+                'isCatchAll': true,
+                'parent': {'id': 'frenos', 'name': 'Frenos'},
+              },
               'store': {
                 'id': 'store-profile-1',
                 'name': 'Repuestos Central',
@@ -55,7 +79,14 @@ void main() {
     final result = await dataSource.getPurchases();
 
     expect(result.purchases.single.vehicleName, 'Toyota Corolla');
-    expect(result.purchases.single.partName, 'Frenos');
+    expect(
+      result.purchases.single.partName,
+      'Nombre administrativo variable',
+    );
+    expect(result.purchases.single.subcategoryId, 'subcategory-1');
+    expect(result.purchases.single.subcategoryIsCatchAll, isTrue);
+    expect(result.purchases.single.categoryId, 'frenos');
+    expect(result.purchases.single.categoryName, 'Frenos');
     expect(result.purchases.single.status, PurchaseStatus.bought);
     expect(result.purchases.single.offerId, 'offer-1');
     expect(result.purchases.single.totalCost, 150);

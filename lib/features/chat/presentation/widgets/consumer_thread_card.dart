@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/domain/enums/offer_status.dart';
+import '../../../../shared/utils/subcategory_presentation.dart';
 import '../../domain/entities/chat_thread.dart';
 import '_atoms/card_shell.dart';
 import '_atoms/card_tokens.dart';
@@ -71,10 +72,11 @@ class ConsumerThreadCard extends StatelessWidget {
         status == OfferStatus.delivered ||
         status == OfferStatus.cancelled;
     final requestMetaLabel = _requestMetaLabel();
+    final subcategoryLabel = _subcategoryLabel;
 
     final semanticLabel = StringBuffer('Solicitud ${thread.title}');
     if (thread.subcategory != null) {
-      semanticLabel.write(', ${thread.subcategory}');
+      semanticLabel.write(', $subcategoryLabel');
     }
     semanticLabel.write(
       ', ${(resolved.labelOverride ?? status.label).toLowerCase()}',
@@ -175,11 +177,18 @@ class ConsumerThreadCard extends StatelessWidget {
   String _requestMetaLabel() {
     return [
       if (thread.subcategory != null && thread.subcategory!.trim().isNotEmpty)
-        thread.subcategory!.trim(),
+        _subcategoryLabel,
       if (thread.partType != null && thread.partType!.trim().isNotEmpty)
         _partTypeLabel(thread.partType!),
     ].join(' · ');
   }
+
+  String get _subcategoryLabel => presentSubcategoryPath(
+        categoryName: thread.categoryName,
+        subcategoryName: thread.subcategory,
+        isCatchAll: thread.subcategoryIsCatchAll,
+        audience: SubcategoryPresentationAudience.requester,
+      );
 
   String _partTypeLabel(String raw) {
     switch (raw) {

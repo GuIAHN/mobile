@@ -14,6 +14,40 @@ import 'package:guiautomotriz_mobile/shared/widgets/skeleton_loader.dart';
 import 'package:guiautomotriz_mobile/shared/widgets/status_filter_selector.dart';
 
 void main() {
+  testWidgets('purchase card presents catch-all path in text and semantics',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ConsumerPurchaseCard(
+            purchase: ConsumerPurchase(
+              id: 'purchase-catch-all',
+              vehicleName: 'Toyota Corolla',
+              storeName: 'Repuestos Central',
+              status: PurchaseStatus.bought,
+              lastActivityAt: DateTime.utc(2026, 9, 3),
+              partName: 'Nombre administrativo variable',
+              subcategoryIsCatchAll: true,
+              categoryName: 'Frenos',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.text('Frenos › No sé cuál exactamente'),
+      findsOneWidget,
+    );
+    expect(find.text('Nombre administrativo variable'), findsNothing);
+    expect(
+      find.bySemanticsLabel(
+        RegExp(r'Compra de Frenos › No sé cuál exactamente'),
+      ),
+      findsOneWidget,
+    );
+  }, semanticsEnabled: true);
+
   testWidgets('renders loading, safe error, and empty states', (tester) async {
     final pending = Completer<PurchasesResult>();
 

@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:guiautomotriz_mobile/features/catalog/domain/entities/category.dart';
 import 'package:guiautomotriz_mobile/shared/location/domain/entities/request_location_selection.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/spare_part_wizard_page.dart';
 
 Widget _testApp({
   required RequestLocationSelection? selection,
   TextEditingController? detailsController,
+  Category? selectedCategory,
+  Category? selectedSubcategory,
 }) {
   return MaterialApp(
     home: Scaffold(
       body: SparePartWizardStep3(
+        selectedCategory: selectedCategory,
+        selectedSubcategory: selectedSubcategory,
         detailsController: detailsController ?? TextEditingController(),
         selectedImagePath: null,
         requestLocation: selection,
@@ -58,5 +63,24 @@ void main() {
     expect(find.text('Con sensor, lado derecho'), findsOneWidget);
     expect(find.text('Sabana Grande, Caracas'), findsOneWidget);
     expect(find.text('Cambiar'), findsOneWidget);
+  });
+
+  testWidgets('step 3 presents a catch-all by intent inside its root path',
+      (tester) async {
+    await tester.pumpWidget(
+      _testApp(
+        selection: null,
+        selectedCategory: const Category(id: 'frenos', name: 'Frenos'),
+        selectedSubcategory: const Category(
+          id: 'frenos-otro',
+          name: 'Otro',
+          parentId: 'frenos',
+          isCatchAll: true,
+        ),
+      ),
+    );
+
+    expect(find.text('Frenos › No sé cuál exactamente'), findsOneWidget);
+    expect(find.textContaining('Otro'), findsNothing);
   });
 }
