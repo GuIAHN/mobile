@@ -14,6 +14,12 @@ void main() {
       name: 'Frenos',
       children: <CategoryNode>[
         CategoryNode(
+          id: 'frenos-otro',
+          name: 'Otro',
+          parentId: 'frenos',
+          isCatchAll: true,
+        ),
+        CategoryNode(
           id: 'pastillas',
           name: 'Pastillas de freno',
           parentId: 'frenos',
@@ -254,5 +260,76 @@ void main() {
     expect(find.text('No pudimos cargar las categorías.'), findsOneWidget);
     expect(find.text('Reintentar'), findsOneWidget);
     expect(find.textContaining('backend secret'), findsNothing);
+  });
+
+  testWidgets(
+      'offers the root catch-all by its promise, last in the list, and returns it',
+      (tester) async {
+    CategorySubcategoryResult? selection;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          categoryTreeProvider.overrideWith((ref) async => categoryTree),
+        ],
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    selection =
+                        await CategorySubcategorySelectorSheet.show(context);
+                  },
+                  child: const Text('Abrir selector'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Abrir selector'));
+    await tester.pump(const Duration(milliseconds: 360));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('category-root-frenos')));
+    await tester.pumpAndSettle();
+
+    // Shown by what it does for the requester, not by its stored name.
+    expect(find.text(kCatchAllLabel), findsOneWidget);
+    expect(find.text('Otro'), findsNothing);
+
+    // Last resort, so it sits below the real parts even though the tree
+    // returns it first.
+    final catchAllY =
+        tester.getTopLeft(find.byKey(const ValueKey('category-node-frenos-otro'))).dy;
+    final padsY =
+        tester.getTopLeft(find.byKey(const ValueKey('category-node-pastillas'))).dy;
+    expect(catchAllY, greaterThan(padsY));
+
+    await tester.tap(find.text(kCatchAllLabel));
+    await tester.pumpAndSettle();
+
+    expect(selection?.category.id, 'frenos');
+    expect(selection?.subcategory.id, 'frenos-otro');
+    expect(selection?.subcategory.isCatchAll, isTrue);
+  });
+
+  testWidgets('keeps the catch-all out of search results', (tester) async {
+    await tester.pumpWidget(buildSubject());
+    await tester.pump(const Duration(milliseconds: 360));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'otro');
+    await tester.pumpAndSettle();
+
+    // Searching the catch-all's stored name must not return one identical
+    // row per root - the requester picks it inside a category, on purpose.
+    expect(find.text(kCatchAllLabel), findsNothing);
+    expect(
+      find.textContaining('Abre la categoría del sistema'),
+      findsOneWidget,
+    );
   });
 }

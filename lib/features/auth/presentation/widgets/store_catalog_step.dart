@@ -28,11 +28,18 @@ class _StoreCatalogStepState extends ConsumerState<StoreCatalogStep> {
   bool _isSelected(String id) =>
       widget.catalogo.any((line) => line.category.id == id);
 
+  /// Las subcategorías que la tienda puede marcar, sin el catch-all de la
+  /// raíz ("Frenos > Otro"). Ese no se elige: el backend lo deriva de esta
+  /// misma selección (ver StoresService.deriveCatchAllSubcategoryIds) y
+  /// rechaza que se envíe explícito. Ofrecerlo aquí sería pedirle a la
+  /// tienda que marque una casilla llamada "Otro" — exactamente lo que nadie
+  /// hacía y dejaba esas solicitudes sin una sola tienda a la que llegar.
   List<CategoryNode> _descendants(CategoryNode root) {
     final result = <CategoryNode>[];
 
     void collect(CategoryNode node) {
       for (final child in node.children) {
+        if (child.isCatchAll) continue;
         result.add(child);
         collect(child);
       }

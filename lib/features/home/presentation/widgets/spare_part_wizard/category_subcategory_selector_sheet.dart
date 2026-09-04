@@ -11,14 +11,14 @@ import '../../../../catalog/domain/entities/category.dart';
 import '../../../../catalog/domain/entities/category_node.dart';
 import '../../../../catalog/presentation/providers/catalog_providers.dart';
 
-/// ID de la subcategoría "Otro" devuelta por [CategorySubcategorySelectorSheet].
+/// Etiqueta con la que se presenta la subcategoría catch-all de cada raíz.
 ///
-/// Público a propósito: el paso 3 del wizard necesita comparar contra este
-/// valor real (antes comparaba contra el literal 'other_subcategory_id',
-/// que nunca coincidía con el UUID real y dejaba la validación de "Otro"
-/// muerta).
-const kOtherSubcategoryId = '4340eca0-6410-414c-9655-e91711666860';
-const kOtherCategoryId = 'f4ff2288-c7bc-4c42-b0ee-0e66a46e0395';
+/// El backend la nombra "Otro", pero para el solicitante lo útil no es el
+/// nombre sino la promesa: elegiste el sistema, no hace falta que sepas la
+/// pieza. Se reconoce por [CategoryNode.isCatchAll] — nunca por su nombre ni
+/// por un UUID fijo — para que renombrarla desde el panel de admin no rompa
+/// el wizard.
+const kCatchAllLabel = 'No sé cuál exactamente';
 
 class CategorySubcategoryResult {
   final Category category;
@@ -81,9 +81,6 @@ class CategorySubcategorySelectorSheet extends ConsumerStatefulWidget {
 
 class _CategorySubcategorySelectorSheetState
     extends ConsumerState<CategorySubcategorySelectorSheet> {
-  static const _otherCategoryId = kOtherCategoryId;
-  static const _otherSubcategoryId = kOtherSubcategoryId;
-
   List<String> _expandedPath = const [];
   bool _didInitializeExpansion = false;
   final TextEditingController _searchController = TextEditingController();
@@ -163,6 +160,7 @@ class _CategorySubcategorySelectorSheetState
         id: node.id,
         name: node.name,
         parentId: node.parentId,
+        isCatchAll: node.isCatchAll,
       );
     }
 
@@ -191,20 +189,6 @@ class _CategorySubcategorySelectorSheetState
       }
     }
     return false;
-  }
-
-  void _selectOther() {
-    Navigator.pop(
-      context,
-      const CategorySubcategoryResult(
-        category: Category(id: _otherCategoryId, name: 'Otro'),
-        subcategory: Category(
-          id: _otherSubcategoryId,
-          name: 'Otro',
-          parentId: _otherCategoryId,
-        ),
-      ),
-    );
   }
 
   void _handleBack() {
@@ -264,20 +248,6 @@ class _CategorySubcategorySelectorSheetState
                     ),
             ),
           ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: _selectOther,
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.primaryInk,
-              minimumSize: const Size(48, 48),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              textStyle: GoogleFonts.hankenGrotesk(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            child: const Text('Otro / no encuentro mi categoría'),
-          ),
         ],
       ),
     );
@@ -326,7 +296,7 @@ class _CategorySubcategorySelectorSheetState
   Widget _buildSearchResults(List<CategoryNode> tree) {
     final normalized = _query.trim().toLowerCase();
     final results = <_CategorySearchResult>[];
-    for (final root in tree.where((node) => !_isOther(node.name))) {
+    for (final root in tree.where((node) => !node.isCatchAll)) {
       _collectSearchResults(
         root,
         <String>[root.name],
@@ -336,11 +306,11 @@ class _CategorySubcategorySelectorSheetState
     }
 
     if (results.isEmpty) {
-      return _SelectorState(
+      return const _SelectorState(
         icon: Icons.search_off_rounded,
-        message: 'No encontramos esa pieza.',
-        actionLabel: 'Elegir Otro',
-        onAction: _selectOther,
+        message: 'No encontramos esa pieza.\n\nAbre la categoría del sistema '
+            'al que pertenece (frenos, motor, eléctrico…) y elige '
+            '"$kCatchAllLabel" al final de la lista.',
       );
     }
 
@@ -380,7 +350,7 @@ class _CategorySubcategorySelectorSheetState
             path.join(' ').toLowerCase().contains(query))) {
       results.add(_CategorySearchResult(node: node, path: path));
     }
-    for (final child in node.children.where((item) => !_isOther(item.name))) {
+    for (final child in node.children.where((item) => !item.isCatchAll)) {
       _collectSearchResults(
         child,
         <String>[...path, child.name],
@@ -449,7 +419,7 @@ class _CategorySubcategorySelectorSheetState
   }
 
   Widget _buildAccordion(List<CategoryNode> tree) {
-    final roots = tree.where((node) => !_isOther(node.name)).toList();
+    final roots = tree.where((node) => !node.isCatchAll).toList();
     if (roots.isEmpty) {
       return _buildEmpty();
     }
@@ -487,7 +457,13 @@ class _CategorySubcategorySelectorSheetState
     List<CategoryNode> tree, {
     required List<String> ancestors,
   }) {
-    final visibleNodes = nodes.where((node) => !_isOther(node.name)).toList();
+    // El catch-all de la raíz ("no sé cuál exactamente") se queda en la
+    // lista — es justamente la salida que antes faltaba — pero siempre al
+    // final: es el último recurso, no una opción más entre las piezas.
+    final visibleNodes = <CategoryNode>[
+      ...nodes.where((node) => !node.isCatchAll),
+      ...nodes.where((node) => node.isCatchAll),
+    ];
 
     return Column(
       key: ValueKey('category-children-${ancestors.last}'),
@@ -544,17 +520,6 @@ class _CategorySubcategorySelectorSheetState
     return node.children.isNotEmpty &&
         _expandedPath.length > depth &&
         _expandedPath[depth] == node.id;
-  }
-
-  bool _isOther(String name) {
-    final normalized = name.trim().toLowerCase();
-    return normalized == 'otro' ||
-        normalized == 'otra' ||
-        normalized == 'otros' ||
-        normalized == 'otras' ||
-        normalized.startsWith('otro /') ||
-        normalized.startsWith('otra /') ||
-        normalized.startsWith('otro (');
   }
 
   Widget _buildLoading() {
@@ -758,7 +723,7 @@ class _CategoryRow extends StatelessWidget {
       button: true,
       selected: isSelected,
       expanded: node.children.isNotEmpty ? isExpanded : null,
-      label: node.name,
+      label: node.isCatchAll ? kCatchAllLabel : node.name,
       child: Material(
         color: isSelected
             ? AppColors.primaryMuted.withValues(alpha: 0.56)
@@ -783,13 +748,17 @@ class _CategoryRow extends StatelessWidget {
                   const SizedBox(width: 14),
                   Expanded(
                     child: Text(
-                      node.name,
+                      node.isCatchAll ? kCatchAllLabel : node.name,
                       style: GoogleFonts.hankenGrotesk(
                         fontSize: 15,
                         height: 1.25,
                         fontWeight:
                             isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: AppColors.textPrimary,
+                        fontStyle:
+                            node.isCatchAll ? FontStyle.italic : FontStyle.normal,
+                        color: node.isCatchAll
+                            ? AppColors.textSecondary
+                            : AppColors.textPrimary,
                       ),
                     ),
                   ),
@@ -854,14 +823,14 @@ class _CategoryIconBadge extends StatelessWidget {
 class _SelectorState extends StatelessWidget {
   final IconData icon;
   final String message;
-  final String actionLabel;
-  final VoidCallback onAction;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   const _SelectorState({
     required this.icon,
     required this.message,
-    required this.actionLabel,
-    required this.onAction,
+    this.actionLabel,
+    this.onAction,
   });
 
   @override
@@ -883,15 +852,17 @@ class _SelectorState extends StatelessWidget {
                 color: AppColors.textSecondary,
               ),
             ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: onAction,
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.primaryInk,
-                minimumSize: const Size(48, 48),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: onAction,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primaryInk,
+                  minimumSize: const Size(48, 48),
+                ),
+                child: Text(actionLabel!),
               ),
-              child: Text(actionLabel),
-            ),
+            ],
           ],
         ),
       ),
