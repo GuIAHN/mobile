@@ -44,5 +44,7 @@ void main() {
     expect(ContactActions.whatsappUri('4121234567').path, '/584121234567');
     expect(ContactActions.whatsappUri('04121234567').path, '/584121234567');
     expect(ContactActions.whatsappUri('+1 4121234567').path, '/584121234567');
+    expect(ContactActions.whatsappUri('+1 04121234567').path, '/584121234567');
+    expect(ContactActions.whatsappUri('+58 4121234567').path, '/584121234567');
   });
 }

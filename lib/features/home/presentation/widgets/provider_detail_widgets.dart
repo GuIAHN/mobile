@@ -654,7 +654,9 @@ abstract class ContactActions {
     String? message,
   }) {
     String cleanDigits = phone.replaceAll(RegExp(r'\D'), '');
-    if (cleanDigits.length == 12 && cleanDigits.startsWith('1')) {
+    if (cleanDigits.length == 11 && cleanDigits.startsWith('1')) {
+      cleanDigits = '58${cleanDigits.substring(1)}';
+    } else if (cleanDigits.length == 12 && cleanDigits.startsWith('10')) {
       cleanDigits = '58${cleanDigits.substring(2)}';
     } else if (cleanDigits.length == 11 && cleanDigits.startsWith('0')) {
       cleanDigits = '58${cleanDigits.substring(1)}';
