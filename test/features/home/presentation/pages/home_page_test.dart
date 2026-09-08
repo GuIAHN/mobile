@@ -308,7 +308,7 @@ void main() {
 
     await pumpHome(tester, container, height: 1800);
 
-    final promoFinder = find.text('Revisión de frenos con descuento');
+    final promoFinder = find.byKey(const Key('home-promo-section'));
     final workshopsSurface =
         find.byKey(const Key('home-provider-section-workshops'));
     final mechanicsSurface =
@@ -362,22 +362,21 @@ void main() {
 
     await pumpHome(tester, container, height: 1800);
 
-    const orderedLabels = [
-      '¿En qué podemos ayudarte hoy?',
-      'Revisión de frenos con descuento',
-      'Pedir repuesto',
-      'Talleres mejor valorados',
-      'Mecánicos mejor valorados',
+    final orderedContent = [
+      find.text('¿En qué podemos ayudarte hoy?'),
+      find.byKey(const Key('home-promo-section')),
+      find.text('Pedir repuesto'),
+      find.text('Talleres mejor valorados'),
+      find.text('Mecánicos mejor valorados'),
     ];
     final firstOccurrenceY = <double>[];
-    for (final label in orderedLabels) {
-      final finder = find.text(label);
+    for (final finder in orderedContent) {
       expect(finder, findsOneWidget);
       firstOccurrenceY.add(tester.getTopLeft(finder.first).dy);
     }
     expect(firstOccurrenceY, orderedEquals([...firstOccurrenceY]..sort()));
 
-    final promoFinder = find.text('Revisión de frenos con descuento');
+    final promoFinder = find.byKey(const Key('home-promo-section'));
     expect(promoFinder, findsOneWidget);
     expect(
       tester.getTopLeft(promoFinder).dy,
@@ -539,26 +538,32 @@ void main() {
     );
   });
 
-  testWidgets('provider Home does not request consumer advertising',
-      (tester) async {
-    var promoLoads = 0;
-    final container = containerFor(
-      workshops: const AsyncValue.data([]),
-      mechanics: const AsyncValue.data([]),
-      user: mechanic,
-      initialServiceType: ServiceType.spareParts,
-      loadPromos: (ref, type) async {
-        promoLoads++;
-        return const [promo];
-      },
-    );
-    addTearDown(container.dispose);
+  for (final providerCase in const [
+    ('mechanic', mechanic),
+    ('workshop', workshop),
+  ]) {
+    testWidgets('${providerCase.$1} Home shows advertising', (tester) async {
+      var promoLoads = 0;
+      final container = containerFor(
+        workshops: const AsyncValue.data([]),
+        mechanics: const AsyncValue.data([]),
+        user: providerCase.$2,
+        initialServiceType: ServiceType.spareParts,
+        loadPromos: (ref, type) async {
+          promoLoads++;
+          return const [promo];
+        },
+      );
+      addTearDown(container.dispose);
 
-    await pumpHome(tester, container);
+      await pumpHome(tester, container);
 
-    expect(promoLoads, 0);
-    expect(find.byType(PromoCarousel), findsNothing);
-  });
+      expect(promoLoads, 1);
+      expect(find.byKey(const Key('home-promo-section')), findsOneWidget);
+      expect(find.byType(PromoCarousel), findsOneWidget);
+      expect(find.byKey(const Key('promo-indicator-0')), findsOneWidget);
+    });
+  }
 
   testWidgets('consumer Home collapses an empty advertising slot',
       (tester) async {
@@ -669,7 +674,8 @@ void main() {
 
     expect(attempts, 2);
     expect(find.byKey(const Key('promo-error-card')), findsNothing);
-    expect(find.text('Revisión de frenos con descuento'), findsOneWidget);
+    expect(find.byType(PromoCarousel), findsOneWidget);
+    expect(find.byKey(const Key('promo-indicator-0')), findsOneWidget);
   });
 
   testWidgets('consumer Home renders both provider loading states',

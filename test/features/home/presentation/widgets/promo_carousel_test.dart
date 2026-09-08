@@ -57,6 +57,21 @@ void main() {
     return tester.widget<AnimatedContainer>(indicator).constraints!.maxWidth;
   }
 
+  testWidgets('shows clean promo cards while preserving page indicators',
+      (tester) async {
+    await tester.pumpWidget(subject(disableAnimations: true));
+
+    expect(find.text('DESTACADO'), findsNothing);
+    expect(find.text('Primer destacado'), findsNothing);
+    expect(find.text('Primera promoción'), findsNothing);
+    expect(find.byKey(const Key('promo-indicator-0')), findsOneWidget);
+    expect(find.byKey(const Key('promo-indicator-1')), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Publicidad: Primer destacado'),
+      findsOneWidget,
+    );
+  }, semanticsEnabled: true);
+
   testWidgets('reduced motion keeps the first promo selected', (tester) async {
     await tester.pumpWidget(subject(disableAnimations: true));
 

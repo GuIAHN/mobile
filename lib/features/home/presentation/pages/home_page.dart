@@ -129,6 +129,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     final isDashboardSelected = selectedType == ServiceType.storeDashboard;
     final currentRole = ref.watch(currentRoleProvider);
     final isConsumer = currentRole.isConsumer;
+    final showsAdvertising = isConsumer ||
+        currentRole.isMechanic ||
+        currentRole.isWorkshop;
     final nearbyLabel = currentRole.usesSavedLocationForSearch
         ? 'cerca de tu negocio'
         : 'cerca de ti';
@@ -136,7 +139,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final unreadNotifications = ref.watch(unreadNotificationsCountProvider);
     final hasUnreadNotifications = (unreadNotifications.valueOrNull ?? 0) > 0;
     Widget? promoSection;
-    if (isConsumer) {
+    if (showsAdvertising) {
       final promosAsync = ref.watch(adsAsPromosProvider(selectedType));
       final hasPromoSlot = promosAsync.isLoading ||
           promosAsync.hasError ||
