@@ -5,21 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
-import '../../../../../shared/utils/subcategory_presentation.dart';
+import '../../../../../shared/utils/search_text_normalizer.dart';
 import '../../../../catalog/domain/entities/category.dart';
 import '../../../../catalog/domain/entities/category_node.dart';
 import '../../../../catalog/presentation/providers/catalog_providers.dart';
-
-/// Etiqueta con la que se presenta la subcategoría catch-all de cada raíz.
-///
-/// El backend la nombra "Otro", pero para el solicitante lo útil no es el
-/// nombre sino la promesa: elegiste el sistema, no hace falta que sepas la
-/// pieza. Se reconoce por [CategoryNode.isCatchAll] — nunca por su nombre ni
-/// por un UUID fijo — para que renombrarla desde el panel de admin no rompa
-/// el wizard.
-const kCatchAllLabel = requesterCatchAllSubcategoryLabel;
 
 class CategorySubcategoryResult {
   final Category category;
@@ -82,8 +74,9 @@ class CategorySubcategorySelectorSheet extends ConsumerStatefulWidget {
 
 class _CategorySubcategorySelectorSheetState
     extends ConsumerState<CategorySubcategorySelectorSheet> {
-  List<String> _expandedPath = const [];
-  bool _didInitializeExpansion = false;
+  List<String> _navigationPath = const [];
+  bool _didInitializeNavigation = false;
+  bool _navigatingForward = true;
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
   bool _contentReady = false;
@@ -104,13 +97,13 @@ class _CategorySubcategorySelectorSheetState
     super.dispose();
   }
 
-  Duration get _expansionDuration => MediaQuery.of(context).disableAnimations
+  Duration get _navigationDuration => MediaQuery.of(context).disableAnimations
       ? Duration.zero
-      : const Duration(milliseconds: 180);
+      : const Duration(milliseconds: 220);
 
-  void _initializeExpansion(List<CategoryNode> roots) {
-    if (_didInitializeExpansion) return;
-    _didInitializeExpansion = true;
+  void _initializeNavigation(List<CategoryNode> roots) {
+    if (_didInitializeNavigation || roots.isEmpty) return;
+    _didInitializeNavigation = true;
 
     final initialId = widget.initialCategory?.id;
     CategoryNode? initialRoot;
@@ -123,27 +116,22 @@ class _CategorySubcategorySelectorSheetState
       }
     }
     if (initialRoot != null && initialRoot.children.isNotEmpty) {
-      _expandedPath = <String>[initialRoot.id];
+      _navigationPath = <String>[initialRoot.id];
     }
   }
 
-  void _toggleNode(
-    CategoryNode node,
-    List<CategoryNode> tree,
-    List<String> ancestors,
-  ) {
+  void _openNode(CategoryNode node, List<CategoryNode> tree) {
     if (node.children.isEmpty) {
       _selectLeaf(node, tree);
       return;
     }
 
-    final depth = ancestors.length;
-    final isExpanded =
-        _expandedPath.length > depth && _expandedPath[depth] == node.id;
+    FocusScope.of(context).unfocus();
     setState(() {
-      _expandedPath = isExpanded
-          ? List<String>.of(ancestors)
-          : <String>[...ancestors, node.id];
+      _navigatingForward = true;
+      _navigationPath = <String>[..._navigationPath, node.id];
+      _searchController.clear();
+      _query = '';
     });
   }
 
@@ -192,10 +180,48 @@ class _CategorySubcategorySelectorSheetState
     return false;
   }
 
+  CategoryNode? _currentNode(List<CategoryNode> tree) {
+    if (_navigationPath.isEmpty) return null;
+
+    List<CategoryNode> level = tree;
+    CategoryNode? current;
+    for (final id in _navigationPath) {
+      current = _findDirectNode(level, id);
+      if (current == null) return null;
+      level = current.children;
+    }
+    return current;
+  }
+
+  CategoryNode? _findDirectNode(List<CategoryNode> nodes, String id) {
+    for (final node in nodes) {
+      if (node.id == id) return node;
+    }
+    return null;
+  }
+
+  CategoryNode? _activeRoot(List<CategoryNode> tree) {
+    if (_navigationPath.isEmpty) return null;
+    return _findDirectNode(tree, _navigationPath.first);
+  }
+
   void _handleBack() {
-    if (_expandedPath.length > 1) {
+    if (_query.isNotEmpty) {
+      FocusScope.of(context).unfocus();
       setState(() {
-        _expandedPath = _expandedPath.sublist(0, _expandedPath.length - 1);
+        _searchController.clear();
+        _query = '';
+      });
+      return;
+    }
+
+    if (_navigationPath.isNotEmpty) {
+      setState(() {
+        _navigatingForward = false;
+        _navigationPath = _navigationPath.sublist(
+          0,
+          _navigationPath.length - 1,
+        );
       });
       return;
     }
@@ -206,6 +232,19 @@ class _CategorySubcategorySelectorSheetState
   Widget build(BuildContext context) {
     final treeAsync = ref.watch(categoryTreeProvider);
     final mediaQuery = MediaQuery.of(context);
+    final loadedTree = treeAsync.asData?.value;
+    if (loadedTree != null) {
+      _initializeNavigation(
+        loadedTree.where((node) => !node.isCatchAll).toList(),
+      );
+      if (_navigationPath.isNotEmpty && _currentNode(loadedTree) == null) {
+        _navigationPath = const [];
+      }
+    }
+    final currentNode = loadedTree == null ? null : _currentNode(loadedTree);
+    final activeRoot = loadedTree == null ? null : _activeRoot(loadedTree);
+    final catchAll =
+        activeRoot == null ? null : _findDirectCatchAll(activeRoot.children);
 
     return Container(
       key: const Key('category-sheet-shell'),
@@ -224,9 +263,9 @@ class _CategorySubcategorySelectorSheetState
         children: [
           const _SheetHandle(),
           const SizedBox(height: 14),
-          _buildHeader(),
+          _buildHeader(currentNode),
           const SizedBox(height: 16),
-          _buildSearchField(),
+          _buildSearchField(currentNode),
           const SizedBox(height: 16),
           Expanded(
             child: AnimatedSwitcher(
@@ -243,31 +282,48 @@ class _CategorySubcategorySelectorSheetState
                         loading: _buildLoading,
                         error: (_, __) => _buildError(),
                         data: (tree) => _query.trim().length < 2
-                            ? _buildAccordion(tree)
+                            ? _buildNavigation(tree)
                             : _buildSearchResults(tree),
                       ),
                     ),
             ),
           ),
+          if (_contentReady && activeRoot != null && catchAll != null) ...[
+            const SizedBox(height: 12),
+            _CatchAllAction(
+              categoryName: activeRoot.name,
+              onTap: () => _selectLeaf(catchAll, loadedTree!),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildSearchField() {
+  CategoryNode? _findDirectCatchAll(List<CategoryNode> nodes) {
+    for (final node in nodes) {
+      if (node.isCatchAll) return node;
+    }
+    return null;
+  }
+
+  Widget _buildSearchField(CategoryNode? currentNode) {
     return TextField(
       controller: _searchController,
       onChanged: (value) => setState(() => _query = value),
       textInputAction: TextInputAction.search,
       style: AppTypography.body,
       decoration: InputDecoration(
-        hintText: 'Buscar pieza o categoría',
+        hintText: currentNode == null
+            ? 'Buscar pieza o categoría'
+            : 'Buscar en ${currentNode.name}',
         hintStyle: AppTypography.body.copyWith(
           color: AppColors.textPlaceholder,
         ),
         prefixIcon: const Icon(
-          Icons.search_rounded,
+          AppIcons.search,
           color: AppColors.textSecondary,
+          size: AppIconSize.action,
         ),
         suffixIcon: _query.isEmpty
             ? null
@@ -277,7 +333,7 @@ class _CategorySubcategorySelectorSheetState
                   _searchController.clear();
                   setState(() => _query = '');
                 },
-                icon: const Icon(Icons.close_rounded),
+                icon: const Icon(AppIcons.close, size: AppIconSize.action),
               ),
         filled: true,
         fillColor: AppColors.grey50,
@@ -295,12 +351,18 @@ class _CategorySubcategorySelectorSheetState
   }
 
   Widget _buildSearchResults(List<CategoryNode> tree) {
-    final normalized = _query.trim().toLowerCase();
+    final normalized = normalizeSearchText(_query);
     final results = <_CategorySearchResult>[];
-    for (final root in tree.where((node) => !node.isCatchAll)) {
+    final currentNode = _currentNode(tree);
+    final scopes = currentNode == null
+        ? tree.where((node) => !node.isCatchAll)
+        : <CategoryNode>[currentNode];
+    final leadingPath = _navigationPathNames(tree);
+
+    for (final root in scopes) {
       _collectSearchResults(
         root,
-        <String>[root.name],
+        currentNode == null ? <String>[root.name] : leadingPath,
         normalized,
         results,
       );
@@ -308,10 +370,10 @@ class _CategorySubcategorySelectorSheetState
 
     if (results.isEmpty) {
       return const _SelectorState(
-        icon: Icons.search_off_rounded,
+        icon: AppIcons.searchEmpty,
         message: 'No encontramos esa pieza.\n\nAbre la categoría del sistema '
             'al que pertenece (frenos, motor, eléctrico…) y elige '
-            '"$kCatchAllLabel" al final de la lista.',
+            'la opción “No encuentro la pieza…” ubicada al final.',
       );
     }
 
@@ -322,22 +384,40 @@ class _CategorySubcategorySelectorSheetState
           const Divider(height: 1, color: AppColors.border),
       itemBuilder: (context, index) {
         final result = results[index];
-        return ListTile(
-          minTileHeight: 64,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-          leading: _CategoryIconBadge(name: result.node.name, size: 40),
-          title: Text(result.node.name, style: AppTypography.title),
-          subtitle: Text(
-            result.breadcrumb,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTypography.bodySm,
+        return Material(
+          color: Colors.transparent,
+          child: ListTile(
+            minTileHeight: 64,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+            leading: AppLineIcon(
+              _categoryIcon(result.node.name),
+              color: AppColors.textSecondary,
+            ),
+            title: Text(result.node.name, style: AppTypography.title),
+            subtitle: Text(
+              result.breadcrumb,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.bodySm,
+            ),
+            trailing: const Icon(AppIcons.next, size: AppIconSize.action),
+            onTap: () => _selectLeaf(result.node, tree),
           ),
-          trailing: const Icon(Icons.chevron_right_rounded),
-          onTap: () => _selectLeaf(result.node, tree),
         );
       },
     );
+  }
+
+  List<String> _navigationPathNames(List<CategoryNode> tree) {
+    final names = <String>[];
+    var level = tree;
+    for (final id in _navigationPath) {
+      final node = _findDirectNode(level, id);
+      if (node == null) break;
+      names.add(node.name);
+      level = node.children;
+    }
+    return names;
   }
 
   void _collectSearchResults(
@@ -347,8 +427,8 @@ class _CategorySubcategorySelectorSheetState
     List<_CategorySearchResult> results,
   ) {
     if (node.children.isEmpty &&
-        (node.name.toLowerCase().contains(query) ||
-            path.join(' ').toLowerCase().contains(query))) {
+        (normalizeSearchText(node.name).contains(query) ||
+            normalizeSearchText(path.join(' ')).contains(query))) {
       results.add(_CategorySearchResult(node: node, path: path));
     }
     for (final child in node.children.where((item) => !item.isCatchAll)) {
@@ -361,7 +441,7 @@ class _CategorySubcategorySelectorSheetState
     }
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(CategoryNode? currentNode) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -370,7 +450,7 @@ class _CategorySubcategorySelectorSheetState
           tooltip: 'Volver',
           constraints: const BoxConstraints.tightFor(width: 48, height: 48),
           icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
+            AppIcons.back,
             size: 20,
             color: AppColors.textPrimary,
           ),
@@ -381,7 +461,9 @@ class _CategorySubcategorySelectorSheetState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'CATÁLOGO DE PIEZAS',
+                currentNode == null
+                    ? 'CATÁLOGO DE PIEZAS'
+                    : 'CATEGORÍA SELECCIONADA',
                 style: GoogleFonts.hankenGrotesk(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -391,7 +473,7 @@ class _CategorySubcategorySelectorSheetState
               ),
               const SizedBox(height: 2),
               Text(
-                'Busca tu repuesto',
+                currentNode?.name ?? 'Busca tu repuesto',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.hankenGrotesk(
@@ -410,8 +492,8 @@ class _CategorySubcategorySelectorSheetState
           tooltip: 'Cerrar selector',
           constraints: const BoxConstraints.tightFor(width: 48, height: 48),
           icon: const Icon(
-            Icons.close_rounded,
-            size: 26,
+            AppIcons.close,
+            size: AppIconSize.leading,
             color: AppColors.textPrimary,
           ),
         ),
@@ -419,108 +501,69 @@ class _CategorySubcategorySelectorSheetState
     );
   }
 
-  Widget _buildAccordion(List<CategoryNode> tree) {
+  Widget _buildNavigation(List<CategoryNode> tree) {
     final roots = tree.where((node) => !node.isCatchAll).toList();
     if (roots.isEmpty) {
       return _buildEmpty();
     }
 
-    _initializeExpansion(roots);
+    final currentNode = _currentNode(tree);
+    final visibleNodes = (currentNode?.children ?? roots)
+        .where((node) => !node.isCatchAll)
+        .toList();
+    final viewKey = currentNode?.id ?? 'root';
 
-    return ListView.separated(
-      padding: EdgeInsets.zero,
-      physics: const BouncingScrollPhysics(),
-      itemCount: roots.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final root = roots[index];
-        final isExpanded = _isNodeExpanded(root, 0);
-        return _RootAccordion(
-          root: root,
-          isExpanded: isExpanded,
-          isSelected: root.id == widget.initialCategory?.id,
-          duration: _expansionDuration,
-          onTap: () => _toggleNode(root, tree, const []),
-          children: isExpanded
-              ? _buildNodeList(
-                  root.children,
-                  tree,
-                  ancestors: <String>[root.id],
-                )
-              : null,
+    final Widget content;
+    if (visibleNodes.isEmpty) {
+      content = const _SelectorState(
+        icon: AppIcons.catalog,
+        message: 'No hay piezas específicas en esta categoría.',
+      );
+    } else {
+      content = ListView.separated(
+        padding: const EdgeInsets.only(bottom: 4),
+        physics: const BouncingScrollPhysics(),
+        itemCount: visibleNodes.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          final node = visibleNodes[index];
+          final isRoot = currentNode == null;
+          return _CategoryNavigationRow(
+            key: ValueKey(
+              isRoot ? 'category-root-${node.id}' : 'category-node-${node.id}',
+            ),
+            node: node,
+            isRoot: isRoot,
+            isSelected: node.id == widget.initialSubcategory?.id,
+            onTap: () => _openNode(node, tree),
+          );
+        },
+      );
+    }
+
+    return AnimatedSwitcher(
+      duration: _navigationDuration,
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) {
+        if (_navigationDuration == Duration.zero) return child;
+        final offset = _navigatingForward ? 0.08 : -0.08;
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: Offset(offset, 0),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
         );
       },
+      child: KeyedSubtree(
+        key: ValueKey('category-view-$viewKey'),
+        child: content,
+      ),
     );
-  }
-
-  Widget _buildNodeList(
-    List<CategoryNode> nodes,
-    List<CategoryNode> tree, {
-    required List<String> ancestors,
-  }) {
-    // El catch-all de la raíz ("no sé cuál exactamente") se queda en la
-    // lista — es justamente la salida que antes faltaba — pero siempre al
-    // final: es el último recurso, no una opción más entre las piezas.
-    final visibleNodes = <CategoryNode>[
-      ...nodes.where((node) => !node.isCatchAll),
-      ...nodes.where((node) => node.isCatchAll),
-    ];
-
-    return Column(
-      key: ValueKey('category-children-${ancestors.last}'),
-      children: [
-        for (var index = 0; index < visibleNodes.length; index++) ...[
-          if (index > 0)
-            const Divider(height: 1, thickness: 1, color: AppColors.border),
-          _buildNode(
-            visibleNodes[index],
-            tree,
-            ancestors: ancestors,
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildNode(
-    CategoryNode node,
-    List<CategoryNode> tree, {
-    required List<String> ancestors,
-  }) {
-    final depth = ancestors.length;
-    final isExpanded = _isNodeExpanded(node, depth);
-    final isSelected = node.id == widget.initialSubcategory?.id;
-
-    return Column(
-      children: [
-        _CategoryRow(
-          key: ValueKey('category-node-${node.id}'),
-          node: node,
-          depth: depth,
-          isExpanded: isExpanded,
-          isSelected: isSelected,
-          onTap: () => _toggleNode(node, tree, ancestors),
-        ),
-        AnimatedSize(
-          duration: _expansionDuration,
-          curve: Curves.easeOutCubic,
-          alignment: Alignment.topCenter,
-          child: isExpanded
-              ? _buildNodeList(
-                  node.children,
-                  tree,
-                  ancestors: <String>[...ancestors, node.id],
-                )
-              : const SizedBox.shrink(),
-        ),
-      ],
-    );
-  }
-
-  bool _isNodeExpanded(CategoryNode node, int depth) {
-    return node.children.isNotEmpty &&
-        _expandedPath.length > depth &&
-        _expandedPath[depth] == node.id;
   }
 
   Widget _buildLoading() {
@@ -531,7 +574,7 @@ class _CategorySubcategorySelectorSheetState
 
   Widget _buildError() {
     return _SelectorState(
-      icon: Icons.wifi_off_rounded,
+      icon: AppIcons.connectivityError,
       message: 'No pudimos cargar las categorías.',
       actionLabel: 'Reintentar',
       onAction: () => ref.invalidate(categoryTreeProvider),
@@ -540,7 +583,7 @@ class _CategorySubcategorySelectorSheetState
 
   Widget _buildEmpty() {
     return _SelectorState(
-      icon: Icons.inventory_2_outlined,
+      icon: AppIcons.catalog,
       message: 'No hay categorías disponibles en este momento.',
       actionLabel: 'Reintentar',
       onAction: () => ref.invalidate(categoryTreeProvider),
@@ -586,197 +629,99 @@ class _CategorySheetWarmup extends StatelessWidget {
   }
 }
 
-class _RootAccordion extends StatelessWidget {
-  final CategoryNode root;
-  final bool isExpanded;
-  final bool isSelected;
-  final Duration duration;
-  final VoidCallback onTap;
-  final Widget? children;
-
-  const _RootAccordion({
-    required this.root,
-    required this.isExpanded,
-    required this.isSelected,
-    required this.duration,
-    required this.onTap,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Semantics(
-                button: true,
-                selected: isSelected,
-                expanded: isExpanded,
-                label: root.name,
-                child: Material(
-                  color: isExpanded
-                      ? AppColors.primaryMuted.withValues(alpha: 0.56)
-                      : AppColors.surface,
-                  child: InkWell(
-                    key: ValueKey('category-root-${root.id}'),
-                    onTap: onTap,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(minHeight: 60),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 8, 16, 8),
-                        child: Row(
-                          children: [
-                            _CategoryIconBadge(
-                              name: root.name,
-                              size: 42,
-                              emphasized: isExpanded,
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Text(
-                                root.name,
-                                style: GoogleFonts.hankenGrotesk(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Icon(
-                              isExpanded
-                                  ? Icons.keyboard_arrow_up_rounded
-                                  : Icons.keyboard_arrow_down_rounded,
-                              size: 24,
-                              color: AppColors.textSecondary,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              AnimatedSize(
-                duration: duration,
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.topCenter,
-                child: children == null
-                    ? const SizedBox.shrink()
-                    : Column(
-                        children: [
-                          const Divider(
-                            height: 1,
-                            thickness: 1,
-                            color: AppColors.border,
-                          ),
-                          children!,
-                        ],
-                      ),
-              ),
-            ],
-          ),
-          if (isExpanded)
-            const Positioned(
-              left: 0,
-              top: 0,
-              bottom: 0,
-              child: ColoredBox(
-                color: AppColors.primary,
-                child: SizedBox(width: 3),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CategoryRow extends StatelessWidget {
+class _CategoryNavigationRow extends StatelessWidget {
   final CategoryNode node;
-  final int depth;
-  final bool isExpanded;
+  final bool isRoot;
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _CategoryRow({
+  const _CategoryNavigationRow({
     super.key,
     required this.node,
-    required this.depth,
-    required this.isExpanded,
+    required this.isRoot,
     required this.isSelected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final leftInset = 22.0 + ((depth - 1) * 18);
     return Semantics(
       button: true,
       selected: isSelected,
-      expanded: node.children.isNotEmpty ? isExpanded : null,
-      label: node.isCatchAll ? kCatchAllLabel : node.name,
+      label: node.children.isEmpty
+          ? '${node.name}, seleccionar pieza'
+          : '${node.name}, abrir categoría',
       child: Material(
-        color: isSelected
-            ? AppColors.primaryMuted.withValues(alpha: 0.56)
-            : AppColors.surface,
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
         child: InkWell(
           onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 52),
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(leftInset, 10, 16, 10),
+            constraints: BoxConstraints(minHeight: isRoot ? 64 : 56),
+            child: Ink(
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppColors.primaryMuted.withValues(alpha: 0.56)
+                    : AppColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSelected ? AppColors.primary : AppColors.border,
+                  width: isSelected ? 1.4 : 1,
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x0A000000),
+                    blurRadius: 14,
+                    offset: Offset(0, 6),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(
                 children: [
-                  // Subcategorías: punto de acento en lugar del ícono del padre
-                  Container(
-                    width: 7,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary : AppColors.grey300,
-                      shape: BoxShape.circle,
+                  if (isRoot)
+                    AppLineIcon(
+                      _categoryIcon(node.name),
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                    )
+                  else
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color:
+                            isSelected ? AppColors.primary : AppColors.grey300,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      node.isCatchAll ? kCatchAllLabel : node.name,
+                      node.name,
                       style: GoogleFonts.hankenGrotesk(
-                        fontSize: 15,
+                        fontSize: isRoot ? 16 : 15,
                         height: 1.25,
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.w500,
-                        fontStyle: node.isCatchAll
-                            ? FontStyle.italic
-                            : FontStyle.normal,
-                        color: node.isCatchAll
-                            ? AppColors.textSecondary
-                            : AppColors.textPrimary,
+                        fontWeight: isSelected || isRoot
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
-                  if (isSelected)
+                  if (isSelected && node.children.isEmpty)
                     const Icon(
-                      Icons.check_circle_rounded,
-                      size: 22,
+                      AppIcons.selected,
+                      size: AppIconSize.action,
                       color: AppColors.primary,
                     )
                   else if (node.children.isNotEmpty)
-                    Icon(
-                      isExpanded
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded,
-                      size: 22,
+                    const Icon(
+                      AppIcons.next,
+                      size: AppIconSize.action,
                       color: AppColors.textSecondary,
                     ),
                 ],
@@ -789,33 +734,46 @@ class _CategoryRow extends StatelessWidget {
   }
 }
 
-class _CategoryIconBadge extends StatelessWidget {
-  final String name;
-  final double size;
-  final bool emphasized;
+class _CatchAllAction extends StatelessWidget {
+  final String categoryName;
+  final VoidCallback onTap;
 
-  const _CategoryIconBadge({
-    required this.name,
-    required this.size,
-    this.emphasized = false,
+  const _CatchAllAction({
+    required this.categoryName,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ExcludeSemantics(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: emphasized
-              ? AppColors.primary.withValues(alpha: 0.14)
-              : AppColors.grey100,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          _categoryIcon(name),
-          size: size * 0.54,
-          color: emphasized ? AppColors.primaryInk : AppColors.textSecondary,
+    final label = 'No encuentro la pieza en $categoryName';
+    return Semantics(
+      button: true,
+      label: '$label. Seleccionar otra pieza de $categoryName',
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          key: ValueKey('category-catch-all-action-$categoryName'),
+          onPressed: onTap,
+          icon: const Icon(
+            AppIcons.question,
+            size: AppIconSize.action,
+            color: AppColors.primary,
+          ),
+          label: Text(
+            label,
+            textAlign: TextAlign.center,
+          ),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.textPrimary,
+            minimumSize: const Size.fromHeight(52),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            side: const BorderSide(color: AppColors.primary, width: 1.5),
+            shape: const StadiumBorder(),
+            textStyle: GoogleFonts.hankenGrotesk(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
       ),
     );
@@ -884,86 +842,74 @@ IconData _categoryIcon(String name) {
       .replaceAll('ü', 'u')
       .replaceAll('ñ', 'n');
 
-  if (normalized.contains('filtro')) return Icons.filter_alt_outlined;
+  if (normalized.contains('filtro')) return AppIcons.engine;
   if (normalized.contains('pastilla') ||
       normalized.contains('disco') ||
       normalized.contains('freno')) {
-    return Icons.disc_full_outlined;
+    return AppIcons.brakes;
   }
-  if (normalized.contains('bateria')) {
-    return Icons.battery_charging_full_rounded;
+  if (normalized.contains('bateria') ||
+      normalized.contains('sensor') ||
+      normalized.contains('modulo') ||
+      normalized.contains('electronico') ||
+      normalized.contains('arranque') ||
+      normalized.contains('cable') ||
+      normalized.contains('conexion') ||
+      normalized.contains('electric') ||
+      normalized.contains('encendido')) {
+    return AppIcons.electrical;
   }
-  if (normalized.contains('sensor')) return Icons.sensors_rounded;
-  if (normalized.contains('modulo') || normalized.contains('electronico')) {
-    return Icons.memory_rounded;
+  if (normalized.contains('inyeccion') || normalized.contains('combustible')) {
+    return AppIcons.fuel;
   }
-  if (normalized.contains('arranque')) return Icons.power_settings_new_rounded;
-  if (normalized.contains('inyeccion')) {
-    return Icons.local_gas_station_outlined;
+  if (normalized.contains('iluminacion')) return AppIcons.lighting;
+  if (normalized.contains('caucho') ||
+      normalized.contains('neumatic') ||
+      normalized.contains('rin')) {
+    return AppIcons.wheels;
   }
-  if (normalized.contains('cable') || normalized.contains('conexion')) {
-    return Icons.cable_rounded;
-  }
-  if (normalized.contains('iluminacion')) {
-    return Icons.lightbulb_outline_rounded;
-  }
-  if (normalized.contains('caucho') || normalized.contains('neumatic')) {
-    return Icons.tire_repair_outlined;
-  }
-  if (normalized.contains('rin')) return Icons.circle_outlined;
-  if (normalized.contains('altavoz') || normalized.contains('transductor')) {
-    return Icons.speaker_outlined;
-  }
-  if (normalized.contains('amplificacion') ||
-      normalized.contains('procesamiento')) {
-    return Icons.graphic_eq_rounded;
-  }
-  if (normalized.contains('multimedia') ||
+  if (normalized.contains('altavoz') ||
+      normalized.contains('transductor') ||
+      normalized.contains('amplificacion') ||
+      normalized.contains('procesamiento') ||
+      normalized.contains('multimedia') ||
       normalized.contains('conectividad') ||
-      normalized.contains('unidad central')) {
-    return Icons.connected_tv_outlined;
+      normalized.contains('unidad central') ||
+      normalized.contains('audio')) {
+    return AppIcons.audio;
   }
-  if (normalized.contains('audio')) return Icons.speaker_group_outlined;
-  if (normalized.contains('volante')) {
-    return Icons.sports_motorsports_outlined;
-  }
-  if (normalized.contains('bomba') || normalized.contains('hidraulic')) {
-    return Icons.water_drop_outlined;
-  }
-  if (normalized.contains('ventilacion')) return Icons.air_rounded;
-  if (normalized.contains('compresion')) return Icons.compress_rounded;
-  if (normalized.contains('aire') || normalized.contains('climatizacion')) {
-    return Icons.ac_unit_rounded;
+  if (normalized.contains('aire') ||
+      normalized.contains('ventilacion') ||
+      normalized.contains('climatizacion')) {
+    return AppIcons.climate;
   }
   if (normalized.contains('columna') ||
       normalized.contains('cardan') ||
       normalized.contains('barra') ||
-      normalized.contains('terminal')) {
-    return Icons.linear_scale_rounded;
+      normalized.contains('terminal') ||
+      normalized.contains('direccion') ||
+      normalized.contains('volante')) {
+    return AppIcons.transmission;
   }
-  if (normalized.contains('direccion')) return Icons.alt_route_rounded;
   if (normalized.contains('tren') ||
       normalized.contains('amortigu') ||
       normalized.contains('suspension')) {
-    return Icons.swap_vert_circle_outlined;
+    return AppIcons.suspension;
   }
   if (normalized.contains('caja') || normalized.contains('transmision')) {
-    return Icons.settings_suggest_outlined;
+    return AppIcons.transmission;
   }
   if (normalized.contains('motor') || normalized.contains('interno')) {
-    return Icons.precision_manufacturing_outlined;
+    return AppIcons.engine;
   }
   if (normalized.contains('carroceria') ||
       normalized == 'externa' ||
       normalized == 'interna') {
-    return Icons.directions_car_outlined;
-  }
-  if (normalized.contains('electric') || normalized.contains('encendido')) {
-    return Icons.electric_bolt_outlined;
+    return AppIcons.bodywork;
   }
   if (normalized.contains('lubric') || normalized.contains('aceite')) {
-    return Icons.oil_barrel_outlined;
+    return AppIcons.engine;
   }
-  if (normalized.contains('escape')) return Icons.air_rounded;
-  return Icons.category_outlined;
+  if (normalized.contains('escape')) return AppIcons.climate;
+  return AppIcons.catalog;
 }

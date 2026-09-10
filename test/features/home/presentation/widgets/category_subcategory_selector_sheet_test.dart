@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:guiautomotriz_mobile/core/theme/app_icons.dart';
+import 'package:guiautomotriz_mobile/features/catalog/domain/entities/category.dart';
 import 'package:guiautomotriz_mobile/features/catalog/domain/entities/category_node.dart';
 import 'package:guiautomotriz_mobile/features/catalog/presentation/providers/catalog_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/category_subcategory_selector_sheet.dart';
@@ -100,34 +102,102 @@ void main() {
     expect(tester.getSize(find.byTooltip('Cerrar selector')).shortestSide, 48);
   });
 
-  testWidgets('starts collapsed and expands one root accordion at a time',
+  testWidgets(
+      'searches locally and reuses one category-tree request per session',
+      (tester) async {
+    var categoryLoads = 0;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          categoryTreeProvider.overrideWith((ref) async {
+            categoryLoads++;
+            return categoryTree;
+          }),
+        ],
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => CategorySubcategorySelectorSheet.show(
+                    context,
+                  ),
+                  child: const Text('Abrir selector'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Abrir selector'));
+    await tester.pump(const Duration(milliseconds: 360));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'pas');
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'pastillas');
+    await tester.pumpAndSettle();
+    expect(find.text('Pastillas de freno'), findsOneWidget);
+    expect(categoryLoads, 1);
+
+    await tester.tap(find.byTooltip('Cerrar selector'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Abrir selector'));
+    await tester.pump(const Duration(milliseconds: 360));
+    await tester.pumpAndSettle();
+
+    expect(categoryLoads, 1);
+  });
+
+  testWidgets('matches category breadcrumbs without requiring accents',
       (tester) async {
     await tester.pumpWidget(buildSubject());
     await tester.pump(const Duration(milliseconds: 360));
     await tester.pumpAndSettle();
 
-    expect(
-        find.byKey(const ValueKey('category-children-frenos')), findsNothing);
-    expect(find.byKey(const ValueKey('category-children-motor')), findsNothing);
+    await tester.enterText(find.byType(TextField), 'suspension');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Amortiguadores'), findsOneWidget);
+    expect(find.textContaining('Suspensión'), findsOneWidget);
+  });
+
+  testWidgets('navigates from parent categories to a focused child list',
+      (tester) async {
+    await tester.pumpWidget(buildSubject());
+    await tester.pump(const Duration(milliseconds: 360));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pastillas de freno'), findsNothing);
+    expect(find.byKey(const ValueKey('category-root-motor')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('category-root-frenos')));
     await tester.pumpAndSettle();
 
-    expect(
-        find.byKey(const ValueKey('category-children-frenos')), findsOneWidget);
+    expect(find.byKey(const ValueKey('category-view-frenos')), findsOneWidget);
     expect(find.text('Pastillas de freno'), findsOneWidget);
+    expect(find.byKey(const ValueKey('category-root-motor')), findsNothing);
+    expect(find.text('Frenos'), findsOneWidget);
+    expect(find.text('No encuentro la pieza en Frenos'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('category-root-motor')));
+    await tester.enterText(find.byType(TextField), 'pieza inexistente');
+    await tester.pumpAndSettle();
+    expect(find.text('No encuentro la pieza en Frenos'), findsOneWidget);
+    await tester.tap(find.byTooltip('Limpiar búsqueda'));
     await tester.pumpAndSettle();
 
-    expect(
-        find.byKey(const ValueKey('category-children-frenos')), findsNothing);
-    expect(
-        find.byKey(const ValueKey('category-children-motor')), findsOneWidget);
-    expect(find.text('Filtro de aceite'), findsOneWidget);
+    await tester.tap(find.byTooltip('Volver'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('category-root-frenos')), findsOneWidget);
+    expect(find.byKey(const ValueKey('category-root-motor')), findsOneWidget);
+    expect(find.text('Pastillas de freno'), findsNothing);
+    expect(find.text('No encuentro la pieza en Frenos'), findsNothing);
   });
 
-  testWidgets('uses category icons at root and compact dots for children',
+  testWidgets('uses AppIcons at root and compact dots for children',
       (tester) async {
     await tester.pumpWidget(buildSubject());
     await tester.pump(const Duration(milliseconds: 360));
@@ -136,7 +206,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('category-root-frenos')),
-        matching: find.byIcon(Icons.disc_full_outlined),
+        matching: find.byIcon(AppIcons.brakes),
       ),
       findsOneWidget,
     );
@@ -150,15 +220,17 @@ void main() {
       findsNothing,
     );
 
-    await tester.tap(find.byKey(const ValueKey('category-root-motor')));
+    await tester.tap(find.byTooltip('Volver'));
     await tester.pumpAndSettle();
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('category-root-motor')),
-        matching: find.byIcon(Icons.precision_manufacturing_outlined),
+        matching: find.byIcon(AppIcons.engine),
       ),
       findsOneWidget,
     );
+    await tester.tap(find.byKey(const ValueKey('category-root-motor')));
+    await tester.pumpAndSettle();
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('category-node-filtro-aceite')),
@@ -171,6 +243,8 @@ void main() {
   testWidgets('keeps the selector usable on small and large phones',
       (tester) async {
     for (final size in const [Size(375, 667), Size(430, 932)]) {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
       await tester.pumpWidget(buildSubject(textScale: 2, size: size));
       await tester.pump(const Duration(milliseconds: 360));
       await tester.pumpAndSettle();
@@ -181,7 +255,47 @@ void main() {
         find.byKey(const ValueKey('category-root-frenos')),
         findsOneWidget,
       );
+
+      await tester.tap(find.byKey(const ValueKey('category-root-frenos')));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('No encuentro la pieza en Frenos'), findsOneWidget);
     }
+  });
+
+  testWidgets('opens an existing selection inside its parent category',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          categoryTreeProvider.overrideWith((ref) async => categoryTree),
+        ],
+        child: const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(size: Size(390, 844)),
+            child: Scaffold(
+              body: Align(
+                alignment: Alignment.bottomCenter,
+                child: CategorySubcategorySelectorSheet(
+                  initialCategory: Category(id: 'frenos', name: 'Frenos'),
+                  initialSubcategory: Category(
+                    id: 'pastillas',
+                    name: 'Pastillas de freno',
+                    parentId: 'frenos',
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 360));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('category-view-frenos')), findsOneWidget);
+    expect(find.text('No encuentro la pieza en Frenos'), findsOneWidget);
+    expect(find.byKey(const ValueKey('category-root-motor')), findsNothing);
   });
 
   testWidgets('returns the root category and selected leaf', (tester) async {
@@ -263,7 +377,7 @@ void main() {
   });
 
   testWidgets(
-      'offers the root catch-all by its promise, last in the list, and returns it',
+      'offers the root catch-all as a contextual footer action and returns it',
       (tester) async {
     CategorySubcategoryResult? selection;
 
@@ -296,21 +410,16 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('category-root-frenos')));
     await tester.pumpAndSettle();
 
-    // Shown by what it does for the requester, not by its stored name.
-    expect(find.text(kCatchAllLabel), findsOneWidget);
+    // It is a stable fallback action, separate from the actual pieces.
+    expect(find.text('No encuentro la pieza en Frenos'), findsOneWidget);
+    expect(find.text('No sé cuál exactamente'), findsNothing);
     expect(find.text('Otro'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('category-node-frenos-otro')),
+      findsNothing,
+    );
 
-    // Last resort, so it sits below the real parts even though the tree
-    // returns it first.
-    final catchAllY = tester
-        .getTopLeft(find.byKey(const ValueKey('category-node-frenos-otro')))
-        .dy;
-    final padsY = tester
-        .getTopLeft(find.byKey(const ValueKey('category-node-pastillas')))
-        .dy;
-    expect(catchAllY, greaterThan(padsY));
-
-    await tester.tap(find.text(kCatchAllLabel));
+    await tester.tap(find.text('No encuentro la pieza en Frenos'));
     await tester.pumpAndSettle();
 
     expect(selection?.category.id, 'frenos');
@@ -328,7 +437,7 @@ void main() {
 
     // Searching the catch-all's stored name must not return one identical
     // row per root - the requester picks it inside a category, on purpose.
-    expect(find.text(kCatchAllLabel), findsNothing);
+    expect(find.text('No sé cuál exactamente'), findsNothing);
     expect(
       find.textContaining('Abre la categoría del sistema'),
       findsOneWidget,

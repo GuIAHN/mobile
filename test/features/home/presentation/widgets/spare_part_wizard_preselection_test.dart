@@ -191,7 +191,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('category-root-frenos')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('No sé cuál exactamente'));
+    await tester.tap(find.text('No encuentro la pieza en Frenos'));
     await tester.pumpAndSettle();
 
     expect(find.text('Frenos › No sé cuál exactamente'), findsOneWidget);
@@ -260,7 +260,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('category-root-frenos')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('No sé cuál exactamente'));
+    await tester.tap(find.text('No encuentro la pieza en Frenos'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('OEM'));
     await tester.tap(find.text('OEM'));
