@@ -30,6 +30,10 @@ abstract class AppIcons {
   static const IconData delivery = LucideIcons.truck;
   static const IconData store = LucideIcons.store;
   static const IconData catalog = LucideIcons.packageOpen;
+  static const IconData partPerformance = trendUp;
+  static const IconData partOriginal = verified;
+  static const IconData partGeneric = mechanic;
+  static const IconData partUsed = retry;
   static const IconData dashboard = LucideIcons.chartNoAxesColumnIncreasing;
   static const IconData period = LucideIcons.calendarDays;
   static const IconData expand = LucideIcons.chevronDown;

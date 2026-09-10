@@ -12,7 +12,6 @@ import '../../data/repositories/home_repository_impl.dart';
 import '../../data/repositories/search_repository_impl.dart';
 import '../../domain/entities/home_filters.dart';
 import '../../domain/entities/home_item.dart';
-import '../../domain/entities/promo.dart';
 import '../../domain/entities/provider_detail.dart';
 import '../../domain/entities/sort_option.dart';
 import '../../domain/entities/top_providers_result.dart';
@@ -20,7 +19,6 @@ import '../../domain/repositories/home_repository.dart';
 import '../../domain/repositories/search_repository.dart';
 import '../../domain/usecases/create_search_request_usecase.dart';
 import '../../domain/usecases/get_home_items_usecase.dart';
-import '../../domain/usecases/get_promos_usecase.dart';
 import '../../domain/usecases/get_provider_detail_usecase.dart';
 import '../../domain/usecases/get_top_providers_usecase.dart';
 import '../../domain/usecases/search_providers_usecase.dart';
@@ -133,10 +131,6 @@ final homeRepositoryProvider = Provider<HomeRepository>((ref) {
 
 // ── Use Case Providers ────────────────────────────────────────────────────────
 
-final getPromosUseCaseProvider = Provider<GetPromosUseCase>((ref) {
-  return GetPromosUseCase(ref.watch(homeRepositoryProvider));
-});
-
 final getHomeItemsUseCaseProvider = Provider<GetHomeItemsUseCase>((ref) {
   return GetHomeItemsUseCase(ref.watch(homeRepositoryProvider));
 });
@@ -201,17 +195,6 @@ final homeTabProvider = StateProvider<MainNavigationTab>((ref) {
 });
 
 // ── Async Data Providers ──────────────────────────────────────────────────────
-
-/// Promos/banners por tipo de servicio
-final promosProvider = FutureProvider.family
-    .autoDispose<List<Promo>, ServiceType>((ref, type) async {
-  final useCase = ref.watch(getPromosUseCaseProvider);
-  final result = await useCase(type);
-  return result.fold(
-    (failure) => throw Exception(failure.message),
-    (promos) => promos,
-  );
-});
 
 /// Proveedores filtrados desde el backend. Fuera de producción, spareParts
 /// conserva el mock local configurado por el repositorio.

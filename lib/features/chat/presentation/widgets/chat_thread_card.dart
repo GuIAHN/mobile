@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/domain/enums/offer_status.dart';
+import '../../../../core/domain/enums/part_type.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../shared/utils/subcategory_presentation.dart';
 import '../../domain/entities/chat_thread.dart';
@@ -164,16 +165,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
   }
 
   String _partTypeLabel(String raw) {
-    switch (raw) {
-      case 'ORIGINAL':
-        return 'OEM';
-      case 'GENERIC':
-        return 'Genérico';
-      case 'PERFORMANCE':
-        return 'Alto rendimiento';
-      default:
-        return raw;
-    }
+    return partTypeLabelFromApi(raw);
   }
 
   @override

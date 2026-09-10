@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../../../core/providers/cache_for.dart';
 import '../../../home/domain/entities/promo.dart';
-import '../../../home/presentation/providers/home_providers.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../core/session/session_generation_provider.dart';
@@ -55,44 +54,27 @@ final adsFeedProvider = FutureProvider.autoDispose<List<Ad>>((ref) async {
   final result = await usecase.call(position?.latitude, position?.longitude);
 
   return result.fold(
-    (failure) =>
-        [], // Silencioso: si hay error (red, 500, etc) retornamos lista vacía
+    (failure) => throw Exception(failure.message),
     (ads) => ads,
   );
 });
 
-/// Adaptador que toma los Ads del backend y los convierte en Promos para la UI.
-/// Si el backend no devuelve ads (o falla silenciosamente), usa el fallback local.
+/// Adaptador que toma exclusivamente los Ads del backend y los convierte en
+/// Promos para la UI.
 final adsAsPromosProvider = FutureProvider.family
     .autoDispose<List<Promo>, ServiceType>((ref, type) async {
-  ref.cacheFor(const Duration(minutes: 5));
-
-  try {
-    // 1. Intentar obtener los ads reales del backend
-    final ads = await ref.watch(adsFeedProvider.future);
-
-    if (ads.isNotEmpty) {
-      // Mapear Ad -> Promo
-      return ads.map((ad) {
-        return Promo(
-          id: ad.id,
-          title: ad.title,
-          subtitle: ad.description ?? ad.brandName,
-          iconName: 'local_offer_outlined', // Icono genérico por defecto
-          gradientColors: const [0xFFF25C05, 0xFFF25C05], // Naranja por defecto
-          imageUrl: ad.mediaUrl,
-          ctaUrl: ad.ctaUrl,
-        );
-      }).toList();
-    }
-  } catch (_) {
-    // Si falla la petición de ads, ignoramos el error y continuamos al fallback.
-  }
-
-  // 2. Si está vacío o falló, caer al fallback de mocks locales
-  // Al usar .future, Riverpod espera a que cargue automáticamente
-  final fallbackPromos = await ref.watch(promosProvider(type).future);
-  return fallbackPromos;
+  final ads = await ref.watch(adsFeedProvider.future);
+  return ads.map((ad) {
+    return Promo(
+      id: ad.id,
+      title: ad.title,
+      subtitle: ad.description ?? ad.brandName,
+      iconName: 'local_offer_outlined',
+      gradientColors: const [0xFFF25C05, 0xFFF25C05],
+      imageUrl: ad.mediaUrl,
+      ctaUrl: ad.ctaUrl,
+    );
+  }).toList();
 });
 
 // --- Tracking State ---

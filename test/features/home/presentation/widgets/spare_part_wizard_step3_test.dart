@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:guiautomotriz_mobile/core/domain/enums/part_type.dart';
 import 'package:guiautomotriz_mobile/features/catalog/domain/entities/category.dart';
 import 'package:guiautomotriz_mobile/shared/location/domain/entities/request_location_selection.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/spare_part_wizard_page.dart';
@@ -9,12 +10,14 @@ Widget _testApp({
   TextEditingController? detailsController,
   Category? selectedCategory,
   Category? selectedSubcategory,
+  PartType? selectedPartType,
 }) {
   return MaterialApp(
     home: Scaffold(
       body: SparePartWizardStep3(
         selectedCategory: selectedCategory,
         selectedSubcategory: selectedSubcategory,
+        selectedPartType: selectedPartType,
         detailsController: detailsController ?? TextEditingController(),
         selectedImagePath: null,
         requestLocation: selection,
@@ -26,6 +29,23 @@ Widget _testApp({
 }
 
 void main() {
+  testWidgets('step 3 summarizes a used spare-part request', (tester) async {
+    await tester.pumpWidget(
+      _testApp(
+        selection: null,
+        selectedCategory: const Category(id: 'frenos', name: 'Frenos'),
+        selectedSubcategory: const Category(
+          id: 'pastillas',
+          name: 'Pastillas de freno',
+          parentId: 'frenos',
+        ),
+        selectedPartType: PartType.used,
+      ),
+    );
+
+    expect(find.text('Usado'), findsOneWidget);
+  });
+
   testWidgets('step 3 requires a request-local location', (tester) async {
     await tester.pumpWidget(
       _testApp(selection: null),

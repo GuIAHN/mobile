@@ -112,6 +112,54 @@ void main() {
     ).called(1);
   });
 
+  test('creates pending store reviews with conversationId only', () async {
+    final client = _MockDioClient();
+    when(
+      () => client.post(
+        '/reviews',
+        data: {
+          'conversationId': 'conversation-1',
+          'rating': 4,
+          'comentario': 'Entrega rápida',
+        },
+      ),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: '/reviews'),
+        data: {
+          '_id': 'review-store-1',
+          'author_id': 'consumer-user-1',
+          'target_id': 'store-user-1',
+          'conversation_id': 'conversation-1',
+          'rating': 4,
+          'comentario': 'Entrega rápida',
+          'created_at': '2026-08-20T12:00:00.000Z',
+        },
+      ),
+    );
+
+    final review = await ReviewsRemoteDataSource(client).createReview(
+      conversationId: 'conversation-1',
+      rating: 4,
+      comentario: 'Entrega rápida',
+    );
+
+    expect(review.id, 'review-store-1');
+    expect(review.targetId, 'store-user-1');
+    expect(review.conversationId, 'conversation-1');
+    expect(review.rating, 4);
+    verify(
+      () => client.post(
+        '/reviews',
+        data: {
+          'conversationId': 'conversation-1',
+          'rating': 4,
+          'comentario': 'Entrega rápida',
+        },
+      ),
+    ).called(1);
+  });
+
   test('maps the current editable review', () async {
     final client = _MockDioClient();
     when(() => client.get('/reviews/mine/store-user-1')).thenAnswer(

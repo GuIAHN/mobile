@@ -71,31 +71,38 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
   }
 
   Future<void> _checkInitialLocationPermission() async {
-    final role = ref.read(authProvider).user?.role;
-    if (role?.usesSavedLocationForSearch ?? false) {
-      _clearTemporaryLocation();
-      return;
-    }
+    ref.read(isLocationCheckCompleteProvider.notifier).state = false;
+    try {
+      final role = ref.read(authProvider).user?.role;
+      if (role?.usesSavedLocationForSearch ?? false) {
+        _clearTemporaryLocation();
+        return;
+      }
 
-    final storedPosition = ref.read(userLocationProvider).valueOrNull;
-    if (storedPosition != null) {
-      ref.read(isLocationSharedProvider.notifier).state = true;
-      await _resolveLocationName(storedPosition);
-      return;
-    }
+      final storedPosition = ref.read(userLocationProvider).valueOrNull;
+      if (storedPosition != null) {
+        ref.read(isLocationSharedProvider.notifier).state = true;
+        await _resolveLocationName(storedPosition);
+        return;
+      }
 
-    // Solicita el permiso y obtiene la posición al entrar al Home. El diálogo
-    // del sistema aparece después del primer frame, sin bloquear el arranque.
-    final success =
-        await ref.read(userLocationProvider.notifier).updateLocation();
-    if (!mounted) return;
+      // Solicita el permiso y obtiene la posición al entrar al Home. El diálogo
+      // del sistema aparece después del primer frame, sin bloquear el arranque.
+      final success =
+          await ref.read(userLocationProvider.notifier).updateLocation();
+      if (!mounted) return;
 
-    final position = ref.read(userLocationProvider).valueOrNull;
-    if (success && position != null) {
-      ref.read(isLocationSharedProvider.notifier).state = true;
-      await _resolveLocationName(position);
-    } else {
-      ref.read(isLocationSharedProvider.notifier).state = false;
+      final position = ref.read(userLocationProvider).valueOrNull;
+      if (success && position != null) {
+        ref.read(isLocationSharedProvider.notifier).state = true;
+        await _resolveLocationName(position);
+      } else {
+        ref.read(isLocationSharedProvider.notifier).state = false;
+      }
+    } finally {
+      if (mounted) {
+        ref.read(isLocationCheckCompleteProvider.notifier).state = true;
+      }
     }
   }
 

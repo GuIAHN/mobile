@@ -11,6 +11,7 @@ import '../providers/home_providers.dart';
 import '../../../ads/presentation/providers/ads_provider.dart';
 import '../widgets/navigation/bottom_nav_bar.dart';
 import '../widgets/navigation/category_grid.dart';
+import '../widgets/cbk_location_disabled_ad.dart';
 import '../widgets/promo_carousel.dart';
 import '../../../auth/presentation/pages/profile_tab.dart';
 import '../widgets/unapproved_overlay.dart';
@@ -31,6 +32,7 @@ import '../widgets/store_dashboard/store_dashboard_view.dart';
 import '../widgets/provider_dashboard/provider_dashboard_view.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/providers/current_user_provider.dart';
+import '../../../../core/services/location_service.dart';
 
 /// Ritmo vertical entre secciones del home.
 const double _kSectionGap = 24;
@@ -129,9 +131,14 @@ class _HomePageState extends ConsumerState<HomePage> {
     final isDashboardSelected = selectedType == ServiceType.storeDashboard;
     final currentRole = ref.watch(currentRoleProvider);
     final isConsumer = currentRole.isConsumer;
-    final showsAdvertising = isConsumer ||
-        currentRole.isMechanic ||
-        currentRole.isWorkshop;
+    final isLocationShared = ref.watch(isLocationSharedProvider);
+    final isLocationCheckComplete = ref.watch(isLocationCheckCompleteProvider);
+    final isCheckingLocation =
+        isConsumer && !isLocationShared && !isLocationCheckComplete;
+    final showsCbkFallback =
+        isConsumer && !isLocationShared && isLocationCheckComplete;
+    final showsAdvertising =
+        isConsumer || currentRole.isMechanic || currentRole.isWorkshop;
     final nearbyLabel = currentRole.usesSavedLocationForSearch
         ? 'cerca de tu negocio'
         : 'cerca de ti';
@@ -139,7 +146,19 @@ class _HomePageState extends ConsumerState<HomePage> {
     final unreadNotifications = ref.watch(unreadNotificationsCountProvider);
     final hasUnreadNotifications = (unreadNotifications.valueOrNull ?? 0) > 0;
     Widget? promoSection;
-    if (showsAdvertising) {
+    if (isCheckingLocation) {
+      promoSection = const Padding(
+        key: Key('home-promo-section'),
+        padding: EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+        child: PromoSkeleton(),
+      );
+    } else if (showsCbkFallback) {
+      promoSection = const Padding(
+        key: Key('home-promo-section'),
+        padding: EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+        child: CbkLocationDisabledAd(),
+      );
+    } else if (showsAdvertising) {
       final promosAsync = ref.watch(adsAsPromosProvider(selectedType));
       final hasPromoSlot = promosAsync.isLoading ||
           promosAsync.hasError ||
@@ -161,6 +180,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 loading: () => const PromoSkeleton(),
                 error: (error, stack) => _PromoErrorCard(
                   onRetry: () {
+                    ref.invalidate(adsFeedProvider);
                     ref
                         .refresh(adsAsPromosProvider(selectedType).future)
                         .ignore();

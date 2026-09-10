@@ -70,6 +70,7 @@ void resetSessionScopedState(Ref ref) {
   ref.read(searchRequestNotifierProvider.notifier).reset();
 
   ref.read(isLocationSharedProvider.notifier).state = false;
+  ref.read(isLocationCheckCompleteProvider.notifier).state = false;
   ref.read(userLocationProvider.notifier).clear();
 
   ref.invalidate(dashboardFilterProvider);

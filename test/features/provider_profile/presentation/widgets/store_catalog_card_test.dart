@@ -33,7 +33,7 @@ StoreCatalog _catalog({int brandCount = 34}) {
   return StoreCatalog(
     servesAllBrands: false,
     brands: List.generate(brandCount, (index) => 'Marca $index'),
-    sparePartsTypes: const ['ORIGINAL', 'GENERIC'],
+    sparePartsTypes: const ['ORIGINAL', 'GENERIC', 'USED'],
     subcategories: const [
       StoreCatalogLine(
         id: 'amplification',
@@ -68,6 +68,7 @@ void main() {
     expect(find.text('34 marcas'), findsOneWidget);
     expect(find.text('OEM'), findsOneWidget);
     expect(find.text('Genérico'), findsOneWidget);
+    expect(find.text('Usado'), findsOneWidget);
     expect(find.text('MARCAS QUE ATIENDES'), findsOneWidget);
     expect(find.text('CATEGORÍAS Y SUBCATEGORÍAS'), findsOneWidget);
     expect(find.text('Audio y multimedia'), findsOneWidget);

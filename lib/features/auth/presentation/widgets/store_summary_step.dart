@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
+import '../../../../core/domain/enums/part_type.dart';
 import '../../../../core/utils/async_error_listener.dart';
 import '../../../../core/utils/media_url.dart';
 import '../../../vehicles/domain/entities/brand.dart';
@@ -35,10 +36,11 @@ class StoreSummaryStep extends ConsumerStatefulWidget {
 
 class _StoreSummaryStepState extends ConsumerState<StoreSummaryStep> {
   static const _initialBrandLimit = 9;
-  static const _partTypes = <(String, String)>[
-    ('ORIGINAL', 'OEM'),
-    ('GENERIC', 'Genérico'),
-    ('PERFORMANCE', 'Alto\nrendimiento'),
+  static const _partTypes = [
+    PartType.original,
+    PartType.generic,
+    PartType.performance,
+    PartType.used,
   ];
 
   final _searchController = TextEditingController();
@@ -107,26 +109,27 @@ class _StoreSummaryStepState extends ConsumerState<StoreSummaryStep> {
             final textScale = MediaQuery.textScalerOf(context).scale(1);
             final tileHeight =
                 62 + ((textScale - 1).clamp(0, 2) * 20).toDouble();
-            Widget tile((String, String) type) => _ChoiceTile(
-                  key: Key('spare-part-type-${type.$1}'),
-                  label: type.$2,
-                  selected: _selectedTypes.contains(type.$1),
-                  onTap: () => _toggleType(type.$1),
+            Widget tile(PartType type) => _ChoiceTile(
+                  key: Key('spare-part-type-${type.apiValue}'),
+                  label: type.label,
+                  selected: _selectedTypes.contains(type.apiValue),
+                  onTap: () => _toggleType(type.apiValue),
                 );
 
-            if (constraints.maxWidth >= 300 && textScale < 1.6) {
-              return SizedBox(
-                height: tileHeight,
-                child: Row(
-                  children: [
-                    for (var index = 0;
-                        index < _partTypes.length;
-                        index++) ...[
-                      if (index > 0) const SizedBox(width: 8),
-                      Expanded(child: tile(_partTypes[index])),
-                    ],
-                  ],
-                ),
+            if (constraints.maxWidth >= 280 && textScale < 1.6) {
+              const spacing = 8.0;
+              final tileWidth = (constraints.maxWidth - spacing) / 2;
+              return Wrap(
+                spacing: spacing,
+                runSpacing: 10,
+                children: [
+                  for (final type in _partTypes)
+                    SizedBox(
+                      width: tileWidth,
+                      height: tileHeight,
+                      child: tile(type),
+                    ),
+                ],
               );
             }
 

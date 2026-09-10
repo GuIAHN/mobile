@@ -9,6 +9,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/domain/enums/user_role.dart';
+import '../../../../core/domain/enums/part_type.dart';
 import '../../../../core/router/route_names.dart';
 import '../providers/chat_providers.dart';
 import '../widgets/chat_conversation_card.dart';
@@ -619,16 +620,9 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
           : SubcategoryPresentationAudience.requester,
       fallback: 'Repuesto',
     );
-    String partTypeLabel = 'Cualquiera';
-    if (thread.partType != null) {
-      if (thread.partType == 'ORIGINAL') {
-        partTypeLabel = 'OEM';
-      } else if (thread.partType == 'GENERIC') {
-        partTypeLabel = 'Genérico';
-      } else if (thread.partType == 'PERFORMANCE') {
-        partTypeLabel = 'Alto rendimiento';
-      }
-    }
+    final partTypeLabel = thread.partType == null
+        ? 'Cualquiera'
+        : partTypeLabelFromApi(thread.partType!);
 
     final usesLargeText = MediaQuery.textScalerOf(context).scale(15) > 20;
 

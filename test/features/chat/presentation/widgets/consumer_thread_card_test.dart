@@ -20,6 +20,7 @@ ChatThread _thread({
   double? bestOfferPrice,
   String? bestOfferStoreName,
   String? bestOfferStatus,
+  String partType = 'ORIGINAL',
 }) {
   return ChatThread(
     id: 'request-1',
@@ -30,7 +31,7 @@ ChatThread _thread({
     lastActivityAt: DateTime(2026, 8, 14),
     isOpen: isOpen,
     details: details,
-    partType: 'ORIGINAL',
+    partType: partType,
     subcategory: subcategory,
     subcategoryIsCatchAll: subcategoryIsCatchAll,
     categoryName: categoryName,
@@ -80,6 +81,13 @@ Widget _subject(
 }
 
 void main() {
+  testWidgets('presents USED requests as Usado', (tester) async {
+    await tester.pumpWidget(_subject(_thread(partType: 'USED')));
+
+    expect(find.textContaining('Usado'), findsOneWidget);
+    expect(find.textContaining('USED'), findsNothing);
+  });
+
   testWidgets('presents a catch-all requester label with its root path',
       (tester) async {
     await tester.pumpWidget(

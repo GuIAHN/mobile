@@ -11,6 +11,7 @@ import 'package:guiautomotriz_mobile/core/router/route_names.dart';
 import 'package:guiautomotriz_mobile/core/services/location_service.dart';
 import 'package:guiautomotriz_mobile/core/storage/secure_storage.dart';
 import 'package:guiautomotriz_mobile/features/ads/presentation/providers/ads_provider.dart';
+import 'package:guiautomotriz_mobile/features/ads/domain/entities/ad.dart';
 import 'package:guiautomotriz_mobile/features/auth/domain/entities/user.dart';
 import 'package:guiautomotriz_mobile/features/auth/domain/repositories/auth_repository.dart';
 import 'package:guiautomotriz_mobile/features/auth/domain/usecases/login_usecase.dart';
@@ -43,9 +44,46 @@ import 'package:guiautomotriz_mobile/shared/widgets/skeleton_loader.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _FakeLocationService extends LocationService {
+  _FakeLocationService({this.locationAvailable = false});
+
+  final bool locationAvailable;
+
   @override
-  Future<LocationPermission> checkPermission() async =>
-      LocationPermission.denied;
+  Future<bool> isLocationServiceEnabled() async => locationAvailable;
+
+  @override
+  Future<LocationPermission> checkPermission() async => locationAvailable
+      ? LocationPermission.whileInUse
+      : LocationPermission.denied;
+
+  @override
+  Future<Position> getCurrentPosition() async => Position(
+        longitude: -66.9036,
+        latitude: 10.4806,
+        timestamp: DateTime(2026),
+        accuracy: 5,
+        altitude: 0,
+        altitudeAccuracy: 0,
+        heading: 0,
+        headingAccuracy: 0,
+        speed: 0,
+        speedAccuracy: 0,
+      );
+}
+
+class _PendingLocationService extends LocationService {
+  final serviceEnabled = Completer<bool>();
+
+  @override
+  Future<bool> isLocationServiceEnabled() => serviceEnabled.future;
+}
+
+class _NoopAdTrackerNotifier extends AdTrackerNotifier {
+  @override
+  void trackImpression(String? adId) {}
+
+  @override
+  void trackClick(String? adId) {}
 }
 
 class _MockAuthRepository extends Mock implements AuthRepository {}
@@ -130,8 +168,11 @@ void main() {
     _TestAuthNotifier? authNotifier,
     ServiceType? initialServiceType,
     Future<List<Promo>> Function(Ref ref, ServiceType type)? loadPromos,
+    Future<List<Ad>> Function(Ref ref)? loadAdsFeed,
     Future<int> Function(Ref ref)? loadUnreadNotifications,
     ChatThreadsResult? chatThreads,
+    bool locationAvailable = false,
+    LocationService? locationService,
   }) {
     final notifier = authNotifier ??
         _TestAuthNotifier(
@@ -146,10 +187,17 @@ void main() {
           ),
         userCarsProvider.overrideWith((ref) async => const [car]),
         pendingReviewsProvider.overrideWith((ref) async => const []),
-        locationServiceProvider.overrideWithValue(_FakeLocationService()),
-        adsAsPromosProvider.overrideWith(
-          loadPromos ?? (ref, type) async => const [],
+        locationServiceProvider.overrideWithValue(
+          locationService ??
+              _FakeLocationService(locationAvailable: locationAvailable),
         ),
+        if (loadAdsFeed != null)
+          adsFeedProvider.overrideWith(loadAdsFeed)
+        else
+          adsAsPromosProvider.overrideWith(
+            loadPromos ?? (ref, type) async => const [],
+          ),
+        adTrackerProvider.overrideWith(_NoopAdTrackerNotifier.new),
         unreadNotificationsCountProvider.overrideWith(
           loadUnreadNotifications ?? (ref) async => 0,
         ),
@@ -447,6 +495,8 @@ void main() {
 
     expect(container.read(searchVehicleProvider), isNull);
 
+    await tester.ensureVisible(find.text('Pedir repuesto'));
+    await tester.pump();
     await tester.tap(find.text('Pedir repuesto'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -470,6 +520,8 @@ void main() {
 
     expect(find.byType(StoreDashboardView), findsNothing);
     expect(find.text('¿En qué podemos ayudarte hoy?'), findsOneWidget);
+    await tester.fling(homeListView(), const Offset(0, -800), 4000);
+    await tester.pump();
     expect(find.text('Talleres mejor valorados'), findsOneWidget);
   });
 
@@ -496,6 +548,8 @@ void main() {
 
     expect(find.byType(StoreDashboardView), findsNothing);
     expect(find.text('¿En qué podemos ayudarte hoy?'), findsOneWidget);
+    await tester.fling(homeListView(), const Offset(0, -800), 4000);
+    await tester.pump();
     expect(find.text('Talleres mejor valorados'), findsOneWidget);
   });
 
@@ -565,7 +619,7 @@ void main() {
     });
   }
 
-  testWidgets('consumer Home collapses an empty advertising slot',
+  testWidgets('consumer Home shows the CBK ad while location is disabled',
       (tester) async {
     final container = containerFor(
       workshops: const AsyncValue.data([]),
@@ -575,9 +629,86 @@ void main() {
 
     await pumpHome(tester, container);
 
-    expect(find.byKey(const Key('home-promo-section')), findsNothing);
+    expect(find.byKey(const Key('home-promo-section')), findsOneWidget);
+    expect(find.byKey(const Key('cbk-location-disabled-ad')), findsOneWidget);
+    expect(find.byType(PromoCarousel), findsNothing);
+    expect(
+      find.bySemanticsLabel(
+        'Publicidad CBK: pastillas de freno premium semi-metálicas. '
+        'Seguridad, rendimiento y calidad.',
+      ),
+      findsOneWidget,
+    );
+    final image = tester.widget<Image>(
+      find.descendant(
+        of: find.byKey(const Key('cbk-location-disabled-ad')),
+        matching: find.byType(Image),
+      ),
+    );
+    expect(
+      image.image,
+      const AssetImage('assets/images/cbk_brake_pads_ad.jpeg'),
+    );
+    final bannerSize =
+        tester.getSize(find.byKey(const Key('cbk-location-disabled-ad')));
+    expect(bannerSize.aspectRatio, closeTo(1080 / 431, 0.01));
     expect(find.byKey(const Key('home-category-section')), findsOneWidget);
     expect(find.text('Pedir repuesto'), findsOneWidget);
+  }, semanticsEnabled: true);
+
+  testWidgets('consumer Home waits for the location check before showing CBK',
+      (tester) async {
+    final locationService = _PendingLocationService();
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      locationService: locationService,
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+
+    expect(find.byType(PromoSkeleton), findsOneWidget);
+    expect(find.byKey(const Key('cbk-location-disabled-ad')), findsNothing);
+
+    locationService.serviceEnabled.complete(false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(PromoSkeleton), findsNothing);
+    expect(find.byKey(const Key('cbk-location-disabled-ad')), findsOneWidget);
+  });
+
+  testWidgets('consumer Home shows backend ads while location is active',
+      (tester) async {
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      loadPromos: (ref, type) async => const [promo],
+      locationAvailable: true,
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+
+    expect(find.byType(PromoCarousel), findsOneWidget);
+    expect(find.byKey(const Key('cbk-location-disabled-ad')), findsNothing);
+  });
+
+  testWidgets('consumer Home shows no ad when active-location feed is empty',
+      (tester) async {
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      locationAvailable: true,
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+
+    expect(find.byKey(const Key('home-promo-section')), findsNothing);
+    expect(find.byType(PromoCarousel), findsNothing);
+    expect(find.byKey(const Key('cbk-location-disabled-ad')), findsNothing);
   });
 
   for (final providerCase in const [
@@ -619,6 +750,7 @@ void main() {
       workshops: const AsyncValue.data([]),
       mechanics: const AsyncValue.data([]),
       loadPromos: (ref, type) => pendingPromos.future,
+      locationAvailable: true,
     );
     addTearDown(container.dispose);
 
@@ -638,17 +770,27 @@ void main() {
     final container = containerFor(
       workshops: const AsyncValue.data([]),
       mechanics: const AsyncValue.data([]),
-      loadPromos: (ref, type) async {
+      loadAdsFeed: (ref) async {
         attempts += 1;
         if (attempts == 1) {
           throw StateError('private advertising secret');
         }
-        return const [promo];
+        return const [
+          Ad(
+            id: 'backend-ad-1',
+            brandName: 'CBK',
+            type: 'BANNER',
+            title: 'Publicidad real',
+            mediaUrl: 'https://example.com/backend-ad.jpg',
+          ),
+        ];
       },
+      locationAvailable: true,
     );
     addTearDown(container.dispose);
 
     await pumpHome(tester, container);
+    await tester.pumpAndSettle();
 
     expect(find.byType(PromoCarousel), findsNothing);
     expect(find.byType(PromoSkeleton), findsNothing);
@@ -688,11 +830,13 @@ void main() {
 
     await pumpHome(tester, container);
 
-    expect(find.byKey(const Key('top-provider-skeleton-1')), findsOneWidget);
+    await tester.fling(homeListView(), const Offset(0, -700), 4000);
+    await tester.pump();
+    expect(find.byKey(const Key('top-provider-skeleton-1')), findsWidgets);
     expect(find.text('Talleres mejor valorados'), findsOneWidget);
     await tester.fling(homeListView(), const Offset(0, -1600), 5000);
     await tester.pump();
-    expect(find.byKey(const Key('top-provider-skeleton-1')), findsOneWidget);
+    expect(find.byKey(const Key('top-provider-skeleton-1')), findsWidgets);
     expect(find.text('Mecánicos mejor valorados'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
@@ -706,6 +850,8 @@ void main() {
     addTearDown(container.dispose);
 
     await pumpHome(tester, container);
+    await tester.fling(homeListView(), const Offset(0, -700), 4000);
+    await tester.pump();
     expect(find.text('Todavía no hay talleres valorados'), findsOneWidget);
     await tester.fling(homeListView(), const Offset(0, -1200), 5000);
     await tester.pump();
@@ -728,6 +874,8 @@ void main() {
     addTearDown(container.dispose);
 
     await pumpHome(tester, container);
+    await tester.fling(homeListView(), const Offset(0, -700), 4000);
+    await tester.pump();
     expect(find.text('No pudimos cargar los talleres'), findsOneWidget);
     await tester.fling(homeListView(), const Offset(0, -1200), 5000);
     await tester.pump();
@@ -749,6 +897,8 @@ void main() {
     addTearDown(container.dispose);
 
     await pumpHome(tester, container);
+    await tester.fling(homeListView(), const Offset(0, -700), 4000);
+    await tester.pump();
     expect(find.text('Taller Prueba'), findsOneWidget);
     await tester.fling(homeListView(), const Offset(0, -1400), 5000);
     await tester.pump();

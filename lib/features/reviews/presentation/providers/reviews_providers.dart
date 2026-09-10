@@ -139,13 +139,6 @@ class CreateReviewNotifier extends StateNotifier<AsyncValue<void>> {
 
     return result.fold(
       (failure) {
-        final lowerMsg = failure.message.toLowerCase();
-        if (lowerMsg.contains('already reviewed') ||
-            lowerMsg.contains('ya has calificado') ||
-            lowerMsg.contains('ya calificaste')) {
-          state = const AsyncValue.data(null);
-          return true;
-        }
         state = AsyncValue.error(failure.message, StackTrace.current);
         return false;
       },

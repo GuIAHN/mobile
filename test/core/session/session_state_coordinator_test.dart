@@ -34,6 +34,7 @@ void main() {
     container.read(storeStatusFilterProvider.notifier).state = 'QUOTED';
     container.read(consumerStatusFilterProvider.notifier).state = 'BOUGHT';
     container.read(isLocationSharedProvider.notifier).state = true;
+    container.read(isLocationCheckCompleteProvider.notifier).state = true;
     container.read(socialRegistrationProvider.notifier).setData(
           idToken: 'old-account-token',
           provider: 'GOOGLE',
@@ -54,6 +55,7 @@ void main() {
     expect(container.read(consumerStatusFilterProvider), 'ALL');
     expect(container.read(purchaseFilterProvider), PurchaseFilter.all);
     expect(container.read(isLocationSharedProvider), isFalse);
+    expect(container.read(isLocationCheckCompleteProvider), isFalse);
     expect(container.read(socialRegistrationProvider), isNull);
     expect(container.read(notificationProvider), isEmpty);
   });

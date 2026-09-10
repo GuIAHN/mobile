@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/domain/enums/part_type.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
@@ -150,14 +151,5 @@ class CatalogSummaryCard extends StatelessWidget {
 }
 
 String catalogPartTypeLabel(String type) {
-  switch (type) {
-    case 'ORIGINAL':
-      return 'OEM';
-    case 'GENERIC':
-      return 'Genérico';
-    case 'PERFORMANCE':
-      return 'Alto rendimiento';
-    default:
-      return type;
-  }
+  return partTypeLabelFromApi(type);
 }

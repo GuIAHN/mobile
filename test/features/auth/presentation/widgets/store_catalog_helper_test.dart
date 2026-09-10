@@ -62,8 +62,28 @@ void main() {
     final performanceSize = tester.getSize(
       find.byKey(const Key('spare-part-type-PERFORMANCE')),
     );
+    final usedSize = tester.getSize(
+      find.byKey(const Key('spare-part-type-USED')),
+    );
     expect(genericSize, oemSize);
     expect(performanceSize, oemSize);
+    expect(usedSize, oemSize);
+
+    final oemRect = tester.getRect(
+      find.byKey(const Key('spare-part-type-ORIGINAL')),
+    );
+    final genericRect = tester.getRect(
+      find.byKey(const Key('spare-part-type-GENERIC')),
+    );
+    final performanceRect = tester.getRect(
+      find.byKey(const Key('spare-part-type-PERFORMANCE')),
+    );
+    final usedRect = tester.getRect(
+      find.byKey(const Key('spare-part-type-USED')),
+    );
+    expect(oemRect.top, genericRect.top);
+    expect(performanceRect.top, usedRect.top);
+    expect(performanceRect.top, greaterThan(oemRect.bottom));
 
     final grids = tester.widgetList<GridView>(find.byType(GridView));
     expect(grids, isNotEmpty);
@@ -73,6 +93,17 @@ void main() {
 
     await tester.tap(find.byKey(const Key('spare-part-type-ORIGINAL')));
     await tester.pump();
+    await tester.tap(find.byKey(const Key('spare-part-type-USED')));
+    await tester.pump();
+    final usedSemantics = tester.widget<Semantics>(
+      find
+          .descendant(
+            of: find.byKey(const Key('spare-part-type-USED')),
+            matching: find.byType(Semantics),
+          )
+          .first,
+    );
+    expect(usedSemantics.properties.selected, isTrue);
     await tester.tap(find.byKey(const Key('toggle-all-brands')));
     await tester.pump();
 
@@ -171,8 +202,26 @@ void main() {
 
     expect(find.byKey(const Key('spare-part-type-ORIGINAL')), findsOneWidget);
     expect(find.text('OEM'), findsOneWidget);
-    expect(find.text('Alto\nrendimiento'), findsOneWidget);
+    expect(find.text('Alto rendimiento'), findsOneWidget);
+    expect(find.text('Usado'), findsOneWidget);
     expect(find.byKey(const Key('toggle-all-brands')), findsOneWidget);
+
+    final typeKeys = [
+      const Key('spare-part-type-ORIGINAL'),
+      const Key('spare-part-type-GENERIC'),
+      const Key('spare-part-type-PERFORMANCE'),
+      const Key('spare-part-type-USED'),
+    ];
+    final typeRects = typeKeys
+        .map((key) => tester.getRect(find.byKey(key)))
+        .toList(growable: false);
+    for (final rect in typeRects) {
+      expect(rect.height, greaterThanOrEqualTo(48));
+    }
+    for (var index = 1; index < typeRects.length; index++) {
+      expect(typeRects[index].left, typeRects.first.left);
+      expect(typeRects[index].top, greaterThan(typeRects[index - 1].bottom));
+    }
     expect(tester.takeException(), isNull);
   });
 }

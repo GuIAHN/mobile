@@ -246,7 +246,7 @@ void main() {
         servesAllBrands: false,
         subcategoryIds: ['9b80f867-9dae-4d0f-b019-831d81ff60b0'],
         brandIds: ['bd8d35f4-3f99-4d23-a7ad-314a5547abf4'],
-        sparePartsTypes: ['ORIGINAL'],
+        sparePartsTypes: ['ORIGINAL', 'USED'],
       ),
       hasDelivery: true,
       acceptedTerms: true,
@@ -266,7 +266,7 @@ void main() {
     expect(payload['coverage'], {
       'servesAllBrands': false,
       'brandIds': ['bd8d35f4-3f99-4d23-a7ad-314a5547abf4'],
-      'sparePartsTypes': ['ORIGINAL'],
+      'sparePartsTypes': ['ORIGINAL', 'USED'],
       'subcategoryIds': ['9b80f867-9dae-4d0f-b019-831d81ff60b0'],
     });
     expect(payload, isNot(contains('categories')));

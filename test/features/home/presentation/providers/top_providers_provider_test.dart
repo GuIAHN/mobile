@@ -9,7 +9,6 @@ import 'package:guiautomotriz_mobile/core/providers/current_user_provider.dart';
 import 'package:guiautomotriz_mobile/core/services/location_service.dart';
 import 'package:guiautomotriz_mobile/features/home/domain/entities/home_filters.dart';
 import 'package:guiautomotriz_mobile/features/home/domain/entities/home_item.dart';
-import 'package:guiautomotriz_mobile/features/home/domain/entities/promo.dart';
 import 'package:guiautomotriz_mobile/features/home/domain/entities/provider_detail.dart';
 import 'package:guiautomotriz_mobile/features/home/domain/entities/top_providers_result.dart';
 import 'package:guiautomotriz_mobile/features/home/domain/repositories/home_repository.dart';
@@ -37,10 +36,6 @@ class _FakeHomeRepository implements HomeRepository {
 
   @override
   Future<Either<Failure, List<HomeItem>>> getHomeItems(ServiceType type) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Either<Failure, List<Promo>>> getPromos(ServiceType type) =>
       throw UnimplementedError();
 
   @override
