@@ -1,4 +1,5 @@
 import '../../domain/entities/user.dart';
+import '../../../../core/domain/enums/account_status.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/data/models/user_car_model.dart';
 
@@ -14,6 +15,10 @@ class UserModel extends User {
     super.description,
     super.role,
     super.approved,
+    super.accountStatus,
+    super.deletionRequestedAt,
+    super.deletionScheduledAt,
+    super.authProvider,
     super.latitude,
     super.longitude,
     super.cars,
@@ -57,10 +62,21 @@ class UserModel extends User {
               : null),
       role: UserRole.fromString(roleStr),
       approved: json['approved'] as bool? ?? true,
+      accountStatus: json['accountStatus'] == null
+          ? AccountStatus.active
+          : AccountStatus.fromString(json['accountStatus'] as String?),
+      deletionRequestedAt: _parseDateTime(json['deletionRequestedAt']),
+      deletionScheduledAt: _parseDateTime(json['deletionPurgeAt']),
+      authProvider: json['provider'] as String?,
       latitude: lat,
       longitude: lon,
       cars: parsedCars,
     );
+  }
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value is! String) return null;
+    return DateTime.tryParse(value);
   }
 }
 

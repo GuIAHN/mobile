@@ -18,6 +18,7 @@ import '../../../provider_profile/presentation/widgets/store_catalog_card.dart';
 import '../../../vehicles/presentation/widgets/profile_garage.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/profile_action_card.dart';
+import '../widgets/account_deletion_section.dart';
 import '../widgets/profile_header.dart';
 import '../widgets/security_section.dart';
 import '../../../reviews/presentation/providers/reviews_providers.dart';
@@ -52,22 +53,26 @@ class ProfileTab extends ConsumerWidget {
     final isProfessionalProvider =
         user.role == UserRole.mechanic || user.role == UserRole.workshop;
     final isPlaceProvider = user.role.isWorkshop || user.role.isStore;
-    final pendingReviewCount = isConsumer
+    final isPendingDeletion = user.isPendingDeletion;
+    final pendingReviewCount = !isPendingDeletion && isConsumer
         ? ref.watch(pendingReviewsProvider).valueOrNull?.length ?? 0
         : 0;
 
     final sections = <Widget>[
-      ProfileHeader(user: user),
-      _AccountActionsSection(
-        isConsumer: isConsumer,
-        isProvider: user.role.isProvider,
-        userId: user.id,
-        pendingReviewCount: pendingReviewCount,
-      ),
-      if (isPlaceProvider) ProviderLocationCard(user: user),
-      if (isConsumer) const ProfileGarage(),
-      if (isProfessionalProvider) const ProviderSpecialtiesCard(),
-      if (user.role.isStore) const StoreCatalogCard(),
+      ProfileHeader(user: user, readOnly: isPendingDeletion),
+      if (!isPendingDeletion) ...[
+        _AccountActionsSection(
+          isConsumer: isConsumer,
+          isProvider: user.role.isProvider,
+          userId: user.id,
+          pendingReviewCount: pendingReviewCount,
+        ),
+        if (isPlaceProvider) ProviderLocationCard(user: user),
+        if (isConsumer) const ProfileGarage(),
+        if (isProfessionalProvider) const ProviderSpecialtiesCard(),
+        if (user.role.isStore) const StoreCatalogCard(),
+      ],
+      AccountDeletionSection(user: user),
     ];
 
     return SafeArea(

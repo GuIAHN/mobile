@@ -304,5 +304,19 @@ void main() {
       expect(factoryCalls, 1);
       verifyNever(() => second.socket.connect());
     });
+
+    test('keeps a pending-deletion session available for account restoration',
+        () async {
+      await service.connect();
+
+      first.trigger('connect_error', {
+        'code': 'ACCOUNT_PENDING_DELETION',
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(factoryCalls, 1);
+      verifyNever(coordinator.invalidateSession);
+      verifyNever(() => second.socket.connect());
+    });
   });
 }

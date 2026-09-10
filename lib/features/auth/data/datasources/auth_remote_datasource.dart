@@ -403,6 +403,28 @@ class AuthRemoteDataSource {
     );
   }
 
+  /// Schedules the authenticated account for deletion and returns its purge
+  /// date. Password is omitted for accounts authenticated only by a provider.
+  Future<DateTime> requestAccountDeletion({String? password}) async {
+    final response = await _client.delete<Map<String, dynamic>>(
+      ApiEndpoints.me,
+      data: {
+        'confirm': 'DELETE',
+        if (password != null && password.isNotEmpty) 'password': password,
+      },
+    );
+    final purgeAt = response.data?['purgeAt'];
+    if (purgeAt is! String) throw const ParseException();
+    final parsed = DateTime.tryParse(purgeAt);
+    if (parsed == null) throw const ParseException();
+    return parsed;
+  }
+
+  /// Restores an account that is still inside its deletion grace period.
+  Future<void> restoreAccount() async {
+    await _client.post<Map<String, dynamic>>(ApiEndpoints.restoreAccount);
+  }
+
   /// Calls POST /users/me/device-tokens to register a device token
   Future<void> registerDeviceToken(String token, {String? deviceOs}) async {
     try {

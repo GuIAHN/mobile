@@ -48,4 +48,29 @@ void main() {
       'El correo electrónico ya está registrado.',
     );
   });
+
+  test('translates an invalid account-deletion password', () {
+    expect(
+      ErrorMapper.parseErrorMessage('Invalid credentials'),
+      'La contraseña actual no es correcta.',
+    );
+  });
+
+  test('explains which pending work blocks account deletion', () {
+    expect(
+      ErrorMapper.parseErrorMessage(
+        'Cannot delete account with pending operations',
+      ),
+      'Completa tus compras, ventas o liquidaciones pendientes antes de eliminar la cuenta.',
+    );
+  });
+
+  test('translates a restore request for a non-pending account', () {
+    expect(
+      ErrorMapper.parseErrorMessage(
+        'Cannot restore: account is not pending deletion',
+      ),
+      'Esta cuenta ya no está pendiente de eliminación.',
+    );
+  });
 }

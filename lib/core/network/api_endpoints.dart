@@ -10,6 +10,7 @@ abstract class ApiEndpoints {
   static const String logout = 'auth/logout';
   static const String refreshToken = 'auth/refresh';
   static const String me = 'users/me';
+  static const String restoreAccount = 'users/me/restore';
   static const String forgotPassword = 'auth/forgot-password';
   static const String resetPassword = 'auth/reset-password';
   static const String changePassword = 'auth/change-password';

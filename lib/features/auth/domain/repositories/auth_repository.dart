@@ -104,6 +104,14 @@ abstract class AuthRepository {
     required String newPassword,
   });
 
+  /// Schedules the authenticated account for deletion.
+  Future<Either<Failure, DateTime>> requestAccountDeletion({
+    String? password,
+  });
+
+  /// Restores an account during its deletion grace period.
+  Future<Either<Failure, void>> restoreAccount();
+
   /// Registers a device token for push notifications
   Future<Either<Failure, void>> registerDeviceToken(String token,
       {String? deviceOs});

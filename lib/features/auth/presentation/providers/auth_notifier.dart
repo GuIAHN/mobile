@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/domain/enums/account_status.dart';
 import '../../../../core/services/socket_service.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../../../core/network/token_refresh_coordinator.dart';
@@ -400,6 +401,47 @@ class AuthNotifier extends StateNotifier<AuthState> {
       status: AuthStatus.unauthenticated,
       user: null,
       errorMessage: null,
+    );
+  }
+
+  /// Schedules deletion while keeping the short-lived access token available
+  /// for the recovery endpoint during the grace period.
+  Future<Failure?> requestAccountDeletion({String? password}) async {
+    final result = await _authRepository.requestAccountDeletion(
+      password: password,
+    );
+
+    return result.fold(
+      (failure) => failure,
+      (purgeAt) {
+        _socketService?.disconnect();
+        final user = state.user;
+        if (user != null) {
+          state = state.copyWith(
+            status: AuthStatus.authenticated,
+            user: user.copyWith(
+              accountStatus: AccountStatus.pendingDeletion,
+              deletionRequestedAt: DateTime.now().toUtc(),
+              deletionScheduledAt: purgeAt,
+            ),
+            errorMessage: null,
+          );
+        }
+        return null;
+      },
+    );
+  }
+
+  /// Restores the account and clears the now-stale pending-status JWT. The
+  /// existing router then asks the user to authenticate with a fresh token.
+  Future<Failure?> restoreAccount() async {
+    final result = await _authRepository.restoreAccount();
+    return result.fold(
+      (failure) => failure,
+      (_) async {
+        await logout();
+        return null;
+      },
     );
   }
 

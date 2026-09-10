@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/domain/enums/account_status.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/domain/entities/user_car.dart';
 
@@ -12,6 +13,10 @@ class User extends Equatable {
   final String? description;
   final UserRole role;
   final bool approved;
+  final AccountStatus accountStatus;
+  final DateTime? deletionRequestedAt;
+  final DateTime? deletionScheduledAt;
+  final String? authProvider;
 
   // Ubicación y garage cacheados al login
   final double? latitude;
@@ -27,6 +32,10 @@ class User extends Equatable {
     this.description,
     this.role = UserRole.unknown,
     this.approved = true,
+    this.accountStatus = AccountStatus.active,
+    this.deletionRequestedAt,
+    this.deletionScheduledAt,
+    this.authProvider,
     this.latitude,
     this.longitude,
     this.cars,
@@ -42,6 +51,10 @@ class User extends Equatable {
         description,
         role,
         approved,
+        accountStatus,
+        deletionRequestedAt,
+        deletionScheduledAt,
+        authProvider,
         latitude,
         longitude,
         cars,
@@ -56,6 +69,10 @@ class User extends Equatable {
     String? description,
     UserRole? role,
     bool? approved,
+    AccountStatus? accountStatus,
+    DateTime? deletionRequestedAt,
+    DateTime? deletionScheduledAt,
+    String? authProvider,
     double? latitude,
     double? longitude,
     List<UserCar>? cars,
@@ -69,9 +86,18 @@ class User extends Equatable {
       description: description ?? this.description,
       role: role ?? this.role,
       approved: approved ?? this.approved,
+      accountStatus: accountStatus ?? this.accountStatus,
+      deletionRequestedAt: deletionRequestedAt ?? this.deletionRequestedAt,
+      deletionScheduledAt: deletionScheduledAt ?? this.deletionScheduledAt,
+      authProvider: authProvider ?? this.authProvider,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       cars: cars ?? this.cars,
     );
   }
+
+  bool get isPendingDeletion => accountStatus == AccountStatus.pendingDeletion;
+
+  bool get requiresDeletionPassword =>
+      authProvider == null || authProvider!.trim().isEmpty;
 }

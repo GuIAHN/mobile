@@ -273,6 +273,11 @@ class SocketService {
       case 'AUTH_CONNECTION_LIMIT':
         _scheduleReconnect();
         return;
+      case 'ACCOUNT_PENDING_DELETION':
+        // The recovery endpoint still needs the current access token. Stop
+        // realtime attempts without invalidating the authenticated session.
+        _shouldReconnect = false;
+        return;
       case 'AUTH_ACCESS_TOKEN_REQUIRED':
       case 'AUTH_INVALID':
       case 'ACCOUNT_INACTIVE':

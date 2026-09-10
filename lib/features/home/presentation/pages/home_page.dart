@@ -13,6 +13,7 @@ import '../widgets/navigation/bottom_nav_bar.dart';
 import '../widgets/navigation/category_grid.dart';
 import '../widgets/cbk_location_disabled_ad.dart';
 import '../widgets/promo_carousel.dart';
+import '../widgets/pending_deletion_overlay.dart';
 import '../../../auth/presentation/pages/profile_tab.dart';
 import '../widgets/unapproved_overlay.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -85,6 +86,17 @@ class _HomePageState extends ConsumerState<HomePage> {
           if (user != null && !user.approved)
             const Positioned.fill(
               child: UnapprovedOverlay(),
+            ),
+          if (user?.isPendingDeletion == true &&
+              activeTab != MainNavigationTab.profile)
+            Positioned.fill(
+              key: const Key('pending-deletion-overlay'),
+              child: PendingDeletionOverlay(
+                onOpenProfile: () {
+                  ref.read(homeTabProvider.notifier).state =
+                      MainNavigationTab.profile;
+                },
+              ),
             ),
           // La navegación vive como una capa flotante: no reserva una franja
           // rectangular y deja que la pantalla continúe visible alrededor y

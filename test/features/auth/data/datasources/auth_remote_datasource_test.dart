@@ -120,6 +120,97 @@ void main() {
     verifyNoMoreInteractions(client);
   });
 
+  test('requestAccountDeletion sends password and exact DELETE confirmation',
+      () async {
+    final client = _MockDioClient();
+    final datasource = AuthRemoteDataSource(client);
+    const payload = {
+      'confirm': 'DELETE',
+      'password': 'current-password',
+    };
+
+    when(
+      () => client.delete<Map<String, dynamic>>(
+        ApiEndpoints.me,
+        data: payload,
+      ),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: ApiEndpoints.me),
+        statusCode: 200,
+        data: const {
+          'message': 'Cuenta programada para eliminación',
+          'purgeAt': '2026-10-09T12:00:00.000Z',
+        },
+      ),
+    );
+
+    final purgeAt = await datasource.requestAccountDeletion(
+      password: 'current-password',
+    );
+
+    expect(purgeAt, DateTime.parse('2026-10-09T12:00:00.000Z'));
+    verify(
+      () => client.delete<Map<String, dynamic>>(
+        ApiEndpoints.me,
+        data: payload,
+      ),
+    ).called(1);
+    verifyNoMoreInteractions(client);
+  });
+
+  test('requestAccountDeletion omits password for social-only accounts',
+      () async {
+    final client = _MockDioClient();
+    final datasource = AuthRemoteDataSource(client);
+    const payload = {'confirm': 'DELETE'};
+
+    when(
+      () => client.delete<Map<String, dynamic>>(
+        ApiEndpoints.me,
+        data: payload,
+      ),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: ApiEndpoints.me),
+        statusCode: 200,
+        data: const {'purgeAt': '2026-10-09T12:00:00.000Z'},
+      ),
+    );
+
+    await datasource.requestAccountDeletion();
+
+    verify(
+      () => client.delete<Map<String, dynamic>>(
+        ApiEndpoints.me,
+        data: payload,
+      ),
+    ).called(1);
+    verifyNoMoreInteractions(client);
+  });
+
+  test('restoreAccount posts to the authenticated restore endpoint', () async {
+    final client = _MockDioClient();
+    final datasource = AuthRemoteDataSource(client);
+
+    when(
+      () => client.post<Map<String, dynamic>>(ApiEndpoints.restoreAccount),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: ApiEndpoints.restoreAccount),
+        statusCode: 200,
+        data: const {'message': 'Cuenta restaurada'},
+      ),
+    );
+
+    await datasource.restoreAccount();
+
+    verify(
+      () => client.post<Map<String, dynamic>>(ApiEndpoints.restoreAccount),
+    ).called(1);
+    verifyNoMoreInteractions(client);
+  });
+
   test('updateProfile sends the location contract to users/me', () async {
     final client = _MockDioClient();
     final datasource = AuthRemoteDataSource(client);

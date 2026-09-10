@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:guiautomotriz_mobile/core/domain/enums/account_status.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/service_type.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
 import 'package:guiautomotriz_mobile/core/router/route_names.dart';
@@ -283,6 +284,53 @@ void main() {
             widget is ListView && widget.scrollDirection == Axis.vertical,
         description: 'Home vertical ListView',
       );
+
+  testWidgets(
+      'pending-deletion account blocks Home and can continue to Profile',
+      (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(375, 812));
+    final pendingUser = consumer.copyWith(
+      accountStatus: AccountStatus.pendingDeletion,
+      deletionScheduledAt: DateTime(2026, 10, 9),
+    );
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      user: pendingUser,
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(
+      tester,
+      container,
+      width: 375,
+      height: 812,
+      textScale: 2,
+      disableAnimations: true,
+    );
+
+    expect(find.byKey(const Key('pending-deletion-overlay')), findsOneWidget);
+    expect(
+        find.text('Tu cuenta está en proceso de eliminación'), findsOneWidget);
+
+    expect(find.bySemanticsLabel('Notificaciones'), findsNothing);
+    final notificationIcon = find.byIcon(Icons.notifications_outlined);
+    await tester.tapAt(tester.getCenter(notificationIcon));
+    await tester.pump();
+    expect(find.text('notifications-route'), findsNothing);
+
+    final openProfileButton =
+        find.byKey(const Key('pending-deletion-open-profile'));
+    await tester.ensureVisible(openProfileButton);
+    await tester.pump();
+    await tester.tap(openProfileButton);
+    await tester.pumpAndSettle();
+
+    expect(container.read(homeTabProvider), MainNavigationTab.profile);
+    expect(find.byKey(const Key('pending-deletion-overlay')), findsNothing);
+    expect(find.byKey(const Key('restore-account')), findsOneWidget);
+  }, semanticsEnabled: true);
 
   testWidgets('notification count activates the Home bell indicator',
       (tester) async {

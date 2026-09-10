@@ -124,6 +124,19 @@ class ErrorMapper {
       return 'No pudimos validar tu sesión. Inicia sesión e inténtalo nuevamente.';
     }
 
+    if (lower.contains('invalid credentials')) {
+      return 'La contraseña actual no es correcta.';
+    }
+
+    if (lower.contains('cannot delete account with pending operations')) {
+      return 'Completa tus compras, ventas o liquidaciones pendientes antes de eliminar la cuenta.';
+    }
+
+    if (lower.contains('cannot restore') &&
+        lower.contains('not pending deletion')) {
+      return 'Esta cuenta ya no está pendiente de eliminación.';
+    }
+
     final rejectsMultipartPayload =
         lower.contains('property payload should not exist');
     final reportsSeveralMissingRegistrationFields =

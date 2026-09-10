@@ -366,6 +366,30 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, DateTime>> requestAccountDeletion({
+    String? password,
+  }) async {
+    try {
+      final purgeAt = await remoteDataSource.requestAccountDeletion(
+        password: password,
+      );
+      return Right(purgeAt);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> restoreAccount() async {
+    try {
+      await remoteDataSource.restoreAccount();
+      return const Right(null);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> registerDeviceToken(String token,
       {String? deviceOs}) async {
     try {

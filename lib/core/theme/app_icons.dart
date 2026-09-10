@@ -18,6 +18,8 @@ abstract class AppIcons {
   static const IconData error = LucideIcons.circleX;
   static const IconData warning = LucideIcons.triangleAlert;
   static const IconData account = LucideIcons.userRound;
+  static const IconData showPassword = LucideIcons.eye;
+  static const IconData hidePassword = LucideIcons.eyeOff;
   static const IconData search = LucideIcons.search;
   static const IconData searchEmpty = LucideIcons.searchX;
   static const IconData filter = LucideIcons.listFilter;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:guiautomotriz_mobile/core/domain/enums/account_status.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
 import 'package:guiautomotriz_mobile/core/router/route_names.dart';
 import 'package:guiautomotriz_mobile/core/storage/secure_storage.dart';
@@ -53,6 +54,57 @@ class _TestAuthNotifier extends AuthNotifier {
 }
 
 void main() {
+  testWidgets('adds account deletion privacy controls to an active profile',
+      (tester) async {
+    const user = User(
+      id: 'consumer-delete-1',
+      email: 'consumer@example.com',
+      name: 'Usuario Consumidor',
+      role: UserRole.consumer,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith((ref) => _TestAuthNotifier(user)),
+          userCarsProvider.overrideWith((ref) async => const []),
+          pendingReviewsProvider.overrideWith((ref) async => const []),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ProfileTab())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('PRIVACIDAD'), findsOneWidget);
+    expect(find.byKey(const Key('request-account-deletion')), findsOneWidget);
+  });
+
+  testWidgets('pending deletion profile hides operational account sections',
+      (tester) async {
+    final user = User(
+      id: 'consumer-pending-1',
+      email: 'consumer@example.com',
+      name: 'Usuario Consumidor',
+      role: UserRole.consumer,
+      accountStatus: AccountStatus.pendingDeletion,
+      deletionScheduledAt: DateTime(2026, 10, 9),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authProvider.overrideWith((ref) => _TestAuthNotifier(user)),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ProfileTab())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('restore-account')), findsOneWidget);
+    expect(find.text('MI CUENTA'), findsNothing);
+    expect(find.text('MI GARAJE'), findsNothing);
+  });
+
   testWidgets('uses the canonical product name in the logout confirmation',
       (tester) async {
     const user = User(

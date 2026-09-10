@@ -78,8 +78,13 @@ class _RoleStyle {
 
 class ProfileHeader extends ConsumerWidget {
   final User user;
+  final bool readOnly;
 
-  const ProfileHeader({super.key, required this.user});
+  const ProfileHeader({
+    super.key,
+    required this.user,
+    this.readOnly = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -163,8 +168,9 @@ class ProfileHeader extends ConsumerWidget {
       );
     }
 
-    final avatarAction =
-        isLoading ? null : () => _mostrarOpcionesImagen(context, ref);
+    final avatarAction = isLoading || readOnly
+        ? null
+        : () => _mostrarOpcionesImagen(context, ref);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -177,11 +183,13 @@ class ProfileHeader extends ConsumerWidget {
               child: Column(
                 children: [
                   Semantics(
-                    button: true,
+                    button: !readOnly,
                     enabled: avatarAction != null,
-                    label: isLoading
-                        ? 'Actualizando foto de perfil'
-                        : 'Cambiar foto de perfil',
+                    label: readOnly
+                        ? 'Foto de perfil'
+                        : isLoading
+                            ? 'Actualizando foto de perfil'
+                            : 'Cambiar foto de perfil',
                     child: Material(
                       color: Colors.transparent,
                       shape: const CircleBorder(),
@@ -214,34 +222,35 @@ class ProfileHeader extends ConsumerWidget {
                               ),
                               child: avatarChild,
                             ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(7),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: AppColors.surface,
-                                    width: 2.5,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color:
-                                          Colors.black.withValues(alpha: 0.15),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
+                            if (!readOnly)
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(7),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: AppColors.surface,
+                                      width: 2.5,
                                     ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.camera_alt_rounded,
-                                  size: 15,
-                                  color: Colors.white,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black
+                                            .withValues(alpha: 0.15),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt_rounded,
+                                    size: 15,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
-                            ),
                             if (isLoading)
                               Positioned.fill(
                                 child: Container(
@@ -317,15 +326,16 @@ class ProfileHeader extends ConsumerWidget {
                 ],
               ),
             ),
-            Positioned(
-              right: 0,
-              top: 0,
-              child: _EditProfileButton(
-                onTap: isLoading
-                    ? null
-                    : () => _mostrarDialogoEdicion(context, ref),
+            if (!readOnly)
+              Positioned(
+                right: 0,
+                top: 0,
+                child: _EditProfileButton(
+                  onTap: isLoading
+                      ? null
+                      : () => _mostrarDialogoEdicion(context, ref),
+                ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 24),
