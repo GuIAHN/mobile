@@ -1,4 +1,4 @@
-package com.example.guiautomotriz_mobile
+package com.guiahn.automotriz
 
 import io.flutter.embedding.android.FlutterActivity
 
