@@ -73,4 +73,16 @@ void main() {
       'Esta cuenta ya no está pendiente de eliminación.',
     );
   });
+
+  test(
+      'translates the catch-all subcategory rejection instead of leaking '
+      'backend English text', () {
+    expect(
+      ErrorMapper.parseErrorMessage(
+        'Catch-all subcategories are derived from your selection and '
+        'cannot be configured directly',
+      ),
+      'Vuelve a seleccionar las categorías de tu catálogo e inténtalo de nuevo.',
+    );
+  });
 }

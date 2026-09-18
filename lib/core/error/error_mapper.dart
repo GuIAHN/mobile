@@ -132,6 +132,15 @@ class ErrorMapper {
       return 'Completa tus compras, ventas o liquidaciones pendientes antes de eliminar la cuenta.';
     }
 
+    // El backend deriva el catch-all ("Otro") de la cobertura real de la
+    // tienda y rechaza que se envíe explícito. La app ya lo oculta en el
+    // selector (ver StoreCatalogStep), pero si igual llegara a viajar en el
+    // payload (dato viejo en caché, otro cliente, etc.) mostramos algo
+    // accionable en vez del mensaje técnico en inglés.
+    if (lower.contains('catch-all') && lower.contains('subcategor')) {
+      return 'Vuelve a seleccionar las categorías de tu catálogo e inténtalo de nuevo.';
+    }
+
     if (lower.contains('cannot restore') &&
         lower.contains('not pending deletion')) {
       return 'Esta cuenta ya no está pendiente de eliminación.';
