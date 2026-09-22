@@ -1,0 +1,69 @@
+import 'service_type.dart';
+
+/// Roles system mapping the backend user roles: CONSUMER, ADMIN, STORE, MECHANIC, WORKSHOP
+enum UserRole {
+  consumer('CONSUMER'),
+  admin('ADMIN'),
+  store('STORE'),
+  mechanic('MECHANIC'),
+  workshop('WORKSHOP'),
+  unknown('UNKNOWN');
+
+  final String value;
+  const UserRole(this.value);
+
+  static UserRole fromString(String? val) {
+    if (val == null) return UserRole.unknown;
+    final upper = val.toUpperCase().trim();
+    return UserRole.values.firstWhere(
+      (e) => e.value == upper || e.name.toUpperCase() == upper,
+      orElse: () => UserRole.unknown,
+    );
+  }
+
+  bool get isProvider =>
+      this == UserRole.mechanic ||
+      this == UserRole.workshop ||
+      this == UserRole.store;
+
+  bool get isConsumer => this == UserRole.consumer || this == UserRole.unknown;
+
+  bool get isStore => this == UserRole.store;
+  bool get isMechanic => this == UserRole.mechanic;
+  bool get isWorkshop => this == UserRole.workshop;
+
+  bool get usesSavedLocationForSearch => isStore || isWorkshop;
+
+  List<ServiceType> get allowedServiceTypes {
+    if (isStore) {
+      return const [
+        ServiceType.storeDashboard,
+        ServiceType.mechanic,
+        ServiceType.workshops
+      ];
+    }
+    if (isMechanic) {
+      return const [
+        ServiceType.storeDashboard,
+        ServiceType.spareParts,
+        ServiceType.workshops,
+      ];
+    }
+    if (isWorkshop) {
+      return const [
+        ServiceType.storeDashboard,
+        ServiceType.spareParts,
+        ServiceType.mechanic,
+      ];
+    }
+    return const [
+      ServiceType.spareParts,
+      ServiceType.workshops,
+      ServiceType.mechanic
+    ];
+  }
+
+  /// Si el rol está autorizado para enviar solicitudes de cotización de repuestos.
+  /// STORE es quien las recibe y cotiza, por ende no puede auto-solicitarse.
+  bool get canRequestSpareParts => !isStore;
+}

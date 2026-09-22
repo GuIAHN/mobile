@@ -1,23 +1,31 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'auth_state.dart';
+import 'auth_notifier.dart';
+export 'auth_notifier.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/services/socket_service.dart';
 import '../../../../core/storage/secure_storage.dart';
+import '../../../../core/network/token_refresh_coordinator.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 import '../../data/repositories/auth_repository_impl.dart';
-import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../domain/usecases/change_password_usecase.dart';
+import '../../domain/usecases/forgot_password_usecase.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
-import 'auth_state.dart';
+import '../../domain/usecases/reset_password_usecase.dart';
+import '../../domain/usecases/update_profile_usecase.dart';
+import '../../domain/usecases/upload_avatar_usecase.dart';
 
-// ── Infraestructura ──────────────────────────────────────────────────────────
+// ── Infrastructure ──────────────────────────────────────────────────────────
 
-/// Proveedor del datasource remoto de auth.
+/// Provider for the remote auth datasource.
 final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
   final client = ref.watch(dioClientProvider);
   return AuthRemoteDataSource(client);
 });
 
-/// Proveedor del repositorio de auth (contrato → implementación).
+/// Provider for the auth repository (contract → implementation).
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepositoryImpl(
     remoteDataSource: ref.watch(authRemoteDataSourceProvider),
@@ -25,130 +33,61 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   );
 });
 
-// ── Casos de Uso ──────────────────────────────────────────────────────────────
+// ── Use Cases ──────────────────────────────────────────────────────────────
 
-/// Proveedor del caso de uso de login.
+/// Provider for the login use case.
 final loginUseCaseProvider = Provider<LoginUseCase>((ref) {
   return LoginUseCase(ref.watch(authRepositoryProvider));
 });
 
-/// Proveedor del caso de uso de registro.
+/// Provider for the register use case.
 final registerUseCaseProvider = Provider<RegisterUseCase>((ref) {
   return RegisterUseCase(ref.watch(authRepositoryProvider));
 });
 
-// ── Estado de Presentación ────────────────────────────────────────────────────
+/// Provider for the update profile use case.
+final updateProfileUseCaseProvider = Provider<UpdateProfileUseCase>((ref) {
+  return UpdateProfileUseCase(ref.watch(authRepositoryProvider));
+});
 
-/// Notifier que gestiona el estado de autenticación de la app (login y registro).
-class AuthNotifier extends StateNotifier<AuthState> {
-  final LoginUseCase _loginUseCase;
-  final RegisterUseCase _registerUseCase;
-  final SecureStorage _secureStorage;
+/// Provider for the upload avatar use case.
+final uploadAvatarUseCaseProvider = Provider<UploadAvatarUseCase>((ref) {
+  return UploadAvatarUseCase(ref.watch(authRepositoryProvider));
+});
 
-  AuthNotifier({
-    required LoginUseCase loginUseCase,
-    required RegisterUseCase registerUseCase,
-    required SecureStorage secureStorage,
-  })  : _loginUseCase = loginUseCase,
-        _registerUseCase = registerUseCase,
-        _secureStorage = secureStorage,
-        super(const AuthState.initial());
+/// Provider for the change password use case.
+final changePasswordUseCaseProvider = Provider<ChangePasswordUseCase>((ref) {
+  return ChangePasswordUseCase(ref.watch(authRepositoryProvider));
+});
 
-  /// Ejecuta el login con email y contraseña.
-  Future<void> login({
-    required String email,
-    required String password,
-  }) async {
-    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+final forgotPasswordUseCaseProvider = Provider<ForgotPasswordUseCase>((ref) {
+  return ForgotPasswordUseCase(ref.watch(authRepositoryProvider));
+});
 
-    final result = await _loginUseCase(
-      LoginParams(email: email, password: password),
-    );
+final resetPasswordUseCaseProvider = Provider<ResetPasswordUseCase>((ref) {
+  return ResetPasswordUseCase(ref.watch(authRepositoryProvider));
+});
 
-    result.fold(
-      (failure) => state = state.copyWith(
-        status: AuthStatus.error,
-        errorMessage: failure.message,
-      ),
-      (user) => state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: user,
-      ),
-    );
-  }
-
-  /// Ejecuta el registro de un usuario de forma no bloqueante (optimista).
-  Future<void> register({
-    required String email,
-    required String password,
-    required String name,
-    required String role,
-    String? phone,
-  }) async {
-    // 1. Crear un usuario temporal/mock con la información provista
-    final tempUserId = 'mock-id-${DateTime.now().millisecondsSinceEpoch}';
-    final mockUser = User(
-      id: tempUserId,
-      email: email,
-      name: name,
-      phone: phone,
-    );
-
-    // 2. Persistir de inmediato los tokens y el ID de usuario mock en SecureStorage
-    // para que los guards del enrutador permitan la navegación a /register/vehicles y /home.
-    await _secureStorage.saveToken('mock-access-token');
-    await _secureStorage.saveUserId(tempUserId);
-
-    // 3. Cambiar el estado a autenticado con el usuario mock para detonar la navegación inmediata
-    state = state.copyWith(
-      status: AuthStatus.authenticated,
-      user: mockUser,
-    );
-
-    // 4. Lanzar la llamada real de registro en segundo plano sin usar 'await' para no bloquear la UI.
-    _registerUseCase(
-      RegisterParams(
-        email: email,
-        password: password,
-        name: name,
-        role: role,
-        phone: phone,
-      ),
-    ).then((result) {
-      result.fold(
-        (failure) {
-          // Loggear error en segundo plano, pero no bloquear la experiencia del usuario local.
-          print('Background registration failed: ${failure.message}');
-        },
-        (realUser) {
-          // Si el registro real tiene éxito, el repositorio ya persistió los tokens reales
-          // en el almacenamiento seguro. Solo actualizamos el estado con la entidad real del usuario.
-          print('Background registration succeeded: ${realUser.id}');
-          state = state.copyWith(
-            user: realUser,
-          );
-        },
-      );
-    });
-  }
-
-  /// Limpia el error actual.
-  void clearError() {
-    state = state.copyWith(status: AuthStatus.initial, errorMessage: null);
-  }
-
-  /// Realiza logout limpiando tokens del storage y restaurando el estado a inicial.
-  Future<void> logout() async {
-    await _secureStorage.clearTokens();
-    state = const AuthState.initial();
-  }
-}
-
-/// Proveedor principal del estado de auth. Consumido por las pantallas de login y registro.
+/// Main auth state provider. Consumed by login and registration screens.
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier(
     loginUseCase: ref.watch(loginUseCaseProvider),
     registerUseCase: ref.watch(registerUseCaseProvider),
+    updateProfileUseCase: ref.watch(updateProfileUseCaseProvider),
+    uploadAvatarUseCase: ref.watch(uploadAvatarUseCaseProvider),
+    authRepository: ref.watch(authRepositoryProvider),
     secureStorage: ref.watch(secureStorageProvider),
+    socketService: ref.watch(socketServiceProvider),
+    tokenRefreshCoordinator: ref.watch(tokenRefreshCoordinatorProvider),
   );
+});
+
+/// Finaliza la sesión local después de un cambio de contraseña exitoso.
+///
+/// El backend invalida todos los refresh tokens al actualizar la contraseña,
+/// por lo que mantener la app como autenticada dejaría credenciales obsoletas
+/// hasta que expire el access token actual.
+final passwordChangeSessionHandlerProvider =
+    Provider<Future<void> Function()>((ref) {
+  return () => ref.read(authProvider.notifier).logout();
 });

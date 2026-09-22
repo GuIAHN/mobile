@@ -1,13 +1,50 @@
-import 'dart:ui' show ImageFilter;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../../../../core/error/failures.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/widgets/api_error_message.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
+import '../providers/social_registration_state.dart';
+
+// ── Tokens de pantalla ───────────────────────────────────────────────────────
+// Alias locales sobre AppColors para que el resto del archivo se lea como el
+// sistema de diseño (DESIGN_SYSTEM.md §1) y no como una lista de hex sueltos.
+
+const Color _bg = AppColors.background; //        #F5F6FA — fondo de pantalla
+const Color _surface = AppColors.loginSurface; // #FFFFFF — campos y superficies
+const Color _ink = AppColors.loginOnSurface; //   #1A1C1E — texto principal
+const Color _muted =
+    AppColors.loginOnSurfaceVar; // #6C757D — labels y placeholders
+const Color _line = AppColors.grey300; //         #DEE2E6 — borde de campos
+const Color _hairline = AppColors.loginOutlineVar; // #E9ECEF — divisores
+const Color _brand = AppColors.loginPrimary; //   #F25C05 — acento y CTA
+
+/// Hanken Grotesk es la fuente única del sistema de diseño (§2). El textTheme
+/// global aún no la aplica, así que cada estilo de esta pantalla la pide.
+TextStyle _font(
+  double size,
+  FontWeight weight,
+  Color color, {
+  double? letterSpacing,
+  double? height,
+}) =>
+    GoogleFonts.hankenGrotesk(
+      fontSize: size,
+      fontWeight: weight,
+      color: color,
+      letterSpacing: letterSpacing,
+      height: height,
+    );
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -20,17 +57,166 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _emailFocus = FocusNode();
+  final _passwordFocus = FocusNode();
+
   bool _obscurePassword = true;
+
+  /// Hasta el primer envío no se valida en caliente: mostrar errores mientras
+  /// el usuario todavía está escribiendo su correo es ruido, no ayuda.
+  bool _submitted = false;
+
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
+        ? '1062705330448-6nego3r9aaijmelviu38b7f5g09lb4te.apps.googleusercontent.com'
+        : null,
+    serverClientId:
+        '1062705330448-1n5l9ahrjltarem41a5uiim4dc81hj63.apps.googleusercontent.com',
+    scopes: ['email'],
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authProvider.notifier).clearError();
+    });
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
+  static String? _emailError(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'Ingresa tu correo';
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v)) {
+      return 'Escribe un correo válido, por ejemplo nombre@correo.com';
+    }
+    return null;
+  }
+
+  static String? _passwordError(String? value) {
+    final v = value ?? '';
+    if (v.isEmpty) return 'Ingresa tu contraseña';
+    if (v.length < 6) return 'La contraseña debe tener al menos 6 caracteres';
+    return null;
+  }
+
+  void _clearApiError(String _) {
+    if (ref.read(authProvider).errorMessage != null) {
+      ref.read(authProvider.notifier).clearError();
+    }
+  }
+
+  Future<void> _handleSocialLogin(String provider) async {
+    String? email;
+    String? name;
+    String? idToken;
+
+    if (provider == 'GOOGLE') {
+      try {
+        final googleUser = await _googleSignIn.signIn();
+        if (googleUser == null) return; // Usuario canceló el selector
+
+        final googleAuth = await googleUser.authentication;
+        idToken = googleAuth.idToken;
+        email = googleUser.email;
+        name = googleUser.displayName;
+
+        if (idToken == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('No se pudo obtener el token de Google.')),
+            );
+          }
+          return;
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al iniciar sesión con Google: $e')),
+          );
+        }
+        return;
+      }
+    } else if (provider == 'APPLE') {
+      try {
+        final appleCredential = await SignInWithApple.getAppleIDCredential(
+          scopes: [
+            AppleIDAuthorizationScopes.email,
+            AppleIDAuthorizationScopes.fullName,
+          ],
+        );
+
+        if (appleCredential.identityToken == null) {
+          return;
+        }
+
+        idToken = appleCredential.identityToken;
+        email = appleCredential.email;
+        name = appleCredential.givenName != null
+            ? '${appleCredential.givenName} ${appleCredential.familyName ?? ''}'
+                .trim()
+            : null;
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al iniciar sesión con Apple: $e')),
+          );
+        }
+        return;
+      }
+    }
+
+    if (idToken == null) return;
+
+    final result = await ref.read(authProvider.notifier).socialLogin(
+          idToken: idToken,
+          provider: provider,
+        );
+
+    result.fold(
+      (failure) {
+        if (failure is SocialNotRegisteredFailure) {
+          ref.read(socialRegistrationProvider.notifier).setData(
+                idToken: idToken!,
+                provider: provider,
+                email: email!,
+                name: name ?? 'Usuario Social',
+              );
+          context.go(RouteNames.register);
+        }
+      },
+      (user) {
+        // El éxito lo maneja el listener de redirección.
+      },
+    );
+  }
+
   Future<void> _submit() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (!_submitted) setState(() => _submitted = true);
+
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      HapticFeedback.lightImpact();
+      // Foco al primer campo inválido para que lector de pantalla y teclado
+      // aterricen donde está el problema (WCAG focus-management).
+      if (_emailError(_emailController.text) != null) {
+        _emailFocus.requestFocus();
+      } else {
+        _passwordFocus.requestFocus();
+      }
+      return;
+    }
+
+    HapticFeedback.selectionClick();
     await ref.read(authProvider.notifier).login(
           email: _emailController.text.trim(),
           password: _passwordController.text,
@@ -41,95 +227,250 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Widget build(BuildContext context) {
     ref.listen<AuthState>(authProvider, (_, next) {
       if (next.isAuthenticated) context.go(RouteNames.home);
-      if (next.hasError && next.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.errorMessage!),
-            backgroundColor: AppColors.loginError,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-            ),
-          ),
-        );
-        ref.read(authProvider.notifier).clearError();
-      }
     });
 
     final state = ref.watch(authProvider);
+    final autovalidate = _submitted
+        ? AutovalidateMode.onUserInteraction
+        : AutovalidateMode.disabled;
 
     return Scaffold(
-      backgroundColor: AppColors.loginBg,
+      backgroundColor: _bg,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.xl2,
+              horizontal: AppSpacing.xl2,
+              vertical: AppSpacing.xl3,
             ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _BrandHeader(),
-                  const SizedBox(height: AppSpacing.xl3),
-                  _LoginCard(
-                    formKey: _formKey,
-                    emailController: _emailController,
-                    passwordController: _passwordController,
-                    obscurePassword: _obscurePassword,
-                    isLoading: state.isLoading,
-                    onToggleObscure: () =>
-                        setState(() => _obscurePassword = !_obscurePassword),
-                    onSubmit: _submit,
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: AutofillGroup(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const _EntranceFade(child: _BrandHeader()),
+                      const SizedBox(height: AppSpacing.xl4),
+                      _EntranceFade(
+                        delayMs: 70,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Semantics(
+                              liveRegion: true,
+                              child: ApiErrorMessage(
+                                message: state.errorMessage,
+                                onClose: () => ref
+                                    .read(authProvider.notifier)
+                                    .clearError(),
+                              ),
+                            ),
+                            const _FieldLabel('Correo electrónico'),
+                            const SizedBox(height: AppSpacing.sm),
+                            _LoginField(
+                              controller: _emailController,
+                              focusNode: _emailFocus,
+                              hint: 'nombre@correo.com',
+                              icon: Icons.mail_outline_rounded,
+                              keyboardType: TextInputType.emailAddress,
+                              textInputAction: TextInputAction.next,
+                              autofillHints: const [
+                                AutofillHints.username,
+                                AutofillHints.email,
+                              ],
+                              autovalidateMode: autovalidate,
+                              validator: _emailError,
+                              onSubmitted: (_) => _passwordFocus.requestFocus(),
+                              onChanged: _clearApiError,
+                            ),
+                            const SizedBox(height: AppSpacing.xl),
+                            _PasswordLabelRow(
+                              onForgotPassword: () =>
+                                  context.push(RouteNames.forgotPassword),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            _LoginField(
+                              controller: _passwordController,
+                              focusNode: _passwordFocus,
+                              hint: 'Tu contraseña',
+                              icon: Icons.lock_outline_rounded,
+                              obscure: _obscurePassword,
+                              textInputAction: TextInputAction.done,
+                              autofillHints: const [AutofillHints.password],
+                              autovalidateMode: autovalidate,
+                              validator: _passwordError,
+                              onSubmitted: (_) => _submit(),
+                              onChanged: _clearApiError,
+                              suffix: _ObscureToggle(
+                                obscured: _obscurePassword,
+                                onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.xl2),
+                            _PrimaryCta(
+                              isLoading: state.isLoading,
+                              onPressed: _submit,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xl3),
+                      _EntranceFade(
+                        delayMs: 140,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const _LabeledDivider('O continuar con'),
+                            const SizedBox(height: AppSpacing.xl),
+                            _SocialActions(
+                              onGoogle: () => _handleSocialLogin('GOOGLE'),
+                              onApple: () => _handleSocialLogin('APPLE'),
+                            ),
+                            const SizedBox(height: AppSpacing.xl3),
+                            const _RegisterFooter(),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: AppSpacing.xl3),
-                  _RegisterFooter(),
-                ],
+                ),
               ),
             ),
           ),
         ),
-      ),
-      bottomNavigationBar: Container(
-        height: 3,
-        color: AppColors.loginPrimary,
       ),
     );
   }
 }
 
-// ── Brand Header ──────────────────────────────────────────────────────────────
+// ── Entrada escalonada ───────────────────────────────────────────────────────
+// Fade + slide de 350ms (DESIGN_SYSTEM §4) con stagger de 70ms entre bloques.
+// Con "reducir movimiento" activo se salta a estado final sin animar.
+
+class _EntranceFade extends StatefulWidget {
+  final Widget child;
+  final int delayMs;
+
+  const _EntranceFade({required this.child, this.delayMs = 0});
+
+  @override
+  State<_EntranceFade> createState() => _EntranceFadeState();
+}
+
+class _EntranceFadeState extends State<_EntranceFade>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 350),
+  );
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOut,
+  );
+  late final Animation<Offset> _slide = Tween<Offset>(
+    begin: const Offset(0, 0.04),
+    end: Offset.zero,
+  ).animate(_fade);
+
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+
+    if (MediaQuery.of(context).disableAnimations) {
+      _controller.value = 1;
+      return;
+    }
+    Future.delayed(Duration(milliseconds: widget.delayMs), () {
+      if (mounted) _controller.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(position: _slide, child: widget.child),
+    );
+  }
+}
+
+// ── Feedback de presión ──────────────────────────────────────────────────────
+// Escala 0.97 al presionar (DESIGN_SYSTEM §4). Usa Listener en vez de
+// GestureDetector para no competir por el gesto con el botón que envuelve.
+
+class _PressScale extends StatefulWidget {
+  final Widget child;
+  final bool enabled;
+
+  const _PressScale({required this.child, this.enabled = true});
+
+  @override
+  State<_PressScale> createState() => _PressScaleState();
+}
+
+class _PressScaleState extends State<_PressScale> {
+  bool _pressed = false;
+
+  void _release(PointerEvent _) {
+    if (_pressed) setState(() => _pressed = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    final active = widget.enabled && _pressed && !reduceMotion;
+
+    return Listener(
+      onPointerDown:
+          widget.enabled ? (_) => setState(() => _pressed = true) : null,
+      onPointerUp: _release,
+      onPointerCancel: _release,
+      child: AnimatedScale(
+        scale: active ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+// ── Encabezado de marca ──────────────────────────────────────────────────────
 
 class _BrandHeader extends StatelessWidget {
+  const _BrandHeader();
+
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Image.asset(
-          'assets/images/logo.png',
-          height: 60,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            return const Text(
-              'guIAutomotriz HN',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: AppColors.loginOnSurface,
-                letterSpacing: -0.3,
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        const Text(
-          'Inicia sesión para continuar',
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.loginOnSurfaceVar,
-            fontWeight: FontWeight.w400,
+        const SizedBox(height: 32),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: Image.asset(
+            'assets/images/logo.png',
+            width: double.infinity,
+            fit: BoxFit.contain,
+            semanticLabel: 'GuIA Automotriz HN',
+            errorBuilder: (_, __, ___) => Text(
+              'GuIA Automotriz HN',
+              textAlign: TextAlign.center,
+              style: _font(24, FontWeight.w800, _ink, letterSpacing: -0.3),
+            ),
           ),
         ),
       ],
@@ -137,143 +478,7 @@ class _BrandHeader extends StatelessWidget {
   }
 }
 
-// ── Login Card ────────────────────────────────────────────────────────────────
-
-class _LoginCard extends StatelessWidget {
-  final GlobalKey<FormState> formKey;
-  final TextEditingController emailController;
-  final TextEditingController passwordController;
-  final bool obscurePassword;
-  final bool isLoading;
-  final VoidCallback onToggleObscure;
-  final VoidCallback onSubmit;
-
-  const _LoginCard({
-    required this.formKey,
-    required this.emailController,
-    required this.passwordController,
-    required this.obscurePassword,
-    required this.isLoading,
-    required this.onToggleObscure,
-    required this.onSubmit,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xl2),
-      decoration: BoxDecoration(
-        color: AppColors.loginSurface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        border: Border.all(
-          color: AppColors.loginOutlineVar,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 32,
-            offset: const Offset(0, 12),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Form(
-        key: formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Email
-            _FieldLabel('CORREO ELECTRÓNICO'),
-            const SizedBox(height: AppSpacing.xs),
-            _LoginTextField(
-              controller: emailController,
-              hintText: 'nombre@taller.com',
-              prefixIcon: Icons.mail_outline_rounded,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) {
-                  return 'Ingresa tu correo';
-                }
-                if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim())) {
-                  return 'Correo inválido';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: AppSpacing.md),
-
-            // Contraseña
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _FieldLabel('CONTRASEÑA'),
-                GestureDetector(
-                  onTap: () {},
-                  child: const Text(
-                    '¿Olvidaste tu contraseña?',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.loginPrimary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            _LoginTextField(
-              controller: passwordController,
-              hintText: '••••••••',
-              prefixIcon: Icons.lock_outline_rounded,
-              obscureText: obscurePassword,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => onSubmit(),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  obscurePassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                  size: 18,
-                  color: AppColors.loginOnSurfaceVar,
-                ),
-                onPressed: onToggleObscure,
-              ),
-              validator: (v) {
-                if (v == null || v.isEmpty) return 'Ingresa tu contraseña';
-                if (v.length < 6) return 'Mínimo 6 caracteres';
-                return null;
-              },
-            ),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Botón principal
-            _LoginButton(isLoading: isLoading, onPressed: onSubmit),
-
-            const SizedBox(height: AppSpacing.xl3),
-            _DividerWithLabel('O continuar con'),
-            const SizedBox(height: AppSpacing.xl3),
-
-            // Botones sociales
-            Row(
-              children: [
-                Expanded(child: _SocialButton.google()),
-                const SizedBox(width: AppSpacing.lg),
-                Expanded(child: _SocialButton.apple()),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Field Label ───────────────────────────────────────────────────────────────
+// ── Label de campo ───────────────────────────────────────────────────────────
 
 class _FieldLabel extends StatelessWidget {
   final String text;
@@ -282,362 +487,557 @@ class _FieldLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-        color: AppColors.loginOnSurfaceVar,
-        letterSpacing: 0.8,
-      ),
+      text.toUpperCase(),
+      style: _font(12, FontWeight.w700, _muted, letterSpacing: 1.5),
     );
   }
 }
 
-// ── Text Field ────────────────────────────────────────────────────────────────
+class _PasswordLabelRow extends StatelessWidget {
+  final VoidCallback onForgotPassword;
 
-class _LoginTextField extends StatefulWidget {
-  final TextEditingController controller;
-  final String hintText;
-  final IconData prefixIcon;
-  final bool obscureText;
-  final TextInputType keyboardType;
-  final TextInputAction textInputAction;
-  final Widget? suffixIcon;
-  final String? Function(String?)? validator;
-  final void Function(String)? onSubmitted;
-
-  const _LoginTextField({
-    required this.controller,
-    required this.hintText,
-    required this.prefixIcon,
-    this.obscureText = false,
-    this.keyboardType = TextInputType.text,
-    this.textInputAction = TextInputAction.next,
-    this.suffixIcon,
-    this.validator,
-    this.onSubmitted,
-  });
-
-  @override
-  State<_LoginTextField> createState() => _LoginTextFieldState();
-}
-
-class _LoginTextFieldState extends State<_LoginTextField> {
-  bool _focused = false;
+  const _PasswordLabelRow({required this.onForgotPassword});
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppSpacing.radiusSm);
-    return Focus(
-      onFocusChange: (f) => setState(() => _focused = f),
-      child: TextFormField(
-        controller: widget.controller,
-        obscureText: widget.obscureText,
-        keyboardType: widget.keyboardType,
-        textInputAction: widget.textInputAction,
-        textAlignVertical: TextAlignVertical.center,
-        onFieldSubmitted: widget.onSubmitted,
-        validator: widget.validator,
-        autovalidateMode: AutovalidateMode.disabled,
-        style: const TextStyle(
-          fontSize: 13,
-          color: AppColors.loginOnSurface,
+    final forgotButton = TextButton(
+      key: const Key('open-forgot-password'),
+      onPressed: onForgotPassword,
+      style: TextButton.styleFrom(
+        foregroundColor: _brand,
+        minimumSize: const Size(0, 48),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+        tapTargetSize: MaterialTapTargetSize.padded,
+      ),
+      child: Text(
+        '¿Olvidaste tu contraseña?',
+        textAlign: TextAlign.end,
+        style: _font(12, FontWeight.w700, _brand),
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scaledLabel = MediaQuery.textScalerOf(context).scale(12);
+        final stack = constraints.maxWidth < 320 || scaledLabel >= 18;
+
+        if (stack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _FieldLabel('Contraseña'),
+              Align(alignment: Alignment.centerRight, child: forgotButton),
+            ],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const _FieldLabel('Contraseña'),
+            Flexible(child: forgotButton),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// ── Campo de texto ───────────────────────────────────────────────────────────
+// Superficie blanca sobre el fondo neutro, borde 1px y radio 14. El foco solo
+// cambia color y grosor del borde: nada que altere el layout.
+
+class _LoginField extends StatelessWidget {
+  final TextEditingController controller;
+  final FocusNode? focusNode;
+  final String hint;
+  final IconData icon;
+  final bool obscure;
+  final TextInputType keyboardType;
+  final TextInputAction textInputAction;
+  final Iterable<String>? autofillHints;
+  final AutovalidateMode autovalidateMode;
+  final Widget? suffix;
+  final String? Function(String?)? validator;
+  final void Function(String)? onSubmitted;
+  final void Function(String)? onChanged;
+
+  const _LoginField({
+    required this.controller,
+    required this.hint,
+    required this.icon,
+    this.focusNode,
+    this.obscure = false,
+    this.keyboardType = TextInputType.text,
+    this.textInputAction = TextInputAction.next,
+    this.autofillHints,
+    this.autovalidateMode = AutovalidateMode.disabled,
+    this.suffix,
+    this.validator,
+    this.onSubmitted,
+    this.onChanged,
+  });
+
+  OutlineInputBorder _border(Color color, double width) => OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: color, width: width),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      focusNode: focusNode,
+      obscureText: obscure,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      autofillHints: autofillHints,
+      autovalidateMode: autovalidateMode,
+      textAlignVertical: TextAlignVertical.center,
+      onFieldSubmitted: onSubmitted,
+      onChanged: onChanged,
+      validator: validator,
+      cursorColor: _brand,
+      style: _font(16, FontWeight.w400, _ink),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: _font(16, FontWeight.w400, _muted),
+        filled: true,
+        fillColor: _surface,
+        prefixIcon: Icon(icon, size: 20),
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: 48,
+          minHeight: 48,
         ),
-        decoration: InputDecoration(
-          hintText: widget.hintText,
-          hintStyle: const TextStyle(
-            color: AppColors.loginOnSurfaceVar,
-            fontSize: 13,
-          ),
-          prefixIconConstraints: const BoxConstraints(
-            minWidth: 36,
-            minHeight: 36,
-          ),
-          prefixIcon: Padding(
-            padding: const EdgeInsets.only(left: 10, right: 6),
-            child: Icon(
-              widget.prefixIcon,
-              size: 16,
-              color: AppColors.loginOnSurfaceVar,
-            ),
-          ),
-          suffixIconConstraints: const BoxConstraints(
-            minWidth: 36,
-            minHeight: 36,
-          ),
-          suffixIcon: widget.suffixIcon,
-          filled: true,
-          fillColor: widget.controller.text.isEmpty
-              ? AppColors.loginSurfaceHigh.withValues(alpha: _focused ? 0.9 : 0.6)
-              : AppColors.loginSurface.withValues(alpha: 0.9),
-          border: OutlineInputBorder(
-            borderRadius: radius,
-            borderSide: BorderSide(
-              color: AppColors.loginOutlineVar,
-            ),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: radius,
-            borderSide: BorderSide(
-              color: AppColors.loginOutlineVar,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: radius,
-            borderSide: BorderSide(
-              color: AppColors.loginPrimary,
-              width: 1.5,
-            ),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: radius,
-            borderSide: BorderSide(
-              color: AppColors.loginError.withValues(alpha: 0.8),
-            ),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: radius,
-            borderSide: BorderSide(
-              color: AppColors.loginError,
-              width: 1.5,
-            ),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: 10,
-          ),
-          errorStyle: const TextStyle(
-            color: AppColors.loginErrorText,
-            fontSize: 11,
-            height: 1.2,
-          ),
-          isDense: true,
+        prefixIconColor: WidgetStateColor.resolveWith((states) {
+          if (states.contains(WidgetState.error)) return AppColors.loginError;
+          if (states.contains(WidgetState.focused)) return _brand;
+          return _muted;
+        }),
+        suffixIcon: suffix,
+        suffixIconConstraints: const BoxConstraints(
+          minWidth: 48,
+          minHeight: 48,
         ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.lg,
+        ),
+        border: _border(_line, 1),
+        enabledBorder: _border(_line, 1),
+        focusedBorder: _border(_brand, 1.5),
+        errorBorder: _border(AppColors.loginError, 1),
+        focusedErrorBorder: _border(AppColors.loginError, 1.5),
+        errorMaxLines: 2,
+        errorStyle:
+            _font(12, FontWeight.w500, AppColors.loginErrorText, height: 1.35),
       ),
     );
   }
 }
 
-// ── Login Button ──────────────────────────────────────────────────────────────
+// ── Toggle de visibilidad de contraseña ──────────────────────────────────────
 
-class _LoginButton extends StatelessWidget {
+class _ObscureToggle extends StatelessWidget {
+  final bool obscured;
+  final VoidCallback onPressed;
+
+  const _ObscureToggle({required this.obscured, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = obscured ? 'Mostrar contraseña' : 'Ocultar contraseña';
+    return IconButton(
+      onPressed: onPressed,
+      tooltip: label,
+      splashRadius: 22,
+      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      icon: Icon(
+        obscured ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+        size: 20,
+        color: _muted,
+        semanticLabel: label,
+      ),
+    );
+  }
+}
+
+// ── CTA principal ────────────────────────────────────────────────────────────
+
+class _PrimaryCta extends StatelessWidget {
   final bool isLoading;
   final VoidCallback onPressed;
 
-  const _LoginButton({required this.isLoading, required this.onPressed});
+  const _PrimaryCta({required this.isLoading, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: AppSpacing.buttonHeightMd,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.loginPrimary,
-          disabledBackgroundColor: const Color(0x99FF5C00),
-          foregroundColor: Colors.white,
-          elevation: 3,
-          shadowColor: const Color(0x4DFF5C00),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          ),
-        ),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          child: isLoading
-              ? const SizedBox(
-                  key: ValueKey('loader'),
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: Colors.white,
+    return _PressScale(
+      enabled: !isLoading,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+          boxShadow: isLoading
+              ? null
+              : [
+                  BoxShadow(
+                    color: _brand.withValues(alpha: 0.32),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
                   ),
-                )
-              : const Row(
-                  key: ValueKey('label'),
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'INICIAR SESIÓN',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        letterSpacing: 0.5,
-                      ),
+                ],
+        ),
+        child: ElevatedButton(
+          onPressed: isLoading ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _brand,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: const Color(0xFFD9DCE1),
+            disabledForegroundColor: const Color(0xFF9AA0A8),
+            elevation: 0,
+            minimumSize: const Size.fromHeight(AppSpacing.buttonHeightLg),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl2,
+              vertical: AppSpacing.md,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+            ),
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: isLoading
+                ? const SizedBox(
+                    key: ValueKey('loader'),
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                      semanticsLabel: 'Iniciando sesión',
                     ),
-                    SizedBox(width: AppSpacing.sm),
-                    Icon(Icons.login_rounded, size: 18, color: Colors.white),
-                  ],
-                ),
+                  )
+                : Text(
+                    'INICIAR SESIÓN',
+                    key: const ValueKey('label'),
+                    style: _font(15, FontWeight.w700, Colors.white,
+                        letterSpacing: 2),
+                  ),
+          ),
         ),
       ),
     );
   }
 }
 
-// ── Divider con etiqueta ──────────────────────────────────────────────────────
+// ── Divisor con etiqueta ─────────────────────────────────────────────────────
 
-class _DividerWithLabel extends StatelessWidget {
+class _LabeledDivider extends StatelessWidget {
   final String label;
-  const _DividerWithLabel(this.label);
+  const _LabeledDivider(this.label);
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Expanded(
-          child: Divider(color: AppColors.loginOutlineVar, thickness: 1),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Text(
-            label.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: AppColors.loginOnSurfaceVar,
-              letterSpacing: 1.5,
+        const Expanded(child: Divider(color: _hairline, thickness: 1)),
+        Flexible(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Text(
+              label.toUpperCase(),
+              textAlign: TextAlign.center,
+              style: _font(11, FontWeight.w600, _muted, letterSpacing: 1.5),
             ),
           ),
         ),
-        const Expanded(
-          child: Divider(color: AppColors.loginOutlineVar, thickness: 1),
-        ),
+        const Expanded(child: Divider(color: _hairline, thickness: 1)),
       ],
     );
   }
 }
 
-// ── Social Button ─────────────────────────────────────────────────────────────
+// ── Botón social ─────────────────────────────────────────────────────────────
 
 class _SocialButton extends StatelessWidget {
   final Widget icon;
   final String label;
+  final String semanticLabel;
+  final VoidCallback onPressed;
 
-  const _SocialButton({required this.icon, required this.label});
+  const _SocialButton({
+    required this.icon,
+    required this.label,
+    required this.semanticLabel,
+    required this.onPressed,
+  });
 
-  factory _SocialButton.google() => const _SocialButton(
-        icon: _GoogleIcon(),
+  factory _SocialButton.google({required VoidCallback onPressed}) =>
+      _SocialButton(
+        icon: const _GoogleMark(size: 20),
         label: 'Google',
+        semanticLabel: 'Continuar con Google',
+        onPressed: onPressed,
       );
 
-  factory _SocialButton.apple() => _SocialButton(
-        icon: const Icon(Icons.apple_rounded, size: 20, color: AppColors.loginOnSurface),
+  factory _SocialButton.apple({required VoidCallback onPressed}) =>
+      _SocialButton(
+        icon: const Icon(Icons.apple_rounded, size: 22, color: _ink),
         label: 'Apple',
+        semanticLabel: 'Continuar con Apple',
+        onPressed: onPressed,
       );
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 40,
-      child: OutlinedButton(
-        onPressed: () {},
-        style: OutlinedButton.styleFrom(
-          backgroundColor: AppColors.loginSurfaceHigh.withValues(alpha: 0.6),
-          side: const BorderSide(color: AppColors.loginOutlineVar),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          ),
-          padding: EdgeInsets.zero,
-          foregroundColor: AppColors.loginOnSurface,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            icon,
-            const SizedBox(width: AppSpacing.sm),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.loginOnSurface,
-              ),
+    return _PressScale(
+      child: Semantics(
+        button: true,
+        label: semanticLabel,
+        excludeSemantics: true,
+        child: OutlinedButton(
+          onPressed: onPressed,
+          style: OutlinedButton.styleFrom(
+            backgroundColor: _surface,
+            side: const BorderSide(color: _line),
+            minimumSize: const Size.fromHeight(52),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
             ),
-          ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              icon,
+              const SizedBox(width: AppSpacing.sm),
+              Flexible(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: _font(14.5, FontWeight.w600, _ink),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ── Google Icon (sin assets externos) ────────────────────────────────────────
+class _SocialActions extends StatelessWidget {
+  final VoidCallback onGoogle;
+  final VoidCallback onApple;
 
-class _GoogleIcon extends StatelessWidget {
-  const _GoogleIcon();
+  const _SocialActions({
+    required this.onGoogle,
+    required this.onApple,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 18,
-      height: 18,
-      child: CustomPaint(painter: _GoogleLogoPainter()),
+    return Row(
+      children: [
+        Expanded(child: _SocialButton.google(onPressed: onGoogle)),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(child: _SocialButton.apple(onPressed: onApple)),
+      ],
     );
   }
 }
 
-class _GoogleLogoPainter extends CustomPainter {
-  const _GoogleLogoPainter();
+// ── Logotipo de Google ───────────────────────────────────────────────────────
+// Anillo de cuatro segmentos + barra, con los ángulos y proporciones tomados
+// del SVG oficial (viewBox 48×48, centro 24,24, radio exterior 22, interior 13)
+// para no deformar la marca.
+
+class _GoogleMark extends StatelessWidget {
+  final double size;
+  const _GoogleMark({required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: const CustomPaint(painter: _GoogleMarkPainter()),
+    );
+  }
+}
+
+class _GoogleMarkPainter extends CustomPainter {
+  const _GoogleMarkPainter();
+
+  // Radianes: 0 = 3 en punto, sentido horario (eje Y hacia abajo).
+  static const _segments = <List<Object>>[
+    [0xFFEA4335, -2.67558, 1.83958], // rojo    -153.3° → -47.9°
+    [0xFF4285F4, -0.83600, 1.68941], // azul     -47.9° →  48.9°
+    [0xFF34A853, 0.85347, 1.82212], //  verde     48.9° → 153.3°
+    [0xFFFBBC05, 2.67558, 0.93206], //  amarillo 153.3° → 206.7°
+  ];
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final r = size.width / 2;
-    final paint = Paint()..style = PaintingStyle.fill;
 
-    const segments = [
-      [0xFFEA4335, -1.05],
-      [0xFF4285F4, 0.52],
-      [0xFFFBBC05, 2.09],
-      [0xFF34A853, 3.66],
-    ];
-    for (final s in segments) {
+    // Grosor del anillo: (22 - 13) / 22 del radio, centrado en 17.5 / 22.
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = r * 0.40909
+      ..strokeCap = StrokeCap.butt;
+    final ring = Rect.fromCircle(center: center, radius: r * 0.79545);
+
+    for (final s in _segments) {
       paint.color = Color(s[0] as int);
-      canvas.drawArc(Rect.fromCircle(center: center, radius: r),
-          s[1] as double, 1.57, true, paint);
+      canvas.drawArc(ring, s[1] as double, s[2] as double, false, paint);
     }
-    paint.color = Colors.white;
-    canvas.drawCircle(center, r * 0.65, paint);
-    paint.color = const Color(0xFF4285F4);
+
+    // Barra azul horizontal: del centro hacia la derecha, y de -4 a +4.51.
     canvas.drawRect(
-      Rect.fromLTWH(center.dx, center.dy - r * 0.14, r * 0.95, r * 0.28),
-      paint,
+      Rect.fromLTRB(
+        center.dx,
+        center.dy - r * 0.18182,
+        center.dx + r * 0.94182,
+        center.dy + r * 0.20500,
+      ),
+      Paint()..color = const Color(0xFF4285F4),
     );
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter _) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// ── Register Footer ───────────────────────────────────────────────────────────
+// ── Pie de registro ──────────────────────────────────────────────────────────
 
 class _RegisterFooter extends StatelessWidget {
+  const _RegisterFooter();
+
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Text(
-          '¿No tienes una cuenta? ',
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.loginOnSurfaceVar,
+    return GestureDetector(
+      onTap: () => context.go(RouteNames.register),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: RichText(
+          textAlign: TextAlign.center,
+          text: TextSpan(
+            style: _font(14, FontWeight.w400, _muted),
+            children: [
+              const TextSpan(text: '¿No tienes una cuenta? '),
+              TextSpan(
+                text: 'Regístrate gratis',
+                style: _font(14, FontWeight.w700, _brand),
+              ),
+            ],
           ),
         ),
-        GestureDetector(
-          onTap: () => context.go(RouteNames.register),
-          child: const Text(
-            'Regístrate gratis',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.loginPrimary,
-              fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+}
+
+// ── Simulador de login social (desarrollo) ───────────────────────────────────
+
+class _SocialSimulatorDialog extends StatefulWidget {
+  final String provider;
+  const _SocialSimulatorDialog({required this.provider});
+
+  @override
+  State<_SocialSimulatorDialog> createState() => _SocialSimulatorDialogState();
+}
+
+class _SocialSimulatorDialogState extends State<_SocialSimulatorDialog> {
+  final _controller = TextEditingController(text: 'cega2005@gmail.com');
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _confirm() => Navigator.pop(context, _controller.text.trim());
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: _surface,
+      insetPadding: const EdgeInsets.all(AppSpacing.xl2),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Login social (${widget.provider})',
+              style: _font(18, FontWeight.w800, _ink),
             ),
-          ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Simulador de desarrollo: indica el correo con el que quieres continuar.',
+              style: _font(13.5, FontWeight.w400, _muted, height: 1.45),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            const _FieldLabel('Correo electrónico'),
+            const SizedBox(height: AppSpacing.sm),
+            _LoginField(
+              controller: _controller,
+              hint: 'nombre@correo.com',
+              icon: Icons.mail_outline_rounded,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _confirm(),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: _line),
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: Text(
+                      'Cancelar',
+                      style: _font(14.5, FontWeight.w600, _muted),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _confirm,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _brand,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: Text(
+                      'Continuar',
+                      style: _font(14.5, FontWeight.w700, Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

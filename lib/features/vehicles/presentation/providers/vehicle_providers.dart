@@ -1,0 +1,98 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/presentation/providers/auth_state.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../data/datasources/vehicle_remote_datasource.dart';
+import '../../data/repositories/vehicle_repository_impl.dart';
+import '../../domain/entities/brand.dart';
+import '../../domain/entities/car_model.dart';
+import '../../domain/entities/user_car.dart';
+import '../../domain/repositories/vehicle_repository.dart';
+import '../../domain/usecases/add_car_to_garage_usecase.dart';
+import '../../domain/usecases/get_brand_models_usecase.dart';
+import '../../domain/usecases/get_brands_usecase.dart';
+import '../../domain/usecases/get_user_cars_usecase.dart';
+import '../../domain/usecases/delete_car_usecase.dart';
+
+/// Remote data source provider.
+final vehicleRemoteDataSourceProvider =
+    Provider<VehicleRemoteDataSource>((ref) {
+  final client = ref.watch(dioClientProvider);
+  return VehicleRemoteDataSource(client);
+});
+
+/// Repository provider.
+final vehicleRepositoryProvider = Provider<VehicleRepository>((ref) {
+  final dataSource = ref.watch(vehicleRemoteDataSourceProvider);
+  return VehicleRepositoryImpl(dataSource);
+});
+
+// ── Use Case Providers ───────────────────────────────────────────────────────
+
+final getBrandsUseCaseProvider = Provider<GetBrandsUseCase>((ref) {
+  return GetBrandsUseCase(ref.watch(vehicleRepositoryProvider));
+});
+
+final getBrandModelsUseCaseProvider = Provider<GetBrandModelsUseCase>((ref) {
+  return GetBrandModelsUseCase(ref.watch(vehicleRepositoryProvider));
+});
+
+final getUserCarsUseCaseProvider = Provider<GetUserCarsUseCase>((ref) {
+  return GetUserCarsUseCase(ref.watch(vehicleRepositoryProvider));
+});
+
+final addCarToGarageUseCaseProvider = Provider<AddCarToGarageUseCase>((ref) {
+  return AddCarToGarageUseCase(ref.watch(vehicleRepositoryProvider));
+});
+
+final deleteCarUseCaseProvider = Provider<DeleteCarUseCase>((ref) {
+  return DeleteCarUseCase(ref.watch(vehicleRepositoryProvider));
+});
+
+// ── Presentation State Providers ─────────────────────────────────────────────
+
+/// Provider for the list of brands.
+final brandsProvider = FutureProvider.autoDispose<List<Brand>>((ref) async {
+  final useCase = ref.watch(getBrandsUseCaseProvider);
+  final result = await useCase();
+  return result.fold(
+    (failure) => throw failure,
+    (brands) => brands,
+  );
+});
+
+/// Provider for specific brand models.
+final brandModelsProvider = FutureProvider.family
+    .autoDispose<List<CarModel>, String>((ref, brandId) async {
+  final useCase = ref.watch(getBrandModelsUseCaseProvider);
+  final result = await useCase(brandId);
+  return result.fold(
+    (failure) => throw failure,
+    (models) => models,
+  );
+});
+
+/// Provider for the list of cars in the user's garage.
+final userCarsProvider = FutureProvider.autoDispose<List<UserCar>>((ref) async {
+  final authState = ref.watch(authProvider);
+
+  // Si aún está verificando sesión o no está autenticado, no hacer peticiones prematuras
+  if (authState.status == AuthStatus.initial ||
+      authState.status == AuthStatus.loading ||
+      authState.status == AuthStatus.unauthenticated) {
+    return [];
+  }
+
+  // Intentamos obtener los carros cacheados del perfil primero
+  if (authState.user?.cars != null) {
+    return authState.user!.cars!;
+  }
+
+  // Fallback: Si no hay carros en caché (ej. se forzó un refresco sin actualizar el authState), hacemos la petición a /me/cars
+  final useCase = ref.watch(getUserCarsUseCaseProvider);
+  final result = await useCase();
+  return result.fold(
+    (failure) => throw failure,
+    (cars) => cars,
+  );
+});

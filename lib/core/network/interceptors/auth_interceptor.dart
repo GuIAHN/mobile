@@ -1,33 +1,28 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../storage/secure_storage.dart';
 import '../api_endpoints.dart';
+import '../token_refresh_coordinator.dart';
 
-/// Interceptor de autenticación.
-/// - Agrega el Bearer token a cada petición.
-/// - Refresca el token automáticamente cuando recibe un 401.
+/// Adds the access token and retries a 401 after the shared single-flight
+/// refresh coordinator rotates credentials. WebSocket and HTTP refreshes use
+/// the same coordinator, so they cannot invalidate each other's refresh token.
 class AuthInterceptor extends Interceptor {
+  AuthInterceptor(this._ref, this._dio);
+
   final Ref _ref;
   final Dio _dio;
-
-  // Previene múltiples refreshes simultáneos.
-  bool _isRefreshing = false;
-  final List<RequestOptions> _pendingRequests = [];
-
-  AuthInterceptor(this._ref, this._dio);
 
   @override
   Future<void> onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    final storage = _ref.read(secureStorageProvider);
-    final token = await storage.getToken();
-
+    final token = await _ref.read(secureStorageProvider).getToken();
     if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
     }
-
     handler.next(options);
   }
 
@@ -36,67 +31,47 @@ class AuthInterceptor extends Interceptor {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
-    if (err.response?.statusCode == 401) {
-      // Evitar bucle infinito: si el refresh mismo falla, propagar el error.
-      if (err.requestOptions.path == ApiEndpoints.refreshToken) {
-        return handler.next(err);
-      }
+    if (err.response?.statusCode == 404 && _isMissingUser(err)) {
+      await _ref.read(tokenRefreshCoordinatorProvider).invalidateSession();
+      return handler.next(err);
+    }
+    if (err.response?.statusCode != 401 ||
+        _isAuthenticationEndpoint(err.requestOptions.path)) {
+      return handler.next(err);
+    }
 
-      if (_isRefreshing) {
-        // Encolar la petición para reintentarla cuando se refresque el token.
-        _pendingRequests.add(err.requestOptions);
-        return;
-      }
-
-      _isRefreshing = true;
-
-      try {
-        final storage = _ref.read(secureStorageProvider);
-        final refreshToken = await storage.getRefreshToken();
-
-        if (refreshToken == null) {
-          await storage.clearTokens();
-          return handler.next(err);
-        }
-
-        final response = await _dio.post<Map<String, dynamic>>(
-          ApiEndpoints.refreshToken,
-          data: {'refreshToken': refreshToken},
-        );
-
-        final newToken = response.data?['accessToken'] as String?;
-        final newRefreshToken = response.data?['refreshToken'] as String?;
-
-        if (newToken != null) {
-          await storage.saveToken(newToken);
-          if (newRefreshToken != null) {
-            await storage.saveRefreshToken(newRefreshToken);
-          }
-
-          // Reintentar la petición original con el nuevo token.
-          err.requestOptions.headers['Authorization'] = 'Bearer $newToken';
-          final retryResponse = await _dio.fetch(err.requestOptions);
-          handler.resolve(retryResponse);
-
-          // Reintentar peticiones pendientes.
-          for (final pending in _pendingRequests) {
-            pending.headers['Authorization'] = 'Bearer $newToken';
-            _dio.fetch(pending).ignore();
-          }
-          _pendingRequests.clear();
-        } else {
-          await storage.clearTokens();
-          handler.next(err);
-        }
-      } catch (_) {
-        final storage = _ref.read(secureStorageProvider);
-        await storage.clearTokens();
-        handler.next(err);
-      } finally {
-        _isRefreshing = false;
-      }
-    } else {
+    try {
+      final accessToken =
+          await _ref.read(tokenRefreshCoordinatorProvider).refreshAccessToken();
+      err.requestOptions.headers['Authorization'] = 'Bearer $accessToken';
+      handler.resolve(await _dio.fetch(err.requestOptions));
+    } on SessionInvalidatedException {
+      handler.next(err);
+    } on TokenRefreshUnavailableException {
+      // Preserve the original response. A transient refresh outage must not
+      // erase a valid session; the next request/socket retry can recover.
       handler.next(err);
     }
+  }
+
+  bool _isAuthenticationEndpoint(String path) {
+    final normalized = path.startsWith('/') ? path.substring(1) : path;
+    return {
+      ApiEndpoints.login,
+      ApiEndpoints.socialLogin,
+      ApiEndpoints.register,
+      ApiEndpoints.refreshToken,
+      ApiEndpoints.changePassword,
+    }.contains(normalized);
+  }
+
+  bool _isMissingUser(DioException error) {
+    final responseData = error.response?.data;
+    if (responseData is Map<String, dynamic>) {
+      final message = responseData['message'];
+      return message == 'User not found' ||
+          (message is List && message.contains('User not found'));
+    }
+    return responseData is String && responseData.contains('User not found');
   }
 }

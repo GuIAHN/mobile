@@ -1,0 +1,265 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../domain/entities/promo.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../ads/presentation/providers/ads_provider.dart';
+
+@visibleForTesting
+Uri? externalAdUri(String? rawUrl) {
+  final value = rawUrl?.trim();
+  if (value == null || value.isEmpty) return null;
+
+  final candidate = value.contains('://') ? value : 'https://$value';
+  final uri = Uri.tryParse(candidate);
+  if (uri == null ||
+      (uri.scheme != 'http' && uri.scheme != 'https') ||
+      uri.host.isEmpty) {
+    return null;
+  }
+
+  return uri;
+}
+
+class PromoCarousel extends ConsumerStatefulWidget {
+  final List<Promo> promos;
+
+  const PromoCarousel({super.key, required this.promos});
+
+  @override
+  ConsumerState<PromoCarousel> createState() => _PromoCarouselState();
+}
+
+class _PromoCarouselState extends ConsumerState<PromoCarousel> {
+  final _pageController = PageController();
+  int _currentIndex = 0;
+  Timer? _autoScrollTimer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Rastreo de la primera impresión al cargar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.promos.isNotEmpty) {
+        ref
+            .read(adTrackerProvider.notifier)
+            .trackImpression(widget.promos[0].id);
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncAutoScroll();
+  }
+
+  @override
+  void didUpdateWidget(PromoCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.promos != widget.promos) {
+      _autoScrollTimer?.cancel();
+      _autoScrollTimer = null;
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(0);
+      }
+      setState(() => _currentIndex = 0);
+      _syncAutoScroll();
+    }
+  }
+
+  void _syncAutoScroll() {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _autoScrollTimer?.cancel();
+      _autoScrollTimer = null;
+      return;
+    }
+
+    if (widget.promos.length <= 1 || _autoScrollTimer != null) return;
+
+    _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!_pageController.hasClients) return;
+      final nextPage = (_currentIndex + 1) % widget.promos.length;
+      _pageController.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoScrollTimer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.promos.isEmpty) return const SizedBox.shrink();
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
+    return Stack(
+      children: [
+        SizedBox(
+          height: 168,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: widget.promos.length,
+            onPageChanged: (index) {
+              setState(() => _currentIndex = index);
+              // Rastrear impresión de la página actual
+              if (widget.promos.isNotEmpty) {
+                ref
+                    .read(adTrackerProvider.notifier)
+                    .trackImpression(widget.promos[index].id);
+              }
+            },
+            itemBuilder: (context, index) {
+              return _BannerCard(promo: widget.promos[index]);
+            },
+          ),
+        ),
+        // Indicadores tipo líneas horizontales superpuestos en la esquina inferior izquierda
+        Positioned(
+          left:
+              24, // Alineado con el padding de texto interior de la card (que tiene horizontal: 4 padding de PageView + 20 de la card)
+          bottom: 16,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(widget.promos.length, (index) {
+              final isSelected = index == _currentIndex;
+              return AnimatedContainer(
+                key: Key('promo-indicator-$index'),
+                duration: reduceMotion
+                    ? Duration.zero
+                    : const Duration(milliseconds: 250),
+                margin: const EdgeInsets.only(right: 6),
+                width: isSelected ? 28 : 14,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.primary
+                      : Colors.white.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              );
+            }),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BannerCard extends ConsumerWidget {
+  final Promo promo;
+
+  const _BannerCard({required this.promo});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = promo.gradientColors.map((hex) => Color(hex)).toList();
+    final destination = externalAdUri(promo.ctaUrl);
+
+    Future<void> openAd() async {
+      if (destination == null) return;
+
+      ref.read(adTrackerProvider.notifier).trackClick(promo.id);
+
+      try {
+        final opened = await launchUrl(
+          destination,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!opened && context.mounted) {
+          _showOpenAdError(context);
+        }
+      } catch (_) {
+        if (context.mounted) {
+          _showOpenAdError(context);
+        }
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Semantics(
+        button: destination != null,
+        link: destination != null,
+        label: destination == null
+            ? 'Publicidad: ${promo.title}'
+            : 'Publicidad: ${promo.title}. Abrir enlace externo',
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            onTap: destination == null ? null : openAd,
+            borderRadius: BorderRadius.circular(20),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: SizedBox.expand(
+                child: promo.imageUrl != null
+                    ? Image.network(
+                        promo.imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return _PromoBackground(colors: colors);
+                        },
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            color: AppColors.grey100,
+                            child: const Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      )
+                    : _PromoBackground(colors: colors),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PromoBackground extends StatelessWidget {
+  const _PromoBackground({required this.colors});
+
+  final List<Color> colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: colors.isNotEmpty
+              ? colors
+              : [AppColors.primary, AppColors.primaryLight],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+    );
+  }
+}
+
+void _showOpenAdError(BuildContext context) {
+  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+    const SnackBar(
+      content: Text('No pudimos abrir el enlace de esta publicidad.'),
+    ),
+  );
+}

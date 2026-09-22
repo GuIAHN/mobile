@@ -1,6 +1,6 @@
-/// Excepciones de la capa de datos (conocen Dio, HTTP, JSON).
-/// Son capturadas en los repositorios y mapeadas a [Failure].
-/// NO deben salir de la capa data.
+// Excepciones de la capa de datos (conocen Dio, HTTP, JSON).
+// Son capturadas en los repositorios y mapeadas a Failure.
+// NO deben salir de la capa data.
 
 class ServerException implements Exception {
   final String message;
@@ -77,4 +77,19 @@ class ValidationException implements Exception {
 
   @override
   String toString() => 'ValidationException: $message';
+}
+
+class SocialNotRegisteredException implements Exception {
+  final String email;
+  final String name;
+  final String sub;
+
+  const SocialNotRegisteredException({
+    required this.email,
+    required this.name,
+    required this.sub,
+  });
+
+  @override
+  String toString() => 'SocialNotRegisteredException: $email ($name)';
 }

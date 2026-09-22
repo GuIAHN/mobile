@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -170,7 +169,6 @@ class _RegisterTypePageState extends State<RegisterTypePage> {
                   if (!isWideScreen) ...[
                     CircularBackButton(
                       onTap: () => context.go(RouteNames.login),
-                      tooltip: 'Volver a iniciar sesión',
                     ),
                     const SizedBox(height: AppSpacing.xl),
                   ],
@@ -199,19 +197,19 @@ class _RegisterTypePageState extends State<RegisterTypePage> {
 
                   // Lista de opciones de tipo de usuario
                   _ProfileTypeCard(
-                    role: 'user',
                     title: 'Usuario / Cliente',
-                    description: 'Busco servicios para mis vehículos, mecánicos y repuestos.',
+                    description:
+                        'Busco servicios para mis vehículos, mecánicos y repuestos.',
                     icon: Icons.directions_car_rounded,
                     isSelected: _selectedRole == 'user',
                     onTap: () => setState(() => _selectedRole = 'user'),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  
+
                   _ProfileTypeCard(
-                    role: 'mechanic',
                     title: 'Mecánico Especializado',
-                    description: 'Ofrezco mis servicios profesionales e independientes.',
+                    description:
+                        'Ofrezco mis servicios profesionales e independientes.',
                     icon: Icons.build_circle_rounded,
                     isSelected: _selectedRole == 'mechanic',
                     onTap: () => setState(() => _selectedRole = 'mechanic'),
@@ -219,9 +217,9 @@ class _RegisterTypePageState extends State<RegisterTypePage> {
                   const SizedBox(height: AppSpacing.md),
 
                   _ProfileTypeCard(
-                    role: 'workshop',
                     title: 'Taller Mecánico / Centro de Servicio',
-                    description: 'Gestiono un taller establecido y busco expandir mis clientes.',
+                    description:
+                        'Gestiono un taller establecido y busco expandir mis clientes.',
                     icon: Icons.home_repair_service_rounded,
                     isSelected: _selectedRole == 'workshop',
                     onTap: () => setState(() => _selectedRole = 'workshop'),
@@ -229,9 +227,9 @@ class _RegisterTypePageState extends State<RegisterTypePage> {
                   const SizedBox(height: AppSpacing.md),
 
                   _ProfileTypeCard(
-                    role: 'store',
                     title: 'Tienda de Repuestos / Autorepuestos',
-                    description: 'Vendo repuestos, piezas, lubricantes e insumos automotrices.',
+                    description:
+                        'Vendo repuestos, piezas, lubricantes e insumos automotrices.',
                     icon: Icons.storefront_rounded,
                     isSelected: _selectedRole == 'store',
                     onTap: () => setState(() => _selectedRole = 'store'),
@@ -247,30 +245,37 @@ class _RegisterTypePageState extends State<RegisterTypePage> {
                         backgroundColor: AppColors.loginPrimary,
                         disabledBackgroundColor: AppColors.loginOutlineVar,
                         foregroundColor: Colors.white,
-                        disabledForegroundColor: AppColors.loginOnSurfaceVar.withValues(alpha: 0.5),
+                        disabledForegroundColor:
+                            AppColors.loginOnSurfaceVar.withValues(alpha: 0.5),
                         elevation: _selectedRole == null ? 0 : 3,
-                        shadowColor: const Color(0x4DFF5C00),
+                        shadowColor: AppColors.primary.withValues(alpha: 0.3),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radiusMd),
                         ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
-                            'CONTINUAR',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.5,
+                          const Flexible(
+                            child: Text(
+                              'CONTINUAR',
+                              textAlign: TextAlign.center,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                              ),
                             ),
                           ),
                           const SizedBox(width: AppSpacing.sm),
                           Icon(
                             Icons.arrow_forward_rounded,
                             size: 18,
-                            color: _selectedRole == null 
-                                ? AppColors.loginOnSurfaceVar.withValues(alpha: 0.5)
+                            color: _selectedRole == null
+                                ? AppColors.loginOnSurfaceVar
+                                    .withValues(alpha: 0.5)
                                 : Colors.white,
                           ),
                         ],
@@ -292,7 +297,6 @@ class _RegisterTypePageState extends State<RegisterTypePage> {
 }
 
 class _ProfileTypeCard extends StatelessWidget {
-  final String role;
   final String title;
   final String description;
   final IconData icon;
@@ -300,7 +304,6 @@ class _ProfileTypeCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const _ProfileTypeCard({
-    required this.role,
     required this.title,
     required this.description,
     required this.icon,
@@ -314,12 +317,13 @@ class _ProfileTypeCard extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       decoration: BoxDecoration(
-        color: isSelected 
-            ? AppColors.loginPrimary.withValues(alpha: 0.04) 
+        color: isSelected
+            ? AppColors.loginPrimary.withValues(alpha: 0.04)
             : AppColors.loginSurface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         border: Border.all(
-          color: isSelected ? AppColors.loginPrimary : AppColors.loginOutlineVar,
+          color:
+              isSelected ? AppColors.loginPrimary : AppColors.loginOutlineVar,
           width: isSelected ? 2.0 : 1.0,
         ),
         boxShadow: isSelected
@@ -351,15 +355,17 @@ class _ProfileTypeCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.xs),
                   decoration: BoxDecoration(
-                    color: isSelected 
-                        ? AppColors.loginPrimary.withValues(alpha: 0.1) 
+                    color: isSelected
+                        ? AppColors.loginPrimary.withValues(alpha: 0.1)
                         : AppColors.loginBg,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     icon,
                     size: 22,
-                    color: isSelected ? AppColors.loginPrimary : AppColors.loginOnSurfaceVar,
+                    color: isSelected
+                        ? AppColors.loginPrimary
+                        : AppColors.loginOnSurfaceVar,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
@@ -372,7 +378,9 @@ class _ProfileTypeCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          color: isSelected ? AppColors.loginPrimary : AppColors.loginOnSurface,
+                          color: isSelected
+                              ? AppColors.loginPrimary
+                              : AppColors.loginOnSurface,
                         ),
                       ),
                       const SizedBox(height: 4),

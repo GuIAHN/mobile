@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 
@@ -16,6 +17,10 @@ class AppTextField extends StatefulWidget {
   final ValueChanged<String>? onFieldSubmitted;
   final bool enabled;
   final Widget? suffixWidget;
+  final String? helperText;
+  final Widget Function(BuildContext context, bool isFocused)? prefixBuilder;
+  final AutovalidateMode? autovalidateMode;
+  final List<TextInputFormatter>? inputFormatters;
 
   const AppTextField({
     super.key,
@@ -30,6 +35,10 @@ class AppTextField extends StatefulWidget {
     this.onFieldSubmitted,
     this.enabled = true,
     this.suffixWidget,
+    this.helperText,
+    this.prefixBuilder,
+    this.autovalidateMode = AutovalidateMode.onUserInteraction,
+    this.inputFormatters,
   });
 
   @override
@@ -91,11 +100,13 @@ class _AppTextFieldState extends State<AppTextField> {
             controller: widget.controller,
             focusNode: _focusNode,
             keyboardType: widget.keyboardType,
+            inputFormatters: widget.inputFormatters,
             obscureText: _obscure,
             validator: widget.validator,
             textInputAction: widget.textInputAction,
             onFieldSubmitted: widget.onFieldSubmitted,
             enabled: widget.enabled,
+            autovalidateMode: widget.autovalidateMode,
             style: GoogleFonts.hankenGrotesk(
               fontSize: 16,
               fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
@@ -108,11 +119,20 @@ class _AppTextFieldState extends State<AppTextField> {
                 fontWeight: FontWeight.w400,
                 color: AppColors.textDisabled,
               ),
-              prefixIcon: Icon(
-                widget.prefixIcon,
-                size: 20,
-                color: _isFocused ? AppColors.primary : AppColors.textSecondary,
+              helperText: widget.helperText,
+              helperStyle: GoogleFonts.hankenGrotesk(
+                fontSize: 12,
+                color: AppColors.textSecondary,
               ),
+              prefixIcon: widget.prefixBuilder != null
+                  ? widget.prefixBuilder!(context, _isFocused)
+                  : Icon(
+                      widget.prefixIcon,
+                      size: 20,
+                      color: _isFocused
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                    ),
               suffixIcon: widget.obscureText
                   ? IconButton(
                       icon: Icon(
@@ -135,7 +155,8 @@ class _AppTextFieldState extends State<AppTextField> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                borderSide:
+                    const BorderSide(color: AppColors.primary, width: 1.5),
               ),
               errorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
@@ -143,7 +164,8 @@ class _AppTextFieldState extends State<AppTextField> {
               ),
               focusedErrorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+                borderSide:
+                    const BorderSide(color: AppColors.error, width: 1.5),
               ),
               errorStyle: GoogleFonts.hankenGrotesk(
                 fontSize: 12,

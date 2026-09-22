@@ -2,55 +2,74 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/validators.dart';
+import '../../../../core/utils/venezuelan_phone_number.dart';
+import '../../../../shared/widgets/api_error_message.dart';
+import '../../../../shared/widgets/registration_page_chrome.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
+import '../../../catalog/presentation/providers/catalog_providers.dart';
+import '../providers/auth_provider.dart';
+import '../providers/auth_state.dart';
+import '../providers/social_registration_state.dart';
+import '../widgets/account_security_step.dart';
 import '../widgets/registration_completed_step.dart';
+import '../widgets/registration_step_feedback.dart';
 import '../widgets/mechanic_profile_step.dart';
 import '../widgets/mechanic_technical_step.dart';
+import '../widgets/provider_documents_step.dart';
+import '../widgets/terms_acceptance_step.dart';
 import '../widgets/workshop_specialties_step.dart';
+import '../widgets/workshop_location_step.dart';
 
 class RegisterMechanicPage extends ConsumerStatefulWidget {
   const RegisterMechanicPage({super.key});
 
   @override
-  ConsumerState<RegisterMechanicPage> createState() => _RegisterMechanicPageState();
+  ConsumerState<RegisterMechanicPage> createState() =>
+      _RegisterMechanicPageState();
 }
 
 class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
-  int _paso = 1; // 1..4
+  static const _totalSteps = 7;
+  static const _completedStep = 8;
 
-  // ===== Paso 1: Perfil del mecánico =====
+  int _paso = 1;
+  final _scrollController = ScrollController();
+
   final _nombreCtrl = TextEditingController();
   final _telefonoCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _cedulaCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
+  String _cedulaTipo = 'V';
 
-  // ===== Paso 2: Especialidades =====
-  static const _especialidades = [
-    SpecialtyItem(Icons.settings_outlined, 'Motor',
-        'Diagnóstico, reparación mayor, ajuste de rendimiento y componentes internos.'),
-    SpecialtyItem(Icons.sync_alt, 'Transmisión',
-        'Cajas automáticas y manuales, embragues y mantenimiento del tren motriz.'),
-    SpecialtyItem(Icons.height, 'Suspensión',
-        'Alineación, amortiguación, dirección y geometría del chasis.'),
-    SpecialtyItem(Icons.album_outlined, 'Frenos',
-        'Sistemas ABS, discos, tambores, purga hidráulica y pastillas.'),
-    SpecialtyItem(Icons.bolt_outlined, 'Electricidad',
-        'Cableado, programación de ECU, sensores y gestión de baterías.'),
-    SpecialtyItem(Icons.format_paint_outlined, 'Latonería y Pintura',
-        'Desabolladura, pintura, reparación de colisiones y enderezado estructural.'),
-  ];
-  final Set<int> _seleccionadas = {};
+  final Set<String> _seleccionadas = {};
 
   // ===== Paso 3: Perfil técnico =====
   double _aniosExperiencia = 5;
+  LatLng _location = const LatLng(10.4806, -66.9036);
+  bool _ubicacionConfirmada = false;
+  bool _termsAccepted = false;
+  XFile? _idPhoto;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authProvider.notifier).clearError();
+      final socialData = ref.read(socialRegistrationProvider);
+      if (socialData != null) {
+        _nombreCtrl.text = socialData.name;
+        _emailCtrl.text = socialData.email;
+        setState(() {});
+      }
+    });
     for (final c in [
       _nombreCtrl,
       _telefonoCtrl,
@@ -59,7 +78,7 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
       _passwordCtrl,
       _confirmPasswordCtrl,
     ]) {
-      c.addListener(() => setState(() {}));
+      c.addListener(_onFieldChanged);
     }
   }
 
@@ -71,30 +90,49 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
     _cedulaCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmPasswordCtrl.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onFieldChanged() {
+    if (!mounted) return;
+    setState(() {});
+    if (ref.read(authProvider).errorMessage != null) {
+      ref.read(authProvider.notifier).clearError();
+    }
   }
 
   // ===== Validación por paso =====
   bool get _passwordValida {
-    final p = _passwordCtrl.text;
-    return p.length >= 8 &&
-        p.contains(RegExp(r'[0-9]')) &&
-        p.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-]'));
+    return Validators.password(_passwordCtrl.text) == null;
   }
 
   bool get _pasoValido {
+    final socialData = ref.read(socialRegistrationProvider);
+    final isSocial = socialData != null;
+
     switch (_paso) {
       case 1:
-        return _nombreCtrl.text.trim().isNotEmpty &&
-            _telefonoCtrl.text.trim().isNotEmpty &&
-            _emailCtrl.text.contains('@') &&
-            _cedulaCtrl.text.trim().isNotEmpty &&
-            _passwordValida &&
-            _confirmPasswordCtrl.text == _passwordCtrl.text;
+        return Validators.required(_nombreCtrl.text) == null &&
+            Validators.phone(_telefonoCtrl.text) == null &&
+            Validators.email(_emailCtrl.text) == null &&
+            Validators.required(_cedulaCtrl.text) == null;
       case 2:
-        return _seleccionadas.isNotEmpty;
+        return isSocial ||
+            (_passwordValida &&
+                Validators.confirmPassword(
+                        _confirmPasswordCtrl.text, _passwordCtrl.text) ==
+                    null);
       case 3:
+        return _seleccionadas.isNotEmpty;
+      case 4:
         return true; // bio es opcional, el slider siempre tiene valor
+      case 5:
+        return _ubicacionConfirmada;
+      case 6:
+        return _idPhoto != null;
+      case 7:
+        return _termsAccepted;
       default:
         return false;
     }
@@ -102,14 +140,45 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
 
   void _avanzar() {
     if (!_pasoValido) return;
-    if (_paso < 4) {
+    if (_paso < _totalSteps) {
       setState(() => _paso++);
+      _scrollToTop();
+    } else if (_paso == _totalSteps) {
+      _submit();
     }
   }
 
+  Future<void> _submit() async {
+    final authState = ref.read(authProvider);
+    if (authState.isLoading || !_termsAccepted) return;
+
+    final sanitizedPhone = VenezuelanPhoneNumber.toApi(_telefonoCtrl.text)!;
+
+    final socialData = ref.read(socialRegistrationProvider);
+
+    await ref.read(authProvider.notifier).registerMechanic(
+          email: _emailCtrl.text.trim(),
+          password: socialData == null ? _passwordCtrl.text : null,
+          name: _nombreCtrl.text.trim(),
+          phone: sanitizedPhone,
+          latitude: _location.latitude,
+          longitude: _location.longitude,
+          description:
+              'Mecánico con ${_aniosExperiencia.round()} años de experiencia.',
+          isWorkshop: false,
+          identification: '$_cedulaTipo${_cedulaCtrl.text.trim()}',
+          specialtyIds: _seleccionadas.toList(),
+          idToken: socialData?.idToken,
+          provider: socialData?.provider,
+          acceptedTerms: _termsAccepted,
+          idPhotoPath: _idPhoto!.path,
+        );
+  }
+
   void _retroceder() {
-    if (_paso > 1 && _paso < 4) {
+    if (_paso > 1 && _paso < _completedStep) {
       setState(() => _paso--);
+      _scrollToTop();
     } else if (_paso == 1) {
       context.go(RouteNames.register);
     }
@@ -117,6 +186,22 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (next.isProviderRegistrationSucceeded) {
+        setState(() => _paso = _completedStep);
+        _scrollToTop();
+      } else if (previous?.isLoading == true && next.errorMessage != null) {
+        setState(() => _paso = _stepForServerError(next.errorMessage!));
+        _scrollToTop();
+      }
+    });
+
+    final authState = ref.watch(authProvider);
+    final socialData = ref.watch(socialRegistrationProvider);
+    final isSocial = socialData != null;
+    final specialtiesAsync = ref.watch(specialtiesProvider);
+    final specialties = specialtiesAsync.valueOrNull ?? [];
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -126,27 +211,39 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
             child: LayoutBuilder(
               builder: (context, viewportConstraints) {
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  controller: _scrollController,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      minHeight: viewportConstraints.maxHeight - 32, // account for vertical padding
+                      minHeight: viewportConstraints.maxHeight -
+                          32, // account for vertical padding
                     ),
                     child: IntrinsicHeight(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _appBar(),
-                          if (_paso < 4) ...[
+                          if (_paso < _completedStep) ...[
                             const SizedBox(height: 16),
                             _indicadorPasos(),
                             const SizedBox(height: 16),
                             _tituloPaso(),
+                            const SizedBox(height: 16),
+                            ApiErrorMessage(
+                              message: authState.errorMessage,
+                              onClose: () =>
+                                  ref.read(authProvider.notifier).clearError(),
+                            ),
                           ],
                           const SizedBox(height: 8),
                           Expanded(
                             child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 350),
-                              transitionBuilder: (child, anim) => FadeTransition(
+                              duration: MediaQuery.disableAnimationsOf(context)
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 350),
+                              transitionBuilder: (child, anim) =>
+                                  FadeTransition(
                                 opacity: anim,
                                 child: SlideTransition(
                                   position: Tween<Offset>(
@@ -164,34 +261,73 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
                                       telefonoController: _telefonoCtrl,
                                       emailController: _emailCtrl,
                                       cedulaController: _cedulaCtrl,
-                                      passwordController: _passwordCtrl,
-                                      confirmPasswordController: _confirmPasswordCtrl,
-                                      passwordValida: _passwordValida,
-                                    ),
-                                  2 => WorkshopSpecialtiesStep(
-                                      selectedSpecialties: _seleccionadas,
-                                      onSpecialtyToggled: (i) {
+                                      cedulaTipo: _cedulaTipo,
+                                      onCedulaTipoChanged: (val) {
                                         setState(() {
-                                          if (_seleccionadas.contains(i)) {
-                                            _seleccionadas.remove(i);
+                                          _cedulaTipo = val;
+                                        });
+                                      },
+                                      isSocial: isSocial,
+                                    ),
+                                  2 => AccountSecurityStep(
+                                      passwordController: _passwordCtrl,
+                                      confirmPasswordController:
+                                          _confirmPasswordCtrl,
+                                      isSocial: isSocial,
+                                      socialProvider: socialData?.provider,
+                                    ),
+                                  3 => WorkshopSpecialtiesStep(
+                                      selectedSpecialtyIds: _seleccionadas,
+                                      onSpecialtyToggled: (id) {
+                                        setState(() {
+                                          if (_seleccionadas.contains(id)) {
+                                            _seleccionadas.remove(id);
                                           } else {
-                                            _seleccionadas.add(i);
+                                            _seleccionadas.add(id);
                                           }
                                         });
                                       },
-                                      specialties: _especialidades,
+                                      specialties: specialties,
+                                      isLoading: specialtiesAsync.isLoading,
+                                      loadError: specialtiesAsync.error,
+                                      onRetry: () =>
+                                          ref.invalidate(specialtiesProvider),
                                       cardTitle: 'Especialidades Seleccionadas',
                                       cardDescription:
                                           'Tu selección define los diagnósticos y consultas de mantenimiento que te asignará el sistema. Debes poseer maestría en las áreas marcadas.',
                                     ),
-                                  3 => MechanicTechnicalStep(
+                                  4 => MechanicTechnicalStep(
                                       aniosExperiencia: _aniosExperiencia,
                                       onAniosExperienciaChanged: (v) =>
                                           setState(() => _aniosExperiencia = v),
                                     ),
+                                  5 => WorkshopLocationStep(
+                                      location: _location,
+                                      onLocationChanged: (location) =>
+                                          setState(() => _location = location),
+                                      ubicacionConfirmada: _ubicacionConfirmada,
+                                      onUbicacionConfirmadaChanged:
+                                          (confirmed) => setState(() =>
+                                              _ubicacionConfirmada = confirmed),
+                                      helperText:
+                                          'Usa tu ubicación actual o mueve el mapa para marcar dónde prestas servicio.',
+                                    ),
+                                  6 => ProviderDocumentsStep(
+                                      idPhoto: _idPhoto,
+                                      onIdPhotoChanged: (file) =>
+                                          setState(() => _idPhoto = file),
+                                    ),
+                                  7 => TermsAcceptanceStep(
+                                      audience: TermsAudience.serviceProvider,
+                                      isAccepted: _termsAccepted,
+                                      onAcceptedChanged: (accepted) => setState(
+                                        () => _termsAccepted = accepted,
+                                      ),
+                                    ),
                                   _ => RegistrationCompletedStep(
                                       title: '¡Solicitud\nRecibida!',
-                                      description: 'Nuestro equipo revisará tu perfil profesional en las próximas 24 horas.',
+                                      description:
+                                          'Nuestro equipo revisará tu perfil profesional en las próximas 24 horas.',
                                       buttonLabel: 'Finalizar Registro',
                                       buttonIcon: Icons.check_circle_outline,
                                       cards: const [
@@ -207,6 +343,13 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
                                         ),
                                       ],
                                       onFinish: () {
+                                        ref
+                                            .read(authProvider.notifier)
+                                            .finishProviderRegistration();
+                                        ref
+                                            .read(socialRegistrationProvider
+                                                .notifier)
+                                            .clear();
                                         context.go(RouteNames.login);
                                       },
                                     ),
@@ -214,8 +357,11 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
                               ),
                             ),
                           ),
-                          if (_paso < 4) ...[
+                          if (_paso < _completedStep) ...[
                             const SizedBox(height: 32),
+                            RegistrationStepFeedback(
+                              message: _validationFeedback,
+                            ),
                             _footer(),
                           ],
                         ],
@@ -232,63 +378,17 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
   }
 
   Widget _appBar() {
-    return Row(
-      children: [
-        GestureDetector(
-          onTap: _retroceder,
-          child: const Icon(
-            Icons.arrow_back_ios_new,
-            color: AppColors.textPrimary,
-            size: 22,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          'Registro de Mecánico',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const Spacer(),
-        const Icon(
-          Icons.help_outline,
-          color: AppColors.textSecondary,
-          size: 20,
-        ),
-      ],
+    return RegistrationPageHeader(
+      title: 'Registro de Mecánico',
+      onBack: _retroceder,
+      backTooltip: _paso == 1 ? 'Volver a elegir perfil' : 'Paso anterior',
     );
   }
 
   Widget _indicadorPasos() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'PASO $_paso DE 4',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 2,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        Row(
-          children: List.generate(4, (i) {
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: 28,
-              height: 5,
-              margin: const EdgeInsets.only(left: 6),
-              decoration: BoxDecoration(
-                color: i < _paso ? AppColors.primary : AppColors.border,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            );
-          }),
-        ),
-      ],
+    return RegistrationStepProgress(
+      currentStep: _paso,
+      totalSteps: _totalSteps,
     );
   }
 
@@ -299,16 +399,33 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
     switch (_paso) {
       case 1:
         titulo = 'Perfil del Mecánico';
-        subtitulo = 'Paso 1 de 4: Información personal';
+        subtitulo = 'Paso 1 de 7: Información personal';
         break;
       case 2:
+        titulo = 'Protege tu Cuenta';
+        subtitulo = 'Crea una contraseña segura para tus futuros accesos.';
+        break;
+      case 3:
         titulo = 'Especialidades';
         subtitulo =
             'Selecciona las especialidades técnicas en las que estás certificado o tienes experiencia de nivel maestro.';
         break;
-      case 3:
+      case 4:
         titulo = 'Perfil Técnico';
-        subtitulo = 'Paso 3 de 4: Detalles de experiencia';
+        subtitulo = 'Paso 4 de 7: Detalles de experiencia';
+        break;
+      case 5:
+        titulo = 'Ubicación';
+        subtitulo = 'Paso 5 de 7: Confirma dónde prestas servicio.';
+        break;
+      case 6:
+        titulo = 'Verificación de Identidad';
+        subtitulo = 'Paso 6 de 7: Adjunta una fotografía legible de tu cédula.';
+        break;
+      case 7:
+        titulo = 'Términos y Condiciones';
+        subtitulo =
+            'Paso 7 de 7: Revisa y acepta el documento para registrarte.';
         break;
     }
 
@@ -337,6 +454,7 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
   }
 
   Widget _footer() {
+    final authState = ref.watch(authProvider);
     return Row(
       children: [
         Expanded(
@@ -362,8 +480,8 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
         const SizedBox(width: 12),
         Expanded(
           flex: 2,
-          child: _PressableScale(
-            onTap: _pasoValido ? _avanzar : null,
+          child: PressableScale(
+            onTap: _pasoValido && !authState.isLoading ? _avanzar : null,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               decoration: BoxDecoration(
@@ -371,7 +489,7 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
                 boxShadow: _pasoValido
                     ? [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.4),
+                          color: AppColors.primary.withValues(alpha: 0.4),
                           blurRadius: 24,
                           offset: const Offset(0, 8),
                         ),
@@ -379,7 +497,8 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
                     : [],
               ),
               child: ElevatedButton(
-                onPressed: _pasoValido ? _avanzar : null,
+                onPressed:
+                    _pasoValido && !authState.isLoading ? _avanzar : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -391,19 +510,22 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
                     borderRadius: BorderRadius.circular(32),
                   ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _paso == 3 ? 'FINALIZAR' : 'CONTINUAR',
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right, size: 18),
-                  ],
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: authState.isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : RegistrationActionLabel(
+                          label:
+                              _paso == _totalSteps ? 'FINALIZAR' : 'CONTINUAR',
+                          icon: Icons.chevron_right,
+                        ),
                 ),
               ),
             ),
@@ -412,38 +534,81 @@ class _RegisterMechanicPageState extends ConsumerState<RegisterMechanicPage> {
       ],
     );
   }
-}
 
-class _PressableScale extends StatefulWidget {
-  final Widget child;
-  final VoidCallback? onTap;
+  String? get _validationFeedback {
+    if (_pasoValido) return null;
+    switch (_paso) {
+      case 1:
+        if (Validators.required(_nombreCtrl.text) != null) {
+          return 'Ingresa tu nombre completo para continuar.';
+        }
+        if (Validators.phone(_telefonoCtrl.text) != null) {
+          return 'Selecciona el prefijo y completa los 7 dígitos.';
+        }
+        if (Validators.email(_emailCtrl.text) != null) {
+          return 'Ingresa un correo electrónico válido.';
+        }
+        return 'Ingresa tu número de cédula.';
+      case 2:
+        return Validators.password(_passwordCtrl.text) ??
+            Validators.confirmPassword(
+              _confirmPasswordCtrl.text,
+              _passwordCtrl.text,
+            );
+      case 3:
+        return 'Selecciona al menos una especialidad para continuar.';
+      case 5:
+        return 'Confirma tu ubicación en el mapa para continuar.';
+      case 6:
+        return 'Adjunta una fotografía legible de tu documento de identidad.';
+      case 7:
+        return 'Abre el documento y acepta los términos y condiciones para registrarte.';
+    }
+    return null;
+  }
 
-  const _PressableScale({
-    required this.child,
-    this.onTap,
-  });
+  int _stepForServerError(String message) {
+    final normalized = message.toLowerCase();
+    if (normalized.contains('contrase') || normalized.contains('password')) {
+      return 2;
+    }
+    if (normalized.contains('correo') ||
+        normalized.contains('email') ||
+        normalized.contains('teléfono') ||
+        normalized.contains('telefono') ||
+        normalized.contains('phone') ||
+        normalized.contains('cédula') ||
+        normalized.contains('cedula') ||
+        normalized.contains('identification')) {
+      return 1;
+    }
+    if (normalized.contains('document') ||
+        normalized.contains('idphoto') ||
+        normalized.contains('image') ||
+        normalized.contains('file')) {
+      return 6;
+    }
+    if (normalized.contains('location') ||
+        normalized.contains('ubicaci') ||
+        normalized.contains('latitude') ||
+        normalized.contains('longitude')) {
+      return 5;
+    }
+    return _paso;
+  }
 
-  @override
-  State<_PressableScale> createState() => _PressableScaleState();
-}
-
-class _PressableScaleState extends State<_PressableScale> {
-  bool _isPressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = widget.onTap != null;
-    return GestureDetector(
-      onTapDown: enabled ? (_) => setState(() => _isPressed = true) : null,
-      onTapUp: enabled ? (_) => setState(() => _isPressed = false) : null,
-      onTapCancel: enabled ? () => setState(() => _isPressed = false) : null,
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _isPressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 100),
+  void _scrollToTop() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _scrollController.jumpTo(0);
+        return;
+      }
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
-        child: widget.child,
-      ),
-    );
+      );
+    });
   }
 }

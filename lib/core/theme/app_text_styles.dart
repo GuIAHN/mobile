@@ -115,18 +115,4 @@ abstract class AppTextStyles {
     letterSpacing: 0.5,
     color: AppColors.textOnPrimary,
   );
-
-  static const TextStyle caption = TextStyle(
-    fontSize: 11,
-    fontWeight: FontWeight.w400,
-    color: AppColors.textSecondary,
-    letterSpacing: 0.4,
-  );
-
-  static const TextStyle overline = TextStyle(
-    fontSize: 10,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 1.5,
-    color: AppColors.textSecondary,
-  );
 }

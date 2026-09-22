@@ -1,0 +1,150 @@
+import 'package:equatable/equatable.dart';
+
+class DashboardResponse extends Equatable {
+  final String scope;
+  final String computedAt;
+  final List<DashboardGroup> groups;
+
+  const DashboardResponse({
+    required this.scope,
+    required this.computedAt,
+    required this.groups,
+  });
+
+  @override
+  List<Object?> get props => [scope, computedAt, groups];
+
+  MetricResult? metricById(String id) {
+    for (final group in groups) {
+      for (final panel in group.panels) {
+        if (panel.id == id && panel.metric != null) return panel.metric;
+      }
+    }
+    return null;
+  }
+
+  DashboardResponse replaceMetric(MetricResult replacement) {
+    var replaced = false;
+    final updatedGroups = groups.map((group) {
+      final updatedPanels = group.panels.map((panel) {
+        if (panel.id != replacement.id) return panel;
+        replaced = true;
+        return DashboardPanel(
+          id: panel.id,
+          span: panel.span,
+          metric: replacement,
+        );
+      }).toList();
+
+      return DashboardGroup(title: group.title, panels: updatedPanels);
+    }).toList();
+
+    return replaced
+        ? DashboardResponse(
+            scope: scope,
+            computedAt: computedAt,
+            groups: updatedGroups,
+          )
+        : this;
+  }
+}
+
+class DashboardGroup extends Equatable {
+  final String title;
+  final List<DashboardPanel> panels;
+
+  const DashboardGroup({
+    required this.title,
+    required this.panels,
+  });
+
+  @override
+  List<Object?> get props => [title, panels];
+}
+
+class DashboardPanel extends Equatable {
+  final String id;
+  final int span;
+  final MetricResult? metric;
+
+  const DashboardPanel({
+    required this.id,
+    required this.span,
+    this.metric,
+  });
+
+  @override
+  List<Object?> get props => [id, span, metric];
+}
+
+class MetricResult extends Equatable {
+  final String id;
+  final String title;
+  final String? subtitle;
+  final String unit;
+  final String availability;
+  final Map<String, dynamic> payload;
+  final String? computedAt;
+
+  const MetricResult({
+    required this.id,
+    required this.title,
+    this.subtitle,
+    required this.unit,
+    required this.availability,
+    required this.payload,
+    this.computedAt,
+  });
+
+  @override
+  List<Object?> get props => [
+        id,
+        title,
+        subtitle,
+        unit,
+        availability,
+        payload,
+        computedAt,
+      ];
+}
+
+class StoreResponseStatus extends Equatable {
+  final bool blocked;
+  final num? sampleSize;
+  final num? medianMinutes;
+  final num? thresholdMinutes;
+  final num? minSample;
+  final num? windowDays;
+
+  const StoreResponseStatus({
+    required this.blocked,
+    this.sampleSize,
+    this.medianMinutes,
+    this.thresholdMinutes,
+    this.minSample,
+    this.windowDays,
+  });
+
+  @override
+  List<Object?> get props => [
+        blocked,
+        sampleSize,
+        medianMinutes,
+        thresholdMinutes,
+        minSample,
+        windowDays,
+      ];
+}
+
+class StoreMetricsBlockedException implements Exception {
+  final String message;
+  final StoreResponseStatus status;
+
+  const StoreMetricsBlockedException({
+    required this.message,
+    required this.status,
+  });
+
+  @override
+  String toString() => message;
+}

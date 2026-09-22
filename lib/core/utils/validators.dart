@@ -1,9 +1,10 @@
+import 'venezuelan_phone_number.dart';
+
 /// Validadores de formulario reutilizables para la app guIAutomotriz.
-/// Devuelven `null` si es válido o un mensaje de error si no.
+/// Devuelven `null` si el valor es válido o un mensaje de error si no.
 abstract class Validators {
   Validators._();
 
-  // ── Email ─────────────────────────────────────────────────────────────────
   static String? email(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'El email es requerido.';
@@ -17,13 +18,16 @@ abstract class Validators {
     return null;
   }
 
-  // ── Contraseña ────────────────────────────────────────────────────────────
   static String? password(String? value) {
     if (value == null || value.isEmpty) {
       return 'La contraseña es requerida.';
     }
     if (value.length < 8) {
       return 'La contraseña debe tener al menos 8 caracteres.';
+    }
+    if (!value.contains(RegExp(r'[0-9]')) ||
+        !value.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-]'))) {
+      return 'Debe contener al menos un número y un símbolo especial.';
     }
     return null;
   }
@@ -32,13 +36,10 @@ abstract class Validators {
     if (value == null || value.isEmpty) {
       return 'Confirma tu contraseña.';
     }
-    if (value != original) {
-      return 'Las contraseñas no coinciden.';
-    }
+    if (value != original) return 'Las contraseñas no coinciden.';
     return null;
   }
 
-  // ── Texto requerido ───────────────────────────────────────────────────────
   static String? required(String? value, {String fieldName = 'Campo'}) {
     if (value == null || value.trim().isEmpty) {
       return '$fieldName es requerido.';
@@ -46,51 +47,28 @@ abstract class Validators {
     return null;
   }
 
-  // ── Número ────────────────────────────────────────────────────────────────
-  static String? positiveInt(String? value, {String fieldName = 'Valor'}) {
-    if (value == null || value.trim().isEmpty) {
-      return '$fieldName es requerido.';
-    }
-    final n = int.tryParse(value.trim());
-    if (n == null || n <= 0) {
-      return '$fieldName debe ser un número positivo.';
-    }
-    return null;
-  }
-
-  // ── Año de vehículo ───────────────────────────────────────────────────────
-  static String? vehicleYear(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'El año es requerido.';
-    }
-    final year = int.tryParse(value.trim());
-    if (year == null) return 'Ingresa un año válido.';
-    final currentYear = DateTime.now().year;
-    if (year < 1900 || year > currentYear + 1) {
-      return 'El año debe estar entre 1900 y ${currentYear + 1}.';
-    }
-    return null;
-  }
-
-  // ── Placa / Matrícula ─────────────────────────────────────────────────────
-  static String? licensePlate(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'La placa es requerida.';
-    }
-    if (value.trim().length < 5 || value.trim().length > 10) {
-      return 'La placa debe tener entre 5 y 10 caracteres.';
-    }
-    return null;
-  }
-
-  // ── Teléfono ─────────────────────────────────────────────────────────────
   static String? phone(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'El teléfono es requerido.';
     }
-    final phoneRegex = RegExp(r'^\+?[0-9\s\-()]{7,15}$');
-    if (!phoneRegex.hasMatch(value.trim())) {
-      return 'Ingresa un número de teléfono válido.';
+    if (VenezuelanPhoneNumber.toLocal(value) == null) {
+      return 'Selecciona un prefijo y completa los 7 dígitos.';
+    }
+    return null;
+  }
+
+  static String? rif(String? value) {
+    final requiredError = required(value, fieldName: 'El RIF');
+    if (requiredError != null) return requiredError;
+
+    final normalized = value!.trim().toUpperCase();
+    final digits =
+        normalized.startsWith('J') ? normalized.substring(1) : normalized;
+    if (!RegExp(r'^\d+$').hasMatch(digits)) {
+      return 'El RIF solo puede contener números.';
+    }
+    if (digits.length > 9) {
+      return 'El RIF debe tener un máximo de 9 dígitos.';
     }
     return null;
   }

@@ -17,9 +17,67 @@ abstract class RouteNames {
 
   // ── Home ──────────────────────────────────────────────────────────────────
   static const String home = '/home';
+  static const String workshops = '/workshops';
+  static const String mechanics = '/mechanics-list';
+
+  // ── Notificaciones ───────────────────────────────────────────────────────
+  static const String notifications = '/notifications';
+
+  // ── Proveedores: Mecánicos, Talleres y Tiendas ────────────────────────────
+  static const String mechanicDetail = '/mechanics/:id';
+  static String mechanicDetailPath(String id) => '/mechanics/$id';
+  static const String workshopDetail = '/workshops/:id';
+  static String workshopDetailPath(String id) => '/workshops/$id';
+  static const String storeDetail = '/stores/:id';
+  static String storeDetailPath(String id) => '/stores/$id';
+  static String storeDetailForReviewPath(
+    String id, {
+    required String conversationId,
+  }) =>
+      Uri(
+        path: storeDetailPath(id),
+        queryParameters: {'reviewConversationId': conversationId},
+      ).toString();
 
   // ── Vehículos ─────────────────────────────────────────────────────────────
   static const String vehicles = '/vehicles';
-  static const String vehicleDetail = '/vehicles/:id';
-  static String vehicleDetailPath(String id) => '/vehicles/$id';
+
+  // ── Chats ─────────────────────────────────────────────────────────────────
+  static const String chatInbox = '/chats';
+  static String chatConversationPath(String conversationId) =>
+      '/chats/$conversationId';
+
+  // ── Compras / Ventas ─────────────────────────────────────────────────────
+  static const String purchases = '/purchases';
+  static String purchaseDetailPath(String requestId) => '/purchases/$requestId';
+  static const String sales = '/sales';
+  static String saleDetailPath(String requestId) => '/sales/$requestId';
+
+  // ── Reseñas ───────────────────────────────────────────────────────────────
+  static const String providerReviews = '/reviews/:targetId';
+  static String providerReviewsPath(String targetId) => '/reviews/$targetId';
+  static String receivedReviewsPath(String targetId) => Uri(
+        path: '/reviews/$targetId',
+        queryParameters: const {'view': 'received'},
+      ).toString();
+  static const String pendingReviews = '/reviews-pending';
+  static const String reviewEditor = '/review-editor';
+
+  static String reviewEditorPath({
+    String? targetId,
+    String? conversationId,
+    required String providerName,
+    bool readOnly = false,
+  }) {
+    return Uri(
+      path: reviewEditor,
+      queryParameters: {
+        if (targetId?.trim().isNotEmpty == true) 'targetId': targetId!.trim(),
+        if (conversationId?.trim().isNotEmpty == true)
+          'conversationId': conversationId!.trim(),
+        'providerName': providerName,
+        if (readOnly) 'readOnly': 'true',
+      },
+    ).toString();
+  }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/validators.dart';
+import '../../../../shared/widgets/app_phone_field.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 
 class MechanicProfileStep extends StatelessWidget {
@@ -8,9 +10,9 @@ class MechanicProfileStep extends StatelessWidget {
   final TextEditingController telefonoController;
   final TextEditingController emailController;
   final TextEditingController cedulaController;
-  final TextEditingController passwordController;
-  final TextEditingController confirmPasswordController;
-  final bool passwordValida;
+  final String cedulaTipo;
+  final ValueChanged<String> onCedulaTipoChanged;
+  final bool isSocial;
 
   const MechanicProfileStep({
     super.key,
@@ -18,9 +20,9 @@ class MechanicProfileStep extends StatelessWidget {
     required this.telefonoController,
     required this.emailController,
     required this.cedulaController,
-    required this.passwordController,
-    required this.confirmPasswordController,
-    required this.passwordValida,
+    required this.cedulaTipo,
+    required this.onCedulaTipoChanged,
+    this.isSocial = false,
   });
 
   @override
@@ -34,13 +36,13 @@ class MechanicProfileStep extends StatelessWidget {
           hint: 'Ej: Marcus Vane',
           icono: Icons.person_outline,
           textInputAction: TextInputAction.next,
+          enabled: !isSocial,
+          validator: (value) =>
+              Validators.required(value, fieldName: 'El nombre'),
         ),
-        _campo(
+        AppPhoneField(
           label: 'NÚMERO DE TELÉFONO',
-          ctrl: telefonoController,
-          hint: '0414 000 0000',
-          icono: Icons.call_outlined,
-          teclado: TextInputType.phone,
+          controller: telefonoController,
           textInputAction: TextInputAction.next,
         ),
         _campo(
@@ -50,40 +52,21 @@ class MechanicProfileStep extends StatelessWidget {
           icono: Icons.mail_outline,
           teclado: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
+          enabled: !isSocial,
+          validator: Validators.email,
         ),
-        _campo(
+        _campoCedula(
           label: 'CÉDULA DE IDENTIDAD',
           ctrl: cedulaController,
           hint: '12343224',
           icono: Icons.badge_outlined,
-          teclado: TextInputType.text,
-          textInputAction: TextInputAction.next,
-        ),
-        _campo(
-          label: 'CONTRASEÑA SEGURA',
-          ctrl: passwordController,
-          hint: '••••••••••',
-          icono: Icons.lock_outline,
-          obscureText: true,
-          textInputAction: TextInputAction.next,
-        ),
-        _campo(
-          label: 'CONFIRMAR CONTRASEÑA',
-          ctrl: confirmPasswordController,
-          hint: '••••••••••',
-          icono: Icons.lock_outline,
-          obscureText: true,
-          textInputAction: TextInputAction.done,
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Mín. 8 caracteres con al menos un número y un símbolo especial.',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 11.5,
-            color: passwordController.text.isEmpty
-                ? AppColors.textSecondary
-                : (passwordValida ? AppColors.success : AppColors.primary),
-          ),
+          teclado: TextInputType.number,
+          textInputAction:
+              isSocial ? TextInputAction.done : TextInputAction.next,
+          cedulaTipo: cedulaTipo,
+          onCedulaTipoChanged: onCedulaTipoChanged,
+          validator: (value) =>
+              Validators.required(value, fieldName: 'La cédula'),
         ),
         const SizedBox(height: 16),
       ],
@@ -97,7 +80,9 @@ class MechanicProfileStep extends StatelessWidget {
     required IconData icono,
     TextInputType teclado = TextInputType.text,
     TextInputAction textInputAction = TextInputAction.next,
-    bool obscureText = false,
+    String? helperText,
+    bool enabled = true,
+    String? Function(String?)? validator,
   }) {
     return AppTextField(
       label: label,
@@ -105,8 +90,80 @@ class MechanicProfileStep extends StatelessWidget {
       hint: hint,
       prefixIcon: icono,
       keyboardType: teclado,
-      obscureText: obscureText,
       textInputAction: textInputAction,
+      helperText: helperText,
+      enabled: enabled,
+      validator: validator,
+    );
+  }
+
+  Widget _campoCedula({
+    required String label,
+    required TextEditingController ctrl,
+    required String hint,
+    required IconData icono,
+    required String cedulaTipo,
+    required ValueChanged<String> onCedulaTipoChanged,
+    TextInputType teclado = TextInputType.text,
+    TextInputAction textInputAction = TextInputAction.next,
+    String? Function(String?)? validator,
+  }) {
+    return AppTextField(
+      label: label,
+      controller: ctrl,
+      hint: hint,
+      prefixIcon: icono,
+      keyboardType: teclado,
+      textInputAction: textInputAction,
+      validator: validator,
+      prefixBuilder: (context, isFocused) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(width: 12),
+            Icon(
+              icono,
+              size: 20,
+              color: isFocused ? AppColors.primary : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: cedulaTipo,
+                icon: const Icon(
+                  Icons.keyboard_arrow_down,
+                  color: AppColors.textSecondary,
+                  size: 16,
+                ),
+                dropdownColor: Colors.white,
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+                onChanged: (String? newValue) {
+                  if (newValue != null) {
+                    onCedulaTipoChanged(newValue);
+                  }
+                },
+                items: <String>['V', 'E']
+                    .map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+              ),
+            ),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+              height: 20,
+              width: 1,
+              color: AppColors.border,
+            ),
+          ],
+        );
+      },
     );
   }
 }

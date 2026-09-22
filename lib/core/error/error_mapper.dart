@@ -9,6 +9,13 @@ class ErrorMapper {
 
   /// Mapea una excepción a su [Failure] correspondiente.
   static Failure map(Object e) {
+    if (e is SocialNotRegisteredException) {
+      return SocialNotRegisteredFailure(
+        email: e.email,
+        name: e.name,
+        sub: e.sub,
+      );
+    }
     if (e is UnauthorizedException) {
       return const UnauthorizedFailure();
     }
@@ -25,13 +32,24 @@ class ErrorMapper {
       return ValidationFailure(message: e.message, errors: e.errors);
     }
     if (e is ServerException) {
-      return ServerFailure(message: e.message, code: e.statusCode);
+      final parsedMessage = parseErrorMessage(e.message);
+      if (e.statusCode >= 500) {
+        if (parsedMessage != e.message) {
+          return ServerFailure(message: parsedMessage, code: e.statusCode);
+        }
+        return ServerFailure(
+            message: 'El sistema está en mantenimiento. Inténtalo más tarde.',
+            code: e.statusCode);
+      }
+      return ServerFailure(message: parsedMessage, code: e.statusCode);
     }
     if (e is NetworkException) {
-      return NetworkFailure(message: e.message);
+      return const NetworkFailure(
+          message: 'El sistema está en mantenimiento. Inténtalo más tarde.');
     }
     if (e is TimeoutException) {
-      return TimeoutFailure(message: e.message);
+      return const TimeoutFailure(
+          message: 'El sistema está en mantenimiento. Inténtalo más tarde.');
     }
 
     // ── Manejo de errores Dio crudos (por si un repositorio no usa las excepciones custom) ─
@@ -47,39 +65,175 @@ class ErrorMapper {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.receiveTimeout:
       case DioExceptionType.sendTimeout:
-        return const TimeoutFailure();
+        return const TimeoutFailure(
+            message: 'El sistema está en mantenimiento. Inténtalo más tarde.');
       case DioExceptionType.connectionError:
-        return const NetworkFailure();
+        return const NetworkFailure(
+            message: 'El sistema está en mantenimiento. Inténtalo más tarde.');
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode ?? 0;
-        final message = _extractMessage(e.response?.data) ??
-            e.message ??
-            'Error del servidor.';
+        final serverMessage = _extractMessage(e.response?.data);
+        final rawMessage = serverMessage ?? e.message ?? 'Error del servidor.';
+        final message = parseErrorMessage(rawMessage);
+
+        if (statusCode >= 500) {
+          if (message != rawMessage) {
+            return ServerFailure(message: message, code: statusCode);
+          }
+          return ServerFailure(
+              message: 'El sistema está en mantenimiento. Inténtalo más tarde.',
+              code: statusCode);
+        }
         switch (statusCode) {
           case 401:
-            return const UnauthorizedFailure();
+            return UnauthorizedFailure(
+                message: serverMessage == null
+                    ? 'Sesión expirada. Inicia sesión nuevamente.'
+                    : message);
           case 403:
-            return const ForbiddenFailure();
+            return ForbiddenFailure(
+                message:
+                    serverMessage ?? 'No tienes permisos para esta acción.');
           case 404:
-            return const NotFoundFailure();
+            return NotFoundFailure(
+                message: serverMessage ?? 'Recurso no encontrado.');
+          case 400:
           case 422:
             return ValidationFailure(message: message);
           default:
             return ServerFailure(message: message, code: statusCode);
         }
+      case DioExceptionType.unknown:
+        if (e.message?.contains('SocketException') == true ||
+            e.error?.toString().contains('SocketException') == true) {
+          return const NetworkFailure(
+              message:
+                  'El sistema está en mantenimiento. Inténtalo más tarde.');
+        }
+        return const UnexpectedFailure();
       default:
         return const UnexpectedFailure();
     }
   }
 
-  /// Extrae el mensaje de error de distintos formatos de respuesta de la API.
+  /// Analiza los detalles del mensaje de error del backend/BD para retornar algo amigable en español.
+  static String parseErrorMessage(String originalMessage) {
+    final lower = originalMessage.toLowerCase();
+
+    if (lower.contains('missing authorization token')) {
+      return 'No pudimos validar tu sesión. Inicia sesión e inténtalo nuevamente.';
+    }
+
+    if (lower.contains('invalid credentials')) {
+      return 'La contraseña actual no es correcta.';
+    }
+
+    if (lower.contains('cannot delete account with pending operations')) {
+      return 'Completa tus compras, ventas o liquidaciones pendientes antes de eliminar la cuenta.';
+    }
+
+    // El backend deriva el catch-all ("Otro") de la cobertura real de la
+    // tienda y rechaza que se envíe explícito. La app ya lo oculta en el
+    // selector (ver StoreCatalogStep), pero si igual llegara a viajar en el
+    // payload (dato viejo en caché, otro cliente, etc.) mostramos algo
+    // accionable en vez del mensaje técnico en inglés.
+    if (lower.contains('catch-all') && lower.contains('subcategor')) {
+      return 'Vuelve a seleccionar las categorías de tu catálogo e inténtalo de nuevo.';
+    }
+
+    if (lower.contains('cannot restore') &&
+        lower.contains('not pending deletion')) {
+      return 'Esta cuenta ya no está pendiente de eliminación.';
+    }
+
+    final rejectsMultipartPayload =
+        lower.contains('property payload should not exist');
+    final reportsSeveralMissingRegistrationFields =
+        lower.contains('password') &&
+            lower.contains('email') &&
+            (lower.contains('name') ||
+                lower.contains('address') ||
+                lower.contains('categories'));
+    if (rejectsMultipartPayload || reportsSeveralMissingRegistrationFields) {
+      return 'No pudimos procesar el registro con documentos. El servidor necesita actualizarse antes de intentarlo nuevamente.';
+    }
+
+    if (lower.contains('password')) {
+      if (lower.contains('at least') ||
+          lower.contains('minimum') ||
+          lower.contains('longer than') ||
+          lower.contains('weak')) {
+        return 'La contraseña no cumple los requisitos de seguridad.';
+      }
+      if (lower.contains('match')) {
+        return 'Las contraseñas no coinciden.';
+      }
+    }
+
+    if ((lower.contains('phone') || lower.contains('telefono')) &&
+        (lower.contains('invalid') ||
+            lower.contains('must be') ||
+            lower.contains('format'))) {
+      return 'El número de teléfono no tiene un formato válido.';
+    }
+
+    if (lower.contains('email') &&
+        (lower.contains('invalid') ||
+            lower.contains('must be') ||
+            lower.contains('format'))) {
+      return 'El correo electrónico no tiene un formato válido.';
+    }
+
+    // Restricciones de unicidad (Unique constraint failed)
+    if (lower.contains('unique constraint failed') ||
+        lower.contains('already exists') ||
+        lower.contains('already registered') ||
+        lower.contains('duplicate key')) {
+      if (lower.contains('number') ||
+          lower.contains('telefono') ||
+          lower.contains('phone')) {
+        return 'El número de teléfono ya está registrado por otro usuario o comercio.';
+      }
+      if (lower.contains('email') || lower.contains('correo')) {
+        return 'El correo electrónico ya está registrado.';
+      }
+      if (lower.contains('rif')) {
+        return 'El RIF ya está registrado.';
+      }
+      if (lower.contains('identification') ||
+          lower.contains('cedula') ||
+          lower.contains('cédula')) {
+        return 'El documento de identidad ya está registrado.';
+      }
+    }
+
+    // Errores de Prisma / base de datos crudos sobre teléfonos o campos específicos
+    if (lower.contains('tx.phone.create') ||
+        lower.contains('prisma') ||
+        lower.contains('database') ||
+        lower.contains('sql')) {
+      if (lower.contains('phone') || lower.contains('number')) {
+        return 'El número de teléfono ya está registrado por otro usuario o comercio.';
+      }
+      return 'Error de base de datos en el servidor. Por favor, verifica los datos ingresados.';
+    }
+
+    return originalMessage;
+  }
+
+  /// Extracts the error message from various API response formats.
   static String? _extractMessage(dynamic data) {
     if (data == null) return null;
     if (data is String) return data;
     if (data is Map<String, dynamic>) {
-      return data['message'] as String? ??
-          data['error'] as String? ??
-          data['detail'] as String?;
+      final msg = data['message'];
+      if (msg is List) {
+        return msg.join(', ');
+      }
+      if (msg is String) {
+        return msg;
+      }
+      return data['error'] as String? ?? data['detail'] as String?;
     }
     return null;
   }

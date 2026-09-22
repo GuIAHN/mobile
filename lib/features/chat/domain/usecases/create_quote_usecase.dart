@@ -1,0 +1,26 @@
+import 'package:dartz/dartz.dart';
+import '../../../../core/error/failures.dart';
+import '../entities/chat_conversation.dart';
+import '../repositories/chat_repository.dart';
+
+class CreateQuoteUseCase {
+  final ChatRepository repository;
+  CreateQuoteUseCase(this.repository);
+
+  Future<Either<Failure, ChatConversation>> call({
+    required String threadId,
+    String? searchMatchId,
+    double? price,
+    double? deliveryCost,
+    String? brand,
+    String? photoPath,
+  }) =>
+      repository.createQuote(
+        threadId: threadId,
+        searchMatchId: searchMatchId,
+        price: price,
+        deliveryCost: deliveryCost,
+        brand: brand,
+        photoPath: photoPath,
+      );
+}

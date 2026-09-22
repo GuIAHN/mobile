@@ -5,9 +5,48 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/validators.dart';
+import '../../../../core/utils/venezuelan_phone_number.dart';
+import '../../../../shared/widgets/app_phone_field.dart';
 import '../../../../shared/widgets/app_text_field.dart';
+import '../../../../shared/widgets/api_error_message.dart';
+import '../../../../shared/widgets/registration_page_chrome.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
+import '../providers/social_registration_state.dart';
+import '../widgets/account_security_step.dart';
+import '../widgets/registration_step_feedback.dart';
+import '../widgets/terms_acceptance_step.dart';
+
+/// Keeps the user close to the field they can actually correct. Unknown,
+/// connectivity and server errors stay on the current step so a failed submit
+/// never looks like the registration flow restarted.
+@visibleForTesting
+int registrationStepForError({
+  required int currentStep,
+  required String message,
+}) {
+  final normalized = message.toLowerCase();
+  if (normalized.contains('contrase') || normalized.contains('password')) {
+    return 2;
+  }
+  if (normalized.contains('término') ||
+      normalized.contains('termino') ||
+      normalized.contains('terms')) {
+    return 3;
+  }
+  if (normalized.contains('correo') ||
+      normalized.contains('email') ||
+      normalized.contains('teléfono') ||
+      normalized.contains('telefono') ||
+      normalized.contains('phone') ||
+      normalized.contains('nombre') ||
+      normalized.contains('name')) {
+    return 1;
+  }
+  return currentStep;
+}
 
 class RegisterUserPage extends ConsumerStatefulWidget {
   const RegisterUserPage({super.key});
@@ -17,21 +56,36 @@ class RegisterUserPage extends ConsumerStatefulWidget {
 }
 
 class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
+  static const _totalSteps = 3;
+
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
+  int _paso = 1;
+  final _scrollController = ScrollController();
   bool _formularioValido = false;
+  bool _termsAccepted = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authProvider.notifier).clearError();
+      final socialData = ref.read(socialRegistrationProvider);
+      if (socialData != null) {
+        _nameController.text = socialData.name;
+        _emailController.text = socialData.email;
+        _validarFormulario();
+      }
+    });
     for (final controller in [
       _nameController,
       _emailController,
+      _phoneController,
       _passwordController,
       _confirmPasswordController
     ]) {
@@ -40,22 +94,43 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   }
 
   bool get _passwordValida {
-    final p = _passwordController.text;
-    return p.length >= 8 &&
-        p.contains(RegExp(r'[0-9]')) &&
-        p.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-]'));
+    return Validators.password(_passwordController.text) == null;
+  }
+
+  bool get _datosValidos {
+    final nombreValido =
+        Validators.required(_nameController.text, fieldName: 'Nombre') ==
+                null &&
+            _nameController.text.trim().split(RegExp(r'\s+')).length >= 2;
+    final correoValido = Validators.email(_emailController.text) == null;
+    final phone = _phoneController.text.trim();
+    final telefonoValido = phone.isEmpty || Validators.phone(phone) == null;
+    return nombreValido && correoValido && telefonoValido;
+  }
+
+  bool get _seguridadValida {
+    final isSocial = ref.read(socialRegistrationProvider) != null;
+    return isSocial ||
+        (_passwordValida &&
+            Validators.confirmPassword(_confirmPasswordController.text,
+                    _passwordController.text) ==
+                null);
   }
 
   void _validarFormulario() {
-    final nombreValido = _nameController.text.trim().isNotEmpty;
-    final correoValido = RegExp(r'^[\w\.\-]+@[\w\-]+\.\w{2,}$')
-        .hasMatch(_emailController.text.trim());
-    final passValido = _passwordValida;
-    final confirmValido = _passwordController.text == _confirmPasswordController.text;
-
-    final valido = nombreValido && correoValido && passValido && confirmValido;
+    final valido = switch (_paso) {
+      1 => _datosValidos,
+      2 => _seguridadValida,
+      3 => _termsAccepted,
+      _ => false,
+    };
     if (valido != _formularioValido) {
       setState(() => _formularioValido = valido);
+    }
+
+    // Si hay un error mostrado y el usuario empieza a escribir, limpiarlo
+    if (ref.read(authProvider).errorMessage != null) {
+      ref.read(authProvider.notifier).clearError();
     }
   }
 
@@ -66,47 +141,73 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
+  void _avanzar() {
+    if (!_formularioValido) return;
+    if (_paso < _totalSteps) {
+      setState(() => _paso++);
+      _validarFormulario();
+      _scrollToTop();
+      return;
+    }
+    _submit();
+  }
+
+  void _retroceder() {
+    if (_paso > 1) {
+      setState(() => _paso--);
+      _validarFormulario();
+      _scrollToTop();
+    } else {
+      context.go(RouteNames.register);
+    }
+  }
+
   Future<void> _submit() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    
+    if (!_datosValidos || !_seguridadValida || !_termsAccepted) return;
+
+    final sanitizedPhone = VenezuelanPhoneNumber.toApi(_phoneController.text);
+
+    final socialData = ref.read(socialRegistrationProvider);
+
     await ref.read(authProvider.notifier).register(
           email: _emailController.text.trim(),
-          password: _passwordController.text,
+          password: socialData == null ? _passwordController.text : null,
           name: _nameController.text.trim(),
-          role: 'user',
-          phone: _phoneController.text.trim().isEmpty 
-              ? null 
-              : _phoneController.text.trim(),
+          role: 'CONSUMER',
+          phone: sanitizedPhone,
+          idToken: socialData?.idToken,
+          provider: socialData?.provider,
+          acceptedTerms: _termsAccepted,
         );
   }
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AuthState>(authProvider, (_, next) {
+    ref.listen<AuthState>(authProvider, (previous, next) {
       if (next.isAuthenticated) {
         if (mounted) {
+          ref.read(socialRegistrationProvider.notifier).clear();
           context.go(RouteNames.registerVehicles);
         }
-      }
-      if (next.hasError && next.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.errorMessage!),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-        );
-        ref.read(authProvider.notifier).clearError();
+      } else if (previous?.isLoading == true && next.errorMessage != null) {
+        setState(() {
+          _paso = registrationStepForError(
+            currentStep: _paso,
+            message: next.errorMessage!,
+          );
+        });
+        _validarFormulario();
+        _scrollToTop();
       }
     });
 
     final state = ref.watch(authProvider);
+    final socialData = ref.watch(socialRegistrationProvider);
+    final isSocial = socialData != null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -117,7 +218,9 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
             child: LayoutBuilder(
               builder: (context, viewportConstraints) {
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  controller: _scrollController,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       minHeight: viewportConstraints.maxHeight - 32,
@@ -125,7 +228,6 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                     child: IntrinsicHeight(
                       child: Form(
                         key: _formKey,
-                        autovalidateMode: AutovalidateMode.onUserInteraction,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -135,102 +237,87 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                             const SizedBox(height: 24),
                             _tituloPaso(),
                             const SizedBox(height: 24),
-                            AppTextField(
-                              label: 'NOMBRE COMPLETO',
-                              controller: _nameController,
-                              hint: 'Tu nombre y apellido',
-                              prefixIcon: Icons.person_outline,
-                              textInputAction: TextInputAction.next,
-                              validator: (v) {
-                                if (v == null || v.trim().isEmpty) {
-                                  return 'El nombre es obligatorio';
-                                }
-                                if (v.trim().split(' ').length < 2) {
-                                  return 'Ingresa nombre y apellido';
-                                }
-                                return null;
-                              },
+                            ApiErrorMessage(
+                              message: state.errorMessage,
+                              onClose: () =>
+                                  ref.read(authProvider.notifier).clearError(),
                             ),
-                            AppTextField(
-                              label: 'CORREO ELECTRÓNICO',
-                              controller: _emailController,
-                              hint: 'ejemplo@correo.com',
-                              prefixIcon: Icons.mail_outline,
-                              keyboardType: TextInputType.emailAddress,
-                              textInputAction: TextInputAction.next,
-                              validator: (v) {
-                                if (v == null || v.trim().isEmpty) {
-                                  return 'El correo es obligatorio';
-                                }
-                                if (!RegExp(r'^[\w\.\-]+@[\w\-]+\.\w{2,}$')
-                                    .hasMatch(v.trim())) {
-                                  return 'Ingresa un correo válido';
-                                }
-                                return null;
+                            AnimatedSwitcher(
+                              duration: MediaQuery.disableAnimationsOf(context)
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 300),
+                              child: switch (_paso) {
+                                1 => Column(
+                                    key: const ValueKey('personal-data'),
+                                    children: [
+                                      AppTextField(
+                                        label: 'NOMBRE COMPLETO',
+                                        controller: _nameController,
+                                        hint: 'Tu nombre y apellido',
+                                        prefixIcon: Icons.person_outline,
+                                        textInputAction: TextInputAction.next,
+                                        enabled: !isSocial,
+                                        validator: (v) {
+                                          final err = Validators.required(v,
+                                              fieldName: 'El nombre');
+                                          if (err != null) return err;
+                                          if (v!
+                                                  .trim()
+                                                  .split(RegExp(r'\s+'))
+                                                  .length <
+                                              2) {
+                                            return 'Ingresa nombre y apellido';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                      AppTextField(
+                                        label: 'CORREO ELECTRÓNICO',
+                                        controller: _emailController,
+                                        hint: 'ejemplo@correo.com',
+                                        prefixIcon: Icons.mail_outline,
+                                        keyboardType:
+                                            TextInputType.emailAddress,
+                                        textInputAction: TextInputAction.next,
+                                        enabled: !isSocial,
+                                        validator: Validators.email,
+                                      ),
+                                      AppPhoneField(
+                                        label: 'TELÉFONO (OPCIONAL)',
+                                        controller: _phoneController,
+                                        required: false,
+                                        textInputAction: TextInputAction.done,
+                                      ),
+                                    ],
+                                  ),
+                                2 => AccountSecurityStep(
+                                    key: const ValueKey('account-security'),
+                                    passwordController: _passwordController,
+                                    confirmPasswordController:
+                                        _confirmPasswordController,
+                                    isSocial: isSocial,
+                                    socialProvider: socialData?.provider,
+                                  ),
+                                _ => TermsAcceptanceStep(
+                                    key: const ValueKey('terms-acceptance'),
+                                    audience: TermsAudience.consumer,
+                                    isAccepted: _termsAccepted,
+                                    onAcceptedChanged: (accepted) {
+                                      setState(() {
+                                        _termsAccepted = accepted;
+                                        _formularioValido = accepted;
+                                      });
+                                    },
+                                  ),
                               },
-                            ),
-                            AppTextField(
-                              label: 'TELÉFONO (OPCIONAL)',
-                              controller: _phoneController,
-                              hint: '0414 000 0000',
-                              prefixIcon: Icons.smartphone_outlined,
-                              keyboardType: TextInputType.phone,
-                              textInputAction: TextInputAction.next,
-                              validator: (v) {
-                                if (v != null && v.isNotEmpty && v.length < 8) {
-                                  return 'Número de teléfono inválido';
-                                }
-                                return null;
-                              },
-                            ),
-                            AppTextField(
-                              label: 'CONTRASEÑA',
-                              controller: _passwordController,
-                              hint: '••••••••••',
-                              prefixIcon: Icons.lock_outline,
-                              obscureText: true,
-                              textInputAction: TextInputAction.next,
-                              validator: (v) {
-                                if (v == null || v.length < 8) {
-                                  return 'Mínimo 8 caracteres';
-                                }
-                                if (!v.contains(RegExp(r'[0-9]')) ||
-                                    !v.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-]'))) {
-                                  return 'Debe contener número y símbolo especial';
-                                }
-                                return null;
-                              },
-                            ),
-                            AppTextField(
-                              label: 'CONFIRMAR CONTRASEÑA',
-                              controller: _confirmPasswordController,
-                              hint: '••••••••••',
-                              prefixIcon: Icons.lock_outline,
-                              obscureText: true,
-                              textInputAction: TextInputAction.done,
-                              validator: (v) => (v != _passwordController.text)
-                                  ? 'Las contraseñas no coinciden'
-                                  : null,
-                              onFieldSubmitted: (_) {
-                                if (_formularioValido && !state.isLoading) {
-                                  _submit();
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Mín. 8 caracteres con al menos un número y un símbolo especial.',
-                              style: GoogleFonts.hankenGrotesk(
-                                fontSize: 11.5,
-                                color: _passwordController.text.isEmpty
-                                    ? AppColors.textSecondary
-                                    : (_passwordValida ? AppColors.success : AppColors.primary),
-                              ),
                             ),
                             const Spacer(),
                             const SizedBox(height: 32),
                             _loginLink(),
                             const SizedBox(height: 16),
+                            RegistrationStepFeedback(
+                              message: _validationFeedback,
+                            ),
                             _footer(),
                           ],
                         ),
@@ -247,72 +334,35 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   }
 
   Widget _appBar() {
-    return Row(
-      children: [
-        GestureDetector(
-          onTap: () => context.go(RouteNames.register),
-          child: const Icon(
-            Icons.arrow_back_ios_new,
-            color: AppColors.textPrimary,
-            size: 22,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          'Registro de Usuario',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const Spacer(),
-        const Icon(
-          Icons.help_outline,
-          color: AppColors.textSecondary,
-          size: 20,
-          ),
-      ],
+    return RegistrationPageHeader(
+      title: 'Registro de Usuario',
+      onBack: _retroceder,
+      backTooltip: _paso == 1 ? 'Volver a elegir perfil' : 'Paso anterior',
     );
   }
 
   Widget _indicadorPasos() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'PASO 1 DE 2',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 2,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        Row(
-          children: List.generate(2, (i) {
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: 28,
-              height: 5,
-              margin: const EdgeInsets.only(left: 6),
-              decoration: BoxDecoration(
-                color: i < 1 ? AppColors.primary : AppColors.border,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            );
-          }),
-        ),
-      ],
+    return RegistrationStepProgress(
+      currentStep: _paso,
+      totalSteps: _totalSteps,
     );
   }
 
   Widget _tituloPaso() {
+    final (title, subtitle) = switch (_paso) {
+      1 => ('Crea tu Cuenta', 'Paso 1 de 3: Registra tus datos básicos.'),
+      2 => ('Protege tu Cuenta', 'Paso 2 de 3: Define cómo iniciarás sesión.'),
+      3 => (
+          'Términos y Condiciones',
+          'Paso 3 de 3: Revisa y acepta el documento para registrarte.'
+        ),
+      _ => ('', ''),
+    };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Crea tu Cuenta',
+          title,
           style: GoogleFonts.hankenGrotesk(
             fontSize: 26,
             fontWeight: FontWeight.w800,
@@ -321,7 +371,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Paso 1 de 2: Registra tus datos básicos.',
+          subtitle,
           style: GoogleFonts.hankenGrotesk(
             fontSize: 13,
             height: 1.45,
@@ -333,28 +383,8 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
   }
 
   Widget _loginLink() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          '¿Ya tienes una cuenta? ',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 15,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        GestureDetector(
-          onTap: () => context.go(RouteNames.login),
-          child: Text(
-            'Inicia sesión',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primary,
-            ),
-          ),
-        ),
-      ],
+    return RegistrationLoginLink(
+      onPressed: () => context.go(RouteNames.login),
     );
   }
 
@@ -362,8 +392,8 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
     final state = ref.watch(authProvider);
     final enabled = _formularioValido && !state.isLoading;
 
-    return _PressableScale(
-      onTap: enabled ? _submit : null,
+    return PressableScale(
+      onTap: enabled ? _avanzar : null,
       child: SizedBox(
         width: double.infinity,
         child: AnimatedContainer(
@@ -373,7 +403,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
             boxShadow: enabled
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.4),
+                      color: AppColors.primary.withValues(alpha: 0.4),
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),
@@ -381,7 +411,7 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                 : [],
           ),
           child: ElevatedButton(
-            onPressed: enabled ? _submit : null,
+            onPressed: enabled ? _avanzar : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
@@ -404,20 +434,11 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
                         color: Colors.white,
                       ),
                     )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'REGISTRARSE',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.person_add_outlined, size: 18),
-                      ],
+                  : RegistrationActionLabel(
+                      label: _paso < _totalSteps ? 'CONTINUAR' : 'CREAR CUENTA',
+                      icon: _paso < _totalSteps
+                          ? Icons.chevron_right
+                          : Icons.person_add_outlined,
                     ),
             ),
           ),
@@ -425,38 +446,41 @@ class _RegisterUserPageState extends ConsumerState<RegisterUserPage> {
       ),
     );
   }
-}
 
-class _PressableScale extends StatefulWidget {
-  final Widget child;
-  final VoidCallback? onTap;
+  String? get _validationFeedback {
+    if (_formularioValido) return null;
+    if (_paso == 1) {
+      if (Validators.required(_nameController.text) != null ||
+          _nameController.text.trim().split(RegExp(r'\s+')).length < 2) {
+        return 'Ingresa tu nombre y apellido para continuar.';
+      }
+      if (Validators.email(_emailController.text) != null) {
+        return 'Ingresa un correo electrónico válido.';
+      }
+      return 'Revisa el teléfono o déjalo vacío si prefieres agregarlo después.';
+    }
+    if (_paso == 2) {
+      return Validators.password(_passwordController.text) ??
+          Validators.confirmPassword(
+            _confirmPasswordController.text,
+            _passwordController.text,
+          );
+    }
+    return 'Abre el documento y acepta los términos y condiciones para crear tu cuenta.';
+  }
 
-  const _PressableScale({
-    required this.child,
-    this.onTap,
-  });
-
-  @override
-  State<_PressableScale> createState() => _PressableScaleState();
-}
-
-class _PressableScaleState extends State<_PressableScale> {
-  bool _isPressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = widget.onTap != null;
-    return GestureDetector(
-      onTapDown: enabled ? (_) => setState(() => _isPressed = true) : null,
-      onTapUp: enabled ? (_) => setState(() => _isPressed = false) : null,
-      onTapCancel: enabled ? () => setState(() => _isPressed = false) : null,
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _isPressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 100),
+  void _scrollToTop() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _scrollController.jumpTo(0);
+        return;
+      }
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
-        child: widget.child,
-      ),
-    );
+      );
+    });
   }
 }

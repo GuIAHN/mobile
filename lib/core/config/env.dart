@@ -1,26 +1,78 @@
-/// Define el entorno de ejecución de la aplicación.
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, kReleaseMode, visibleForTesting;
+
+/// Defines the execution environment of the application.
 enum AppEnvironment { development, staging, production }
 
-/// Variables de entorno para la app.
-/// Cambia [current] al compilar para diferentes entornos.
+/// Environment variables for the app.
+/// Change [current] when building for different environments.
 class Env {
   Env._();
 
-  /// Entorno activo. Modifica esto al compilar con --dart-define.
-  static const AppEnvironment current = AppEnvironment.development;
+  /// Active environment. Modify this when building with --dart-define (e.g., --dart-define=ENV=production).
+  static const String _envString = String.fromEnvironment('ENV');
 
-  /// URL base de la API REST (NestJS).
-  static String get baseUrl {
-    switch (current) {
-      case AppEnvironment.development:
-        return 'http://localhost:3000/api';
-      case AppEnvironment.staging:
-        return 'https://staging-api.guiautomotriz.com/api';
-      case AppEnvironment.production:
-        return 'https://api.guiautomotriz.com/api';
+  static AppEnvironment get current => resolveEnvironment(
+        _envString,
+        isRelease: kReleaseMode,
+      );
+
+  /// Release artifacts must never silently point at a developer machine.
+  /// An explicit ENV value still wins, which keeps local/profile workflows
+  /// available when they are intentionally requested.
+  @visibleForTesting
+  static AppEnvironment resolveEnvironment(
+    String value, {
+    required bool isRelease,
+  }) {
+    switch (value.trim().toLowerCase()) {
+      case 'production':
+      case 'prod':
+        return AppEnvironment.production;
+      case 'staging':
+        return AppEnvironment.staging;
+      case 'development':
+      case 'dev':
+        return AppEnvironment.development;
+      default:
+        return isRelease
+            ? AppEnvironment.production
+            : AppEnvironment.development;
     }
   }
 
-  static bool get isDev => current == AppEnvironment.development;
+  /// Base URL of the REST API (NestJS).
+  static String get baseUrl {
+    String url = const String.fromEnvironment('API_BASE_URL');
+    if (url.isEmpty) {
+      switch (current) {
+        case AppEnvironment.development:
+          if (kIsWeb) {
+            url = 'http://localhost:3000/api';
+          } else if (Platform.isAndroid) {
+            // Android emulator loops back to host via 10.0.2.2
+            url = 'http://10.0.2.2:3000/api';
+          } else {
+            // iOS Simulator / macOS / Windows / Linux
+            // Using Mac's local IP for physical iPhone testing
+            url = 'http://10.184.9.67:3000/api';
+          }
+          break;
+        case AppEnvironment.staging:
+          url = 'https://staging-api.guiautomotriz.com/api';
+          break;
+        case AppEnvironment.production:
+          url = 'https://guia-api-test.onrender.com/api';
+          break;
+      }
+    }
+
+    if (!url.endsWith('/')) {
+      url = '$url/';
+    }
+    return url;
+  }
+
   static bool get isProd => current == AppEnvironment.production;
 }

@@ -1,7 +1,7 @@
 import 'env.dart';
 
-/// Configuración centralizada de la aplicación.
-/// Agrega aquí constantes globales (timeouts, paginación, etc.).
+/// Centralized configuration for the application.
+/// Add global constants here (timeouts, pagination, etc.).
 class AppConfig {
   AppConfig._();
 
@@ -11,12 +11,10 @@ class AppConfig {
   static const int sendTimeoutMs = 30000;
 
   // ── Paginación ──────────────────────────────────────────────────────────
-  static const int defaultPageSize = 20;
-
   // ── API ─────────────────────────────────────────────────────────────────
   static String get apiBaseUrl => Env.baseUrl;
 
   // ── Logging ─────────────────────────────────────────────────────────────
-  /// Solo loguear en entornos no productivos.
+  /// Only enable logging in non-production environments.
   static bool get enableLogging => !Env.isProd;
 }

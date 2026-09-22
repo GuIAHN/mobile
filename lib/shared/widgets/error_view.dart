@@ -55,7 +55,7 @@ class ErrorView extends StatelessWidget {
                 label: retryLabel,
                 onPressed: onRetry,
                 leadingIcon: Icons.refresh_rounded,
-                width: 200,
+                width: 248,
               ),
             ],
           ],
@@ -81,7 +81,7 @@ class InlineError extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.errorLight,
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-        border: Border.all(color: AppColors.error.withOpacity(0.3)),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -91,6 +91,40 @@ class InlineError extends StatelessWidget {
             child: Text(
               message,
               style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Éxito inline dentro de un formulario o lista (compacto).
+class InlineSuccess extends StatelessWidget {
+  final String message;
+
+  const InlineSuccess({super.key, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.successLight,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_outline, color: AppColors.success, size: 16),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              message,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.success),
             ),
           ),
         ],
