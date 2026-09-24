@@ -60,10 +60,10 @@ class Env {
           }
           break;
         case AppEnvironment.staging:
-          url = 'https://staging-api.guiautomotriz.com/api';
+          url = 'https://guia-api-test.onrender.com/api';
           break;
         case AppEnvironment.production:
-          url = 'https://guia-api-test.onrender.com/api';
+          url = 'https://guia-api-yggl.onrender.com/api';
           break;
       }
     }
