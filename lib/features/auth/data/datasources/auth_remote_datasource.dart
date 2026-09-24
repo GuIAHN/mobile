@@ -103,8 +103,13 @@ class AuthRemoteDataSource {
       if (e is DioException) {
         final res = e.response;
         if (res != null && res.statusCode == 401) {
-          final data = res.data;
-          if (data is Map<String, dynamic>) {
+          final rawData = res.data;
+          final data = rawData is Map<String, dynamic>
+              ? rawData
+              : rawData is String
+                  ? jsonDecode(rawData) as Map<String, dynamic>?
+                  : null;
+          if (data != null) {
             final payload = data['data'] ?? data['message'];
             if (payload is Map<String, dynamic> &&
                 payload['registered'] == false) {
