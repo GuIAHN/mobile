@@ -185,11 +185,25 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     result.fold(
       (failure) {
         if (failure is SocialNotRegisteredFailure) {
+          final registrationEmail =
+              failure.email.isNotEmpty ? failure.email : email;
+          if (registrationEmail == null || registrationEmail.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'No pudimos obtener el correo de Apple. Intenta nuevamente.',
+                ),
+              ),
+            );
+            return;
+          }
           ref.read(socialRegistrationProvider.notifier).setData(
                 idToken: idToken!,
                 provider: provider,
-                email: email!,
-                name: name ?? 'Usuario Social',
+                email: registrationEmail,
+                name: failure.name.isNotEmpty
+                    ? failure.name
+                    : name ?? 'Usuario Social',
               );
           context.go(RouteNames.register);
         }
