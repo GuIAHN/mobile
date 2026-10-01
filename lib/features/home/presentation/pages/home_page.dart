@@ -149,8 +149,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         isConsumer && !isLocationShared && !isLocationCheckComplete;
     final showsCbkFallback =
         isConsumer && !isLocationShared && isLocationCheckComplete;
-    final showsAdvertising =
-        isConsumer || currentRole.isMechanic || currentRole.isWorkshop;
+    final showsAdvertising = isConsumer || currentRole.isProvider;
     final nearbyLabel = currentRole.usesSavedLocationForSearch
         ? 'cerca de tu negocio'
         : 'cerca de ti';
