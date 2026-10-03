@@ -24,6 +24,7 @@ class ChatThreadModel extends ChatThread {
     super.categoryName,
     super.expiresAt,
     super.isExpired,
+    super.soldByAnotherStore,
     super.totalOffersCount,
     super.quotesCount,
     super.questionsCount,
@@ -93,6 +94,7 @@ class ChatThreadModel extends ChatThread {
           ? DateTime.tryParse(json['expiresAt'].toString())
           : null,
       isExpired: json['isExpired'] as bool? ?? false,
+      soldByAnotherStore: json['soldByAnotherStore'] as bool? ?? false,
       totalOffersCount: json['totalOffersCount'] as int? ??
           json['conversationCount'] as int? ??
           0,

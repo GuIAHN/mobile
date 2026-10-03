@@ -47,6 +47,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
   bool _canSend = false;
   bool _isSending = false;
   bool _isQuoting = false;
+  RequestUnavailableFailure? _unavailableFailure;
   bool _isDeclining = false;
   bool _declinedLocally = false;
   bool _isCancelling = false;
@@ -132,7 +133,9 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
     }
   }
 
-  Future<void> _quoteFromChat(String offerId, String requestTitle) async {
+  Future<void> _quoteFromChat(
+      String offerId, String requestTitle, String requestId) async {
+    if (_isQuoting || _unavailableFailure != null) return;
     final result = await QuoteInputDialog.show(context, requestTitle);
     if (result == null || !mounted) return;
 
@@ -150,10 +153,20 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
       res.fold(
         (failure) {
           if (mounted) {
-            context.showSnackBar(
-              'Error al cotizar: ${failure.message}',
-              isError: true,
-            );
+            if (failure is RequestUnavailableFailure) {
+              setState(() => _unavailableFailure = failure);
+              ref.invalidate(
+                  chatConversationDetailsProvider(widget.conversationId));
+              ref.invalidate(myConversationsProvider);
+              ref.invalidate(storeSalesRequestsProvider);
+              ref.invalidate(storeRequestsByStatusProvider);
+              ref.invalidate(requestDetailProvider(
+                  (requestId: requestId, role: UserRole.store)));
+              ref.invalidate(chatConversationsProvider(requestId));
+            } else {
+              context.showSnackBar('Error al cotizar: ${failure.message}',
+                  isError: true);
+            }
           }
         },
         (_) {
@@ -418,7 +431,8 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                 detailsAsync.valueOrNull?.isInquiry == true &&
                 detailsAsync.valueOrNull?.offerId != null &&
                 detailsAsync.valueOrNull?.declinedAt == null &&
-                !_declinedLocally)
+                !_declinedLocally &&
+                _unavailableFailure == null)
               Container(
                 key: const Key('inquiry-actions-bar'),
                 width: double.infinity,
@@ -500,6 +514,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                                           SubcategoryPresentationAudience.store,
                                       fallback: 'la solicitud',
                                     ),
+                                    detailsAsync.valueOrNull!.threadId,
                                   ),
                           icon: _isQuoting
                               ? const SizedBox.square(
@@ -547,7 +562,8 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
               ),
 
             // ── Active Offer Header ─────────────────────────────────────────
-            if (detailsAsync.valueOrNull != null &&
+            if (_unavailableFailure == null &&
+                detailsAsync.valueOrNull != null &&
                 detailsAsync.valueOrNull!.hasQuote)
               ActiveOfferHeaderCard(
                 details: detailsAsync.valueOrNull!,
@@ -622,47 +638,93 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
 
             // ── Messages feed ─────────────────────────────────────────────
             Expanded(
-              child: messagesAsync.when(
-                loading: () => ListView(
-                  reverse: true,
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                  children: const [
-                    MessageBubbleSkeleton(),
-                    MessageBubbleSkeleton(alignRight: true),
-                    MessageBubbleSkeleton(),
-                  ],
-                ),
-                error: (_, __) => _ChatMessagesError(
-                  onRetry: () => ref.invalidate(
-                    chatMessagesProvider(widget.conversationId),
-                  ),
-                ),
-                data: (messages) {
-                  if (messages.isEmpty) {
-                    return _EmptyChatState(
-                      participantName:
-                          detailsAsync.valueOrNull?.participantName,
-                    );
-                  }
-                  return ListView.builder(
-                    controller: _scrollController,
-                    reverse: true,
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 18, vertical: 16),
-                    itemCount: messages.length,
-                    itemBuilder: (context, index) {
-                      final message = messages[index];
-                      return ChatMessageBubble(message: message);
-                    },
-                  );
-                },
-              ),
+              child: _unavailableFailure != null
+                  ? CustomScrollView(
+                      controller: _scrollController,
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: Semantics(
+                            liveRegion: true,
+                            child: Container(
+                              width: double.infinity,
+                              color: Colors.white,
+                              padding: const EdgeInsets.all(16),
+                              child: Text(
+                                _unavailableFailure!.message,
+                                style: GoogleFonts.hankenGrotesk(
+                                    color: AppColors.textPrimary, fontSize: 16),
+                              ),
+                            ),
+                          ),
+                        ),
+                        messagesAsync.when(
+                          loading: () => const SliverToBoxAdapter(
+                              child: MessageBubbleSkeleton()),
+                          error: (_, __) => SliverToBoxAdapter(
+                            child: _ChatMessagesError(
+                                onRetry: () => ref.invalidate(
+                                    chatMessagesProvider(
+                                        widget.conversationId))),
+                          ),
+                          data: (messages) {
+                            final chronological = messages.reversed.toList();
+                            return SliverPadding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 18, vertical: 16),
+                              sliver: SliverList.builder(
+                                itemCount: chronological.length,
+                                itemBuilder: (context, index) =>
+                                    ChatMessageBubble(
+                                        message: chronological[index]),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    )
+                  : messagesAsync.when(
+                      loading: () => ListView(
+                        reverse: true,
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 16),
+                        children: const [
+                          MessageBubbleSkeleton(),
+                          MessageBubbleSkeleton(alignRight: true),
+                          MessageBubbleSkeleton(),
+                        ],
+                      ),
+                      error: (_, __) => _ChatMessagesError(
+                        onRetry: () => ref.invalidate(
+                          chatMessagesProvider(widget.conversationId),
+                        ),
+                      ),
+                      data: (messages) {
+                        if (messages.isEmpty) {
+                          return _EmptyChatState(
+                            participantName:
+                                detailsAsync.valueOrNull?.participantName,
+                          );
+                        }
+                        return ListView.builder(
+                          controller: _scrollController,
+                          reverse: true,
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 16),
+                          itemCount: messages.length,
+                          itemBuilder: (context, index) {
+                            final message = messages[index];
+                            return ChatMessageBubble(message: message);
+                          },
+                        );
+                      },
+                    ),
             ),
 
             // Cápsula de escritura + acción circular, como un chat móvil.

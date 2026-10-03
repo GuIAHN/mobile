@@ -10,6 +10,7 @@ import '../../../../core/utils/extensions.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/domain/enums/part_type.dart';
+import '../../../../core/error/failures.dart';
 import '../../../../core/router/route_names.dart';
 import '../providers/chat_providers.dart';
 import '../widgets/chat_conversation_card.dart';
@@ -36,6 +37,51 @@ class ChatThreadDetailPage extends ConsumerStatefulWidget {
 
 class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
   _SortOption _currentSort = _SortOption.recent;
+  RequestUnavailableFailure? _unavailableFailure;
+
+  bool _availabilityRefreshScheduled = false;
+
+  RequestUnavailableFailure? _knownUnavailable(
+      ChatThread? thread, bool isStore) {
+    if (!isStore || thread == null) {
+      return null;
+    }
+    if (thread.soldByAnotherStore) {
+      return const RequestUnavailableFailure(
+          RequestUnavailableReason.soldByAnotherStore);
+    }
+    if (const ['BOUGHT', 'DELIVERED']
+        .contains(thread.offerStatus?.toUpperCase())) {
+      return null;
+    }
+    if (thread.isExpired) {
+      return const RequestUnavailableFailure(RequestUnavailableReason.expired);
+    }
+    if (!thread.isOpen) {
+      return const RequestUnavailableFailure(RequestUnavailableReason.closed);
+    }
+    return null;
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatThreadDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.threadId != widget.threadId) {
+      _unavailableFailure = null;
+      _availabilityRefreshScheduled = false;
+    }
+  }
+
+  void _handleUnavailableRequest(RequestUnavailableFailure failure,
+      {bool reloadDetail = true}) {
+    setState(() => _unavailableFailure = failure);
+    ref.invalidate(storeSalesRequestsProvider);
+    ref.invalidate(storeRequestsByStatusProvider);
+    if (reloadDetail) {
+      ref.invalidate(requestDetailProvider(_detailKey(UserRole.store)));
+    }
+    ref.invalidate(chatConversationsProvider(widget.threadId));
+  }
 
   RequestDetailKey _detailKey(UserRole role) => (
         requestId: widget.threadId,
@@ -69,6 +115,21 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
     final isStore = currentRole == UserRole.store;
     final detailKey = _detailKey(currentRole);
     final requestAsync = ref.watch(requestDetailProvider(detailKey));
+    final availabilityFailure = _unavailableFailure ??
+        _knownUnavailable(requestAsync.valueOrNull, isStore);
+    if (availabilityFailure != null &&
+        _unavailableFailure == null &&
+        !_availabilityRefreshScheduled) {
+      _availabilityRefreshScheduled = true;
+      final requestId = widget.threadId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            widget.threadId == requestId &&
+            _unavailableFailure == null) {
+          _handleUnavailableRequest(availabilityFailure, reloadDetail: false);
+        }
+      });
+    }
     final conversationsAsync =
         ref.watch(chatConversationsProvider(widget.threadId));
 
@@ -95,197 +156,207 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
               slivers: [
                 // 1. Resumen de la Solicitud
                 SliverToBoxAdapter(
-                  child: requestAsync.when(
-                    loading: () => _RequestHeroSkeleton(
-                      onBack: _goBack,
-                    ),
-                    error: (_, __) => _RequestSummaryError(
-                      onBack: _goBack,
-                      onRetry: () =>
-                          ref.invalidate(requestDetailProvider(detailKey)),
-                    ),
-                    data: (thread) {
-                      if (thread == null) {
-                        return _MissingRequestSummary(
+                  child: availabilityFailure != null
+                      ? _MissingRequestSummary(
                           onBack: _goBack,
                           onReturn: _returnToRequests,
-                        );
-                      }
-                      return _RequestSummaryCard(
-                        thread: thread,
-                        isStore: isStore,
-                        onBack: _goBack,
-                      );
-                    },
-                  ),
-                ),
-
-                // 2. Filtro y conteo, inmediatamente después de la cabecera.
-                SliverToBoxAdapter(
-                  child: conversationsAsync.when(
-                    loading: () => Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-                      child: _OffersCountHeader(
-                        quotedCount: null,
-                        isStore: isStore,
-                        currentSort: isStore ? null : _currentSort,
-                        onSortChanged: isStore
-                            ? null
-                            : (val) => setState(() => _currentSort = val),
-                      ),
-                    ),
-                    error: (_, __) => const SizedBox.shrink(),
-                    data: (conversations) {
-                      final quotedCount = conversations
-                          .where((conversation) => conversation.hasFormalQuote)
-                          .length;
-                      return Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-                        child: _OffersCountHeader(
-                          quotedCount: quotedCount,
-                          isStore: isStore,
-                          currentSort: _currentSort,
-                          onSortChanged: (val) {
-                            setState(() {
-                              _currentSort = val;
-                            });
+                          unavailableFailure: availabilityFailure,
+                        )
+                      : requestAsync.when(
+                          loading: () => _RequestHeroSkeleton(
+                            onBack: _goBack,
+                          ),
+                          error: (_, __) => _RequestSummaryError(
+                            onBack: _goBack,
+                            onRetry: () => ref
+                                .invalidate(requestDetailProvider(detailKey)),
+                          ),
+                          data: (thread) {
+                            if (thread == null) {
+                              return _MissingRequestSummary(
+                                onBack: _goBack,
+                                onReturn: _returnToRequests,
+                              );
+                            }
+                            return _RequestSummaryCard(
+                              thread: thread,
+                              isStore: isStore,
+                              onBack: _goBack,
+                              onUnavailable: _handleUnavailableRequest,
+                            );
                           },
                         ),
+                ),
+
+                if (availabilityFailure == null) ...[
+                  // 2. Filtro y conteo, inmediatamente después de la cabecera.
+                  SliverToBoxAdapter(
+                    child: conversationsAsync.when(
+                      loading: () => Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+                        child: _OffersCountHeader(
+                          quotedCount: null,
+                          isStore: isStore,
+                          currentSort: isStore ? null : _currentSort,
+                          onSortChanged: isStore
+                              ? null
+                              : (val) => setState(() => _currentSort = val),
+                        ),
+                      ),
+                      error: (_, __) => const SizedBox.shrink(),
+                      data: (conversations) {
+                        final quotedCount = conversations
+                            .where(
+                                (conversation) => conversation.hasFormalQuote)
+                            .length;
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+                          child: _OffersCountHeader(
+                            quotedCount: quotedCount,
+                            isStore: isStore,
+                            currentSort: _currentSort,
+                            onSortChanged: (val) {
+                              setState(() {
+                                _currentSort = val;
+                              });
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  // 3. Lista de Ofertas o Estado Vacío
+                  conversationsAsync.when(
+                    loading: () => SliverList(
+                      delegate: SliverChildListDelegate([
+                        _motionAwareSkeleton(
+                          context,
+                          const Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 6),
+                            child: OfferCardSkeleton(),
+                          ),
+                        ),
+                        _motionAwareSkeleton(
+                          context,
+                          const Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 6),
+                            child: OfferCardSkeleton(),
+                          ),
+                        ),
+                        _motionAwareSkeleton(
+                          context,
+                          const Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 6),
+                            child: OfferCardSkeleton(),
+                          ),
+                        ),
+                      ]),
+                    ),
+                    error: (err, _) {
+                      return SliverToBoxAdapter(
+                        child: _OffersErrorState(
+                          onRetry: () => ref.invalidate(
+                            chatConversationsProvider(widget.threadId),
+                          ),
+                        ),
+                      );
+                    },
+                    data: (conversations) {
+                      final sortedConversations = conversations.toList();
+                      sortedConversations.sort((a, b) {
+                        switch (_currentSort) {
+                          case _SortOption.recent:
+                            return b.lastMessageAt.compareTo(a.lastMessageAt);
+                          case _SortOption.priceAsc:
+                            if (!a.hasQuote && !b.hasQuote) return 0;
+                            if (!a.hasQuote) return 1;
+                            if (!b.hasQuote) return -1;
+                            final priceA = a.price ?? double.infinity;
+                            final priceB = b.price ?? double.infinity;
+                            return priceA.compareTo(priceB);
+                          case _SortOption.distanceAsc:
+                            final distA = a.distanceKm ?? double.infinity;
+                            final distB = b.distanceKm ?? double.infinity;
+                            return distA.compareTo(distB);
+                        }
+                      });
+
+                      if (sortedConversations.isEmpty) {
+                        return SliverToBoxAdapter(
+                          child: _OffersEmptyState(isStore: isStore),
+                        );
+                      }
+
+                      return SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final conv = sortedConversations[index];
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 6),
+                              child: StaggeredEntrance(
+                                key: ValueKey('offer-${conv.id}'),
+                                index: index,
+                                child: RealtimeChatConversationCard(
+                                  conversation: conv,
+                                  onTap: () async {
+                                    if (isStore) {
+                                      context.push(
+                                        RouteNames.chatConversationPath(
+                                            conv.id),
+                                      );
+                                    } else {
+                                      showDialog(
+                                        context: context,
+                                        barrierDismissible: false,
+                                        builder: (_) => const Center(
+                                            child: CircularProgressIndicator(
+                                                color: AppColors.primary)),
+                                      );
+
+                                      final repo =
+                                          ref.read(chatRepositoryProvider);
+                                      final res = await repo
+                                          .startChatFromOffer(conv.id);
+
+                                      if (context.mounted) {
+                                        Navigator.of(context).pop();
+                                      }
+
+                                      res.fold(
+                                        (failure) {
+                                          if (context.mounted) {
+                                            context.showSnackBar(
+                                                'Error al abrir chat: ${failure.message}',
+                                                isError: true);
+                                          }
+                                        },
+                                        (realConversationId) {
+                                          if (context.mounted) {
+                                            context.push(
+                                              RouteNames.chatConversationPath(
+                                                realConversationId,
+                                              ),
+                                            );
+                                          }
+                                        },
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                          childCount: sortedConversations.length,
+                        ),
                       );
                     },
                   ),
-                ),
-
-                // 3. Lista de Ofertas o Estado Vacío
-                conversationsAsync.when(
-                  loading: () => SliverList(
-                    delegate: SliverChildListDelegate([
-                      _motionAwareSkeleton(
-                        context,
-                        const Padding(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 24, vertical: 6),
-                          child: OfferCardSkeleton(),
-                        ),
-                      ),
-                      _motionAwareSkeleton(
-                        context,
-                        const Padding(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 24, vertical: 6),
-                          child: OfferCardSkeleton(),
-                        ),
-                      ),
-                      _motionAwareSkeleton(
-                        context,
-                        const Padding(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 24, vertical: 6),
-                          child: OfferCardSkeleton(),
-                        ),
-                      ),
-                    ]),
-                  ),
-                  error: (err, _) {
-                    return SliverToBoxAdapter(
-                      child: _OffersErrorState(
-                        onRetry: () => ref.invalidate(
-                          chatConversationsProvider(widget.threadId),
-                        ),
-                      ),
-                    );
-                  },
-                  data: (conversations) {
-                    final sortedConversations = conversations.toList();
-                    sortedConversations.sort((a, b) {
-                      switch (_currentSort) {
-                        case _SortOption.recent:
-                          return b.lastMessageAt.compareTo(a.lastMessageAt);
-                        case _SortOption.priceAsc:
-                          if (!a.hasQuote && !b.hasQuote) return 0;
-                          if (!a.hasQuote) return 1;
-                          if (!b.hasQuote) return -1;
-                          final priceA = a.price ?? double.infinity;
-                          final priceB = b.price ?? double.infinity;
-                          return priceA.compareTo(priceB);
-                        case _SortOption.distanceAsc:
-                          final distA = a.distanceKm ?? double.infinity;
-                          final distB = b.distanceKm ?? double.infinity;
-                          return distA.compareTo(distB);
-                      }
-                    });
-
-                    if (sortedConversations.isEmpty) {
-                      return SliverToBoxAdapter(
-                        child: _OffersEmptyState(isStore: isStore),
-                      );
-                    }
-
-                    return SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final conv = sortedConversations[index];
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 6),
-                            child: StaggeredEntrance(
-                              key: ValueKey('offer-${conv.id}'),
-                              index: index,
-                              child: RealtimeChatConversationCard(
-                                conversation: conv,
-                                onTap: () async {
-                                  if (isStore) {
-                                    context.push(
-                                      RouteNames.chatConversationPath(conv.id),
-                                    );
-                                  } else {
-                                    showDialog(
-                                      context: context,
-                                      barrierDismissible: false,
-                                      builder: (_) => const Center(
-                                          child: CircularProgressIndicator(
-                                              color: AppColors.primary)),
-                                    );
-
-                                    final repo =
-                                        ref.read(chatRepositoryProvider);
-                                    final res =
-                                        await repo.startChatFromOffer(conv.id);
-
-                                    if (context.mounted) {
-                                      Navigator.of(context).pop();
-                                    }
-
-                                    res.fold(
-                                      (failure) {
-                                        if (context.mounted) {
-                                          context.showSnackBar(
-                                              'Error al abrir chat: ${failure.message}',
-                                              isError: true);
-                                        }
-                                      },
-                                      (realConversationId) {
-                                        if (context.mounted) {
-                                          context.push(
-                                            RouteNames.chatConversationPath(
-                                              realConversationId,
-                                            ),
-                                          );
-                                        }
-                                      },
-                                    );
-                                  }
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                        childCount: sortedConversations.length,
-                      ),
-                    );
-                  },
-                ),
-
+                ],
                 const SliverToBoxAdapter(child: SizedBox(height: 40)),
               ],
             ),
@@ -307,54 +378,72 @@ class _MissingRequestSummary extends StatelessWidget {
   const _MissingRequestSummary({
     required this.onBack,
     required this.onReturn,
+    this.unavailableFailure,
   });
 
   final VoidCallback onBack;
   final VoidCallback onReturn;
+  final RequestUnavailableFailure? unavailableFailure;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _StandalonePageHeader(onBack: onBack),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              children: [
-                const AppLineIcon(
-                  AppIcons.searchEmpty,
-                  size: AppIconSize.feature,
-                  color: AppColors.textSecondary,
-                  semanticLabel: 'Solicitud no disponible',
-                ),
-                const SizedBox(height: 12),
-                Text('Solicitud no disponible', style: AppTypography.h2),
-                const SizedBox(height: 8),
-                Text(
-                  'Puede haber expirado, sido cerrada o ya no estar disponible.',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.bodySm,
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: onReturn,
-                    child: const Text('Volver a solicitudes'),
+    final title = unavailableFailure?.reason ==
+            RequestUnavailableReason.soldByAnotherStore
+        ? 'Solicitud vendida'
+        : unavailableFailure?.reason == RequestUnavailableReason.expired
+            ? 'Solicitud expirada'
+            : 'Solicitud no disponible';
+    return Semantics(
+      liveRegion: unavailableFailure != null,
+      child: Column(
+        children: [
+          _StandalonePageHeader(onBack: onBack),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                children: [
+                  AppLineIcon(
+                    AppIcons.searchEmpty,
+                    size: AppIconSize.feature,
+                    color: AppColors.textSecondary,
+                    semanticLabel: title,
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  Text(title,
+                      style: AppTypography.h2, textAlign: TextAlign.center),
+                  const SizedBox(height: 8),
+                  Text(
+                    unavailableFailure?.message ??
+                        'Puede haber expirado, sido cerrada o ya no estar disponible.',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.bodySm.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: onReturn,
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      child: const Text('Volver a solicitudes'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -536,11 +625,13 @@ class _RequestSummaryCard extends ConsumerStatefulWidget {
   final ChatThread thread;
   final bool isStore;
   final VoidCallback onBack;
+  final ValueChanged<RequestUnavailableFailure> onUnavailable;
 
   const _RequestSummaryCard({
     required this.thread,
     required this.isStore,
     required this.onBack,
+    required this.onUnavailable,
   });
 
   @override
@@ -586,10 +677,16 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
       if (!mounted) return;
 
       quoteRes.fold(
-        (failure) => context.showSnackBar(
-          'Error al iniciar chat: ${failure.message}',
-          isError: true,
-        ),
+        (failure) {
+          if (failure is RequestUnavailableFailure) {
+            widget.onUnavailable(failure);
+          } else {
+            context.showSnackBar(
+              'Error al iniciar chat: ${failure.message}',
+              isError: true,
+            );
+          }
+        },
         (newConv) {
           ref.invalidate(chatConversationsProvider(thread.id));
           ref.invalidate(storeSalesRequestsProvider);

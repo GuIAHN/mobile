@@ -119,6 +119,7 @@ class ChatRemoteDataSource {
         (json['lastMessageAt'] ?? json['createdAt']).toString(),
       ),
       isOpen: requestStatus == null || requestStatus == 'OPEN',
+      soldByAnotherStore: json['soldByAnotherStore'] as bool? ?? false,
       clientName: json['consumerName']?.toString() ?? 'Cliente',
       fotoUrl: json['photoUrl']?.toString(),
       details: json['details']?.toString(),

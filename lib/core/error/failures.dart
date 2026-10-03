@@ -25,6 +25,26 @@ class ServerFailure extends Failure {
   const ServerFailure({required super.message, super.code});
 }
 
+enum RequestUnavailableReason { soldByAnotherStore, expired, closed }
+
+/// A server-confirmed state change, rather than a retryable chat failure.
+class RequestUnavailableFailure extends Failure {
+  final RequestUnavailableReason reason;
+
+  const RequestUnavailableFailure(this.reason)
+      : super(
+          code: 409,
+          message: reason == RequestUnavailableReason.soldByAnotherStore
+              ? 'Esta solicitud ya fue vendida por otra tienda.'
+              : reason == RequestUnavailableReason.expired
+                  ? 'Esta solicitud ya expiró.'
+                  : 'Esta solicitud ya no está disponible.',
+        );
+
+  @override
+  List<Object?> get props => [...super.props, reason];
+}
+
 /// Tiempo de espera agotado.
 class TimeoutFailure extends Failure {
   const TimeoutFailure({super.message = 'Tiempo de espera agotado.'});
@@ -34,12 +54,14 @@ class TimeoutFailure extends Failure {
 
 /// Token expirado o inválido (401).
 class UnauthorizedFailure extends Failure {
-  const UnauthorizedFailure({super.message = 'Sesión expirada. Inicia sesión nuevamente.'});
+  const UnauthorizedFailure(
+      {super.message = 'Sesión expirada. Inicia sesión nuevamente.'});
 }
 
 /// Sin permisos para la acción (403).
 class ForbiddenFailure extends Failure {
-  const ForbiddenFailure({super.message = 'No tienes permisos para esta acción.'});
+  const ForbiddenFailure(
+      {super.message = 'No tienes permisos para esta acción.'});
 }
 
 // ── Fallos de datos ───────────────────────────────────────────────────────
@@ -51,7 +73,8 @@ class NotFoundFailure extends Failure {
 
 /// Error al parsear la respuesta JSON.
 class ParseFailure extends Failure {
-  const ParseFailure({super.message = 'Error al procesar la respuesta del servidor.'});
+  const ParseFailure(
+      {super.message = 'Error al procesar la respuesta del servidor.'});
 }
 
 /// Error de validación (422).
