@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,9 +9,11 @@ import 'package:go_router/go_router.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/service_type.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
 import 'package:guiautomotriz_mobile/core/error/failures.dart';
+import 'package:guiautomotriz_mobile/core/error/error_mapper.dart';
 import 'package:guiautomotriz_mobile/core/providers/current_user_provider.dart';
 import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_conversation.dart';
 import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_thread.dart';
+import 'package:guiautomotriz_mobile/features/chat/data/models/chat_thread_model.dart';
 import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_threads_result.dart';
 import 'package:guiautomotriz_mobile/features/chat/domain/repositories/chat_repository.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/pages/chat_thread_detail_page.dart';
@@ -37,6 +40,8 @@ void main() {
     String subcategory = 'Pastillas de freno',
     bool subcategoryIsCatchAll = false,
     String? categoryName,
+    bool isOpen = true,
+    bool isExpired = false,
   }) =>
       ChatThread(
         id: id,
@@ -60,6 +65,8 @@ void main() {
         offerPrice: offerPrice,
         conversationId: conversationId,
         fotoUrl: fotoUrl,
+        isOpen: isOpen,
+        isExpired: isExpired,
       );
 
   ChatConversation inquiry(String id) => ChatConversation(
@@ -82,6 +89,7 @@ void main() {
     EdgeInsets safeAreaPadding = EdgeInsets.zero,
     List<ChatThread>? listThreads,
     Future<ChatThread?> Function()? loadDetail,
+    VoidCallback? onLoadStoreList,
   }) {
     final router = GoRouter(
       initialLocation: '/sales/request-1',
@@ -119,9 +127,10 @@ void main() {
         currentRoleProvider.overrideWithValue(role),
         chatRepositoryProvider.overrideWithValue(repository),
         storeSalesRequestsProvider.overrideWith(
-          (ref) async => ChatThreadsResult(
-            threads: listThreads ?? threads,
-          ),
+          (ref) async {
+            onLoadStoreList?.call();
+            return ChatThreadsResult(threads: listThreads ?? threads);
+          },
         ),
         consumerRequestsProvider.overrideWith(
           (ref) async => ChatThreadsResult(
@@ -348,6 +357,217 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Chat abierto'), findsOneWidget);
   });
+
+  testWidgets('a stale sold request blocks chat and refreshes its detail',
+      (tester) async {
+    final repository = _MockChatRepository();
+    final options = RequestOptions(path: '/offers');
+    final failure = ErrorMapper.map(DioException.badResponse(
+      statusCode: 409,
+      requestOptions: options,
+      response: Response(
+        requestOptions: options,
+        statusCode: 409,
+        data: const {
+          'message': 'Search request is not OPEN',
+          'data': {'reason': 'SEARCH_REQUEST_SOLD'},
+        },
+      ),
+    ));
+    when(() => repository.createQuote(
+          threadId: any(named: 'threadId'),
+          searchMatchId: any(named: 'searchMatchId'),
+          price: any(named: 'price'),
+          deliveryCost: any(named: 'deliveryCost'),
+          brand: any(named: 'brand'),
+          photoPath: any(named: 'photoPath'),
+        )).thenAnswer((_) async => Left(failure));
+    var detailLoads = 0;
+    var listLoads = 0;
+    await tester.pumpWidget(subject(
+      repository: repository,
+      threads: [thread('request-1')],
+      loadDetail: () async {
+        detailLoads++;
+        return thread('request-1'); // stale data must not re-enable the action
+      },
+      onLoadStoreList: () => listLoads++,
+    ));
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(ChatThreadDetailPage)));
+    final listSubscription =
+        container.listen(storeSalesRequestsProvider, (_, __) {});
+    await tester.pumpAndSettle();
+    expect(listLoads, 1);
+    await tester.tap(find.text('INICIAR CHAT CON EL CLIENTE'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Esta solicitud ya fue vendida por otra tienda.'),
+        findsOneWidget);
+    expect(find.text('Solicitud vendida'), findsOneWidget);
+    expect(
+        find.text(
+            'Inicia el chat para consultar al cliente o preparar tu cotización.'),
+        findsNothing);
+    expect(find.text('INICIAR CHAT CON EL CLIENTE'), findsNothing);
+    expect(find.text('Chat abierto'), findsNothing);
+    expect(detailLoads, 2);
+    expect(listLoads, 2);
+    listSubscription.close();
+    await tester.tap(find.text('Volver a solicitudes'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('home-shell')), findsOneWidget);
+  });
+
+  testWidgets('a closed request never offers to create a chat', (tester) async {
+    final repository = _MockChatRepository();
+    await tester.pumpWidget(subject(
+      repository: repository,
+      threads: [thread('request-1', isOpen: false)],
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Esta solicitud ya no está disponible.'), findsOneWidget);
+    expect(find.text('INICIAR CHAT CON EL CLIENTE'), findsNothing);
+    expect(find.text('Solicitud vendida'), findsNothing);
+  });
+
+  testWidgets('server detail identifies a sold request before any chat attempt',
+      (tester) async {
+    final repository = _MockChatRepository();
+    final sold = ChatThreadModel.fromJson(const {
+      'id': 'request-1',
+      'title': 'Toyota Corolla',
+      'requestType': 'spareParts',
+      'createdAt': '2026-09-01T00:00:00Z',
+      'requestStatus': 'CLOSED',
+      'soldByAnotherStore': true,
+    });
+    final detail = Completer<ChatThread?>();
+    var listLoads = 0;
+    await tester.pumpWidget(subject(
+      repository: repository,
+      threads: [sold],
+      loadDetail: () => detail.future,
+      onLoadStoreList: () => listLoads++,
+    ));
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(ChatThreadDetailPage)));
+    final subscription =
+        container.listen(storeSalesRequestsProvider, (_, __) {});
+    await tester.pump();
+    expect(listLoads, 1);
+    detail.complete(sold);
+    await tester.pumpAndSettle();
+    expect(listLoads, 2);
+    subscription.close();
+    expect(find.text('Esta solicitud ya fue vendida por otra tienda.'),
+        findsOneWidget);
+    expect(find.text('INICIAR CHAT CON EL CLIENTE'), findsNothing);
+  });
+
+  testWidgets('an expired inquiry cannot continue a stale chat',
+      (tester) async {
+    await tester
+        .pumpWidget(subject(repository: _MockChatRepository(), threads: [
+      thread('request-1',
+          isExpired: true,
+          isInquiry: true,
+          conversationId: 'conversation-1',
+          hasOffer: true),
+    ]));
+    await tester.pumpAndSettle();
+    expect(find.text('Esta solicitud ya expiró.'), findsOneWidget);
+    expect(find.text('CONTINUAR CONSULTA'), findsNothing);
+  });
+
+  testWidgets('a store own purchase stays accessible after the request closes',
+      (tester) async {
+    await tester
+        .pumpWidget(subject(repository: _MockChatRepository(), threads: [
+      thread('request-1',
+          isOpen: false,
+          hasOffer: true,
+          offerStatus: 'BOUGHT',
+          offerPrice: 100),
+    ]));
+    await tester.pumpAndSettle();
+    expect(find.text('Toyota Corolla'), findsOneWidget);
+    expect(find.text('Solicitud no disponible'), findsNothing);
+    expect(find.text('Solicitud vendida'), findsNothing);
+  });
+
+  testWidgets('a network failure allows another chat attempt', (tester) async {
+    final repository = _MockChatRepository();
+    var attempts = 0;
+    when(() => repository.createQuote(
+          threadId: any(named: 'threadId'),
+          searchMatchId: any(named: 'searchMatchId'),
+          price: any(named: 'price'),
+          deliveryCost: any(named: 'deliveryCost'),
+          brand: any(named: 'brand'),
+          photoPath: any(named: 'photoPath'),
+        )).thenAnswer((_) async {
+      attempts++;
+      return attempts == 1
+          ? const Left(NetworkFailure())
+          : Right(inquiry('conversation-1'));
+    });
+    await tester.pumpWidget(
+        subject(repository: repository, threads: [thread('request-1')]));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('INICIAR CHAT CON EL CLIENTE'));
+    await tester.pumpAndSettle();
+    expect(find.text('Solicitud vendida'), findsNothing);
+    final action =
+        find.widgetWithText(ElevatedButton, 'INICIAR CHAT CON EL CLIENTE');
+    expect(tester.widget<ElevatedButton>(action).onPressed, isNotNull);
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+    expect(attempts, 2);
+    expect(find.text('Chat abierto'), findsOneWidget);
+  });
+
+  for (final size in [
+    const Size(320, 700),
+    const Size(430, 932),
+    const Size(700, 320)
+  ]) {
+    testWidgets(
+        'sold notice supports ${size.width} width, large text and safe areas',
+        (tester) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final sold = ChatThreadModel.fromJson(const {
+        'id': 'request-1',
+        'title': 'Toyota Corolla',
+        'requestType': 'spareParts',
+        'createdAt': '2026-09-01T00:00:00Z',
+        'requestStatus': 'CLOSED',
+        'soldByAnotherStore': true,
+      });
+      await tester.pumpWidget(subject(
+        repository: _MockChatRepository(),
+        threads: [sold],
+        textScaler: const TextScaler.linear(2),
+        safeAreaPadding: const EdgeInsets.only(top: 32, bottom: 24),
+      ));
+      await tester.pumpAndSettle();
+      final button =
+          find.widgetWithText(OutlinedButton, 'Volver a solicitudes');
+      await tester.ensureVisible(button);
+      await tester.pumpAndSettle();
+      expect(tester.getSize(button).height, greaterThanOrEqualTo(48));
+      expect(
+          tester.getRect(button).bottom, lessThanOrEqualTo(size.height - 24));
+      expect(find.text('Esta solicitud ya fue vendida por otra tienda.'),
+          findsOneWidget);
+      expect(find.text('INICIAR CHAT CON EL CLIENTE'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('existing inquiry continues chat and never looks quoted',
       (tester) async {

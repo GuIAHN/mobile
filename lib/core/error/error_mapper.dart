@@ -32,6 +32,8 @@ class ErrorMapper {
       return ValidationFailure(message: e.message, errors: e.errors);
     }
     if (e is ServerException) {
+      final unavailable = _requestUnavailable(e.statusCode, e.message);
+      if (unavailable != null) return unavailable;
       final parsedMessage = parseErrorMessage(e.message);
       if (e.statusCode >= 500) {
         if (parsedMessage != e.message) {
@@ -74,6 +76,12 @@ class ErrorMapper {
         final statusCode = e.response?.statusCode ?? 0;
         final serverMessage = _extractMessage(e.response?.data);
         final rawMessage = serverMessage ?? e.message ?? 'Error del servidor.';
+        final unavailable = _requestUnavailable(
+          statusCode,
+          rawMessage,
+          payload: e.response?.data,
+        );
+        if (unavailable != null) return unavailable;
         final message = parseErrorMessage(rawMessage);
 
         if (statusCode >= 500) {
@@ -114,6 +122,36 @@ class ErrorMapper {
       default:
         return const UnexpectedFailure();
     }
+  }
+
+  static RequestUnavailableFailure? _requestUnavailable(
+    int statusCode,
+    String message, {
+    dynamic payload,
+  }) {
+    if (statusCode != 409) return null;
+    final details = payload is Map ? payload['data'] : null;
+    final reason = details is Map
+        ? details['reason']
+        : payload is Map
+            ? payload['reason']
+            : null;
+    if (reason == 'SEARCH_REQUEST_SOLD' ||
+        message == 'Esta solicitud ya fue vendida por otra tienda.') {
+      return const RequestUnavailableFailure(
+        RequestUnavailableReason.soldByAnotherStore,
+      );
+    }
+    if (reason == 'SEARCH_REQUEST_EXPIRED' ||
+        message == 'Esta solicitud ya expiró.') {
+      return const RequestUnavailableFailure(RequestUnavailableReason.expired);
+    }
+    if (reason == 'SEARCH_REQUEST_UNAVAILABLE' ||
+        message == 'Esta solicitud ya no está disponible.' ||
+        message.toLowerCase().contains('search request is not open')) {
+      return const RequestUnavailableFailure(RequestUnavailableReason.closed);
+    }
+    return null;
   }
 
   /// Analiza los detalles del mensaje de error del backend/BD para retornar algo amigable en español.
