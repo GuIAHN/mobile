@@ -46,7 +46,7 @@ extension PartTypeX on PartType {
       case PartType.performance:
         return 'Mejora el desempeño';
       case PartType.original:
-        return 'Equipo del fabricante';
+        return 'Equipo de fabricantes';
       case PartType.generic:
         return 'Alternativo / compatible';
       case PartType.used:
