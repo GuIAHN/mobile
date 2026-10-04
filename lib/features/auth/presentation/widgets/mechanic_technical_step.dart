@@ -28,7 +28,7 @@ class MechanicTechnicalStep extends StatelessWidget {
                   activeTrackColor: AppColors.primary,
                   inactiveTrackColor: AppColors.border,
                   thumbColor: AppColors.primary,
-                  overlayColor: AppColors.primary.withOpacity(0.15),
+                  overlayColor: AppColors.primary.withValues(alpha: 0.15),
                   trackHeight: 4,
                 ),
                 child: Slider(
@@ -52,10 +52,10 @@ class MechanicTechnicalStep extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.10), // naranjaSuave
+                      color: AppColors.primary.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -128,7 +128,7 @@ class MechanicTechnicalStep extends StatelessWidget {
                 style: GoogleFonts.hankenGrotesk(
                   fontSize: 13,
                   height: 1.4,
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -150,7 +150,7 @@ class MechanicTechnicalStep extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),

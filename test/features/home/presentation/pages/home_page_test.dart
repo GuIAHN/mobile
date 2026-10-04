@@ -5,12 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:guiautomotriz_mobile/core/domain/enums/account_status.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/service_type.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
 import 'package:guiautomotriz_mobile/core/router/route_names.dart';
 import 'package:guiautomotriz_mobile/core/services/location_service.dart';
 import 'package:guiautomotriz_mobile/core/storage/secure_storage.dart';
 import 'package:guiautomotriz_mobile/features/ads/presentation/providers/ads_provider.dart';
+import 'package:guiautomotriz_mobile/features/ads/domain/entities/ad.dart';
 import 'package:guiautomotriz_mobile/features/auth/domain/entities/user.dart';
 import 'package:guiautomotriz_mobile/features/auth/domain/repositories/auth_repository.dart';
 import 'package:guiautomotriz_mobile/features/auth/domain/usecases/login_usecase.dart';
@@ -26,9 +28,9 @@ import 'package:guiautomotriz_mobile/features/home/domain/entities/home_item.dar
 import 'package:guiautomotriz_mobile/features/home/domain/entities/promo.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/pages/home_page.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
-import 'package:guiautomotriz_mobile/features/home/presentation/widgets/navigation/bottom_nav_bar.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/promo_carousel.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/sections/top_providers_section.dart';
+import 'package:guiautomotriz_mobile/shared/layout/bottom_navigation_insets.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/header/home_header_expanded.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/spare_part_wizard_page.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/store_dashboard/store_dashboard_view.dart';
@@ -36,15 +38,53 @@ import 'package:guiautomotriz_mobile/features/home/presentation/widgets/provider
 import 'package:guiautomotriz_mobile/features/reports/domain/entities/store_dashboard.dart';
 import 'package:guiautomotriz_mobile/features/reports/presentation/providers/reports_provider.dart';
 import 'package:guiautomotriz_mobile/features/notifications/presentation/providers/notifications_providers.dart';
+import 'package:guiautomotriz_mobile/features/reviews/presentation/providers/reviews_providers.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/domain/entities/user_car.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/presentation/providers/vehicle_providers.dart';
 import 'package:guiautomotriz_mobile/shared/widgets/skeleton_loader.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _FakeLocationService extends LocationService {
+  _FakeLocationService({this.locationAvailable = false});
+
+  final bool locationAvailable;
+
   @override
-  Future<LocationPermission> checkPermission() async =>
-      LocationPermission.denied;
+  Future<bool> isLocationServiceEnabled() async => locationAvailable;
+
+  @override
+  Future<LocationPermission> checkPermission() async => locationAvailable
+      ? LocationPermission.whileInUse
+      : LocationPermission.denied;
+
+  @override
+  Future<Position> getCurrentPosition() async => Position(
+        longitude: -66.9036,
+        latitude: 10.4806,
+        timestamp: DateTime(2026),
+        accuracy: 5,
+        altitude: 0,
+        altitudeAccuracy: 0,
+        heading: 0,
+        headingAccuracy: 0,
+        speed: 0,
+        speedAccuracy: 0,
+      );
+}
+
+class _PendingLocationService extends LocationService {
+  final serviceEnabled = Completer<bool>();
+
+  @override
+  Future<bool> isLocationServiceEnabled() => serviceEnabled.future;
+}
+
+class _NoopAdTrackerNotifier extends AdTrackerNotifier {
+  @override
+  void trackImpression(String? adId) {}
+
+  @override
+  void trackClick(String? adId) {}
 }
 
 class _MockAuthRepository extends Mock implements AuthRepository {}
@@ -129,8 +169,11 @@ void main() {
     _TestAuthNotifier? authNotifier,
     ServiceType? initialServiceType,
     Future<List<Promo>> Function(Ref ref, ServiceType type)? loadPromos,
+    Future<List<Ad>> Function(Ref ref)? loadAdsFeed,
     Future<int> Function(Ref ref)? loadUnreadNotifications,
     ChatThreadsResult? chatThreads,
+    bool locationAvailable = false,
+    LocationService? locationService,
   }) {
     final notifier = authNotifier ??
         _TestAuthNotifier(
@@ -144,13 +187,22 @@ void main() {
             (ref) => initialServiceType,
           ),
         userCarsProvider.overrideWith((ref) async => const [car]),
-        locationServiceProvider.overrideWithValue(_FakeLocationService()),
-        adsAsPromosProvider.overrideWith(
-          loadPromos ?? (ref, type) async => const [],
+        pendingReviewsProvider.overrideWith((ref) async => const []),
+        locationServiceProvider.overrideWithValue(
+          locationService ??
+              _FakeLocationService(locationAvailable: locationAvailable),
         ),
+        if (loadAdsFeed != null)
+          adsFeedProvider.overrideWith(loadAdsFeed)
+        else
+          adsAsPromosProvider.overrideWith(
+            loadPromos ?? (ref, type) async => const [],
+          ),
+        adTrackerProvider.overrideWith(_NoopAdTrackerNotifier.new),
         unreadNotificationsCountProvider.overrideWith(
           loadUnreadNotifications ?? (ref) async => 0,
         ),
+        pendingReviewsProvider.overrideWith((ref) async => const []),
         if (chatThreads != null)
           consumerRequestsProvider.overrideWith((ref) async => chatThreads),
         topProvidersProvider.overrideWith((ref, type) {
@@ -233,6 +285,53 @@ void main() {
         description: 'Home vertical ListView',
       );
 
+  testWidgets(
+      'pending-deletion account blocks Home and can continue to Profile',
+      (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(375, 812));
+    final pendingUser = consumer.copyWith(
+      accountStatus: AccountStatus.pendingDeletion,
+      deletionScheduledAt: DateTime(2026, 10, 9),
+    );
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      user: pendingUser,
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(
+      tester,
+      container,
+      width: 375,
+      height: 812,
+      textScale: 2,
+      disableAnimations: true,
+    );
+
+    expect(find.byKey(const Key('pending-deletion-overlay')), findsOneWidget);
+    expect(
+        find.text('Tu cuenta está en proceso de eliminación'), findsOneWidget);
+
+    expect(find.bySemanticsLabel('Notificaciones'), findsNothing);
+    final notificationIcon = find.byIcon(Icons.notifications_outlined);
+    await tester.tapAt(tester.getCenter(notificationIcon));
+    await tester.pump();
+    expect(find.text('notifications-route'), findsNothing);
+
+    final openProfileButton =
+        find.byKey(const Key('pending-deletion-open-profile'));
+    await tester.ensureVisible(openProfileButton);
+    await tester.pump();
+    await tester.tap(openProfileButton);
+    await tester.pumpAndSettle();
+
+    expect(container.read(homeTabProvider), MainNavigationTab.profile);
+    expect(find.byKey(const Key('pending-deletion-overlay')), findsNothing);
+    expect(find.byKey(const Key('restore-account')), findsOneWidget);
+  }, semanticsEnabled: true);
+
   testWidgets('notification count activates the Home bell indicator',
       (tester) async {
     final container = containerFor(
@@ -305,7 +404,7 @@ void main() {
 
     await pumpHome(tester, container, height: 1800);
 
-    final promoFinder = find.text('Revisión de frenos con descuento');
+    final promoFinder = find.byKey(const Key('home-promo-section'));
     final workshopsSurface =
         find.byKey(const Key('home-provider-section-workshops'));
     final mechanicsSurface =
@@ -359,29 +458,25 @@ void main() {
 
     await pumpHome(tester, container, height: 1800);
 
-    const orderedLabels = [
-      '¿En qué podemos ayudarte hoy?',
-      'Pedir repuesto',
-      'Talleres mejor valorados',
-      'Mecánicos mejor valorados',
+    final orderedContent = [
+      find.text('¿En qué podemos ayudarte hoy?'),
+      find.byKey(const Key('home-promo-section')),
+      find.text('Pedir repuesto'),
+      find.text('Talleres mejor valorados'),
+      find.text('Mecánicos mejor valorados'),
     ];
     final firstOccurrenceY = <double>[];
-    for (final label in orderedLabels) {
-      final finder = find.text(label);
+    for (final finder in orderedContent) {
       expect(finder, findsOneWidget);
       firstOccurrenceY.add(tester.getTopLeft(finder.first).dy);
     }
     expect(firstOccurrenceY, orderedEquals([...firstOccurrenceY]..sort()));
 
-    final promoFinder = find.text('Revisión de frenos con descuento');
+    final promoFinder = find.byKey(const Key('home-promo-section'));
     expect(promoFinder, findsOneWidget);
     expect(
-      tester.getTopLeft(find.text('Pedir repuesto')).dy,
-      lessThan(tester.getTopLeft(promoFinder).dy),
-    );
-    expect(
       tester.getTopLeft(promoFinder).dy,
-      lessThan(tester.getTopLeft(find.text('Talleres mejor valorados')).dy),
+      lessThan(tester.getTopLeft(find.text('Pedir repuesto')).dy),
     );
 
     final workshopsSurface =
@@ -395,14 +490,17 @@ void main() {
       lessThan(tester.getTopLeft(mechanicsSurface).dy),
     );
     expect(
-      tester.getTopLeft(promoFinder).dy,
+      tester.getTopLeft(find.text('Pedir repuesto')).dy,
       lessThan(tester.getTopLeft(workshopsSurface).dy),
     );
-
     expect(
-      find.byKey(const Key('home-selected-vehicle-control')),
-      findsOneWidget,
+      tester.getTopLeft(workshopsSurface).dy -
+          tester
+              .getBottomLeft(find.byKey(const Key('home-category-section')))
+              .dy,
+      24,
     );
+
     expect(find.byKey(const Key('home-vehicle-chips-list')), findsNothing);
 
     final workshopsSection = tester.widget<TopProvidersSection>(
@@ -420,7 +518,7 @@ void main() {
     );
     expect(mechanicsSection.serviceType, ServiceType.mechanic);
     expect(find.text('Mi garage'), findsNothing);
-    expect(find.text('Chats'), findsOneWidget);
+    expect(find.text('Solicitudes'), findsOneWidget);
     expect(find.text('Compras'), findsOneWidget);
     expect(
       find.byWidgetPredicate(
@@ -433,8 +531,7 @@ void main() {
     );
   });
 
-  testWidgets(
-      'spare-part action uses the first garage car displayed by the header',
+  testWidgets('spare-part action uses the first cached garage car',
       (tester) async {
     final container = containerFor(
       workshops: const AsyncValue.data([]),
@@ -445,8 +542,9 @@ void main() {
     await pumpHome(tester, container);
 
     expect(container.read(searchVehicleProvider), isNull);
-    expect(find.text('Toyota Corolla · 2022'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Pedir repuesto'));
+    await tester.pump();
     await tester.tap(find.text('Pedir repuesto'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -470,6 +568,8 @@ void main() {
 
     expect(find.byType(StoreDashboardView), findsNothing);
     expect(find.text('¿En qué podemos ayudarte hoy?'), findsOneWidget);
+    await tester.fling(homeListView(), const Offset(0, -800), 4000);
+    await tester.pump();
     expect(find.text('Talleres mejor valorados'), findsOneWidget);
   });
 
@@ -496,6 +596,8 @@ void main() {
 
     expect(find.byType(StoreDashboardView), findsNothing);
     expect(find.text('¿En qué podemos ayudarte hoy?'), findsOneWidget);
+    await tester.fling(homeListView(), const Offset(0, -800), 4000);
+    await tester.pump();
     expect(find.text('Talleres mejor valorados'), findsOneWidget);
   });
 
@@ -510,15 +612,17 @@ void main() {
     addTearDown(container.dispose);
 
     await pumpHome(tester, container);
+
+    expect(find.text('Estadísticas'), findsOneWidget);
+    expect(find.text('Pedir repuesto'), findsOneWidget);
+    expect(find.text('Buscar mecánico'), findsNothing);
+    expect(find.text('Mi garage'), findsNothing);
+
     await tester.fling(homeListView(), const Offset(0, -1600), 5000);
     await tester.pump();
 
     expect(find.text('Talleres cerca de ti'), findsOneWidget);
     expect(find.text('Mecánicos cerca de ti'), findsNothing);
-    expect(find.text('Estadísticas'), findsOneWidget);
-    expect(find.text('Pedir repuesto'), findsOneWidget);
-    expect(find.text('Buscar mecánico'), findsNothing);
-    expect(find.text('Mi garage'), findsNothing);
     expect(
       find.byKey(const Key('home-provider-section-workshops')),
       findsOneWidget,
@@ -534,6 +638,125 @@ void main() {
       find.byKey(const Key('home-selected-vehicle-control')),
       findsNothing,
     );
+  });
+
+  for (final providerCase in const [
+    ('mechanic', mechanic),
+    ('workshop', workshop),
+  ]) {
+    testWidgets('${providerCase.$1} Home shows advertising', (tester) async {
+      var promoLoads = 0;
+      final container = containerFor(
+        workshops: const AsyncValue.data([]),
+        mechanics: const AsyncValue.data([]),
+        user: providerCase.$2,
+        initialServiceType: ServiceType.spareParts,
+        loadPromos: (ref, type) async {
+          promoLoads++;
+          return const [promo];
+        },
+      );
+      addTearDown(container.dispose);
+
+      await pumpHome(tester, container);
+
+      expect(promoLoads, 1);
+      expect(find.byKey(const Key('home-promo-section')), findsOneWidget);
+      expect(find.byType(PromoCarousel), findsOneWidget);
+      expect(find.byKey(const Key('promo-indicator-0')), findsOneWidget);
+    });
+  }
+
+  testWidgets('consumer Home shows the CBK ad while location is disabled',
+      (tester) async {
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+
+    expect(find.byKey(const Key('home-promo-section')), findsOneWidget);
+    expect(find.byKey(const Key('cbk-location-disabled-ad')), findsOneWidget);
+    expect(find.byType(PromoCarousel), findsNothing);
+    expect(
+      find.bySemanticsLabel(
+        'Publicidad CBK: pastillas de freno premium semi-metálicas. '
+        'Seguridad, rendimiento y calidad.',
+      ),
+      findsOneWidget,
+    );
+    final image = tester.widget<Image>(
+      find.descendant(
+        of: find.byKey(const Key('cbk-location-disabled-ad')),
+        matching: find.byType(Image),
+      ),
+    );
+    expect(
+      image.image,
+      const AssetImage('assets/images/cbk_brake_pads_ad.jpeg'),
+    );
+    final bannerSize =
+        tester.getSize(find.byKey(const Key('cbk-location-disabled-ad')));
+    expect(bannerSize.aspectRatio, closeTo(1080 / 431, 0.01));
+    expect(find.byKey(const Key('home-category-section')), findsOneWidget);
+    expect(find.text('Pedir repuesto'), findsOneWidget);
+  }, semanticsEnabled: true);
+
+  testWidgets('consumer Home waits for the location check before showing CBK',
+      (tester) async {
+    final locationService = _PendingLocationService();
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      locationService: locationService,
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+
+    expect(find.byType(PromoSkeleton), findsOneWidget);
+    expect(find.byKey(const Key('cbk-location-disabled-ad')), findsNothing);
+
+    locationService.serviceEnabled.complete(false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(PromoSkeleton), findsNothing);
+    expect(find.byKey(const Key('cbk-location-disabled-ad')), findsOneWidget);
+  });
+
+  testWidgets('consumer Home shows backend ads while location is active',
+      (tester) async {
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      loadPromos: (ref, type) async => const [promo],
+      locationAvailable: true,
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+
+    expect(find.byType(PromoCarousel), findsOneWidget);
+    expect(find.byKey(const Key('cbk-location-disabled-ad')), findsNothing);
+  });
+
+  testWidgets('consumer Home shows no ad when active-location feed is empty',
+      (tester) async {
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      locationAvailable: true,
+    );
+    addTearDown(container.dispose);
+
+    await pumpHome(tester, container);
+
+    expect(find.byKey(const Key('home-promo-section')), findsNothing);
+    expect(find.byType(PromoCarousel), findsNothing);
+    expect(find.byKey(const Key('cbk-location-disabled-ad')), findsNothing);
   });
 
   for (final providerCase in const [
@@ -575,6 +798,7 @@ void main() {
       workshops: const AsyncValue.data([]),
       mechanics: const AsyncValue.data([]),
       loadPromos: (ref, type) => pendingPromos.future,
+      locationAvailable: true,
     );
     addTearDown(container.dispose);
 
@@ -582,6 +806,10 @@ void main() {
 
     expect(find.byType(PromoSkeleton), findsOneWidget);
     expect(find.byType(PromoCarousel), findsNothing);
+    expect(
+      tester.getTopLeft(find.byType(PromoSkeleton)).dy,
+      lessThan(tester.getTopLeft(find.text('Pedir repuesto')).dy),
+    );
   });
 
   testWidgets('consumer Home keeps a retryable ad slot after promo errors',
@@ -590,17 +818,27 @@ void main() {
     final container = containerFor(
       workshops: const AsyncValue.data([]),
       mechanics: const AsyncValue.data([]),
-      loadPromos: (ref, type) async {
+      loadAdsFeed: (ref) async {
         attempts += 1;
         if (attempts == 1) {
           throw StateError('private advertising secret');
         }
-        return const [promo];
+        return const [
+          Ad(
+            id: 'backend-ad-1',
+            brandName: 'CBK',
+            type: 'BANNER',
+            title: 'Publicidad real',
+            mediaUrl: 'https://example.com/backend-ad.jpg',
+          ),
+        ];
       },
+      locationAvailable: true,
     );
     addTearDown(container.dispose);
 
     await pumpHome(tester, container);
+    await tester.pumpAndSettle();
 
     expect(find.byType(PromoCarousel), findsNothing);
     expect(find.byType(PromoSkeleton), findsNothing);
@@ -610,13 +848,13 @@ void main() {
     expect(find.textContaining('private advertising secret'), findsNothing);
     expect(find.text('Talleres mejor valorados'), findsOneWidget);
 
-    final actionY = tester.getBottomLeft(find.text('Pedir repuesto')).dy;
+    final actionY = tester.getTopLeft(find.text('Pedir repuesto')).dy;
     final promoY =
         tester.getTopLeft(find.byKey(const Key('promo-error-card'))).dy;
     final workshopsY =
         tester.getTopLeft(find.text('Talleres mejor valorados')).dy;
-    expect(actionY, lessThan(promoY));
-    expect(promoY, lessThan(workshopsY));
+    expect(promoY, lessThan(actionY));
+    expect(actionY, lessThan(workshopsY));
 
     await tester.ensureVisible(find.text('Reintentar'));
     await tester.pump();
@@ -626,7 +864,8 @@ void main() {
 
     expect(attempts, 2);
     expect(find.byKey(const Key('promo-error-card')), findsNothing);
-    expect(find.text('Revisión de frenos con descuento'), findsOneWidget);
+    expect(find.byType(PromoCarousel), findsOneWidget);
+    expect(find.byKey(const Key('promo-indicator-0')), findsOneWidget);
   });
 
   testWidgets('consumer Home renders both provider loading states',
@@ -639,11 +878,13 @@ void main() {
 
     await pumpHome(tester, container);
 
-    expect(find.byKey(const Key('top-provider-skeleton-1')), findsOneWidget);
+    await tester.fling(homeListView(), const Offset(0, -700), 4000);
+    await tester.pump();
+    expect(find.byKey(const Key('top-provider-skeleton-1')), findsWidgets);
     expect(find.text('Talleres mejor valorados'), findsOneWidget);
     await tester.fling(homeListView(), const Offset(0, -1600), 5000);
     await tester.pump();
-    expect(find.byKey(const Key('top-provider-skeleton-1')), findsOneWidget);
+    expect(find.byKey(const Key('top-provider-skeleton-1')), findsWidgets);
     expect(find.text('Mecánicos mejor valorados'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
@@ -657,6 +898,8 @@ void main() {
     addTearDown(container.dispose);
 
     await pumpHome(tester, container);
+    await tester.fling(homeListView(), const Offset(0, -700), 4000);
+    await tester.pump();
     expect(find.text('Todavía no hay talleres valorados'), findsOneWidget);
     await tester.fling(homeListView(), const Offset(0, -1200), 5000);
     await tester.pump();
@@ -679,6 +922,8 @@ void main() {
     addTearDown(container.dispose);
 
     await pumpHome(tester, container);
+    await tester.fling(homeListView(), const Offset(0, -700), 4000);
+    await tester.pump();
     expect(find.text('No pudimos cargar los talleres'), findsOneWidget);
     await tester.fling(homeListView(), const Offset(0, -1200), 5000);
     await tester.pump();
@@ -700,6 +945,8 @@ void main() {
     addTearDown(container.dispose);
 
     await pumpHome(tester, container);
+    await tester.fling(homeListView(), const Offset(0, -700), 4000);
+    await tester.pump();
     expect(find.text('Taller Prueba'), findsOneWidget);
     await tester.fling(homeListView(), const Offset(0, -1400), 5000);
     await tester.pump();
@@ -793,7 +1040,7 @@ void main() {
     );
   });
 
-  testWidgets('purchases list reaches navigation without a blank band',
+  testWidgets('purchases list flows behind the floating navigation capsule',
       (tester) async {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final threads = List.generate(
@@ -813,11 +1060,10 @@ void main() {
       chatThreads: ChatThreadsResult(
         threads: threads,
         counts: const {'all': 4, 'open': 4, 'closed': 0},
-        total: 4,
       ),
     );
     addTearDown(container.dispose);
-    container.read(homeTabProvider.notifier).state = MainNavigationTab.commerce;
+    container.read(homeTabProvider.notifier).state = MainNavigationTab.requests;
 
     for (final configuration in const [
       (size: Size(375, 812), textScale: 1.0),
@@ -842,14 +1088,29 @@ void main() {
         description: 'chat requests list',
       );
       final listRect = tester.getRect(chatList);
-      final navigationRect = tester.getRect(find.byType(BottomNavBar));
+      final navigationSurfaceRect = tester.getRect(
+        find.byKey(const Key('bottom-nav-surface')),
+      );
+      final homeScaffold = tester.widget<Scaffold>(
+        find.byKey(const Key('home-scaffold')),
+      );
+      final list = tester.widget<ListView>(chatList);
 
+      expect(homeScaffold.bottomNavigationBar, isNull);
       expect(
         listRect.bottom,
-        closeTo(navigationRect.top, 1),
-        reason: 'The requests viewport must finish where the menu begins at '
+        greaterThan(navigationSurfaceRect.top),
+        reason: 'The requests viewport must continue behind the capsule at '
             '${configuration.size} and ${configuration.textScale}x text; '
-            'list=$listRect navigation=$navigationRect',
+            'list=$listRect navigation=$navigationSurfaceRect',
+      );
+      expect(
+        (list.padding! as EdgeInsets).bottom,
+        greaterThanOrEqualTo(bottomNavigationContentInset(
+          tester.element(chatList),
+        )),
+        reason: 'The list still needs enough trailing scroll space for its '
+            'last card to clear the floating navigation.',
       );
       expect(tester.takeException(), isNull);
     }

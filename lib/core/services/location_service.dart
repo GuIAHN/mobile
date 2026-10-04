@@ -12,6 +12,11 @@ final isLocationSharedProvider = StateProvider<bool>((ref) {
   return false;
 });
 
+/// Indica si ya terminó la comprobación inicial de ubicación del Home.
+final isLocationCheckCompleteProvider = StateProvider<bool>((ref) {
+  return false;
+});
+
 /// Servicio encargado de la interacción directa con el plugin de geolocalización.
 class LocationService {
   /// Verifica si el GPS/servicio de ubicación está encendido.
@@ -35,11 +40,6 @@ class LocationService {
       desiredAccuracy: LocationAccuracy.high,
       timeLimit: const Duration(seconds: 7),
     );
-  }
-
-  /// Obtiene la última ubicación conocida del dispositivo.
-  Future<Position?> getLastKnownPosition() async {
-    return await Geolocator.getLastKnownPosition();
   }
 
   /// Convierte coordenadas en una etiqueta breve y legible para el header.

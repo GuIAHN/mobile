@@ -9,12 +9,16 @@ class AddCarToGarageUseCase {
   AddCarToGarageUseCase(this.repository);
 
   Future<Either<Failure, UserCar>> call({
-    required String variantId,
+    required String modelId,
+    required int year,
+    String? motor,
     String? placa,
     String? color,
   }) {
     return repository.addCarToGarage(
-      variantId: variantId,
+      modelId: modelId,
+      year: year,
+      motor: motor,
       placa: placa,
       color: color,
     );

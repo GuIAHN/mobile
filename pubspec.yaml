@@ -1,7 +1,7 @@
 name: guiautomotriz_mobile
 description: App móvil para gestión automotriz. Consume API REST (NestJS).
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -33,7 +33,9 @@ dependencies:
 
   # Utilidades de UI
   cupertino_icons: ^1.0.8
+  fl_chart: ^1.2.0
   google_fonts: ^6.2.1
+  lucide_icons_flutter: ^3.1.17
   google_sign_in: ^6.2.1
 
   # Geolocalización
@@ -41,7 +43,7 @@ dependencies:
   image_picker: ^1.2.3
   socket_io_client: ^3.1.6
   url_launcher: ^6.3.2
-  flutter_map: ^7.0.2
+  google_maps_flutter: ^2.18.0
   latlong2: ^0.9.1
   sign_in_with_apple: ^8.1.0
   firebase_core: ^4.12.1
@@ -49,6 +51,7 @@ dependencies:
   flutter_local_notifications: ^22.2.0
   flutter_svg: ^2.3.0
   geocoding: ^5.0.0
+  uuid: ^4.5.3
 
 dev_dependencies:
   flutter_test:
@@ -62,6 +65,9 @@ flutter_launcher_icons:
   android: "ic_launcher"
   ios: true
   image_path: "assets/images/logo_icon_zoom.png"
+  image_path_android: "assets/images/logo_icon_android.png"
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/images/logo_icon.png"
   remove_alpha_ios: true
   min_sdk_android: 21
 
@@ -85,3 +91,4 @@ flutter:
     - assets/images/vehicles/v2/
     - assets/images/vehicles/v3/
     - assets/images/categories/
+    - assets/legal/

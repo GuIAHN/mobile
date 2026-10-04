@@ -32,16 +32,4 @@ class HomeItemModel extends HomeItem {
           : null,
     );
   }
-
-  Map<String, dynamic> toJson() => {
-        'name': name,
-        'detail': detail,
-        'rating': rating,
-        'reviews': reviews,
-        'distanceKm': distanceKm,
-        'isOpen': isOpen,
-        'iconName': iconName,
-        'type': type.name,
-        if (gradientColors != null) 'gradientColors': gradientColors,
-      };
 }

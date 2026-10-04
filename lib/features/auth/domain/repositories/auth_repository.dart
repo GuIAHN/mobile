@@ -1,7 +1,7 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/user.dart';
-import '../entities/store_category_config.dart';
+import '../entities/store_coverage_config.dart';
 
 /// Authentication repository contract (pure domain).
 /// The implementation resides in the data layer.
@@ -28,6 +28,7 @@ abstract class AuthRepository {
     String? phone,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
   });
 
   /// Registers a mechanic or workshop.
@@ -44,6 +45,9 @@ abstract class AuthRepository {
     required List<String> specialtyIds,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
+    String? idPhotoPath,
+    String? rifPhotoPath,
   });
 
   /// Registers a store and configures its initial catalog.
@@ -56,14 +60,26 @@ abstract class AuthRepository {
     required double longitude,
     required String address,
     required String rif,
-    required List<StoreCategoryConfig> catalog,
+    required StoreCoverageConfig coverage,
     required bool hasDelivery,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
+    required String rifPhotoPath,
   });
 
   /// Closes the current session and clears stored tokens.
   Future<Either<Failure, void>> logout();
+
+  /// Requests a six-digit password reset code for [email].
+  Future<Either<Failure, String>> forgotPassword({required String email});
+
+  /// Replaces the forgotten password after validating the emailed [code].
+  Future<Either<Failure, String>> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  });
 
   /// Returns the currently authenticated user (by stored token).
   Future<Either<Failure, User>> getCurrentUser();
@@ -76,14 +92,30 @@ abstract class AuthRepository {
     String? name,
     String? photo,
     String? phone,
+    String? description,
     double? latitude,
     double? longitude,
   });
 
+  /// Changes the current user's password. Requires [currentPassword] to be
+  /// verified server-side before [newPassword] is set.
+  Future<Either<Failure, void>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
+  /// Schedules the authenticated account for deletion.
+  Future<Either<Failure, DateTime>> requestAccountDeletion({
+    String? password,
+  });
+
+  /// Restores an account during its deletion grace period.
+  Future<Either<Failure, void>> restoreAccount();
+
   /// Registers a device token for push notifications
-  Future<Either<Failure, void>> registerDeviceToken(String token, {String? deviceOs});
+  Future<Either<Failure, void>> registerDeviceToken(String token,
+      {String? deviceOs});
 
   /// Removes a device token for push notifications
   Future<Either<Failure, void>> removeDeviceToken(String token);
 }
-

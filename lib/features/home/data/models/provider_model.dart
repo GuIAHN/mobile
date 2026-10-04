@@ -66,6 +66,13 @@ class ProviderModel extends HomeItem {
       String value when value.toLowerCase() == 'false' => false,
       _ => null,
     };
+    final user = json['user'] as Map?;
+    final photo = json['photo'] as String? ??
+        json['photoUrl'] as String? ??
+        json['foto'] as String? ??
+        json['fotoUrl'] as String? ??
+        user?['photo'] as String? ??
+        user?['photoUrl'] as String?;
 
     return ProviderModel(
       id: json['id'] as String,
@@ -84,7 +91,7 @@ class ProviderModel extends HomeItem {
       hasDelivery: json['hasDelivery'] as bool? ??
           json['has_delivery'] as bool? ??
           false,
-      photo: json['photo'] as String? ?? json['foto'] as String?,
+      photo: photo,
     );
   }
 

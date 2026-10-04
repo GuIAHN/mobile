@@ -4,12 +4,38 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../../core/domain/enums/user_role.dart';
 import '../../../../../core/services/location_service.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../auth/presentation/providers/auth_state.dart';
+
+String _headerDisplayName(String rawName, UserRole role) {
+  final name = rawName.trim();
+  final roleLabels = switch (role) {
+    UserRole.store => const ['tienda', 'store'],
+    UserRole.mechanic => const ['mecánico', 'mecanico', 'mechanic'],
+    UserRole.workshop => const ['taller', 'workshop'],
+    UserRole.consumer => const ['cliente', 'consumer'],
+    UserRole.admin => const ['administrador', 'admin'],
+    UserRole.unknown => const <String>[],
+  };
+
+  if (roleLabels.isEmpty) return name;
+
+  final roleSuffix = roleLabels.map(RegExp.escape).join('|');
+  return name
+      .replaceFirst(
+        RegExp(
+          '\\s*\\((?:$roleSuffix)\\)\\s*\$',
+          caseSensitive: false,
+        ),
+        '',
+      )
+      .trim();
+}
 
 class HomeHeaderExpanded extends ConsumerStatefulWidget {
   /// Contenido opcional integrado dentro del bloque de color
@@ -45,32 +71,38 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
   }
 
   Future<void> _checkInitialLocationPermission() async {
-    final isShared = ref.read(isLocationSharedProvider);
-    if (!isShared) return;
+    ref.read(isLocationCheckCompleteProvider.notifier).state = false;
+    try {
+      final role = ref.read(authProvider).user?.role;
+      if (role?.usesSavedLocationForSearch ?? false) {
+        _clearTemporaryLocation();
+        return;
+      }
 
-    final storedPosition = ref.read(userLocationProvider).valueOrNull;
-    if (storedPosition != null) {
-      await _resolveLocationName(storedPosition);
-      return;
-    }
+      final storedPosition = ref.read(userLocationProvider).valueOrNull;
+      if (storedPosition != null) {
+        ref.read(isLocationSharedProvider.notifier).state = true;
+        await _resolveLocationName(storedPosition);
+        return;
+      }
 
-    final service = ref.read(locationServiceProvider);
-    final permission = await service.checkPermission();
-
-    if (permission == LocationPermission.always ||
-        permission == LocationPermission.whileInUse) {
+      // Solicita el permiso y obtiene la posición al entrar al Home. El diálogo
+      // del sistema aparece después del primer frame, sin bloquear el arranque.
       final success =
           await ref.read(userLocationProvider.notifier).updateLocation();
       if (!mounted) return;
+
       final position = ref.read(userLocationProvider).valueOrNull;
       if (success && position != null) {
+        ref.read(isLocationSharedProvider.notifier).state = true;
         await _resolveLocationName(position);
       } else {
         ref.read(isLocationSharedProvider.notifier).state = false;
       }
-    } else {
-      ref.read(isLocationSharedProvider.notifier).state = false;
-      ref.read(userLocationProvider.notifier).clear();
+    } finally {
+      if (mounted) {
+        ref.read(isLocationCheckCompleteProvider.notifier).state = true;
+      }
     }
   }
 
@@ -90,6 +122,9 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
   }
 
   Future<void> _handleLocationToggle(BuildContext context) async {
+    final role = ref.read(authProvider).user?.role;
+    if (role?.usesSavedLocationForSearch ?? false) return;
+
     final service = ref.read(locationServiceProvider);
     final isShared = ref.read(isLocationSharedProvider);
 
@@ -147,6 +182,18 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
     }
   }
 
+  void _clearTemporaryLocation() {
+    if (ref.read(isLocationSharedProvider)) {
+      ref.read(isLocationSharedProvider.notifier).state = false;
+    }
+    if (ref.read(userLocationProvider).valueOrNull != null) {
+      ref.read(userLocationProvider.notifier).clear();
+    }
+    if (mounted && _resolvedLocationName != null) {
+      setState(() => _resolvedLocationName = null);
+    }
+  }
+
   void _showLocationSettingsDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -197,7 +244,16 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
     final isLocationShared = ref.watch(isLocationSharedProvider);
     final locationAsync = ref.watch(userLocationProvider);
     final authState = ref.watch(authProvider);
-    final userName = authState.user?.name.trim();
+    final user = authState.user;
+    final usesSavedLocation = user?.role.usesSavedLocationForSearch ?? false;
+    if (usesSavedLocation &&
+        (isLocationShared || locationAsync.valueOrNull != null)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _clearTemporaryLocation();
+      });
+    }
+    final userName =
+        user == null ? null : _headerDisplayName(user.name, user.role);
     final isLoadingAuth = authState.status == AuthStatus.loading ||
         authState.status == AuthStatus.initial;
 
@@ -284,80 +340,85 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Fila superior: ubicación chip + notificaciones ───────────
+                  // ── Fila superior: ubicación móvil + notificaciones ─────────
                   Padding(
                     padding:
                         const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Flexible(
-                          child: Semantics(
-                            button: true,
-                            excludeSemantics: true,
-                            label: isLocationShared
-                                ? 'Desactivar ubicación. Ubicación actual: $locationText'
-                                : 'Activar ubicación',
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                key: const Key('home-location-control'),
-                                onTap: () => _handleLocationToggle(context),
-                                borderRadius: BorderRadius.circular(
-                                    AppSpacing.radiusFull),
-                                child: Container(
-                                  height: 36,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.18),
-                                    borderRadius: BorderRadius.circular(
-                                        AppSpacing.radiusFull),
-                                    border: Border.all(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.35),
-                                      width: 1.0,
+                        if (!usesSavedLocation)
+                          Flexible(
+                            child: Semantics(
+                              button: true,
+                              excludeSemantics: true,
+                              label: isLocationShared
+                                  ? 'Desactivar ubicación. Ubicación actual: $locationText'
+                                  : 'Activar ubicación',
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  key: const Key('home-location-control'),
+                                  onTap: () => _handleLocationToggle(context),
+                                  borderRadius: BorderRadius.circular(
+                                      AppSpacing.radiusFull),
+                                  child: Container(
+                                    constraints:
+                                        const BoxConstraints(minHeight: 48),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
                                     ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        isLocationShared
-                                            ? Icons.location_on_rounded
-                                            : Icons.location_off_rounded,
-                                        color: Colors.white,
-                                        size: 16,
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(
+                                          AppSpacing.radiusFull),
+                                      border: Border.all(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.35),
+                                        width: 1.0,
                                       ),
-                                      const SizedBox(width: 5),
-                                      Flexible(
-                                        child: Text(
-                                          locationText,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: GoogleFonts.hankenGrotesk(
-                                            fontSize: 12.5,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.white,
-                                            letterSpacing: -0.1,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          isLocationShared
+                                              ? Icons.location_on_rounded
+                                              : Icons.location_off_rounded,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Flexible(
+                                          child: Text(
+                                            locationText,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.hankenGrotesk(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white,
+                                              letterSpacing: -0.1,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 3),
-                                      const Icon(
-                                        Icons.keyboard_arrow_down_rounded,
-                                        color: Colors.white,
-                                        size: 16,
-                                      ),
-                                    ],
+                                        const SizedBox(width: 3),
+                                        const Icon(
+                                          Icons.keyboard_arrow_down_rounded,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
+                          )
+                        else
+                          const Spacer(),
                         if (widget.onNotificationsTap != null) ...[
                           const SizedBox(width: AppSpacing.sm),
                           _NotificationButton(
@@ -425,7 +486,8 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
                             height: 22,
                             borderRadius: 6,
                             baseColor: Colors.white.withValues(alpha: 0.22),
-                            highlightColor: Colors.white.withValues(alpha: 0.40),
+                            highlightColor:
+                                Colors.white.withValues(alpha: 0.40),
                           ),
                           const SizedBox(height: 8),
                           SkeletonBox(
@@ -433,7 +495,8 @@ class _HomeHeaderExpandedState extends ConsumerState<HomeHeaderExpanded> {
                             height: 13,
                             borderRadius: 4,
                             baseColor: Colors.white.withValues(alpha: 0.16),
-                            highlightColor: Colors.white.withValues(alpha: 0.30),
+                            highlightColor:
+                                Colors.white.withValues(alpha: 0.30),
                           ),
                         ],
                       ),

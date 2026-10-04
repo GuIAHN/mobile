@@ -3,7 +3,7 @@ import '../../theme/app_colors.dart';
 
 /// Estado de una oferta/cotización o de una solicitud de búsqueda sin oferta.
 /// Mapea al enum `OfferStatus` de Prisma en el backend (`SENT`, `ACCEPTED`,
-/// `DISCARDED`, `BOUGHT`, `DELIVERED`), más estados que solo existen en el
+/// `DISCARDED`, `BOUGHT`, `DELIVERED`, `CANCELLED`), más estados que solo existen en el
 /// cliente (`noOffers`, `offersReceived`, `unquoted`, `noQuoteYet`) para las
 /// cards que muestran una solicitud o chat antes de que exista una oferta.
 enum OfferStatus {
@@ -35,6 +35,12 @@ enum OfferStatus {
 
   /// Oferta entregada — ciclo cerrado.
   delivered,
+
+  /// Compra cancelada por el comprador o automáticamente por el sistema.
+  cancelled,
+
+  /// Fallback tolerante para valores futuros enviados por el backend.
+  unknown,
 }
 
 extension OfferStatusX on OfferStatus {
@@ -53,8 +59,13 @@ extension OfferStatusX on OfferStatus {
         return OfferStatus.bought;
       case 'DELIVERED':
         return OfferStatus.delivered;
+      case 'CANCELLED':
+        return OfferStatus.cancelled;
       default:
-        return hasOffer ? OfferStatus.sent : OfferStatus.unquoted;
+        if (status == null || status.isEmpty) {
+          return hasOffer ? OfferStatus.sent : OfferStatus.unquoted;
+        }
+        return OfferStatus.unknown;
     }
   }
 
@@ -77,6 +88,10 @@ extension OfferStatusX on OfferStatus {
         return '¡VENDIDA!';
       case OfferStatus.delivered:
         return 'ENTREGADA';
+      case OfferStatus.cancelled:
+        return 'CANCELADA';
+      case OfferStatus.unknown:
+        return 'ESTADO ACTUALIZADO';
     }
   }
 
@@ -87,6 +102,8 @@ extension OfferStatusX on OfferStatus {
         return 'COMPRADA';
       case OfferStatus.discarded:
         return 'CERRADA';
+      case OfferStatus.cancelled:
+        return 'CANCELADA';
       default:
         return label;
     }
@@ -111,6 +128,10 @@ extension OfferStatusX on OfferStatus {
         return Icons.shopping_bag_rounded;
       case OfferStatus.delivered:
         return Icons.task_alt_rounded;
+      case OfferStatus.cancelled:
+        return Icons.block_rounded;
+      case OfferStatus.unknown:
+        return Icons.info_outline_rounded;
     }
   }
 
@@ -131,6 +152,10 @@ extension OfferStatusX on OfferStatus {
       case OfferStatus.delivered:
         return AppColors.successLight;
       case OfferStatus.discarded:
+        return AppColors.grey100;
+      case OfferStatus.cancelled:
+        return AppColors.errorLight;
+      case OfferStatus.unknown:
         return AppColors.grey100;
     }
   }
@@ -153,6 +178,10 @@ extension OfferStatusX on OfferStatus {
         return AppColors.successInk;
       case OfferStatus.discarded:
         return AppColors.grey700;
+      case OfferStatus.cancelled:
+        return AppColors.errorInk;
+      case OfferStatus.unknown:
+        return AppColors.grey700;
     }
   }
 
@@ -173,8 +202,10 @@ extension OfferStatusX on OfferStatus {
         return AppColors.celeste;
       case OfferStatus.noQuoteYet:
       case OfferStatus.discarded:
+      case OfferStatus.unknown:
         return Colors.transparent;
+      case OfferStatus.cancelled:
+        return AppColors.error;
     }
   }
 }
-

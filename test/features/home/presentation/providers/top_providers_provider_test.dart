@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/service_type.dart';
+import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
 import 'package:guiautomotriz_mobile/core/error/failures.dart';
+import 'package:guiautomotriz_mobile/core/providers/current_user_provider.dart';
 import 'package:guiautomotriz_mobile/core/services/location_service.dart';
 import 'package:guiautomotriz_mobile/features/home/domain/entities/home_filters.dart';
 import 'package:guiautomotriz_mobile/features/home/domain/entities/home_item.dart';
-import 'package:guiautomotriz_mobile/features/home/domain/entities/promo.dart';
 import 'package:guiautomotriz_mobile/features/home/domain/entities/provider_detail.dart';
 import 'package:guiautomotriz_mobile/features/home/domain/entities/top_providers_result.dart';
 import 'package:guiautomotriz_mobile/features/home/domain/repositories/home_repository.dart';
@@ -20,6 +21,7 @@ class _FakeHomeRepository implements HomeRepository {
   int calls = 0;
   double? receivedLat;
   double? receivedLng;
+  HomeFilters? receivedFilters;
 
   @override
   Future<Either<Failure, TopProvidersResult>> getTopProviders({
@@ -37,10 +39,6 @@ class _FakeHomeRepository implements HomeRepository {
       throw UnimplementedError();
 
   @override
-  Future<Either<Failure, List<Promo>>> getPromos(ServiceType type) =>
-      throw UnimplementedError();
-
-  @override
   Future<Either<Failure, ProviderDetail>> getProviderDetail({
     required String id,
     required ServiceType type,
@@ -52,8 +50,10 @@ class _FakeHomeRepository implements HomeRepository {
     required ServiceType type,
     required HomeFilters filters,
     int page = 1,
-  }) =>
-      throw UnimplementedError();
+  }) async {
+    receivedFilters = filters;
+    return const Right([]);
+  }
 }
 
 class _FixedLocationNotifier extends UserLocationNotifier {
@@ -107,7 +107,10 @@ void main() {
       () async {
     final repository = _FakeHomeRepository(groupedResult());
     final container = ProviderContainer(
-      overrides: [homeRepositoryProvider.overrideWithValue(repository)],
+      overrides: [
+        homeRepositoryProvider.overrideWithValue(repository),
+        currentRoleProvider.overrideWithValue(UserRole.consumer),
+      ],
     );
     addTearDown(container.dispose);
 
@@ -124,6 +127,36 @@ void main() {
       ['backend-first', 'backend-second', 'backend-third', 'backend-fourth'],
     );
     expect(mechanics.single.id, 'mechanic-first');
+  });
+
+  test('keeps the grouped Home response warm between tab visits', () async {
+    final repository = _FakeHomeRepository(groupedResult());
+    final container = ProviderContainer(
+      overrides: [
+        homeRepositoryProvider.overrideWithValue(repository),
+        currentRoleProvider.overrideWithValue(UserRole.consumer),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final firstVisit = container.listen(
+      topProvidersProvider(ServiceType.workshops),
+      (_, __) {},
+      fireImmediately: true,
+    );
+    await container.read(homeTopProvidersProvider.future);
+    firstVisit.close();
+    await Future<void>.delayed(Duration.zero);
+
+    final secondVisit = container.listen(
+      topProvidersProvider(ServiceType.workshops),
+      (_, __) {},
+      fireImmediately: true,
+    );
+    addTearDown(secondVisit.close);
+    await container.read(homeTopProvidersProvider.future);
+
+    expect(repository.calls, 1);
   });
 
   test('active location is sent once to the grouped fetch', () async {
@@ -143,6 +176,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         homeRepositoryProvider.overrideWithValue(repository),
+        currentRoleProvider.overrideWithValue(UserRole.mechanic),
         isLocationSharedProvider.overrideWith((ref) => true),
         userLocationProvider.overrideWith(
           (ref) => _FixedLocationNotifier(position),
@@ -158,10 +192,86 @@ void main() {
     expect(repository.receivedLng, -66.9036);
   });
 
+  test('store and workshop top providers use only the saved profile location',
+      () async {
+    for (final role in [UserRole.store, UserRole.workshop]) {
+      final repository = _FakeHomeRepository(groupedResult());
+      final position = Position(
+        longitude: -66.9036,
+        latitude: 10.4806,
+        timestamp: DateTime(2026),
+        accuracy: 5,
+        altitude: 0,
+        altitudeAccuracy: 0,
+        heading: 0,
+        headingAccuracy: 0,
+        speed: 0,
+        speedAccuracy: 0,
+      );
+      final container = ProviderContainer(
+        overrides: [
+          homeRepositoryProvider.overrideWithValue(repository),
+          currentRoleProvider.overrideWithValue(role),
+          isLocationSharedProvider.overrideWith((ref) => true),
+          userLocationProvider.overrideWith(
+            (ref) => _FixedLocationNotifier(position),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await loadBothGroups(container);
+
+      expect(repository.receivedLat, isNull, reason: role.name);
+      expect(repository.receivedLng, isNull, reason: role.name);
+    }
+  });
+
+  test('store and workshop list searches ignore temporary coordinates',
+      () async {
+    for (final role in [UserRole.store, UserRole.workshop]) {
+      final repository = _FakeHomeRepository(groupedResult());
+      final position = Position(
+        longitude: -66.9036,
+        latitude: 10.4806,
+        timestamp: DateTime(2026),
+        accuracy: 5,
+        altitude: 0,
+        altitudeAccuracy: 0,
+        heading: 0,
+        headingAccuracy: 0,
+        speed: 0,
+        speedAccuracy: 0,
+      );
+      final container = ProviderContainer(
+        overrides: [
+          homeRepositoryProvider.overrideWithValue(repository),
+          currentRoleProvider.overrideWithValue(role),
+          homeFiltersProvider.overrideWith(
+            (ref) => const HomeFilters(lat: 9.5, lon: -66.8),
+          ),
+          isLocationSharedProvider.overrideWith((ref) => true),
+          userLocationProvider.overrideWith(
+            (ref) => _FixedLocationNotifier(position),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(homeItemsProvider(ServiceType.mechanic).future);
+
+      expect(repository.receivedFilters?.lat, isNull, reason: role.name);
+      expect(repository.receivedFilters?.lon, isNull, reason: role.name);
+    }
+  });
+
   test('inactive location omits coordinates from the grouped fetch', () async {
     final repository = _FakeHomeRepository(groupedResult());
     final container = ProviderContainer(
-      overrides: [homeRepositoryProvider.overrideWithValue(repository)],
+      overrides: [
+        homeRepositoryProvider.overrideWithValue(repository),
+        currentRoleProvider.overrideWithValue(UserRole.consumer),
+      ],
     );
     addTearDown(container.dispose);
 

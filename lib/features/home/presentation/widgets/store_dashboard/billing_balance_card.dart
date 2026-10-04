@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../../core/theme/app_colors.dart';
+import '../../../../../../core/theme/app_decorations.dart';
+import '../../../../../../core/theme/app_icons.dart';
+import '../../../../../../core/theme/app_spacing.dart';
+import '../../../../../../core/theme/app_typography.dart';
 import '../../../../../../core/utils/formatters.dart';
 
 class BillingBalanceCard extends StatelessWidget {
@@ -24,12 +27,61 @@ class BillingBalanceCard extends StatelessWidget {
       (true, true) => 'Estás al día',
       (true, false) => 'Comisión pendiente por ventas realizadas en la app',
     };
-    final statusIcon = switch ((isAvailable, isPaidUp)) {
-      (false, _) => Icons.info_outline_rounded,
-      (true, true) => Icons.check_circle_outline_rounded,
-      (true, false) => Icons.receipt_long_outlined,
+    final statusLabel = switch ((isAvailable, isPaidUp)) {
+      (false, _) => 'SIN DATOS',
+      (true, true) => 'AL DÍA',
+      (true, false) => 'PENDIENTE',
     };
-    final statusColor = isPaidUp ? AppColors.successInk : AppColors.textMeta;
+    final statusIcon = switch ((isAvailable, isPaidUp)) {
+      (false, _) => AppIcons.info,
+      (true, true) => AppIcons.success,
+      (true, false) => AppIcons.receipt,
+    };
+    final statusColor = switch ((isAvailable, isPaidUp)) {
+      (false, _) => AppColors.warningInk,
+      (true, true) => AppColors.successInk,
+      (true, false) => AppColors.textMeta,
+    };
+    final statusBackground = switch ((isAvailable, isPaidUp)) {
+      (false, _) => AppColors.warningLight,
+      (true, true) => AppColors.successLight,
+      (true, false) => AppColors.primaryMuted,
+    };
+    final statusLabelColor = switch ((isAvailable, isPaidUp)) {
+      (false, _) => AppColors.warningInk,
+      (true, true) => AppColors.successInk,
+      (true, false) => AppColors.textPrimary,
+    };
+    final usesLargeText = MediaQuery.textScalerOf(context).scale(14) / 14 > 1.3;
+
+    final amountValue = FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text(
+        formattedAmount,
+        maxLines: 1,
+        style: AppTypography.display.copyWith(
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
+    );
+    final statusBadge = Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: statusBackground,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+      ),
+      child: Text(
+        statusLabel,
+        style: AppTypography.overline.copyWith(
+          color: statusLabelColor,
+          letterSpacing: 1,
+        ),
+      ),
+    );
 
     return Semantics(
       container: true,
@@ -38,76 +90,97 @@ class BillingBalanceCard extends StatelessWidget {
         child: Container(
           key: const Key('store-billing-balance-card'),
           width: double.infinity,
-          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
             border: Border.all(color: AppColors.border),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
+            boxShadow: AppDecorations.raised,
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryMuted,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.account_balance_wallet_outlined,
-                  size: 24,
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: AppSpacing.xs,
                   color: AppColors.primary,
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
+              const Positioned(
+                right: -8,
+                top: 44,
+                child: Opacity(
+                  opacity: 0.045,
+                  child: AppLineIcon(
+                    AppIcons.balance,
+                    size: AppIconSize.hero,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.xl),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Saldo pendiente con GuIA',
-                      style: GoogleFonts.hankenGrotesk(
-                        color: AppColors.textSecondary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        height: 1.25,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      formattedAmount,
-                      style: GoogleFonts.hankenGrotesk(
-                        color: AppColors.textPrimary,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        height: 1.1,
-                        letterSpacing: -0.5,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                    const SizedBox(height: 10),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(statusIcon, size: 18, color: statusColor),
-                        const SizedBox(width: 6),
+                        const AppLineIcon(
+                          AppIcons.balance,
+                          size: AppIconSize.leading,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Text(
+                            'Saldo pendiente con GuIA',
+                            style: AppTypography.title.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    if (usesLargeText)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(width: double.infinity, child: amountValue),
+                          const SizedBox(height: AppSpacing.sm),
+                          statusBadge,
+                        ],
+                      )
+                    else
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(child: amountValue),
+                          const SizedBox(width: AppSpacing.md),
+                          statusBadge,
+                        ],
+                      ),
+                    const SizedBox(height: AppSpacing.lg),
+                    const Divider(height: 1, color: AppColors.border),
+                    const SizedBox(height: AppSpacing.md),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AppLineIcon(
+                          statusIcon,
+                          size: AppIconSize.action,
+                          color: statusColor,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Text(
                             statusText,
-                            style: GoogleFonts.hankenGrotesk(
+                            style: AppTypography.bodySm.copyWith(
                               color: statusColor,
-                              fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              height: 1.35,
                             ),
                           ),
                         ),

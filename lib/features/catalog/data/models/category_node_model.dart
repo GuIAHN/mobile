@@ -6,6 +6,7 @@ class CategoryNodeModel extends CategoryNode {
     required super.id,
     required super.name,
     super.parentId,
+    super.isCatchAll,
     super.children,
   });
 
@@ -21,6 +22,8 @@ class CategoryNodeModel extends CategoryNode {
       id: json['id'] as String,
       name: json['name'] as String,
       parentId: json['parentId'] as String? ?? json['parent_id'] as String?,
+      isCatchAll:
+          json['isCatchAll'] as bool? ?? json['is_catch_all'] as bool? ?? false,
       children: children,
     );
   }

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import '../../core/theme/app_icons.dart';
+import '../../core/utils/media_url.dart';
 
 /// Visor modal de imágenes de pantalla completa con soporte para zoom interactivo.
 class ImageViewerDialog extends StatelessWidget {
@@ -12,7 +16,8 @@ class ImageViewerDialog extends StatelessWidget {
   });
 
   /// Muestra el visor en un diálogo modal sin bordes con fondo oscuro.
-  static Future<void> show(BuildContext context, String imageUrl, {String? title}) {
+  static Future<void> show(BuildContext context, String imageUrl,
+      {String? title}) {
     return showDialog<void>(
       context: context,
       barrierDismissible: true,
@@ -23,6 +28,8 @@ class ImageViewerDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final resolvedImageUrl = resolveMediaUrl(imageUrl) ?? imageUrl;
+
     return Dialog.fullscreen(
       backgroundColor: Colors.transparent,
       child: Stack(
@@ -33,7 +40,7 @@ class ImageViewerDialog extends StatelessWidget {
               minScale: 0.5,
               maxScale: 4.0,
               child: Image.network(
-                imageUrl,
+                resolvedImageUrl,
                 fit: BoxFit.contain,
                 loadingBuilder: (context, child, loadingProgress) {
                   if (loadingProgress == null) return child;
@@ -41,15 +48,23 @@ class ImageViewerDialog extends StatelessWidget {
                     child: CircularProgressIndicator(color: Colors.white),
                   );
                 },
-                errorBuilder: (_, __, ___) => const Center(
+                errorBuilder: (_, __, ___) => Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.broken_image_rounded, size: 64, color: Colors.white54),
-                      SizedBox(height: 12),
+                      const AppLineIcon(
+                        AppIcons.cloudError,
+                        size: AppIconSize.hero,
+                        color: Colors.white70,
+                      ),
+                      const SizedBox(height: 12),
                       Text(
                         'No se pudo cargar la imagen',
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                        style: GoogleFonts.hankenGrotesk(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
@@ -67,8 +82,13 @@ class ImageViewerDialog extends StatelessWidget {
               child: Row(
                 children: [
                   IconButton(
+                    tooltip: 'Cerrar imagen',
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                    icon: const AppLineIcon(
+                      AppIcons.close,
+                      size: AppIconSize.leading,
+                      color: Colors.white,
+                    ),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.black.withValues(alpha: 0.5),
                     ),
@@ -80,10 +100,10 @@ class ImageViewerDialog extends StatelessWidget {
                         title!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: GoogleFonts.hankenGrotesk(
                           color: Colors.white,
                           fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),

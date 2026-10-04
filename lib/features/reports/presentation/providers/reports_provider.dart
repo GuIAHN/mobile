@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/services/socket_service.dart';
+import '../../../../core/providers/cache_for.dart';
+import '../../../../core/session/session_generation_provider.dart';
 
 import '../../../../core/network/dio_client.dart';
 import '../../data/datasources/reports_remote_datasource.dart';
@@ -65,6 +67,7 @@ class DashboardFilterNotifier extends StateNotifier<DashboardFilter> {
 
 final dashboardFilterProvider =
     StateNotifierProvider<DashboardFilterNotifier, DashboardFilter>((ref) {
+  ref.watch(sessionGenerationProvider);
   return DashboardFilterNotifier();
 });
 
@@ -80,42 +83,68 @@ String? _formatDate(DateTime? date) {
 
 void _listenForDashboardRefresh(Ref ref) {
   final socketService = ref.watch(socketServiceProvider);
-  final offerSub = socketService.onOfferUpdated.listen((_) {
-    ref.invalidateSelf();
+  final notificationSub = socketService.onNotification.listen((event) {
+    if (const {
+      'search.matched',
+      'offer.bought',
+      'offer.delivered',
+      'offer.cancelled',
+      'search.declined',
+    }.contains(event['tipo'])) {
+      ref.invalidateSelf();
+    }
   });
-  final searchSub = socketService.onSearchMatched.listen((_) {
+  final reconnectSub = socketService.onReconnect.listen((_) {
     ref.invalidateSelf();
   });
 
   ref.onDispose(() {
-    offerSub.cancel();
-    searchSub.cancel();
+    notificationSub.cancel();
+    reconnectSub.cancel();
   });
 }
 
 final storeDashboardProvider =
     FutureProvider.autoDispose<DashboardResponse>((ref) async {
+  ref.cacheFor(const Duration(minutes: 1));
   final repository = ref.watch(reportsRepositoryProvider);
   final filter = ref.watch(dashboardFilterProvider);
-  final user = ref.watch(authProvider).user;
-  if (user == null || !user.role.isStore) {
+  final userIdentity = ref.watch(
+    authProvider.select((state) => (state.user?.id, state.user?.role)),
+  );
+  if (userIdentity.$1 == null || userIdentity.$2?.isStore != true) {
     throw Exception('Dashboard de tienda no autorizado');
   }
 
   _listenForDashboardRefresh(ref);
 
-  return repository.getStoreDashboard(
-    from: _formatDate(filter.from),
-    to: _formatDate(filter.to),
+  final from = _formatDate(filter.from);
+  final to = _formatDate(filter.to);
+  return repository.getStoreDashboard(from: from, to: to);
+});
+
+final storeResponseStatusProvider =
+    FutureProvider.autoDispose<StoreResponseStatus>((ref) async {
+  final userIdentity = ref.watch(
+    authProvider.select((state) => (state.user?.id, state.user?.role)),
   );
+  if (userIdentity.$1 == null || userIdentity.$2?.isStore != true) {
+    throw Exception('Diagnóstico de tienda no autorizado');
+  }
+  return ref.watch(reportsRepositoryProvider).getStoreResponseStatus();
 });
 
 final providerDashboardProvider =
     FutureProvider.autoDispose<DashboardResponse>((ref) async {
+  ref.cacheFor(const Duration(minutes: 1));
   final repository = ref.watch(reportsRepositoryProvider);
   final filter = ref.watch(dashboardFilterProvider);
-  final user = ref.watch(authProvider).user;
-  if (user == null || (!user.role.isMechanic && !user.role.isWorkshop)) {
+  final userIdentity = ref.watch(
+    authProvider.select((state) => (state.user?.id, state.user?.role)),
+  );
+  final role = userIdentity.$2;
+  if (userIdentity.$1 == null ||
+      (role?.isMechanic != true && role?.isWorkshop != true)) {
     throw Exception('Dashboard de proveedor no autorizado');
   }
 

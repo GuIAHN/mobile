@@ -44,7 +44,9 @@ class RegistrationCompletedStep extends StatelessWidget {
         Center(
           child: TweenAnimationBuilder<double>(
             tween: Tween(begin: 0.0, end: 1.0),
-            duration: const Duration(milliseconds: 600),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 600),
             curve: Curves.elasticOut,
             builder: (context, value, child) {
               return Transform.scale(scale: value, child: child);
@@ -53,7 +55,7 @@ class RegistrationCompletedStep extends StatelessWidget {
               width: 84,
               height: 84,
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.12),
+                color: AppColors.primary.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
                 border: Border.all(color: AppColors.primary, width: 2),
               ),
@@ -66,7 +68,7 @@ class RegistrationCompletedStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        
+
         /* Title */
         Text(
           title,
@@ -79,7 +81,7 @@ class RegistrationCompletedStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        
+
         /* Description */
         Text(
           description,
@@ -91,19 +93,18 @@ class RegistrationCompletedStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 28),
-        
+
         /* Info Cards */
         ...cards.map((card) => _cardInfoFinal(card)),
-        
         const SizedBox(height: 24),
-        
+
         /* CTA Button */
         Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(32),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withOpacity(0.35),
+                color: AppColors.primary.withValues(alpha: 0.35),
                 blurRadius: 24,
                 offset: const Offset(0, 8),
               ),
@@ -124,8 +125,9 @@ class RegistrationCompletedStep extends StatelessWidget {
               foregroundColor: Colors.white,
               elevation: 0,
               padding: const EdgeInsets.symmetric(vertical: 17),
+              minimumSize: const Size.fromHeight(48),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(32),
               ),
             ),
           ),
@@ -144,7 +146,7 @@ class RegistrationCompletedStep extends StatelessWidget {
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -156,7 +158,7 @@ class RegistrationCompletedStep extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.10),
+              color: AppColors.primary.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(

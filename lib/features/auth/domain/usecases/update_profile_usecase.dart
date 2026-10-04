@@ -12,6 +12,7 @@ class UpdateProfileUseCase {
     String? name,
     String? photo,
     String? phone,
+    String? description,
     double? latitude,
     double? longitude,
   }) {
@@ -19,6 +20,7 @@ class UpdateProfileUseCase {
       name: name,
       photo: photo,
       phone: phone,
+      description: description,
       latitude: latitude,
       longitude: longitude,
     );

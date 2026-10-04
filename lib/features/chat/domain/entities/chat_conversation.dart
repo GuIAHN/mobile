@@ -2,20 +2,40 @@ import 'package:equatable/equatable.dart';
 
 class ChatConversation extends Equatable {
   final String id;
+
+  /// Identificador del chat en tiempo real.
+  ///
+  /// En la bandeja general coincide con [id]. En el detalle de una solicitud,
+  /// [id] identifica la oferta y este campo permite asociar `message.new` con
+  /// el card correcto sin volver a consultar toda la pantalla.
+  final String? conversationId;
   final String threadId;
   final String participantName;
   final String? participantAvatarUrl;
   final String lastMessage;
+
+  /// Autoría del último mensaje cuando el API o el canal en tiempo real la
+  /// conocen. `null` conserva compatibilidad con respuestas antiguas.
+  final bool? lastMessageIsFromMe;
   final int unreadCount;
   final DateTime lastMessageAt;
 
   final String? offerId;
   final String? offerStatus;
+  final String? searchMatchId;
+  final DateTime? declinedAt;
+  final String? declineReason;
+  final DateTime? cancelledAt;
+  final String? cancelSource;
+  final String? cancelReason;
+  final String? cancelReasonCode;
 
   // Pricing Quote Fields
   final bool hasQuote;
   final bool isInquiry;
   final double? price;
+  final double? deliveryCost;
+  final double? totalCost;
   final String? spareBrand;
   final String? sparePhotoUrl;
 
@@ -41,23 +61,37 @@ class ChatConversation extends Equatable {
   // Contextual Request & Offer Details
   final String? vehicleTitle;
   final String? subcategoryName;
+  final bool subcategoryIsCatchAll;
+  final String? categoryId;
+  final String? categoryName;
   final String? partType;
   final String? requestDetails;
   final String? offerMessage;
 
   const ChatConversation({
     required this.id,
+    this.conversationId,
     required this.threadId,
     required this.participantName,
     this.participantAvatarUrl,
     required this.lastMessage,
+    this.lastMessageIsFromMe,
     required this.unreadCount,
     required this.lastMessageAt,
     this.offerId,
     this.offerStatus,
+    this.searchMatchId,
+    this.declinedAt,
+    this.declineReason,
+    this.cancelledAt,
+    this.cancelSource,
+    this.cancelReason,
+    this.cancelReasonCode,
     this.hasQuote = false,
     this.isInquiry = false,
     this.price,
+    this.deliveryCost,
+    this.totalCost,
     this.spareBrand,
     this.sparePhotoUrl,
     this.storeLogoUrl,
@@ -79,6 +113,9 @@ class ChatConversation extends Equatable {
     this.reviewComment,
     this.vehicleTitle,
     this.subcategoryName,
+    this.subcategoryIsCatchAll = false,
+    this.categoryId,
+    this.categoryName,
     this.partType,
     this.requestDetails,
     this.offerMessage,
@@ -89,6 +126,12 @@ class ChatConversation extends Equatable {
     return '\$${price!.toStringAsFixed(0)}';
   }
 
+  String get formattedTotalCost {
+    final total = totalCost;
+    if (total == null) return formattedPrice;
+    return '\$${total.toStringAsFixed(0)}';
+  }
+
   /// Distancia legible para chips ("1.2 km"). Null si no hay dato válido.
   String? get formattedDistance {
     final d = distanceKm;
@@ -96,23 +139,118 @@ class ChatConversation extends Equatable {
     return '${d.toStringAsFixed(1)} km';
   }
 
+  String get realtimeConversationId => conversationId ?? id;
+
+  /// Una consulta sin precio abre un chat, pero todavía no es una cotización.
+  bool get hasFormalQuote => !isInquiry && price != null;
+
+  /// La identidad real de la tienda solo se revela después de registrar una
+  /// compra. CANCELLED conserva la identidad porque ese estado ocurre después
+  /// de BOUGHT y volver a ocultarla rompería el historial de la conversación.
+  bool get revealsStoreIdentity =>
+      offerStatus == 'BOUGHT' ||
+      offerStatus == 'DELIVERED' ||
+      offerStatus == 'CANCELLED';
+
+  /// Una conversación deja de ser accionable en la bandeja cuando la compra
+  /// ya fue entregada y el consumidor completó su reseña.
+  bool get isCompletedAfterReview =>
+      offerStatus?.toUpperCase() == 'DELIVERED' && hasReviewed;
+
+  ChatConversation withRealtimePreview({
+    required String lastMessage,
+    required bool lastMessageIsFromMe,
+    required int unreadCount,
+    required DateTime lastMessageAt,
+  }) {
+    return ChatConversation(
+      id: id,
+      conversationId: conversationId,
+      threadId: threadId,
+      participantName: participantName,
+      participantAvatarUrl: participantAvatarUrl,
+      lastMessage: lastMessage,
+      lastMessageIsFromMe: lastMessageIsFromMe,
+      unreadCount: unreadCount,
+      lastMessageAt: lastMessageAt,
+      offerId: offerId,
+      offerStatus: offerStatus,
+      searchMatchId: searchMatchId,
+      declinedAt: declinedAt,
+      declineReason: declineReason,
+      cancelledAt: cancelledAt,
+      cancelSource: cancelSource,
+      cancelReason: cancelReason,
+      cancelReasonCode: cancelReasonCode,
+      hasQuote: hasQuote,
+      isInquiry: isInquiry,
+      price: price,
+      deliveryCost: deliveryCost,
+      totalCost: totalCost,
+      spareBrand: spareBrand,
+      sparePhotoUrl: sparePhotoUrl,
+      storeLogoUrl: storeLogoUrl,
+      storeUserId: storeUserId,
+      storeId: storeId,
+      storePhone: storePhone,
+      storeAddress: storeAddress,
+      storeLat: storeLat,
+      storeLng: storeLng,
+      verified: verified,
+      hasDelivery: hasDelivery,
+      distanceKm: distanceKm,
+      storeRating: storeRating,
+      storeReviewCount: storeReviewCount,
+      note: note,
+      hasConversation: hasConversation,
+      hasReviewed: hasReviewed,
+      reviewRating: reviewRating,
+      reviewComment: reviewComment,
+      vehicleTitle: vehicleTitle,
+      subcategoryName: subcategoryName,
+      subcategoryIsCatchAll: subcategoryIsCatchAll,
+      categoryId: categoryId,
+      categoryName: categoryName,
+      partType: partType,
+      requestDetails: requestDetails,
+      offerMessage: offerMessage,
+    );
+  }
+
   @override
   List<Object?> get props => [
         id,
+        conversationId,
         threadId,
         participantName,
         participantAvatarUrl,
         lastMessage,
+        lastMessageIsFromMe,
         unreadCount,
         lastMessageAt,
         offerId,
         offerStatus,
+        searchMatchId,
+        declinedAt,
+        declineReason,
+        cancelledAt,
+        cancelSource,
+        cancelReason,
+        cancelReasonCode,
         hasQuote,
         isInquiry,
         price,
+        deliveryCost,
+        totalCost,
         spareBrand,
         sparePhotoUrl,
         storeLogoUrl,
+        storeUserId,
+        storeId,
+        storePhone,
+        storeAddress,
+        storeLat,
+        storeLng,
         verified,
         hasDelivery,
         distanceKm,
@@ -120,5 +258,16 @@ class ChatConversation extends Equatable {
         storeReviewCount,
         note,
         hasConversation,
+        hasReviewed,
+        reviewRating,
+        reviewComment,
+        vehicleTitle,
+        subcategoryName,
+        subcategoryIsCatchAll,
+        categoryId,
+        categoryName,
+        partType,
+        requestDetails,
+        offerMessage,
       ];
 }

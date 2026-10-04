@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/notifications/notification_provider.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/empty_state.dart';
@@ -12,6 +17,7 @@ import '../providers/notifications_state.dart';
 import '../widgets/notification_card.dart';
 import '../widgets/notification_card_skeleton.dart';
 import '../widgets/notification_detail_sheet.dart';
+import '../../services/notification_route_resolver.dart';
 
 class NotificationsPage extends ConsumerStatefulWidget {
   const NotificationsPage({super.key});
@@ -62,11 +68,19 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   Future<void> _openNotification(UserNotification notification) async {
     final notifier = ref.read(notificationsProvider.notifier);
     final markRead = notifier.markRead(notification.id);
-
-    await showNotificationDetailSheet(
-      context,
-      notification: notification,
+    final destination = NotificationRouteResolver.resolve(
+      type: notification.type,
+      data: notification.data,
     );
+
+    if (destination == RouteNames.notifications) {
+      await showNotificationDetailSheet(
+        context,
+        notification: notification,
+      );
+    } else {
+      unawaited(context.push<void>(destination));
+    }
 
     final wasMarked = await markRead;
     if (wasMarked && mounted) {
@@ -124,7 +138,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
           children: const [
             SizedBox(height: AppSpacing.xl4),
             EmptyState(
-              icon: Icons.notifications_none_rounded,
+              icon: AppIcons.notification,
               title: 'Estás al día',
               subtitle: 'No tienes notificaciones sin leer.',
             ),
@@ -185,42 +199,55 @@ class _NotificationsHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
+        AppSpacing.xl2,
         AppSpacing.sm,
         AppSpacing.xl2,
         0,
       ),
       child: Column(
         children: [
-          Row(
-            children: [
-              Semantics(
-                button: true,
-                label: 'Volver',
-                excludeSemantics: true,
-                child: SizedBox.square(
-                  key: const Key('notifications-back-button'),
-                  dimension: AppSpacing.buttonHeightMd,
-                  child: IconButton(
-                    onPressed: Navigator.of(context).maybePop,
-                    tooltip: 'Volver',
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                    color: AppColors.textPrimary,
+          SizedBox(
+            height: AppSpacing.buttonHeightMd,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Semantics(
+                    button: true,
+                    label: 'Volver',
+                    excludeSemantics: true,
+                    child: SizedBox.square(
+                      key: const Key('notifications-back-button'),
+                      dimension: AppSpacing.buttonHeightMd,
+                      child: IconButton(
+                        onPressed: Navigator.of(context).maybePop,
+                        tooltip: 'Volver',
+                        icon: const AppLineIcon(
+                          AppIcons.back,
+                          size: AppIconSize.action,
+                        ),
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text('Notificaciones', style: AppTypography.h1),
-              ),
-            ],
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xl5,
+                  ),
+                  child: Text(
+                    'Notificaciones',
+                    style: AppTypography.h1,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
           ),
           if (!state.isInitialLoading && state.items.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(
-                left: AppSpacing.md,
-                top: AppSpacing.xs,
-              ),
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: Wrap(
                 alignment: WrapAlignment.spaceBetween,
                 crossAxisAlignment: WrapCrossAlignment.center,
@@ -298,9 +325,9 @@ class _NotificationsErrorState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(
-              Icons.error_outline_rounded,
-              size: AppSpacing.xl6,
-              color: AppColors.error,
+              AppIcons.cloudError,
+              size: AppIconSize.hero,
+              color: AppColors.errorInk,
             ),
             const SizedBox(height: AppSpacing.xl2),
             Text(
@@ -325,7 +352,10 @@ class _NotificationsErrorState extends StatelessWidget {
                 ),
                 child: TextButton.icon(
                   onPressed: onRetry,
-                  icon: const Icon(Icons.refresh_rounded),
+                  icon: const AppLineIcon(
+                    AppIcons.retry,
+                    size: AppIconSize.action,
+                  ),
                   label: Text('Reintentar', style: AppTypography.label),
                 ),
               ),

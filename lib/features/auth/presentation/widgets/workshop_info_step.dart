@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/validators.dart';
+import '../../../../shared/widgets/app_phone_field.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 
 class WorkshopInfoStep extends StatelessWidget {
@@ -8,8 +11,6 @@ class WorkshopInfoStep extends StatelessWidget {
   final TextEditingController emailController;
   final TextEditingController telefonoController;
   final TextEditingController rifController;
-  final TextEditingController passwordController;
-  final TextEditingController confirmPasswordController;
 
   const WorkshopInfoStep({
     super.key,
@@ -17,8 +18,6 @@ class WorkshopInfoStep extends StatelessWidget {
     required this.emailController,
     required this.telefonoController,
     required this.rifController,
-    required this.passwordController,
-    required this.confirmPasswordController,
   });
 
   @override
@@ -32,6 +31,8 @@ class WorkshopInfoStep extends StatelessWidget {
           hint: 'Ej: Motores Élite',
           icono: Icons.storefront_outlined,
           textInputAction: TextInputAction.next,
+          validator: (value) =>
+              Validators.required(value, fieldName: 'El nombre del taller'),
         ),
         _campo(
           label: 'CORREO ELECTRÓNICO',
@@ -40,15 +41,12 @@ class WorkshopInfoStep extends StatelessWidget {
           icono: Icons.mail_outline,
           teclado: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
+          validator: Validators.email,
         ),
-        _campo(
+        AppPhoneField(
           label: 'NÚMERO DE TELÉFONO',
-          ctrl: telefonoController,
-          hint: '414 123 4567',
-          icono: Icons.call_outlined,
-          teclado: TextInputType.phone,
+          controller: telefonoController,
           textInputAction: TextInputAction.next,
-          helperText: 'Ingresa el número sin el "0" ni "+58" (ej. 4141234567)',
         ),
         _campoRif(
           label: 'RIF / IDENTIFICACIÓN DEL TALLER',
@@ -57,29 +55,14 @@ class WorkshopInfoStep extends StatelessWidget {
           icono: Icons.badge_outlined,
           teclado: TextInputType.number,
           textInputAction: TextInputAction.next,
-        ),
-        _campo(
-          label: 'CONTRASEÑA',
-          ctrl: passwordController,
-          hint: '••••••••••',
-          icono: Icons.lock_outline,
-          ocultar: true,
-          textInputAction: TextInputAction.next,
-        ),
-        _campo(
-          label: 'CONFIRMAR CONTRASEÑA',
-          ctrl: confirmPasswordController,
-          hint: '••••••••••',
-          icono: Icons.lock_outline,
-          ocultar: true,
-          textInputAction: TextInputAction.done,
+          validator: Validators.rif,
         ),
         const SizedBox(height: 8),
         // Nota informativa
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.10), // naranjaSuave
+            color: AppColors.primary.withValues(alpha: 0.10), // naranjaSuave
             borderRadius: BorderRadius.circular(14),
           ),
           child: Row(
@@ -114,20 +97,20 @@ class WorkshopInfoStep extends StatelessWidget {
     required TextEditingController ctrl,
     required String hint,
     required IconData icono,
-    bool ocultar = false,
     TextInputType teclado = TextInputType.text,
     TextInputAction textInputAction = TextInputAction.next,
     String? helperText,
+    String? Function(String?)? validator,
   }) {
     return AppTextField(
       label: label,
       controller: ctrl,
       hint: hint,
       prefixIcon: icono,
-      obscureText: ocultar,
       keyboardType: teclado,
       textInputAction: textInputAction,
       helperText: helperText,
+      validator: validator,
     );
   }
 
@@ -138,6 +121,7 @@ class WorkshopInfoStep extends StatelessWidget {
     required IconData icono,
     TextInputType teclado = TextInputType.text,
     TextInputAction textInputAction = TextInputAction.next,
+    String? Function(String?)? validator,
   }) {
     return AppTextField(
       label: label,
@@ -145,7 +129,12 @@ class WorkshopInfoStep extends StatelessWidget {
       hint: hint,
       prefixIcon: icono,
       keyboardType: teclado,
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(9),
+      ],
       textInputAction: textInputAction,
+      validator: validator,
       prefixBuilder: (context, isFocused) {
         return Row(
           mainAxisSize: MainAxisSize.min,

@@ -9,12 +9,16 @@ class QuoteOfferUseCase {
   Future<Either<Failure, void>> call({
     required String offerId,
     required double price,
+    required bool updateDeliveryCost,
+    double? deliveryCost,
     String? brand,
     String? photoPath,
   }) =>
       repository.quoteOffer(
         offerId: offerId,
         price: price,
+        updateDeliveryCost: updateDeliveryCost,
+        deliveryCost: deliveryCost,
         brand: brand,
         photoPath: photoPath,
       );

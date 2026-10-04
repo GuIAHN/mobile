@@ -50,12 +50,13 @@ void main() {
     );
   });
 
-  test('maps every backend notification family to a readable visual style',
-      () {
+  test('maps every backend notification family to a readable visual style', () {
     const expectedLabels = {
       'offer.new': 'Oferta',
+      'offer.cancelled': 'Compra cancelada',
       'message.new': 'Mensaje',
       'search.matched': 'Solicitud',
+      'search.no_store_available': 'Sin disponibilidad',
       'user.approved': 'Cuenta',
       'settlement.approved': 'Pago',
       'custom.kind': 'Notificación',
@@ -66,7 +67,6 @@ void main() {
       expect(style.label, entry.value);
       expect(style.icon, isA<IconData>());
       expect(style.foreground, isA<Color>());
-      expect(style.background, isA<Color>());
     }
   });
 
@@ -98,6 +98,11 @@ void main() {
       tester.getSize(find.byKey(const Key('notification-card-n-1'))).height,
       greaterThanOrEqualTo(80),
     );
+    final cardRect =
+        tester.getRect(find.byKey(const Key('notification-card-n-1')));
+    final iconRect =
+        tester.getRect(find.byKey(const Key('notification-leading-icon')));
+    expect(iconRect.center.dy, closeTo(cardRect.center.dy, 1));
     expect(tester.takeException(), isNull);
 
     await tester.tap(action);

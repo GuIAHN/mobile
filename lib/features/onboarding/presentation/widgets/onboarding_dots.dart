@@ -19,22 +19,37 @@ class OnboardingDots extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(count, (i) {
         final isActive = i == currentIndex;
-        return GestureDetector(
-          onTap: onTap != null ? () => onTap!(i) : null,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 350),
-            curve: Curves.easeOutCubic,
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            width: isActive ? 28 : 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: isActive ? AppColors.primary : Colors.white38,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+        return Semantics(
+          label: 'Página ${i + 1} de $count',
+          button: onTap != null,
+          selected: isActive,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap != null ? () => onTap!(i) : null,
+            child: SizedBox.square(
+              key: Key('onboarding-dot-$i'),
+              dimension: 48,
+              child: Center(
+                child: AnimatedContainer(
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 350),
+                  curve: Curves.easeOutCubic,
+                  width: isActive ? 28 : 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: isActive ? AppColors.primary : Colors.white38,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+                  ),
+                ),
+              ),
             ),
           ),
         );
@@ -42,4 +57,3 @@ class OnboardingDots extends StatelessWidget {
     );
   }
 }
-

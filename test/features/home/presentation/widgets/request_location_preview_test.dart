@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/request_location_preview.dart';
-import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/request_location_selection.dart';
+import 'package:guiautomotriz_mobile/shared/location/domain/entities/request_location_selection.dart';
+import 'package:guiautomotriz_mobile/shared/location/presentation/widgets/request_location_preview.dart';
 
 Widget _testApp(Widget child, {double textScale = 1}) {
   return MaterialApp(
@@ -71,6 +71,44 @@ void main() {
       findsOneWidget,
     );
   }, semanticsEnabled: true);
+
+  testWidgets('shows that the current location is being obtained',
+      (tester) async {
+    await tester.pumpWidget(
+      _testApp(
+        RequestLocationPreview(
+          selection: null,
+          isLocating: true,
+          onTap: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('Obteniendo tu ubicación actual…'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Obteniendo tu ubicación actual'),
+      findsOneWidget,
+    );
+  }, semanticsEnabled: true);
+
+  testWidgets('keeps manual map selection available after a GPS failure',
+      (tester) async {
+    const message =
+        'No pudimos obtener tu ubicación actual. Puedes elegirla en el mapa.';
+    await tester.pumpWidget(
+      _testApp(
+        RequestLocationPreview(
+          selection: null,
+          errorMessage: message,
+          onTap: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('No pudimos ubicarte'), findsOneWidget);
+    expect(find.text(message), findsOneWidget);
+  });
 
   testWidgets('identifies a location restored from the saved profile',
       (tester) async {

@@ -1,6 +1,7 @@
 import '../../domain/entities/user.dart';
+import '../../../../core/domain/enums/account_status.dart';
 import '../../../../core/domain/enums/user_role.dart';
-import '../../../vehicles/data/models/user_car_model.dart';
+import '../../../../core/data/models/user_car_model.dart';
 
 /// User model with JSON serialization.
 /// Extends the [User] entity without polluting it.
@@ -11,8 +12,13 @@ class UserModel extends User {
     required super.name,
     super.avatarUrl,
     super.phone,
+    super.description,
     super.role,
     super.approved,
+    super.accountStatus,
+    super.deletionRequestedAt,
+    super.deletionScheduledAt,
+    super.authProvider,
     super.latitude,
     super.longitude,
     super.cars,
@@ -50,51 +56,44 @@ class UserModel extends User {
       name: json['name'] as String? ?? json['fullName'] as String? ?? '',
       avatarUrl: json['avatarUrl'] as String? ?? json['photo'] as String?,
       phone: parsedPhone,
+      description: json['description'] as String? ??
+          (json['mechanicProfile'] is Map
+              ? (json['mechanicProfile'] as Map)['description'] as String?
+              : null),
       role: UserRole.fromString(roleStr),
       approved: json['approved'] as bool? ?? true,
+      accountStatus: json['accountStatus'] == null
+          ? AccountStatus.active
+          : AccountStatus.fromString(json['accountStatus'] as String?),
+      deletionRequestedAt: _parseDateTime(json['deletionRequestedAt']),
+      deletionScheduledAt: _parseDateTime(json['deletionPurgeAt']),
+      authProvider: json['provider'] as String?,
       latitude: lat,
       longitude: lon,
       cars: parsedCars,
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'email': email,
-        'name': name,
-        if (avatarUrl != null) 'avatarUrl': avatarUrl,
-        if (phone != null) 'phone': phone,
-        'role': role.value,
-        'approved': approved,
-        if (latitude != null || longitude != null)
-          'location': {
-            if (latitude != null) 'lat': latitude,
-            if (longitude != null) 'lon': longitude,
-          },
-        if (cars != null)
-          'cars': cars?.map((c) => (c as UserCarModel).toJson()).toList(),
-      };
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value is! String) return null;
+    return DateTime.tryParse(value);
+  }
 }
 
 /// Complete login response containing tokens and user information.
 class LoginResponseModel {
   final String accessToken;
   final String? refreshToken;
-  final UserModel? user;
 
   const LoginResponseModel({
     required this.accessToken,
     this.refreshToken,
-    this.user,
   });
 
   factory LoginResponseModel.fromJson(Map<String, dynamic> json) {
     return LoginResponseModel(
       accessToken: json['accessToken'] as String,
       refreshToken: json['refreshToken'] as String?,
-      user: json['user'] != null
-          ? UserModel.fromJson(json['user'] as Map<String, dynamic>)
-          : null,
     );
   }
 }

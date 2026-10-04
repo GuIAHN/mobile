@@ -1,8 +1,11 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:dio/dio.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/dio_client.dart';
-import '../../domain/entities/store_category_config.dart';
+import '../../domain/entities/store_coverage_config.dart';
 import '../models/user_model.dart';
 
 /// Remote data source for authentication.
@@ -44,6 +47,37 @@ class AuthRemoteDataSource {
     }
   }
 
+  /// Requests a password reset code without revealing whether the account
+  /// exists. The backend always returns the same accepted message.
+  Future<String> forgotPassword({required String email}) async {
+    final response = await _client.post<Map<String, dynamic>>(
+      ApiEndpoints.forgotPassword,
+      data: {'email': email},
+    );
+    final message = response.data?['message'];
+    if (message is! String) throw const ParseException();
+    return message;
+  }
+
+  /// Resets a password using the six-digit code sent by email.
+  Future<String> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    final response = await _client.post<Map<String, dynamic>>(
+      ApiEndpoints.resetPassword,
+      data: {
+        'email': email,
+        'code': code,
+        'newPassword': newPassword,
+      },
+    );
+    final message = response.data?['message'];
+    if (message is! String) throw const ParseException();
+    return message;
+  }
+
   /// Calls POST /auth/social/login and returns the parsed response, or throws SocialNotRegisteredException.
   Future<LoginResponseModel> socialLogin({
     required String idToken,
@@ -69,10 +103,16 @@ class AuthRemoteDataSource {
       if (e is DioException) {
         final res = e.response;
         if (res != null && res.statusCode == 401) {
-          final data = res.data;
-          if (data is Map<String, dynamic>) {
+          final rawData = res.data;
+          final data = rawData is Map<String, dynamic>
+              ? rawData
+              : rawData is String
+                  ? jsonDecode(rawData) as Map<String, dynamic>?
+                  : null;
+          if (data != null) {
             final payload = data['data'] ?? data['message'];
-            if (payload is Map<String, dynamic> && payload['registered'] == false) {
+            if (payload is Map<String, dynamic> &&
+                payload['registered'] == false) {
               throw SocialNotRegisteredException(
                 email: payload['email'] as String? ?? '',
                 name: payload['name'] as String? ?? '',
@@ -94,6 +134,7 @@ class AuthRemoteDataSource {
     required String role,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
   }) async {
     try {
       final response = await _client.post<Map<String, dynamic>>(
@@ -105,6 +146,7 @@ class AuthRemoteDataSource {
           'userType': role,
           if (idToken != null) 'idToken': idToken,
           if (provider != null) 'provider': provider,
+          'acceptedTerms': acceptedTerms,
         },
       );
 
@@ -135,7 +177,6 @@ class AuthRemoteDataSource {
     return UserModel.fromJson(response.data!);
   }
 
-
   /// Calls POST /mechanics/register to register a mechanic or workshop.
   Future<UserModel> registerMechanic({
     required String email,
@@ -150,26 +191,39 @@ class AuthRemoteDataSource {
     required List<String> specialtyIds,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
+    String? idPhotoPath,
+    String? rifPhotoPath,
   }) async {
     try {
+      final payload = {
+        'email': email,
+        if (password != null) 'password': password,
+        'name': name,
+        'phone': phone,
+        'location': {
+          'lat': latitude,
+          'lon': longitude,
+        },
+        'description': description,
+        'isWorkshop': isWorkshop,
+        'identification': identification,
+        'specialtyIds': specialtyIds,
+        if (idToken != null) 'idToken': idToken,
+        if (provider != null) 'provider': provider,
+        'acceptedTerms': acceptedTerms,
+      };
+      final formData = FormData.fromMap({
+        'payload': jsonEncode(payload),
+        if (idPhotoPath != null)
+          'idPhoto': await _registrationDocument(idPhotoPath),
+        if (rifPhotoPath != null)
+          'rifPhoto': await _registrationDocument(rifPhotoPath),
+      });
       final response = await _client.post<Map<String, dynamic>>(
         'mechanics/register',
-        data: {
-          'email': email,
-          if (password != null) 'password': password,
-          'name': name,
-          'phone': phone,
-          'location': {
-            'lat': latitude,
-            'lon': longitude,
-          },
-          'description': description,
-          'isWorkshop': isWorkshop,
-          'identification': identification,
-          'specialtyIds': specialtyIds,
-          if (idToken != null) 'idToken': idToken,
-          if (provider != null) 'provider': provider,
-        },
+        data: formData,
+        options: Options(contentType: 'multipart/form-data'),
       );
 
       if (response.data == null) {
@@ -195,35 +249,41 @@ class AuthRemoteDataSource {
     required double longitude,
     required String address,
     required String rif,
-    required List<StoreCategoryConfig> catalog,
+    required StoreCoverageConfig coverage,
     required bool hasDelivery,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
+    required String rifPhotoPath,
   }) async {
     try {
+      final payload = {
+        'email': email,
+        if (password != null) 'password': password,
+        'name': name,
+        'phone': phone,
+        'location': {'lat': latitude, 'lon': longitude},
+        'address': address,
+        'rif': rif,
+        'coverage': {
+          'servesAllBrands': coverage.servesAllBrands,
+          if (!coverage.servesAllBrands) 'brandIds': coverage.brandIds,
+          'sparePartsTypes': coverage.sparePartsTypes,
+          'subcategoryIds': coverage.subcategoryIds,
+        },
+        'hasDelivery': hasDelivery,
+        if (idToken != null) 'idToken': idToken,
+        if (provider != null) 'provider': provider,
+        'acceptedTerms': acceptedTerms,
+      };
+      final formData = FormData.fromMap({
+        'payload': jsonEncode(payload),
+        'rifPhoto': await _registrationDocument(rifPhotoPath),
+      });
       final response = await _client.post<Map<String, dynamic>>(
         'stores/register',
-        data: {
-          'email': email,
-          if (password != null) 'password': password,
-          'name': name,
-          'phone': phone,
-          'location': {
-            'lat': latitude,
-            'lon': longitude,
-          },
-          'address': address,
-          'rif': rif,
-          'categories': catalog.map((c) => {
-            'categoryId': c.categoryId,
-            'startingPrice': c.minPrice,
-            'servesAllBrands': c.servesAllBrands,
-            'brandIds': c.brandIds,
-            'sparePartsTypes': c.sparePartsTypes,
-          }).toList(),
-          if (idToken != null) 'idToken': idToken,
-          if (provider != null) 'provider': provider,
-        },
+        data: formData,
+        options: Options(contentType: 'multipart/form-data'),
       );
 
       if (response.data == null) {
@@ -239,28 +299,38 @@ class AuthRemoteDataSource {
     }
   }
 
-  /// Calls POST /stores/me/categories to register a store catalog line.
-  Future<void> configureStoreCategory({
-    required String categoryId,
-    required double minPrice,
-    required bool servesAllBrands,
-    required List<String> brandIds,
-    required List<String> sparePartsTypes,
-  }) async {
-    try {
-      await _client.post<Map<String, dynamic>>(
-        'stores/me/categories',
-        data: {
-          'categoryId': categoryId,
-          'startingPrice': minPrice,
-          'servesAllBrands': servesAllBrands,
-          'brandIds': brandIds,
-          'sparePartsTypes': sparePartsTypes,
-        },
+  Future<MultipartFile> _registrationDocument(String filePath) async {
+    final xFile = XFile(filePath);
+    final rawName =
+        kIsWeb ? xFile.name : filePath.split('/').last.split('\\').last;
+
+    final String filename = (rawName.isEmpty ||
+            rawName.startsWith('blob:') ||
+            !rawName.contains('.'))
+        ? 'document_${DateTime.now().millisecondsSinceEpoch}.jpg'
+        : rawName;
+
+    final ext = filename.split('.').last.toLowerCase();
+    final mediaType = switch (ext) {
+      'png' => DioMediaType('image', 'png'),
+      'webp' => DioMediaType('image', 'webp'),
+      'pdf' => DioMediaType('application', 'pdf'),
+      _ => DioMediaType('image', 'jpeg'),
+    };
+
+    if (kIsWeb) {
+      final bytes = await xFile.readAsBytes();
+      return MultipartFile.fromBytes(
+        bytes,
+        filename: filename,
+        contentType: mediaType,
       );
-    } catch (e) {
-      rethrow;
     }
+    return MultipartFile.fromFile(
+      filePath,
+      filename: filename,
+      contentType: mediaType,
+    );
   }
 
   /// Uploads or replaces the current user's profile photo (avatar).
@@ -275,29 +345,44 @@ class AuthRemoteDataSource {
     }
   }
 
-
   /// Updates the current user's profile details.
   Future<UserModel> updateProfile({
     String? name,
     String? photo,
     String? phone,
+    String? description,
     double? latitude,
     double? longitude,
   }) async {
     try {
-      final response = await _client.patch<Map<String, dynamic>>(
-        ApiEndpoints.me,
-        data: {
-          if (name != null) 'name': name,
-          if (photo != null) 'photo': photo,
-          if (phone != null) 'phone': phone,
-          if (latitude != null && longitude != null)
-            'location': {
-              'lat': latitude,
-              'lon': longitude,
-            },
-        },
-      );
+      final basePayload = {
+        if (name != null) 'name': name,
+        if (photo != null) 'photo': photo,
+        if (phone != null) 'phone': phone,
+        if (latitude != null && longitude != null)
+          'location': {
+            'lat': latitude,
+            'lon': longitude,
+          },
+      };
+
+      Response<Map<String, dynamic>>? response;
+      if (basePayload.isNotEmpty) {
+        response = await _client.patch<Map<String, dynamic>>(
+          ApiEndpoints.me,
+          data: basePayload,
+        );
+      }
+
+      if (description != null) {
+        await _client.patch<Map<String, dynamic>>(
+          'mechanics/me',
+          data: {'description': description},
+        );
+        response = await _client.get<Map<String, dynamic>>(ApiEndpoints.me);
+      }
+
+      response ??= await _client.get<Map<String, dynamic>>(ApiEndpoints.me);
 
       if (response.data == null) {
         throw const ParseException();
@@ -307,6 +392,42 @@ class AuthRemoteDataSource {
     } catch (e) {
       rethrow;
     }
+  }
+
+  /// Calls POST /auth/change-password to update the current user's password.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _client.post<Map<String, dynamic>>(
+      ApiEndpoints.changePassword,
+      data: {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      },
+    );
+  }
+
+  /// Schedules the authenticated account for deletion and returns its purge
+  /// date. Password is omitted for accounts authenticated only by a provider.
+  Future<DateTime> requestAccountDeletion({String? password}) async {
+    final response = await _client.delete<Map<String, dynamic>>(
+      ApiEndpoints.me,
+      data: {
+        'confirm': 'DELETE',
+        if (password != null && password.isNotEmpty) 'password': password,
+      },
+    );
+    final purgeAt = response.data?['purgeAt'];
+    if (purgeAt is! String) throw const ParseException();
+    final parsed = DateTime.tryParse(purgeAt);
+    if (parsed == null) throw const ParseException();
+    return parsed;
+  }
+
+  /// Restores an account that is still inside its deletion grace period.
+  Future<void> restoreAccount() async {
+    await _client.post<Map<String, dynamic>>(ApiEndpoints.restoreAccount);
   }
 
   /// Calls POST /users/me/device-tokens to register a device token

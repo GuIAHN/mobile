@@ -1,7 +1,8 @@
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/dio_client.dart';
-import '../../../catalog/data/models/specialty_model.dart';
+import '../../../../core/data/models/specialty_model.dart';
+import '../models/store_catalog_model.dart';
 
 class ProviderProfileRemoteDataSource {
   final DioClient _client;
@@ -38,5 +39,15 @@ class ProviderProfileRemoteDataSource {
           ),
         )
         .toList(growable: false);
+  }
+
+  Future<StoreCatalogModel> getOwnCatalog() async {
+    final response = await _client.get<Map<String, dynamic>>(
+      ApiEndpoints.storeOwnCoverage,
+    );
+    final data = response.data;
+    if (data == null) throw const ParseException();
+    if (data['subcategories'] is! List) throw const ParseException();
+    return StoreCatalogModel.fromJson(data);
   }
 }

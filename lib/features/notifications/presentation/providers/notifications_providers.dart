@@ -1,6 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/providers/cache_for.dart';
+import '../../../../core/services/socket_service.dart';
+import '../../../../core/session/session_generation_provider.dart';
 import '../../data/datasources/notifications_remote_datasource.dart';
 import '../../data/repositories/notifications_repository_impl.dart';
 import '../../domain/repositories/notifications_repository.dart';
@@ -15,7 +20,8 @@ final notificationsRemoteDatasourceProvider =
   return NotificationsRemoteDatasource(ref.watch(dioClientProvider));
 });
 
-final notificationsRepositoryProvider = Provider<NotificationsRepository>((ref) {
+final notificationsRepositoryProvider =
+    Provider<NotificationsRepository>((ref) {
   return NotificationsRepositoryImpl(
     ref.watch(notificationsRemoteDatasourceProvider),
   );
@@ -49,7 +55,31 @@ final getUnreadNotificationsCountUseCaseProvider =
   );
 });
 
-final unreadNotificationsCountProvider = FutureProvider.autoDispose<int>((ref) async {
+final unreadNotificationsCountProvider =
+    FutureProvider.autoDispose<int>((ref) async {
+  ref.watch(sessionGenerationProvider);
+  ref.cacheFor(const Duration(minutes: 2));
+  final socketService = ref.watch(socketServiceProvider);
+  Timer? refreshDebounce;
+  void scheduleRefresh() {
+    refreshDebounce?.cancel();
+    refreshDebounce = Timer(const Duration(milliseconds: 500), () {
+      ref.invalidateSelf();
+    });
+  }
+
+  final sub = socketService.onNotification.listen((_) {
+    scheduleRefresh();
+  });
+  final reconnectSub = socketService.onReconnect.listen((_) {
+    scheduleRefresh();
+  });
+  ref.onDispose(() {
+    refreshDebounce?.cancel();
+    sub.cancel();
+    reconnectSub.cancel();
+  });
+
   final result = await ref.watch(getUnreadNotificationsCountUseCaseProvider)();
   return result.fold(
     (failure) => throw Exception(failure.message),
@@ -59,6 +89,7 @@ final unreadNotificationsCountProvider = FutureProvider.autoDispose<int>((ref) a
 
 final notificationsProvider = StateNotifierProvider.autoDispose<
     NotificationsNotifier, NotificationsState>((ref) {
+  ref.watch(sessionGenerationProvider);
   final notifier = NotificationsNotifier(
     getUnread: ref.watch(getUnreadNotificationsUseCaseProvider),
     markRead: ref.watch(markNotificationReadUseCaseProvider),
@@ -66,6 +97,19 @@ final notificationsProvider = StateNotifierProvider.autoDispose<
     invalidateCount: () => ref.invalidate(unreadNotificationsCountProvider),
   );
   notifier.loadInitial();
+
+  final socketService = ref.watch(socketServiceProvider);
+  final sub = socketService.onNotification.listen((_) {
+    notifier.refresh();
+  });
+  final reconnectSub = socketService.onReconnect.listen((_) {
+    notifier.refresh();
+  });
+  ref.onDispose(() {
+    sub.cancel();
+    reconnectSub.cancel();
+  });
+
   return notifier;
 });
 

@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/domain/enums/offer_status.dart';
+import '../../../../core/domain/enums/part_type.dart';
+import '../../../../core/utils/extensions.dart';
+import '../../../../shared/utils/subcategory_presentation.dart';
 import '../../domain/entities/chat_thread.dart';
+import '../../domain/entities/non_delivery_reason.dart';
+import '../../../reports/presentation/providers/reports_provider.dart';
 import '../providers/chat_providers.dart';
-import 'quote_input_dialog.dart';
+import 'decline_match_dialog.dart';
+import 'non_delivery_dialog.dart';
 import '_atoms/card_shell.dart';
 import '_atoms/card_tokens.dart';
 import '_atoms/status_badge.dart';
@@ -20,11 +27,13 @@ import '_atoms/expiration_label.dart';
 class ChatThreadCard extends ConsumerStatefulWidget {
   final ChatThread thread;
   final VoidCallback onTap;
+  final VoidCallback onViewDetail;
 
   const ChatThreadCard({
     super.key,
     required this.thread,
     required this.onTap,
+    required this.onViewDetail,
   });
 
   @override
@@ -33,49 +42,6 @@ class ChatThreadCard extends ConsumerStatefulWidget {
 
 class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
   bool _isSubmitting = false;
-
-  void _openQuoteDialog() async {
-    final thread = widget.thread;
-    final result = await QuoteInputDialog.show(context, thread.title);
-    if (result == null) return;
-
-    setState(() => _isSubmitting = true);
-    try {
-      final useCase = ref.read(createQuoteUseCaseProvider);
-      final quoteRes = await useCase(
-        threadId: thread.id,
-        price: result['price'] as double?,
-        brand: result['brand'] as String?,
-        photoPath: result['photoPath'] as String?,
-      );
-
-      quoteRes.fold(
-        (failure) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error al enviar cotización: ${failure.message}'),
-                backgroundColor: AppColors.error,
-              ),
-            );
-          }
-        },
-        (_) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('¡Cotización enviada con éxito!'),
-                backgroundColor: AppColors.success,
-              ),
-            );
-            ref.invalidate(storeSalesRequestsProvider);
-          }
-        },
-      );
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
-  }
 
   void _markDelivered() async {
     final thread = widget.thread;
@@ -89,23 +55,17 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
       result.fold(
         (failure) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error al marcar entrega: ${failure.message}'),
-                backgroundColor: AppColors.error,
-              ),
+            context.showSnackBar(
+              'Error al marcar entrega: ${failure.message}',
+              isError: true,
             );
           }
         },
         (_) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('¡Oferta marcada como ENTREGADA!'),
-                backgroundColor: AppColors.success,
-              ),
-            );
             ref.invalidate(storeSalesRequestsProvider);
+            ref.invalidate(storeRequestsByStatusProvider);
+            ref.invalidate(storeDashboardProvider);
           }
         },
       );
@@ -114,22 +74,109 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
     }
   }
 
-  String _partTypeLabel(String raw) {
-    switch (raw) {
-      case 'ORIGINAL':
-        return 'Original';
-      case 'GENERIC':
-        return 'Genérico';
-      case 'PERFORMANCE':
-        return 'Performance';
-      default:
-        return raw;
+  Future<void> _markNotDelivered() async {
+    final offerId = widget.thread.offerId;
+    if (offerId == null || _isSubmitting) return;
+    final selection = await NonDeliveryDialog.show(context);
+    if (selection == null || !mounted) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      final result = await ref.read(cancelSaleByStoreUseCaseProvider)(
+        offerId,
+        reasonCode: selection.reasonCode,
+        note: selection.note,
+      );
+      if (!mounted) return;
+      result.fold(
+        (failure) => context.showSnackBar(
+          failure.code == 409
+              ? 'La compra cambió de estado. Actualizamos la información.'
+              : 'No se pudo cancelar el pedido: ${failure.message}',
+          isError: true,
+        ),
+        (_) {
+          ref.invalidate(storeSalesRequestsProvider);
+          ref.invalidate(storeRequestsByStatusProvider);
+          ref.invalidate(storeDashboardProvider);
+        },
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  Future<void> _declineMatch() async {
+    final searchMatchId = widget.thread.searchMatchId;
+    if (searchMatchId == null || _isSubmitting) return;
+
+    final reason = await DeclineMatchDialog.show(context);
+    if (reason == null || !mounted) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      final result = await ref.read(declineMatchUseCaseProvider)(
+        searchMatchId,
+        reason,
+      );
+      if (!mounted) return;
+      result.fold(
+        (failure) => context.showSnackBar(
+          'No se pudo declinar: ${failure.message}',
+          isError: true,
+        ),
+        (_) {
+          ref.invalidate(storeSalesRequestsProvider);
+          ref.invalidate(storeRequestsByStatusProvider);
+          ref.invalidate(storeDashboardProvider);
+        },
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _undoDecline() async {
+    final searchMatchId = widget.thread.searchMatchId;
+    if (searchMatchId == null || _isSubmitting) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      final result = await ref.read(undoDeclineUseCaseProvider)(searchMatchId);
+      if (!mounted) return;
+      result.fold(
+        (failure) => context.showSnackBar(
+          'No se pudo restaurar: ${failure.message}',
+          isError: true,
+        ),
+        (_) {
+          ref.invalidate(storeSalesRequestsProvider);
+          ref.invalidate(storeRequestsByStatusProvider);
+          ref.invalidate(storeDashboardProvider);
+        },
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  String _declineReasonLabel(String? reason) {
+    return DeclineMatchDialog.reasons[reason] ?? 'Motivo no especificado';
+  }
+
+  String _partTypeLabel(String raw) {
+    return partTypeLabelFromApi(raw);
   }
 
   @override
   Widget build(BuildContext context) {
     final thread = widget.thread;
+    final subcategoryLabel = presentSubcategoryPath(
+      categoryName: thread.categoryName,
+      subcategoryName: thread.subcategory,
+      isCatchAll: thread.subcategoryIsCatchAll,
+      audience: SubcategoryPresentationAudience.store,
+    );
     final expStr =
         expirationLabel(thread.expiresAt, isExpired: thread.isExpired);
 
@@ -138,10 +185,23 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
     final bool isBought = hasStoreOffer && thread.offerStatus == 'BOUGHT';
     final bool isDelivered = hasStoreOffer && thread.offerStatus == 'DELIVERED';
     final bool isDiscarded = hasStoreOffer && thread.offerStatus == 'DISCARDED';
-    final bool isQuoted =
-        hasStoreOffer && !isBought && !isDelivered && !isDiscarded;
-    final bool canQuoteNow =
-        !hasStoreOffer && thread.isOpen && !thread.isExpired;
+    final bool isCancelled = hasStoreOffer && thread.offerStatus == 'CANCELLED';
+    final bool isDeclined = thread.matchState == 'DECLINED';
+    final bool isInquiry = thread.isInquiryState;
+    final bool isQuoted = thread.matchState == 'QUOTED' ||
+        (thread.hasFormalQuote &&
+            !isBought &&
+            !isDelivered &&
+            !isDiscarded &&
+            !isCancelled);
+    final bool canQuoteNow = (thread.matchState == 'PENDING' ||
+            (thread.matchState == null && !hasStoreOffer)) &&
+        thread.isOpen &&
+        !thread.isExpired;
+    final bool canDecline = thread.searchMatchId != null &&
+        (canQuoteNow || isInquiry) &&
+        thread.isOpen &&
+        !thread.isExpired;
     final bool isClosedWithoutQuote =
         !hasStoreOffer && (!thread.isOpen || thread.isExpired);
 
@@ -150,11 +210,19 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
 
     if (isDelivered) {
       status = OfferStatus.delivered;
+    } else if (isCancelled) {
+      status = OfferStatus.cancelled;
     } else if (isBought) {
       status = OfferStatus.bought;
     } else if (isDiscarded) {
       status = OfferStatus.discarded;
       labelOverride = 'OTRA OFERTA ELEGIDA';
+    } else if (isDeclined) {
+      status = OfferStatus.unknown;
+      labelOverride = 'DECLINADA';
+    } else if (isInquiry) {
+      status = OfferStatus.noQuoteYet;
+      labelOverride = 'CONSULTA ABIERTA';
     } else if (isQuoted) {
       status = OfferStatus.sent;
     } else if (canQuoteNow) {
@@ -167,8 +235,9 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
     final semanticLabel = StringBuffer(
       'Solicitud de ${thread.clientName ?? "cliente"}, ${thread.title}',
     );
-    if (thread.subcategory != null)
-      semanticLabel.write(', ${thread.subcategory}');
+    if (thread.subcategory != null) {
+      semanticLabel.write(', $subcategoryLabel');
+    }
     semanticLabel.write(', ${(labelOverride ?? status.label).toLowerCase()}');
     if (thread.distance != null) {
       semanticLabel
@@ -251,7 +320,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                     MetaLine(
                       items: [
                         if (thread.subcategory != null)
-                          MetaItem(thread.subcategory!),
+                          MetaItem(subcategoryLabel),
                         if (thread.partType != null)
                           MetaItem(_partTypeLabel(thread.partType!)),
                       ],
@@ -312,20 +381,136 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
               ),
             )
           else if (canQuoteNow)
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                onPressed: _openQuoteDialog,
-                icon: const Icon(Icons.local_offer_rounded, size: 18),
-                label: Text('Cotizar ahora', style: CardTokens.button),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryDark,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+            Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    key: const Key('view-request-detail-button'),
+                    onPressed: widget.onViewDetail,
+                    icon: const AppLineIcon(
+                      AppIcons.services,
+                      size: AppIconSize.action,
+                    ),
+                    label: Text('Ver detalle', style: CardTokens.button),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryDark,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
                 ),
+                if (canDecline) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: TextButton.icon(
+                      onPressed: _declineMatch,
+                      icon: const Icon(Icons.remove_circle_outline_rounded),
+                      label: Text(
+                        'No puedo atenderla',
+                        style: CardTokens.button,
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            )
+          else if (isDeclined)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Motivo: ${_declineReasonLabel(thread.declineReason)}',
+                    style: CardTokens.meta.copyWith(color: AppColors.textMeta),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  height: 48,
+                  child: OutlinedButton(
+                    onPressed: _undoDecline,
+                    child: Text('Deshacer', style: CardTokens.button),
+                  ),
+                ),
+              ],
+            )
+          else if (isInquiry)
+            Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: widget.onTap,
+                    icon: const Icon(Icons.chat_bubble_outline_rounded),
+                    label: Text(
+                      'Continuar consulta',
+                      style: CardTokens.button,
+                    ),
+                  ),
+                ),
+                if (canDecline) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: TextButton(
+                      onPressed: _declineMatch,
+                      child: Text(
+                        'Declinar solicitud',
+                        style: CardTokens.button,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            )
+          else if (isCancelled)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.errorLight,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    switch (thread.cancelSource) {
+                      'SYSTEM' => 'Compra cancelada automáticamente',
+                      'STORE' => 'Compra cancelada por la tienda',
+                      'CONSUMER' => 'Compra cancelada por el comprador',
+                      _ => 'La compra fue cancelada.',
+                    },
+                    style: CardTokens.metaStrong.copyWith(
+                      color: AppColors.errorInk,
+                    ),
+                  ),
+                  if (thread.cancelReasonCode?.trim().isNotEmpty == true)
+                    Text(
+                      nonDeliveryReasonLabel(thread.cancelReasonCode!),
+                      style: CardTokens.meta.copyWith(
+                        color: AppColors.errorInk,
+                      ),
+                    ),
+                  if (thread.cancelReason?.trim().isNotEmpty == true)
+                    Text(
+                      thread.cancelReason!,
+                      style: CardTokens.meta.copyWith(
+                        color: AppColors.errorInk,
+                      ),
+                    ),
+                ],
               ),
             )
           else if (isBought)
@@ -356,7 +541,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                 const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
-                  height: 46,
+                  height: 48,
                   child: ElevatedButton.icon(
                     onPressed: _markDelivered,
                     icon: const Icon(Icons.local_shipping_rounded, size: 18),
@@ -368,6 +553,20 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: TextButton.icon(
+                    key: const Key('not-deliver-thread-button'),
+                    onPressed: _markNotDelivered,
+                    icon: const Icon(Icons.block_rounded),
+                    label: Text('No lo entregaré', style: CardTokens.button),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.errorInk,
                     ),
                   ),
                 ),
@@ -475,11 +674,18 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
                       Text('TU COTIZACIÓN', style: CardTokens.overline),
                       const SizedBox(height: 2),
                       PriceText(
-                        amount: thread.offerPrice,
+                        amount: thread.totalCost ?? thread.offerPrice,
                         style:
                             CardTokens.price.copyWith(color: AppColors.primary),
                         fallback: 'Enviada',
                       ),
+                      if (thread.deliveryCost != null)
+                        Text(
+                          thread.deliveryCost == 0
+                              ? 'TOTAL · DELIVERY GRATIS'
+                              : 'TOTAL CON DELIVERY',
+                          style: CardTokens.meta,
+                        ),
                     ],
                   ),
                 ),

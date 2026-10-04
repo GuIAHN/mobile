@@ -30,10 +30,14 @@ class _SparePartWizardStep2State extends ConsumerState<_SparePartWizardStep2> {
     if (widget.selectedCategory == null || widget.selectedSubcategory == null) {
       return '';
     }
-    if (widget.selectedCategory!.id == widget.selectedSubcategory!.id) {
-      return widget.selectedCategory!.name;
-    }
-    return '${widget.selectedCategory!.name} - ${widget.selectedSubcategory!.name}';
+    return presentSubcategoryPath(
+      categoryName: widget.selectedCategory!.name,
+      subcategoryName: widget.selectedSubcategory!.name,
+      isCatchAll: widget.selectedSubcategory!.isCatchAll,
+      audience: SubcategoryPresentationAudience.requester,
+      sameCategoryAndSubcategory:
+          widget.selectedCategory!.id == widget.selectedSubcategory!.id,
+    );
   }
 
   void _openCategorySelector() async {

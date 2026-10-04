@@ -65,8 +65,6 @@ class ProviderDetail extends Equatable {
     this.photo,
   });
 
-  String get displayType => esTaller ? 'Taller Mecánico' : 'Mecánico';
-
   @override
   List<Object?> get props => [
         id,

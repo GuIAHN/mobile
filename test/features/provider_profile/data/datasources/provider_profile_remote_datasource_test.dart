@@ -73,4 +73,49 @@ void main() {
     ).called(1);
     verifyNoMoreInteractions(client);
   });
+
+  test('loads store-wide coverage and projects it over subcategories',
+      () async {
+    when(
+      () => client.get<Map<String, dynamic>>(
+        ApiEndpoints.storeOwnCoverage,
+      ),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: ApiEndpoints.storeOwnCoverage),
+        statusCode: 200,
+        data: const {
+          'servesAllBrands': false,
+          'brands': [
+            {'id': 'brand-1', 'name': 'Toyota'},
+          ],
+          'sparePartsTypes': ['ORIGINAL', 'GENERIC'],
+          'subcategories': [
+            {
+              'subcategoryId': 'subcategory-1',
+              'name': 'Pastillas',
+              'categoryId': 'category-1',
+              'categoryName': 'Frenos',
+            },
+          ],
+        },
+      ),
+    );
+
+    final result = await dataSource.getOwnCatalog();
+
+    expect(result.subcategories, hasLength(1));
+    expect(result.subcategories.single.id, 'subcategory-1');
+    expect(result.subcategories.single.categoryId, 'category-1');
+    expect(result.subcategories.single.categoryName, 'Frenos');
+    expect(result.subcategories.single.subcategoryName, 'Pastillas');
+    expect(result.brands, ['Toyota']);
+    expect(result.sparePartsTypes, ['ORIGINAL', 'GENERIC']);
+    verify(
+      () => client.get<Map<String, dynamic>>(
+        ApiEndpoints.storeOwnCoverage,
+      ),
+    ).called(1);
+    verifyNoMoreInteractions(client);
+  });
 }

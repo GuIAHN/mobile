@@ -10,14 +10,12 @@ abstract class ApiEndpoints {
   static const String logout = 'auth/logout';
   static const String refreshToken = 'auth/refresh';
   static const String me = 'users/me';
+  static const String restoreAccount = 'users/me/restore';
   static const String forgotPassword = 'auth/forgot-password';
   static const String resetPassword = 'auth/reset-password';
+  static const String changePassword = 'auth/change-password';
 
   // ── Vehículos ─────────────────────────────────────────────────────────────
-  static const String vehicles = 'vehicles';
-  static String vehicleById(String id) => 'vehicles/$id';
-  static String vehicleServices(String id) => 'vehicles/$id/services';
-
   // ── Búsqueda de Proveedores ───────────────────────────────────────────────
   static const String searchMechanics = 'search/mechanics';
   static const String searchWorkshops = 'search/workshops';
@@ -29,10 +27,17 @@ abstract class ApiEndpoints {
   static const String stores = 'stores';
   static String storeDetail(String id) => 'stores/$id';
   static const String storeSearchRequests = 'stores/me/search-requests';
+  static String storeSearchRequestDetail(String requestId) =>
+      '$storeSearchRequests/$requestId';
+  static String storeSearchRequestDecline(String searchMatchId) =>
+      'stores/me/search-requests/$searchMatchId/decline';
+  static const String storeOwnCoverage = 'stores/me/coverage';
 
   // ── Home / Dashboard ──────────────────────────────────────────────────────
-  static const String dashboard = 'dashboard';
   static const String homeTopProviders = 'home/top-providers';
+
+  // ── Google Places (proxied by the backend) ───────────────────────────────
+  static const String placesSearch = 'places/search';
 
   // ── Notificaciones ────────────────────────────────────────────────────────
   static const String notifications = 'me/notifications';
@@ -42,11 +47,12 @@ abstract class ApiEndpoints {
   static String notificationRead(String id) => 'me/notifications/$id/read';
 
   // ── Búsqueda de Repuestos ─────────────────────────────────────────────────
-  static const String search = 'search';
   static const String searchMe = 'search/me';
-  static String searchById(String id) => 'search/$id';
-  static String searchClose(String id) => 'search/$id/close';
+  static String searchDetail(String requestId) => 'search/$requestId';
   static String searchOffers(String id) => 'search/$id/offers';
+  static const String consumerPurchases = 'me/purchases';
+  static String offerCancel(String id) => 'offers/$id/cancel';
+  static String offerCancelSale(String id) => 'offers/$id/cancel-sale';
 
   // ── Subida de imágenes ────────────────────────────────────────────────────
   static const String requestImageUpload = 'upload/requests';
@@ -55,10 +61,6 @@ abstract class ApiEndpoints {
 
   // ── Chat / Mensajería ──────────────────────────────────────────────────────
 
-  static const String conversationsFromOffer = 'conversations/from-offer';
-  static const String conversationsDirect = 'conversations/direct';
-  static String conversationMessages(String id) => 'conversations/$id/messages';
-  static String conversationRead(String id) => 'conversations/$id/read';
   // ── Ads ───────────────────────────────────────────────────────────────────
   static const String adsFeed = 'ads/feed';
   static String trackAdImpression(String id) => 'ads/$id/impression';
@@ -66,5 +68,8 @@ abstract class ApiEndpoints {
 
   // ── Reports / Dashboard ───────────────────────────────────────────────────
   static const String storeDashboard = 'reports/store/dashboard';
+  static const String storeResponseStatus = 'reports/store/response-status';
+  static String storeMetric(String metricId) =>
+      'reports/store/metrics/$metricId';
   static const String providerDashboard = 'reports/provider/dashboard';
 }

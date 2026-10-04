@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -206,6 +207,13 @@ void main() {
     expect(find.text('50'), findsOneWidget);
     expect(find.text('Teléfono'), findsOneWidget);
     expect(find.text('WhatsApp'), findsOneWidget);
+    expect(find.text('10 contactos registrados'), findsOneWidget);
+    expect(find.text('WhatsApp es tu canal principal'), findsOneWidget);
+    expect(find.byType(BarChart), findsOneWidget);
+    expect(
+      find.byKey(const Key('contact-channels-bar-chart')),
+      findsOneWidget,
+    );
     expect(find.text('Clic de contacto'), findsOneWidget);
     expect(find.text('Reseña dejada'), findsOneWidget);
   });

@@ -7,34 +7,51 @@ import '../../../../core/utils/formatters.dart';
 import '../../domain/entities/provider_detail.dart';
 import '../providers/home_providers.dart';
 import '../widgets/provider_detail_widgets.dart';
+import '../widgets/service_provider_detail_view.dart';
+import '../../../reviews/presentation/providers/reviews_providers.dart';
+import '../../../reviews/presentation/widgets/provider_review_action_card.dart';
+import '../../../reviews/presentation/widgets/provider_reviews_button.dart';
 
 class StoreDetailPage extends ConsumerWidget {
   final String storeId;
   final ServiceType serviceType;
+  final String? reviewConversationId;
 
   const StoreDetailPage({
     super.key,
     required this.storeId,
-    this.serviceType = ServiceType.workshops,
+    this.serviceType = ServiceType.spareParts,
+    this.reviewConversationId,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final args = (id: storeId, type: serviceType);
     final detailAsync = ref.watch(providerDetailProvider(args));
+    final selectedVehicle = ref.watch(searchVehicleProvider);
     final isStore = serviceType == ServiceType.spareParts;
     final providerLabel = isStore ? 'tienda' : 'taller';
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: detailAsync.when(
-        loading: () => const DetailSkeleton(),
+        loading: () => const ServiceProviderDetailSkeleton(),
         error: (e, _) => DetailErrorView(
           title: 'No se pudo cargar la $providerLabel',
-          message: e.toString(),
+          message:
+              'No pudimos cargar los datos. Revisa tu conexión e inténtalo nuevamente.',
           onRetry: () => ref.invalidate(providerDetailProvider(args)),
         ),
         data: (detail) {
+          if (serviceType != ServiceType.storeDashboard) {
+            return ServiceProviderDetailView(
+              detail: detail,
+              heroTag: 'provider-avatar-$storeId',
+              serviceType: serviceType,
+              reviewConversationId: reviewConversationId,
+            );
+          }
+
           final hasContact = detail.telefono != null;
           final hasLocation = detail.direccion != null ||
               detail.lat != null ||
@@ -75,6 +92,10 @@ class StoreDetailPage extends ConsumerWidget {
                       distanciaKm: detail.distanciaKm,
                       tarifa: detail.tarifa,
                     ),
+                    if (!isStore && detail.userId != null) ...[
+                      const SizedBox(height: 12),
+                      ProviderReviewsButton(targetId: detail.userId!),
+                    ],
                     const SizedBox(height: 24),
                     if (detail.hasDelivery) ...[
                       const _DeliveryBadge(),
@@ -130,8 +151,19 @@ class StoreDetailPage extends ConsumerWidget {
                           value: detail.telefono!,
                           color: AppColors.success,
                           semanticsHint: 'Toca para llamar',
-                          onTap: () =>
-                              ContactActions.call(context, detail.telefono!),
+                          onTap: () async {
+                            if (!isStore) {
+                              await registerProviderContact(
+                                ref,
+                                providerProfileId: detail.id,
+                                channel: 'PHONE',
+                              );
+                            }
+                            if (context.mounted) {
+                              await ContactActions.call(
+                                  context, detail.telefono!);
+                            }
+                          },
                         ),
                         DetailContactTile(
                           icon: Icons.chat_bubble_rounded,
@@ -139,10 +171,34 @@ class StoreDetailPage extends ConsumerWidget {
                           value: detail.telefono!,
                           color: const Color(0xFF25D366),
                           semanticsHint: 'Toca para escribir por WhatsApp',
-                          onTap: () => ContactActions.whatsapp(
-                              context, detail.telefono!),
+                          onTap: () async {
+                            if (!isStore) {
+                              await registerProviderContact(
+                                ref,
+                                providerProfileId: detail.id,
+                                channel: 'WHATSAPP',
+                              );
+                            }
+                            if (context.mounted) {
+                              await ContactActions.whatsapp(
+                                context,
+                                detail.telefono!,
+                                message: ContactActions.providerInquiryMessage(
+                                  vehicle: selectedVehicle,
+                                ),
+                              );
+                            }
+                          },
                         ),
                       ],
+                      const SizedBox(height: 24),
+                    ],
+                    if (!isStore && detail.userId != null) ...[
+                      ProviderReviewActionCard(
+                        targetId: detail.userId!,
+                        providerProfileId: detail.id,
+                        providerName: detail.nombre,
+                      ),
                       const SizedBox(height: 24),
                     ],
                     const SizedBox(height: 32),

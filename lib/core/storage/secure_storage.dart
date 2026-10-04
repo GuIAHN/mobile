@@ -10,7 +10,12 @@ final secureStorageProvider = Provider<SecureStorage>((ref) {
 /// Es el ÚNICO lugar de la app donde se persisten datos sensibles.
 class SecureStorage {
   static const _storage = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+      // If Android restored encrypted preferences without their Keystore key,
+      // discard the unreadable values instead of blocking app startup.
+      resetOnError: true,
+    ),
     iOptions: IOSOptions(
       accessibility: KeychainAccessibility.first_unlock_this_device,
     ),
@@ -20,6 +25,10 @@ class SecureStorage {
   static const _keyAccessToken = 'access_token';
   static const _keyRefreshToken = 'refresh_token';
   static const _keyUserId = 'user_id';
+  static const _keySyncedDeviceToken = 'synced_device_token';
+  static const _keySyncedDeviceUserId = 'synced_device_user_id';
+  static const _contactedProviderPrefix = 'review_contacted_provider';
+  static const _handledStoreReviewPrefix = 'handled_store_review';
 
   // ── Access Token ─────────────────────────────────────────────────────────
 
@@ -29,10 +38,6 @@ class SecureStorage {
 
   Future<String?> getToken() async {
     return _storage.read(key: _keyAccessToken);
-  }
-
-  Future<void> deleteToken() async {
-    await _storage.delete(key: _keyAccessToken);
   }
 
   // ── Refresh Token ─────────────────────────────────────────────────────────
@@ -45,10 +50,6 @@ class SecureStorage {
     return _storage.read(key: _keyRefreshToken);
   }
 
-  Future<void> deleteRefreshToken() async {
-    await _storage.delete(key: _keyRefreshToken);
-  }
-
   // ── User ID ──────────────────────────────────────────────────────────────
 
   Future<void> saveUserId(String userId) async {
@@ -57,6 +58,63 @@ class SecureStorage {
 
   Future<String?> getUserId() async {
     return _storage.read(key: _keyUserId);
+  }
+
+  // ── Push token synchronization ────────────────────────────────────────────
+
+  Future<bool> isDeviceTokenSynced({
+    required String userId,
+    required String token,
+  }) async {
+    final values = await Future.wait([
+      _storage.read(key: _keySyncedDeviceUserId),
+      _storage.read(key: _keySyncedDeviceToken),
+    ]);
+    return values[0] == userId && values[1] == token;
+  }
+
+  Future<void> markDeviceTokenSynced({
+    required String userId,
+    required String token,
+  }) async {
+    await Future.wait([
+      _storage.write(key: _keySyncedDeviceUserId, value: userId),
+      _storage.write(key: _keySyncedDeviceToken, value: token),
+    ]);
+  }
+
+  Future<String?> _contactedProviderKey(String providerProfileId) async {
+    final userId = await getUserId();
+    if (userId == null || userId.isEmpty) return null;
+    return '${_contactedProviderPrefix}_${userId}_$providerProfileId';
+  }
+
+  Future<void> markProviderContacted(String providerProfileId) async {
+    final key = await _contactedProviderKey(providerProfileId);
+    if (key != null) await _storage.write(key: key, value: 'true');
+  }
+
+  Future<bool> hasContactedProvider(String providerProfileId) async {
+    final key = await _contactedProviderKey(providerProfileId);
+    if (key == null) return false;
+    return await _storage.read(key: key) == 'true';
+  }
+
+  Future<String?> _handledStoreReviewKey(String conversationId) async {
+    final userId = await getUserId();
+    if (userId == null || userId.isEmpty) return null;
+    return '${_handledStoreReviewPrefix}_${userId}_$conversationId';
+  }
+
+  Future<void> markStoreReviewHandled(String conversationId) async {
+    final key = await _handledStoreReviewKey(conversationId);
+    if (key != null) await _storage.write(key: key, value: 'true');
+  }
+
+  Future<bool> hasHandledStoreReview(String conversationId) async {
+    final key = await _handledStoreReviewKey(conversationId);
+    if (key == null) return false;
+    return await _storage.read(key: key) == 'true';
   }
 
   // ── Utilidades ───────────────────────────────────────────────────────────
@@ -73,12 +131,9 @@ class SecureStorage {
       _storage.delete(key: _keyAccessToken),
       _storage.delete(key: _keyRefreshToken),
       _storage.delete(key: _keyUserId),
+      _storage.delete(key: _keySyncedDeviceToken),
+      _storage.delete(key: _keySyncedDeviceUserId),
     ]);
-  }
-
-  /// Borra todo el almacenamiento seguro.
-  Future<void> clearAll() async {
-    await _storage.deleteAll();
   }
 
   // ── Onboarding ──────────────────────────────────────────────────────────

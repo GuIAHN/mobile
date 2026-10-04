@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/domain/enums/offer_status.dart';
+import '../../../../core/domain/enums/part_type.dart';
+import '../../../../shared/utils/subcategory_presentation.dart';
 import '../../domain/entities/chat_thread.dart';
 import '_atoms/card_shell.dart';
 import '_atoms/card_tokens.dart';
-import '_atoms/status_badge.dart';
-import '_atoms/meta_line.dart';
-import '_atoms/price_text.dart';
 import '_atoms/expiration_label.dart';
 
 /// Card de solicitud de búsqueda — vista consumidor.
 ///
-/// Mantiene la jerarquía compartida por las cards del inbox:
-///   1. Header  — estado + expiración adaptable
-///   2. Cuerpo  — miniatura + identidad de la solicitud
-///   3. Footer  — resumen contextual de cotizaciones
+/// La miniatura y toda la información viven en una sola fila compacta para
+/// aumentar la densidad sin perder jerarquía ni compatibilidad con Dynamic
+/// Type. La barra lateral es la única firma visual y comunica el estado.
 class ConsumerThreadCard extends StatelessWidget {
   final ChatThread thread;
   final VoidCallback onTap;
@@ -32,11 +31,13 @@ class ConsumerThreadCard extends StatelessWidget {
     if (thread.bestOfferStatus == 'DELIVERED') {
       return (status: OfferStatus.delivered, labelOverride: null);
     }
+    if (thread.bestOfferStatus == 'CANCELLED') {
+      return (status: OfferStatus.cancelled, labelOverride: null);
+    }
     if (!thread.isOpen || thread.isExpired) {
       return (status: OfferStatus.discarded, labelOverride: 'CERRADA');
     }
-    final hasOffers =
-        thread.totalOffersCount > 0 || thread.bestOfferPrice != null;
+    final hasOffers = _quotesCount > 0;
     if (hasOffers) {
       return (status: OfferStatus.offersReceived, labelOverride: null);
     }
@@ -44,10 +45,20 @@ class ConsumerThreadCard extends StatelessWidget {
   }
 
   String _offersLabel() {
-    final count = thread.totalOffersCount;
-    if (count == 0) return 'Sin cotizaciones';
+    final count = _quotesCount;
+    if (count == 0) return '0 cotizaciones';
     return '$count ${count == 1 ? 'cotización' : 'cotizaciones'}';
   }
+
+  String _questionsLabel() {
+    final count = _questionsCount;
+    return '$count ${count == 1 ? 'pregunta' : 'preguntas'}';
+  }
+
+  int get _quotesCount => thread.quotesCount < 0 ? 0 : thread.quotesCount;
+
+  int get _questionsCount =>
+      thread.questionsCount < 0 ? 0 : thread.questionsCount;
 
   @override
   Widget build(BuildContext context) {
@@ -59,25 +70,19 @@ class ConsumerThreadCard extends StatelessWidget {
     final status = resolved.status;
     final isTerminal = status == OfferStatus.discarded ||
         status == OfferStatus.bought ||
-        status == OfferStatus.delivered;
-    final hasBestOffer = thread.bestOfferPrice != null;
-    final hasResponses = thread.totalOffersCount > 0 || hasBestOffer;
+        status == OfferStatus.delivered ||
+        status == OfferStatus.cancelled;
+    final requestMetaLabel = _requestMetaLabel();
+    final subcategoryLabel = _subcategoryLabel;
 
     final semanticLabel = StringBuffer('Solicitud ${thread.title}');
     if (thread.subcategory != null) {
-      semanticLabel.write(', ${thread.subcategory}');
+      semanticLabel.write(', $subcategoryLabel');
     }
     semanticLabel.write(
       ', ${(resolved.labelOverride ?? status.label).toLowerCase()}',
     );
-    if (hasBestOffer) {
-      semanticLabel.write(
-        ', mejor oferta ${thread.bestOfferPrice!.toStringAsFixed(0)} lempiras',
-      );
-    }
-    if (thread.totalOffersCount > 0) {
-      semanticLabel.write(', ${_offersLabel()}');
-    }
+    semanticLabel.write(', ${_offersLabel()}, ${_questionsLabel()}');
     if (!isTerminal && expiration.isNotEmpty) {
       semanticLabel.write(', $expiration');
     }
@@ -86,258 +91,298 @@ class ConsumerThreadCard extends StatelessWidget {
       onTap: onTap,
       accentColor: status.accentColor,
       semanticLabel: semanticLabel.toString(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
+      child: Stack(
+        key: const Key('consumer-request-content'),
+        alignment: Alignment.centerRight,
         children: [
-          // Header en el flujo normal: nunca tapa el contenido al escalar.
-          _RequestHeader(
-            status: status,
-            labelOverride: resolved.labelOverride,
-            expiration: !isTerminal ? expiration : '',
-          ),
-          const SizedBox(height: CardTokens.blockGap),
-
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CardThumb(
-                url: thread.fotoUrl,
-                vehicleType: thread.vehicleType,
-                title: thread.title,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          Padding(
+            padding: const EdgeInsets.only(right: 36),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Stack(
                   children: [
-                    Text(
-                      thread.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: CardTokens.title,
+                    CardThumb(
+                      key: const Key('consumer-request-thumbnail'),
+                      url: thread.fotoUrl,
+                      vehicleType: thread.vehicleType,
+                      title: thread.title,
+                      size: 112,
+                      enableViewer: false,
                     ),
-                    const SizedBox(height: CardTokens.tight),
-                    MetaLine(
-                      items: [
-                        if (thread.subcategory != null)
-                          MetaItem(thread.subcategory!),
-                        if (thread.partType != null)
-                          MetaItem(_partTypeLabel(thread.partType!)),
-                      ],
-                    ),
-                    if (thread.details != null &&
-                        thread.details!.trim().isNotEmpty) ...[
-                      const SizedBox(height: CardTokens.gap),
-                      Text(
-                        thread.details!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: CardTokens.body,
+                    if (isTerminal)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: _TerminalStatusBadge(status: status),
                       ),
-                    ],
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    key: const Key('consumer-request-text-content'),
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (!isTerminal) ...[
+                        _RequestHeader(
+                          status: status,
+                          expiration: expiration,
+                        ),
+                        const SizedBox(height: 6),
+                      ],
+                      Text(
+                        thread.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: CardTokens.title.copyWith(fontSize: 16),
+                      ),
+                      if (requestMetaLabel.isNotEmpty) ...[
+                        const SizedBox(height: CardTokens.tight),
+                        Text(
+                          requestMetaLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: CardTokens.meta,
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      _OfferMeta(
+                        offersLabel: _offersLabel(),
+                        questionsLabel: _questionsLabel(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-
-          const CardDivider(),
-          _OfferSummary(
-            status: status,
-            hasBestOffer: hasBestOffer,
-            hasResponses: hasResponses,
-            bestOfferPrice: thread.bestOfferPrice,
-            bestOfferStoreName: thread.bestOfferStoreName,
-            offersLabel: _offersLabel(),
+          const SizedBox(
+            key: Key('consumer-request-chevron-slot'),
+            width: 32,
+            child: Center(
+              child: AppLineIcon(
+                AppIcons.next,
+                size: AppIconSize.action,
+                color: AppColors.grey600,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
+  String _requestMetaLabel() {
+    return [
+      if (thread.subcategory != null && thread.subcategory!.trim().isNotEmpty)
+        _subcategoryLabel,
+      if (thread.partType != null && thread.partType!.trim().isNotEmpty)
+        _partTypeLabel(thread.partType!),
+    ].join(' · ');
+  }
+
+  String get _subcategoryLabel => presentSubcategoryPath(
+        categoryName: thread.categoryName,
+        subcategoryName: thread.subcategory,
+        isCatchAll: thread.subcategoryIsCatchAll,
+        audience: SubcategoryPresentationAudience.requester,
+      );
+
   String _partTypeLabel(String raw) {
-    switch (raw) {
-      case 'ORIGINAL':
-        return 'Original';
-      case 'GENERIC':
-        return 'Genérico';
-      case 'PERFORMANCE':
-        return 'Performance';
-      default:
-        return raw;
-    }
+    return partTypeLabelFromApi(raw);
   }
 }
 
-/// El vencimiento antes estaba superpuesto sobre la card. En el flujo normal
-/// puede bajar de línea en pantallas angostas o con texto grande.
+/// Encabezado compacto: el estado se comunica con un solo icono y el texto de
+/// vencimiento permanece en la misma línea. El nombre accesible completo vive
+/// en la semántica de la card.
 class _RequestHeader extends StatelessWidget {
   final OfferStatus status;
-  final String? labelOverride;
   final String expiration;
 
   const _RequestHeader({
     required this.status,
-    required this.labelOverride,
     required this.expiration,
   });
 
   @override
   Widget build(BuildContext context) {
-    final statusBadge = StatusBadge(
-      status: status,
-      labelOverride: labelOverride,
-    );
-
-    if (expiration.isEmpty) return statusBadge;
-
-    final expirationMeta = Text.rich(
-      TextSpan(
-        children: [
-          const WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: Padding(
-              padding: EdgeInsets.only(right: 5),
-              child: Icon(
-                Icons.schedule_rounded,
-                size: 15,
-                color: AppColors.textMeta,
+    return Row(
+      children: [
+        AppLineIcon(
+          _statusIcon(status),
+          key: const Key('consumer-request-status-icon'),
+          size: AppIconSize.action,
+          color: status.foreground,
+        ),
+        if (expiration.isNotEmpty) ...[
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  const WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: Padding(
+                      padding: EdgeInsets.only(right: 5),
+                      child: AppLineIcon(
+                        AppIcons.time,
+                        size: AppIconSize.inline,
+                        color: AppColors.textMeta,
+                      ),
+                    ),
+                  ),
+                  TextSpan(text: expiration),
+                ],
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: CardTokens.meta.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
-          TextSpan(text: expiration),
         ],
-      ),
-      style: CardTokens.meta.copyWith(fontWeight: FontWeight.w600),
-    );
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final scaledBody = MediaQuery.textScalerOf(context).scale(14);
-        final shouldWrap = constraints.maxWidth < 270 || scaledBody > 19;
-
-        if (shouldWrap) {
-          return Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [statusBadge, expirationMeta],
-          );
-        }
-
-        return Row(
-          children: [
-            Flexible(child: statusBadge),
-            const Spacer(),
-            expirationMeta,
-          ],
-        );
-      },
+      ],
     );
   }
 }
 
-/// Footer sobrio y contextual: diferencia entre espera, respuestas recibidas
-/// y una búsqueda finalizada sin convertir el precio en un bloque dominante.
-class _OfferSummary extends StatelessWidget {
+class _TerminalStatusBadge extends StatelessWidget {
   final OfferStatus status;
-  final bool hasBestOffer;
-  final bool hasResponses;
-  final double? bestOfferPrice;
-  final String? bestOfferStoreName;
-  final String offersLabel;
 
-  const _OfferSummary({
-    required this.status,
-    required this.hasBestOffer,
-    required this.hasResponses,
-    required this.bestOfferPrice,
-    required this.bestOfferStoreName,
+  const _TerminalStatusBadge({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('consumer-request-terminal-status'),
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: AppLineIcon(
+        _statusIcon(status),
+        size: AppIconSize.inline,
+        color: status.foreground,
+      ),
+    );
+  }
+}
+
+IconData _statusIcon(OfferStatus status) {
+  switch (status) {
+    case OfferStatus.noOffers:
+      return AppIcons.search;
+    case OfferStatus.offersReceived:
+      return AppIcons.offer;
+    case OfferStatus.unquoted:
+      return AppIcons.opportunity;
+    case OfferStatus.noQuoteYet:
+      return AppIcons.message;
+    case OfferStatus.sent:
+    case OfferStatus.accepted:
+      return AppIcons.send;
+    case OfferStatus.discarded:
+      return AppIcons.cancellation;
+    case OfferStatus.bought:
+      return AppIcons.receipt;
+    case OfferStatus.delivered:
+      return AppIcons.success;
+    case OfferStatus.cancelled:
+      return AppIcons.cancellation;
+    case OfferStatus.unknown:
+      return AppIcons.info;
+  }
+}
+
+/// Contador discreto integrado al contenido principal. No crea un footer ni
+/// repite el estado de la solicitud.
+class _OfferMeta extends StatelessWidget {
+  final String offersLabel;
+  final String questionsLabel;
+
+  const _OfferMeta({
     required this.offersLabel,
+    required this.questionsLabel,
   });
 
-  bool get _isTerminal =>
-      status == OfferStatus.discarded ||
-      status == OfferStatus.bought ||
-      status == OfferStatus.delivered;
-
-  String get _heading {
-    if (status == OfferStatus.bought) return 'OFERTA COMPRADA';
-    if (status == OfferStatus.delivered) return 'OFERTA ENTREGADA';
-    if (hasBestOffer) return 'MEJOR OFERTA';
-    if (_isTerminal) return 'RESULTADO';
-    return 'COTIZACIONES';
+  @override
+  Widget build(BuildContext context) {
+    final offersStyle = CardTokens.metaStrong.copyWith(
+      color: AppColors.celesteInk,
+      fontSize: 12,
+    );
+    final questionsStyle = CardTokens.metaStrong.copyWith(
+      color: AppColors.textMeta,
+      fontSize: 12,
+    );
+    return Column(
+      key: const Key('consumer-request-offers-meta'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _MetricLabel(
+          icon: AppIcons.offer,
+          iconKey: const Key('consumer-request-quotes-icon'),
+          label: offersLabel,
+          style: offersStyle,
+          allowWrap: true,
+        ),
+        const SizedBox(height: 6),
+        _MetricLabel(
+          icon: AppIcons.question,
+          iconKey: const Key('consumer-request-questions-icon'),
+          label: questionsLabel,
+          style: questionsStyle,
+          allowWrap: true,
+        ),
+      ],
+    );
   }
+}
 
-  String get _mainText {
-    if (hasResponses) return offersLabel;
-    if (_isTerminal) return 'Sin cotizaciones';
-    return 'Esperando respuestas';
-  }
+class _MetricLabel extends StatelessWidget {
+  final IconData icon;
+  final Key iconKey;
+  final String label;
+  final TextStyle style;
+  final bool allowWrap;
 
-  String get _supportingText {
-    if (hasResponses) return 'Abre la solicitud para revisar las respuestas';
-    if (_isTerminal) return 'La búsqueda finalizó sin ofertas';
-    return 'Te avisaremos cuando una tienda responda';
-  }
+  const _MetricLabel({
+    required this.icon,
+    required this.iconKey,
+    required this.label,
+    required this.style,
+    this.allowWrap = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(_heading, style: CardTokens.overline),
-              const SizedBox(height: 3),
-              if (hasBestOffer)
-                PriceText(
-                  amount: bestOfferPrice,
-                  style: CardTokens.price.copyWith(color: AppColors.primary),
-                )
-              else
-                Text(
-                  _mainText,
-                  style: CardTokens.metaStrong.copyWith(
-                    fontSize: 14,
-                    color: _isTerminal
-                        ? AppColors.textSecondary
-                        : AppColors.textPrimary,
-                  ),
-                ),
-              const SizedBox(height: 6),
-              if (hasBestOffer)
-                MetaLine(
-                  items: [
-                    if (bestOfferStoreName != null &&
-                        bestOfferStoreName!.trim().isNotEmpty)
-                      MetaItem(
-                        bestOfferStoreName!,
-                        icon: Icons.storefront_outlined,
-                        color: AppColors.celesteInk,
-                      ),
-                    MetaItem(
-                      offersLabel,
-                      icon: Icons.local_offer_outlined,
-                      color: AppColors.celesteInk,
-                    ),
-                  ],
-                )
-              else
-                Text(_supportingText, style: CardTokens.meta),
-            ],
-          ),
+        AppLineIcon(
+          icon,
+          key: iconKey,
+          size: AppIconSize.inline,
+          color: style.color,
         ),
-        const SizedBox(width: 8),
-        const SizedBox(
-          width: 40,
-          height: 48,
-          child: Icon(
-            Icons.chevron_right_rounded,
-            color: AppColors.grey500,
-            size: 22,
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: allowWrap ? 2 : 1,
+            overflow: TextOverflow.ellipsis,
+            style: style,
           ),
         ),
       ],

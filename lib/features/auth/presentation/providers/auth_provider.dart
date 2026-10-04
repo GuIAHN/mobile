@@ -3,12 +3,17 @@ import 'auth_state.dart';
 import 'auth_notifier.dart';
 export 'auth_notifier.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/services/socket_service.dart';
 import '../../../../core/storage/secure_storage.dart';
+import '../../../../core/network/token_refresh_coordinator.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../domain/usecases/change_password_usecase.dart';
+import '../../domain/usecases/forgot_password_usecase.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
+import '../../domain/usecases/reset_password_usecase.dart';
 import '../../domain/usecases/update_profile_usecase.dart';
 import '../../domain/usecases/upload_avatar_usecase.dart';
 
@@ -40,7 +45,6 @@ final registerUseCaseProvider = Provider<RegisterUseCase>((ref) {
   return RegisterUseCase(ref.watch(authRepositoryProvider));
 });
 
-
 /// Provider for the update profile use case.
 final updateProfileUseCaseProvider = Provider<UpdateProfileUseCase>((ref) {
   return UpdateProfileUseCase(ref.watch(authRepositoryProvider));
@@ -49,6 +53,19 @@ final updateProfileUseCaseProvider = Provider<UpdateProfileUseCase>((ref) {
 /// Provider for the upload avatar use case.
 final uploadAvatarUseCaseProvider = Provider<UploadAvatarUseCase>((ref) {
   return UploadAvatarUseCase(ref.watch(authRepositoryProvider));
+});
+
+/// Provider for the change password use case.
+final changePasswordUseCaseProvider = Provider<ChangePasswordUseCase>((ref) {
+  return ChangePasswordUseCase(ref.watch(authRepositoryProvider));
+});
+
+final forgotPasswordUseCaseProvider = Provider<ForgotPasswordUseCase>((ref) {
+  return ForgotPasswordUseCase(ref.watch(authRepositoryProvider));
+});
+
+final resetPasswordUseCaseProvider = Provider<ResetPasswordUseCase>((ref) {
+  return ResetPasswordUseCase(ref.watch(authRepositoryProvider));
 });
 
 /// Main auth state provider. Consumed by login and registration screens.
@@ -60,5 +77,17 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
     uploadAvatarUseCase: ref.watch(uploadAvatarUseCaseProvider),
     authRepository: ref.watch(authRepositoryProvider),
     secureStorage: ref.watch(secureStorageProvider),
+    socketService: ref.watch(socketServiceProvider),
+    tokenRefreshCoordinator: ref.watch(tokenRefreshCoordinatorProvider),
   );
+});
+
+/// Finaliza la sesión local después de un cambio de contraseña exitoso.
+///
+/// El backend invalida todos los refresh tokens al actualizar la contraseña,
+/// por lo que mantener la app como autenticada dejaría credenciales obsoletas
+/// hasta que expire el access token actual.
+final passwordChangeSessionHandlerProvider =
+    Provider<Future<void> Function()>((ref) {
+  return () => ref.read(authProvider.notifier).logout();
 });

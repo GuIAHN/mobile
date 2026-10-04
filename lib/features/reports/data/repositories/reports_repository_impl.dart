@@ -12,6 +12,10 @@ class ReportsRepositoryImpl implements ReportsRepository {
       _remoteDataSource.getStoreDashboard(from: from, to: to);
 
   @override
+  Future<StoreResponseStatus> getStoreResponseStatus() =>
+      _remoteDataSource.getStoreResponseStatus();
+
+  @override
   Future<DashboardResponse> getProviderDashboard({String? from, String? to}) =>
       _remoteDataSource.getProviderDashboard(from: from, to: to);
 }

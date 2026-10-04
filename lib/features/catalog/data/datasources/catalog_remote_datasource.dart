@@ -1,6 +1,5 @@
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/network/dio_client.dart';
-import '../models/category_model.dart';
 import '../models/category_node_model.dart';
 import '../models/specialty_model.dart';
 
@@ -25,36 +24,6 @@ class CatalogRemoteDataSource {
     }
   }
 
-  /// Fetches the list of root (main) categories.
-  Future<List<CategoryModel>> getRootCategories() async {
-    try {
-      final response = await _client.get<List<dynamic>>('/categories');
-      if (response.data == null) {
-        throw const ParseException();
-      }
-      return response.data!
-          .map((json) => CategoryModel.fromJson(json as Map<String, dynamic>))
-          .toList();
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  /// Fetches the list of subcategories for a specific category.
-  Future<List<CategoryModel>> getSubcategories(String categoryId) async {
-    try {
-      final response = await _client.get<List<dynamic>>('/categories/$categoryId/subcategories');
-      if (response.data == null) {
-        throw const ParseException();
-      }
-      return response.data!
-          .map((json) => CategoryModel.fromJson(json as Map<String, dynamic>))
-          .toList();
-    } catch (e) {
-      rethrow;
-    }
-  }
-
   /// Fetches the complete category tree (roots + all nested subcategories).
   ///
   /// The backend caches this response in Redis for 24 hours, so this call
@@ -67,7 +36,8 @@ class CatalogRemoteDataSource {
         throw const ParseException();
       }
       return response.data!
-          .map((json) => CategoryNodeModel.fromJson(json as Map<String, dynamic>))
+          .map((json) =>
+              CategoryNodeModel.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
       rethrow;

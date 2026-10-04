@@ -23,15 +23,29 @@ class DashboardResponse extends Equatable {
     return null;
   }
 
-  factory DashboardResponse.fromJson(Map<String, dynamic> json) {
-    return DashboardResponse(
-      scope: json['scope'] as String? ?? '',
-      computedAt: json['computedAt'] as String? ?? '',
-      groups: (json['groups'] as List<dynamic>?)
-              ?.map((e) => DashboardGroup.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-    );
+  DashboardResponse replaceMetric(MetricResult replacement) {
+    var replaced = false;
+    final updatedGroups = groups.map((group) {
+      final updatedPanels = group.panels.map((panel) {
+        if (panel.id != replacement.id) return panel;
+        replaced = true;
+        return DashboardPanel(
+          id: panel.id,
+          span: panel.span,
+          metric: replacement,
+        );
+      }).toList();
+
+      return DashboardGroup(title: group.title, panels: updatedPanels);
+    }).toList();
+
+    return replaced
+        ? DashboardResponse(
+            scope: scope,
+            computedAt: computedAt,
+            groups: updatedGroups,
+          )
+        : this;
   }
 }
 
@@ -46,16 +60,6 @@ class DashboardGroup extends Equatable {
 
   @override
   List<Object?> get props => [title, panels];
-
-  factory DashboardGroup.fromJson(Map<String, dynamic> json) {
-    return DashboardGroup(
-      title: json['title'] as String? ?? '',
-      panels: (json['panels'] as List<dynamic>?)
-              ?.map((e) => DashboardPanel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-    );
-  }
 }
 
 class DashboardPanel extends Equatable {
@@ -71,16 +75,6 @@ class DashboardPanel extends Equatable {
 
   @override
   List<Object?> get props => [id, span, metric];
-
-  factory DashboardPanel.fromJson(Map<String, dynamic> json) {
-    return DashboardPanel(
-      id: json['id'] as String? ?? '',
-      span: json['span'] as int? ?? 12,
-      metric: json['metric'] != null
-          ? MetricResult.fromJson(json['metric'] as Map<String, dynamic>)
-          : null,
-    );
-  }
 }
 
 class MetricResult extends Equatable {
@@ -90,6 +84,7 @@ class MetricResult extends Equatable {
   final String unit;
   final String availability;
   final Map<String, dynamic> payload;
+  final String? computedAt;
 
   const MetricResult({
     required this.id,
@@ -98,19 +93,58 @@ class MetricResult extends Equatable {
     required this.unit,
     required this.availability,
     required this.payload,
+    this.computedAt,
   });
 
   @override
-  List<Object?> get props => [id, title, subtitle, unit, availability, payload];
+  List<Object?> get props => [
+        id,
+        title,
+        subtitle,
+        unit,
+        availability,
+        payload,
+        computedAt,
+      ];
+}
 
-  factory MetricResult.fromJson(Map<String, dynamic> json) {
-    return MetricResult(
-      id: json['id'] as String? ?? '',
-      title: json['title'] as String? ?? '',
-      subtitle: json['subtitle'] as String?,
-      unit: json['unit'] as String? ?? '',
-      availability: json['availability'] as String? ?? '',
-      payload: json['payload'] as Map<String, dynamic>? ?? {},
-    );
-  }
+class StoreResponseStatus extends Equatable {
+  final bool blocked;
+  final num? sampleSize;
+  final num? medianMinutes;
+  final num? thresholdMinutes;
+  final num? minSample;
+  final num? windowDays;
+
+  const StoreResponseStatus({
+    required this.blocked,
+    this.sampleSize,
+    this.medianMinutes,
+    this.thresholdMinutes,
+    this.minSample,
+    this.windowDays,
+  });
+
+  @override
+  List<Object?> get props => [
+        blocked,
+        sampleSize,
+        medianMinutes,
+        thresholdMinutes,
+        minSample,
+        windowDays,
+      ];
+}
+
+class StoreMetricsBlockedException implements Exception {
+  final String message;
+  final StoreResponseStatus status;
+
+  const StoreMetricsBlockedException({
+    required this.message,
+    required this.status,
+  });
+
+  @override
+  String toString() => message;
 }

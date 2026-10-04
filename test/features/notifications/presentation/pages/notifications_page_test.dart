@@ -4,6 +4,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:guiautomotriz_mobile/core/error/failures.dart';
 import 'package:guiautomotriz_mobile/features/notifications/domain/entities/user_notification.dart';
 import 'package:guiautomotriz_mobile/features/notifications/domain/repositories/notifications_repository.dart';
@@ -51,15 +52,45 @@ class _FakeNotificationsRepository implements NotificationsRepository {
 UserNotification _fixture(
   int index, {
   String? body,
+  Map<String, dynamic> data = const {},
 }) {
   return UserNotification(
     id: 'n-$index',
     type: index.isEven ? 'message.new' : 'offer.new',
     title: index == 1 ? 'Nueva oferta' : 'Notificación $index',
     body: body ?? 'Contenido de la notificación $index',
-    data: const {},
+    data: data,
     isRead: false,
     createdAt: DateTime.utc(2026, 8, 14, 12, index % 60),
+  );
+}
+
+Widget _routedSubject(_FakeNotificationsRepository repository) {
+  final router = GoRouter(
+    initialLocation: '/notifications',
+    routes: [
+      GoRoute(
+        path: '/notifications',
+        builder: (_, __) => const NotificationsPage(),
+      ),
+      GoRoute(
+        path: '/chats/:conversationId',
+        builder: (_, state) => Scaffold(
+          body: Text('Chat ${state.pathParameters['conversationId']}'),
+        ),
+      ),
+    ],
+  );
+  return ProviderScope(
+    overrides: [
+      notificationsRepositoryProvider.overrideWithValue(repository),
+    ],
+    child: MaterialApp.router(
+      routerConfig: router,
+      builder: (context, child) => AppNotificationHost(
+        child: child ?? const SizedBox.shrink(),
+      ),
+    ),
   );
 }
 
@@ -202,6 +233,30 @@ void main() {
     expect(find.byKey(const Key('notification-card-n-1')), findsOneWidget);
     expect(find.text('Sin conexión a internet.'), findsOneWidget);
     expect(repository.requestedPages, [1]);
+  }, semanticsEnabled: true);
+
+  testWidgets('opens a message notification in its conversation',
+      (tester) async {
+    final repository = _FakeNotificationsRepository()
+      ..onGetUnread = (_, __) async => Right([
+            _fixture(
+              2,
+              data: const {'conversationId': 'conversation-1'},
+            ),
+          ]);
+
+    await tester.pumpWidget(_routedSubject(repository));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(
+      find.bySemanticsLabel(
+        'Abrir y marcar como leída: Notificación 2',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chat conversation-1'), findsOneWidget);
+    expect(repository.markedIds, ['n-2']);
   }, semanticsEnabled: true);
 
   testWidgets('marks every notification read only after bulk success',

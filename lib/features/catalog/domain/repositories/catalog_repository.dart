@@ -1,6 +1,5 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
-import '../entities/category.dart';
 import '../entities/category_node.dart';
 import '../entities/specialty.dart';
 
@@ -9,14 +8,7 @@ abstract class CatalogRepository {
   /// Fetches the complete list of mechanic specialties.
   Future<Either<Failure, List<Specialty>>> getSpecialties();
 
-  /// Fetches the list of root spare parts categories.
-  Future<Either<Failure, List<Category>>> getRootCategories();
-
-  /// Fetches the list of subcategories for a specific category.
-  Future<Either<Failure, List<Category>>> getSubcategories(String categoryId);
-
   /// Fetches the full category tree (roots + all nested subcategories).
   /// The tree is cached on the backend (Redis 24h) — one call per session.
   Future<Either<Failure, List<CategoryNode>>> getCategoryTree();
 }
-

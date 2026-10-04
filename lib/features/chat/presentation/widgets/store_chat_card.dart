@@ -1,20 +1,72 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/domain/enums/offer_status.dart';
 import '../../domain/entities/chat_conversation.dart';
-import '_atoms/card_shell.dart';
-import '_atoms/card_tokens.dart';
+import '../providers/chat_providers.dart';
 import '_atoms/status_badge.dart';
-import '_atoms/price_text.dart';
 
-/// Card compacta de conversación para la bandeja de Chats.
+/// Vincula un único card a los mensajes de su conversación. El `select` del
+/// provider evita que los demás cards se reconstruyan cuando llega un mensaje.
+class RealtimeStoreChatCard extends ConsumerWidget {
+  const RealtimeStoreChatCard({
+    super.key,
+    required this.conversation,
+    required this.onTap,
+    this.consumerPerspective = false,
+  });
+
+  final ChatConversation conversation;
+  final VoidCallback onTap;
+  final bool consumerPerspective;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final update = ref.watch(
+      conversationRealtimeUpdateProvider(
+        conversation.realtimeConversationId,
+      ),
+    );
+    final currentUserId = ref.watch(
+      currentUserProvider.select((user) => user?.id ?? ''),
+    );
+    var resolved = applyRealtimeConversationUpdate(
+      conversation,
+      update,
+      currentUserId: currentUserId,
+    );
+    if (currentUserId.isNotEmpty &&
+        resolved.lastMessageIsFromMe == null &&
+        resolved.lastMessage.trim().isNotEmpty) {
+      final latestMessage = ref
+          .watch(
+            latestConversationMessageProvider(
+              (
+                conversationId: conversation.realtimeConversationId,
+                lastMessageAt: resolved.lastMessageAt,
+                lastMessage: resolved.lastMessage,
+              ),
+            ),
+          )
+          .valueOrNull;
+      resolved = applyLatestMessageAuthorship(resolved, latestMessage);
+    }
+
+    return StoreChatCard(
+      conversation: resolved,
+      onTap: onTap,
+      consumerPerspective: consumerPerspective,
+    );
+  }
+}
+
+/// Card de bandeja de mensajes — jerarquía limpia tipo inbox.
 ///
-/// La jerarquía replica una bandeja de mensajería: identidad y hora, último
-/// mensaje y, como cierre, un único resumen comercial que agrupa estado y
-/// precio. Ningún dato comercial compite con el nombre o queda flotando en
-/// otro extremo de la card.
+/// Columna derecha: nombre + hora (fila) → preview del mensaje → pie comercial.
 class StoreChatCard extends StatelessWidget {
   final ChatConversation conversation;
   final VoidCallback onTap;
@@ -27,10 +79,6 @@ class StoreChatCard extends StatelessWidget {
     this.consumerPerspective = false,
   });
 
-  /// A diferencia de [OfferStatusX.fromApi] (pensado para `ChatThread`, donde
-  /// "sin oferta" implica una acción pendiente de cotizar), aquí un
-  /// `offerStatus` nulo es una conversación directa sin cotización formal —
-  /// un estado neutro. Por eso se resuelve aparte.
   OfferStatus _resolveStatus(ChatConversation conv) {
     switch (conv.offerStatus) {
       case 'SENT':
@@ -43,8 +91,13 @@ class StoreChatCard extends StatelessWidget {
         return OfferStatus.bought;
       case 'DELIVERED':
         return OfferStatus.delivered;
-      default:
+      case 'CANCELLED':
+        return OfferStatus.cancelled;
+      case null:
+      case 'INQUIRY':
         return OfferStatus.noQuoteYet;
+      default:
+        return OfferStatus.unknown;
     }
   }
 
@@ -54,6 +107,7 @@ class StoreChatCard extends StatelessWidget {
     final timeStr = Formatters.relativeDate(conv.lastMessageAt);
     final status = _resolveStatus(conv);
     final hasUnread = conv.unreadCount > 0;
+    final usesLargeText = MediaQuery.textScalerOf(context).scale(14) > 19;
 
     final message = conv.lastMessage.trim().isNotEmpty
         ? conv.lastMessage
@@ -63,254 +117,341 @@ class StoreChatCard extends StatelessWidget {
       'Chat con ${conv.participantName}, '
       '${(consumerPerspective ? status.consumerLabel : status.label).toLowerCase()}',
     );
-    if (conv.hasQuote) semanticLabel.write(', ${conv.formattedPrice}');
+    if (conv.hasFormalQuote) {
+      semanticLabel.write(', ${conv.formattedTotalCost}');
+    }
     if (hasUnread) {
       semanticLabel.write(
           ', ${conv.unreadCount} mensaje${conv.unreadCount > 1 ? 's' : ''} sin leer');
     }
     if (message.isNotEmpty) {
-      semanticLabel.write(', último mensaje: $message');
+      final sender = conv.lastMessageIsFromMe == true
+          ? 'tú'
+          : conv.lastMessageIsFromMe == false
+              ? conv.participantName
+              : null;
+      semanticLabel.write(
+        ', último mensaje${sender == null ? '' : ' de $sender'}: $message',
+      );
     }
 
-    return CardShell(
-      onTap: onTap,
-      padding: const EdgeInsets.all(CardTokens.pad),
-      semanticLabel: semanticLabel.toString(),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _ClientAvatar(
-            url: conv.participantAvatarUrl,
-            name: conv.participantName,
-            unreadCount: conv.unreadCount,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Nombre + hora
-                _ConversationHeader(
-                  participantName: conv.participantName,
-                  timeLabel: timeStr,
-                ),
-                const SizedBox(height: CardTokens.tight),
+    return Semantics(
+      label: semanticLabel.toString(),
+      button: true,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border, width: 0.8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Material(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Avatar con badge de no leídos ──────────────────────────
+                  if (!usesLargeText) ...[
+                    _ClientAvatar(
+                      url: conv.participantAvatarUrl,
+                      name: conv.participantName,
+                      unreadCount: conv.unreadCount,
+                      showGenericStore:
+                          consumerPerspective && !conv.revealsStoreIdentity,
+                    ),
+                    const SizedBox(width: 14),
+                  ],
 
-                // El mensaje es el segundo nivel de lectura, inmediatamente
-                // después de la identidad como en una bandeja convencional.
-                Text(
-                  message.isNotEmpty ? message : 'Sin mensajes todavía',
-                  key: const Key('chat-card-latest-message'),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: message.isEmpty
-                      ? CardTokens.meta
-                      : hasUnread
-                          ? CardTokens.bodyUnread
-                          : CardTokens.body,
-                ),
+                  // ── Columna principal ──────────────────────────────────────
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Nombre + hora. Con texto grande la fecha baja a una
+                        // segunda línea para conservarla completa.
+                        if (usesLargeText) ...[
+                          Text(
+                            conv.participantName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 15,
+                              fontWeight:
+                                  hasUnread ? FontWeight.w800 : FontWeight.w600,
+                              letterSpacing: -0.2,
+                              height: 1.2,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            timeStr,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.hankenGrotesk(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: hasUnread
+                                  ? AppColors.primary
+                                  : AppColors.textMeta,
+                            ),
+                          ),
+                        ] else
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  conv.participantName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.hankenGrotesk(
+                                    fontSize: 15,
+                                    fontWeight: hasUnread
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    letterSpacing: -0.2,
+                                    height: 1.2,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                timeStr,
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: hasUnread
+                                      ? AppColors.primary
+                                      : AppColors.textMeta,
+                                ),
+                              ),
+                            ],
+                          ),
+                        if (consumerPerspective &&
+                            conv.storeRating != null) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.star_rounded,
+                                size: 15,
+                                color: Color(0xFFF59E0B),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${conv.storeRating!.toStringAsFixed(1)} (${conv.storeReviewCount})',
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 4),
 
-                const SizedBox(height: 10),
-                const Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: AppColors.border,
-                ),
-                const SizedBox(height: 10),
+                        // Preview del último mensaje
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            if (hasUnread)
+                              Container(
+                                width: 8,
+                                height: 8,
+                                margin: const EdgeInsets.only(right: 7, top: 1),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            Expanded(
+                              child: Text.rich(
+                                key: const Key('chat-card-latest-message'),
+                                TextSpan(
+                                  children: [
+                                    if (message.isNotEmpty &&
+                                        conv.lastMessageIsFromMe != null)
+                                      TextSpan(
+                                        text: conv.lastMessageIsFromMe!
+                                            ? 'Tú: '
+                                            : '${conv.participantName}: ',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    TextSpan(
+                                      text: message.isNotEmpty
+                                          ? message
+                                          : 'Sin mensajes todavía',
+                                    ),
+                                  ],
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: message.isEmpty
+                                    ? GoogleFonts.hankenGrotesk(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w400,
+                                        height: 1.4,
+                                        color: AppColors.textMeta,
+                                        fontStyle: FontStyle.italic,
+                                      )
+                                    : hasUnread
+                                        ? GoogleFonts.hankenGrotesk(
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w600,
+                                            height: 1.4,
+                                            color: AppColors.textPrimary,
+                                          )
+                                        : GoogleFonts.hankenGrotesk(
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w400,
+                                            height: 1.4,
+                                            color: AppColors.textSecondary,
+                                          ),
+                              ),
+                            ),
+                          ],
+                        ),
 
-                // Estado y precio constituyen una sola unidad transaccional.
-                _CommercialSummary(
-                  status: status,
-                  labelOverride:
-                      consumerPerspective ? status.consumerLabel : null,
-                  hasQuote: conv.hasQuote,
-                  price: conv.price,
-                ),
-              ],
+                        // Pie comercial: estado izquierda + precio naranja derecha
+                        if (status != OfferStatus.noQuoteYet ||
+                            conv.hasFormalQuote) ...[
+                          const SizedBox(height: 8),
+                          LayoutBuilder(
+                            key: const Key('chat-card-commercial-summary'),
+                            builder: (context, constraints) {
+                              final statusWidget =
+                                  status != OfferStatus.noQuoteYet
+                                      ? IntrinsicWidth(
+                                          child: StatusBadge(
+                                            key: const Key(
+                                              'chat-card-status-badge',
+                                            ),
+                                            status: status,
+                                            labelOverride: consumerPerspective
+                                                ? status.consumerLabel
+                                                : null,
+                                          ),
+                                        )
+                                      : null;
+                              final priceWidget = conv.hasFormalQuote
+                                  ? Text(
+                                      key: const Key('chat-card-price'),
+                                      conv.formattedTotalCost,
+                                      style: GoogleFonts.hankenGrotesk(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -0.5,
+                                        color: AppColors.primary,
+                                        fontFeatures: const [
+                                          FontFeature.tabularFigures(),
+                                        ],
+                                      ),
+                                    )
+                                  : null;
+                              return Wrap(
+                                spacing: 4,
+                                runSpacing: 8,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  if (statusWidget != null) statusWidget,
+                                  if (priceWidget != null) priceWidget,
+                                ],
+                              );
+                            },
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _ConversationHeader extends StatelessWidget {
-  final String participantName;
-  final String timeLabel;
-
-  const _ConversationHeader({
-    required this.participantName,
-    required this.timeLabel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final name = Text(
-      participantName,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: CardTokens.title.copyWith(fontSize: 16),
-    );
-    final time = Text(
-      timeLabel,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: CardTokens.meta,
-    );
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final scaledBody = MediaQuery.textScalerOf(context).scale(14);
-        final shouldStack = constraints.maxWidth < 200 || scaledBody > 19;
-
-        if (shouldStack) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              name,
-              const SizedBox(height: 2),
-              time,
-            ],
-          );
-        }
-
-        return Row(
-          children: [
-            Expanded(child: name),
-            const SizedBox(width: 8),
-            Flexible(child: time),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _CommercialSummary extends StatelessWidget {
-  final OfferStatus status;
-  final String? labelOverride;
-  final bool hasQuote;
-  final double? price;
-
-  const _CommercialSummary({
-    required this.status,
-    required this.labelOverride,
-    required this.hasQuote,
-    required this.price,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final statusBadge = StatusBadge(
-      key: const Key('chat-card-status-badge'),
-      status: status,
-      labelOverride: labelOverride,
-    );
-    final priceBlock = _OfferPrice(price: price);
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final scaledBody = MediaQuery.textScalerOf(context).scale(14);
-        final shouldStack = constraints.maxWidth < 230 || scaledBody > 19;
-
-        return Semantics(
-          container: true,
-          child: Container(
-            key: const Key('chat-card-commercial-summary'),
-            child: shouldStack
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      statusBadge,
-                      if (hasQuote) ...[
-                        const SizedBox(height: CardTokens.gap),
-                        priceBlock,
-                      ],
-                    ],
-                  )
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Flexible(child: statusBadge),
-                      if (hasQuote) ...[
-                        const SizedBox(width: 12),
-                        Container(
-                          width: 1,
-                          height: 32,
-                          color: AppColors.border,
-                        ),
-                        const SizedBox(width: 12),
-                        priceBlock,
-                      ],
-                    ],
-                  ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _OfferPrice extends StatelessWidget {
-  final double? price;
-
-  const _OfferPrice({required this.price});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      key: const Key('chat-card-price'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text('OFERTA', style: CardTokens.overline),
-        const SizedBox(height: 2),
-        PriceText(amount: price),
-      ],
-    );
-  }
-}
+// ── Componentes internos ─────────────────────────────────────────────────────
 
 class _ClientAvatar extends StatelessWidget {
   final String? url;
   final String name;
   final int unreadCount;
+  final bool showGenericStore;
 
   const _ClientAvatar({
     required this.url,
     required this.name,
     required this.unreadCount,
+    required this.showGenericStore,
   });
 
   @override
   Widget build(BuildContext context) {
     final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'C';
+    const size = 52.0;
 
     return SizedBox(
-      width: CardTokens.avatarSize,
-      height: CardTokens.avatarSize,
+      width: size,
+      height: size,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           ClipOval(
-            child: Container(
-              width: CardTokens.avatarSize,
-              height: CardTokens.avatarSize,
-              color: AppColors.grey100,
-              child: url != null && url!.isNotEmpty
-                  ? Image.network(
-                      url!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _initialFallback(initial),
-                    )
-                  : _initialFallback(initial),
+            child: Semantics(
+              image: true,
+              label: showGenericStore
+                  ? 'Perfil genérico de la tienda'
+                  : 'Foto de perfil de $name',
+              child: Container(
+                key: showGenericStore
+                    ? const Key('generic-store-avatar')
+                    : const Key('participant-avatar'),
+                width: size,
+                height: size,
+                color: AppColors.grey100,
+                child: !showGenericStore && url != null && url!.isNotEmpty
+                    ? Image.network(
+                        url!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _initialFallback(initial),
+                      )
+                    : showGenericStore
+                        ? const Center(
+                            child: AppLineIcon(
+                              AppIcons.store,
+                              size: AppIconSize.leading,
+                              color: AppColors.textSecondary,
+                            ),
+                          )
+                        : _initialFallback(initial),
+              ),
             ),
           ),
           if (unreadCount > 0)
             Positioned(
-              right: -2,
-              top: -2,
+              right: -3,
+              top: -3,
               child: Container(
                 constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                 padding: const EdgeInsets.symmetric(horizontal: 5),
@@ -341,7 +482,7 @@ class _ClientAvatar extends StatelessWidget {
         child: Text(
           initial,
           style: GoogleFonts.hankenGrotesk(
-            fontSize: 18,
+            fontSize: 20,
             fontWeight: FontWeight.w800,
             color: AppColors.textSecondary,
           ),

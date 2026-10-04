@@ -46,12 +46,14 @@ void main() {
     ),
   ];
 
-  test('should return empty list when query is empty or less than 2 characters', () {
+  test('should return empty list when query is empty or less than 2 characters',
+      () {
     expect(useCase(sampleTree, ''), isEmpty);
     expect(useCase(sampleTree, 'a'), isEmpty);
   });
 
-  test('should find matching nodes recursively and build accurate breadcrumbs', () {
+  test('should find matching nodes recursively and build accurate breadcrumbs',
+      () {
     final results = useCase(sampleTree, 'past');
 
     expect(results.length, equals(2));
@@ -67,5 +69,13 @@ void main() {
 
     expect(results.isNotEmpty, isTrue);
     expect(results[0].node.name, equals('Frenos'));
+  });
+
+  test('should match catalog names without requiring written accents', () {
+    final results = useCase(sampleTree, 'ceramicas');
+
+    expect(results.map((result) => result.node.name), [
+      'Pastillas cerámicas',
+    ]);
   });
 }

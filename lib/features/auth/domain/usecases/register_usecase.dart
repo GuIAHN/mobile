@@ -13,6 +13,7 @@ class RegisterParams extends Equatable {
   final String? phone;
   final String? idToken;
   final String? provider;
+  final bool acceptedTerms;
 
   const RegisterParams({
     required this.email,
@@ -22,10 +23,20 @@ class RegisterParams extends Equatable {
     this.phone,
     this.idToken,
     this.provider,
+    required this.acceptedTerms,
   });
 
   @override
-  List<Object?> get props => [email, password, name, role, phone, idToken, provider];
+  List<Object?> get props => [
+        email,
+        password,
+        name,
+        role,
+        phone,
+        idToken,
+        provider,
+        acceptedTerms,
+      ];
 }
 
 /// Caso de uso: Registrar un nuevo usuario.
@@ -43,6 +54,7 @@ class RegisterUseCase {
       phone: params.phone,
       idToken: params.idToken,
       provider: params.provider,
+      acceptedTerms: params.acceptedTerms,
     );
   }
 }

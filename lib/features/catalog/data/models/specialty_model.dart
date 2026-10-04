@@ -1,21 +1,2 @@
-import '../../domain/entities/specialty.dart';
-
-/// Data model for Specialties with JSON support.
-class SpecialtyModel extends Specialty {
-  const SpecialtyModel({
-    required super.id,
-    required super.name,
-  });
-
-  factory SpecialtyModel.fromJson(Map<String, dynamic> json) {
-    return SpecialtyModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-      };
-}
+// Compatibility export for code internal to the catalog feature.
+export '../../../../core/data/models/specialty_model.dart';

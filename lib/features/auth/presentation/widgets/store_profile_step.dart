@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/validators.dart';
+import '../../../../shared/widgets/app_phone_field.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 
 class StoreProfileStep extends StatelessWidget {
@@ -8,8 +11,6 @@ class StoreProfileStep extends StatelessWidget {
   final TextEditingController emailController;
   final TextEditingController telefonoController;
   final TextEditingController rifController;
-  final TextEditingController passwordController;
-  final TextEditingController confirmPasswordController;
   final bool hasDelivery;
   final ValueChanged<bool> onHasDeliveryChanged;
   final bool isSocial;
@@ -20,8 +21,6 @@ class StoreProfileStep extends StatelessWidget {
     required this.emailController,
     required this.telefonoController,
     required this.rifController,
-    required this.passwordController,
-    required this.confirmPasswordController,
     required this.hasDelivery,
     required this.onHasDeliveryChanged,
     this.isSocial = false,
@@ -39,6 +38,8 @@ class StoreProfileStep extends StatelessWidget {
           prefixIcon: Icons.storefront_outlined,
           textInputAction: TextInputAction.next,
           enabled: !isSocial,
+          validator: (value) =>
+              Validators.required(value, fieldName: 'El nombre de la tienda'),
         ),
         AppTextField(
           label: 'CORREO ELECTRÓNICO',
@@ -48,15 +49,12 @@ class StoreProfileStep extends StatelessWidget {
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
           enabled: !isSocial,
+          validator: Validators.email,
         ),
-        AppTextField(
+        AppPhoneField(
           label: 'NÚMERO DE TELÉFONO',
           controller: telefonoController,
-          hint: '414 123 4567',
-          prefixIcon: Icons.phone_outlined,
-          keyboardType: TextInputType.phone,
           textInputAction: TextInputAction.next,
-          helperText: 'Ingresa el número sin el "0" ni "+58" (ej. 4141234567)',
         ),
         AppTextField(
           label: 'RIF (REGISTRO DE INFORMACIÓN FISCAL)',
@@ -64,7 +62,13 @@ class StoreProfileStep extends StatelessWidget {
           hint: '123456789',
           prefixIcon: Icons.badge_outlined,
           keyboardType: TextInputType.number,
-          textInputAction: isSocial ? TextInputAction.done : TextInputAction.next,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(9),
+          ],
+          textInputAction:
+              isSocial ? TextInputAction.done : TextInputAction.next,
+          validator: Validators.rif,
           prefixBuilder: (context, isFocused) {
             return Row(
               mainAxisSize: MainAxisSize.min,
@@ -73,7 +77,8 @@ class StoreProfileStep extends StatelessWidget {
                 Icon(
                   Icons.badge_outlined,
                   size: 20,
-                  color: isFocused ? AppColors.primary : AppColors.textSecondary,
+                  color:
+                      isFocused ? AppColors.primary : AppColors.textSecondary,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -94,24 +99,6 @@ class StoreProfileStep extends StatelessWidget {
             );
           },
         ),
-        if (!isSocial) ...[
-          AppTextField(
-            label: 'CONTRASEÑA',
-            controller: passwordController,
-            hint: '••••••••••',
-            prefixIcon: Icons.lock_outline,
-            obscureText: true,
-            textInputAction: TextInputAction.next,
-          ),
-          AppTextField(
-            label: 'CONFIRMAR CONTRASEÑA',
-            controller: confirmPasswordController,
-            hint: '••••••••••',
-            prefixIcon: Icons.lock_outline,
-            obscureText: true,
-            textInputAction: TextInputAction.done,
-          ),
-        ],
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -121,7 +108,8 @@ class StoreProfileStep extends StatelessWidget {
           ),
           child: Row(
             children: [
-              const Icon(Icons.local_shipping_outlined, color: AppColors.primary),
+              const Icon(Icons.local_shipping_outlined,
+                  color: AppColors.primary),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -136,7 +124,7 @@ class StoreProfileStep extends StatelessWidget {
               Switch(
                 value: hasDelivery,
                 onChanged: onHasDeliveryChanged,
-                activeColor: AppColors.primary,
+                activeThumbColor: AppColors.primary,
               ),
             ],
           ),

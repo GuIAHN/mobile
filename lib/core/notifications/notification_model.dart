@@ -21,6 +21,12 @@ class NotificationModel extends Equatable {
   /// Si el usuario puede descartar manualmente la notificación con "×".
   final bool isDismissible;
 
+  /// Id de la notificación persistida, cuando proviene del backend.
+  final String? sourceId;
+
+  /// Ruta interna que debe abrirse al tocar el aviso.
+  final String? destinationPath;
+
   const NotificationModel({
     required this.id,
     required this.type,
@@ -28,6 +34,8 @@ class NotificationModel extends Equatable {
     this.title,
     required this.duration,
     this.isDismissible = true,
+    this.sourceId,
+    this.destinationPath,
   });
 
   /// Crea un [NotificationModel] con un id basado en timestamp.
@@ -37,6 +45,8 @@ class NotificationModel extends Equatable {
     String? title,
     Duration? duration,
     bool isDismissible = true,
+    String? sourceId,
+    String? destinationPath,
   }) {
     return NotificationModel(
       id: '${type.name}_${DateTime.now().microsecondsSinceEpoch}',
@@ -45,9 +55,20 @@ class NotificationModel extends Equatable {
       title: title,
       duration: duration ?? type.defaultDuration,
       isDismissible: isDismissible,
+      sourceId: sourceId,
+      destinationPath: destinationPath,
     );
   }
 
   @override
-  List<Object?> get props => [id, type, message, title, duration, isDismissible];
+  List<Object?> get props => [
+        id,
+        type,
+        message,
+        title,
+        duration,
+        isDismissible,
+        sourceId,
+        destinationPath,
+      ];
 }

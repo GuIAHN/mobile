@@ -1,7 +1,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failures.dart';
-import '../../../catalog/domain/entities/specialty.dart';
+import '../../../../core/domain/entities/specialty.dart';
 import '../repositories/provider_profile_repository.dart';
 
 class GetProviderSpecialtiesUseCase {

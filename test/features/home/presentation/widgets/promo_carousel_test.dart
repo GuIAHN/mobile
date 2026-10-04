@@ -5,6 +5,27 @@ import 'package:guiautomotriz_mobile/features/home/domain/entities/promo.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/promo_carousel.dart';
 
 void main() {
+  group('externalAdUri', () {
+    test('keeps complete backend URLs', () {
+      expect(
+        externalAdUri('https://example.com/oferta?id=7'),
+        Uri.parse('https://example.com/oferta?id=7'),
+      );
+    });
+
+    test('adds https when the backend URL has no scheme', () {
+      expect(
+        externalAdUri('www.example.com/oferta'),
+        Uri.parse('https://www.example.com/oferta'),
+      );
+    });
+
+    test('rejects empty and unsupported URLs', () {
+      expect(externalAdUri('  '), isNull);
+      expect(externalAdUri('javascript:alert(1)'), isNull);
+    });
+  });
+
   const promos = [
     Promo(
       title: 'Primer destacado',
@@ -35,6 +56,21 @@ void main() {
   double indicatorWidth(WidgetTester tester, Finder indicator) {
     return tester.widget<AnimatedContainer>(indicator).constraints!.maxWidth;
   }
+
+  testWidgets('shows clean promo cards while preserving page indicators',
+      (tester) async {
+    await tester.pumpWidget(subject(disableAnimations: true));
+
+    expect(find.text('DESTACADO'), findsNothing);
+    expect(find.text('Primer destacado'), findsNothing);
+    expect(find.text('Primera promoción'), findsNothing);
+    expect(find.byKey(const Key('promo-indicator-0')), findsOneWidget);
+    expect(find.byKey(const Key('promo-indicator-1')), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Publicidad: Primer destacado'),
+      findsOneWidget,
+    );
+  }, semanticsEnabled: true);
 
   testWidgets('reduced motion keeps the first promo selected', (tester) async {
     await tester.pumpWidget(subject(disableAnimations: true));

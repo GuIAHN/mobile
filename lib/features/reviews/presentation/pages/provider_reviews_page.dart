@@ -13,11 +13,13 @@ import '../../../../shared/widgets/staggered_entrance.dart';
 class ProviderReviewsPage extends ConsumerWidget {
   final String targetId;
   final String? conversationId;
+  final bool isOwnProfile;
 
   const ProviderReviewsPage({
     super.key,
     required this.targetId,
     this.conversationId,
+    this.isOwnProfile = false,
   });
 
   void _showWriteReviewBottomSheet(BuildContext context) {
@@ -43,11 +45,12 @@ class ProviderReviewsPage extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: AppColors.textPrimary),
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'Reseñas',
+          isOwnProfile ? 'Reseñas recibidas' : 'Reseñas',
           style: GoogleFonts.hankenGrotesk(
             fontSize: 16.5,
             fontWeight: FontWeight.w800,
@@ -83,10 +86,13 @@ class ProviderReviewsPage extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.star_outline_rounded, size: 64, color: AppColors.border),
+                  const Icon(Icons.star_outline_rounded,
+                      size: 64, color: AppColors.border),
                   const SizedBox(height: 16),
                   Text(
-                    'Aún no hay reseñas',
+                    isOwnProfile
+                        ? 'Aún no has recibido reseñas'
+                        : 'Aún no hay reseñas',
                     style: GoogleFonts.hankenGrotesk(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -95,7 +101,10 @@ class ProviderReviewsPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Este proveedor aún no tiene calificaciones.',
+                    isOwnProfile
+                        ? 'Cuando un cliente te valore, aparecerá aquí.'
+                        : 'Este proveedor aún no tiene calificaciones.',
+                    textAlign: TextAlign.center,
                     style: GoogleFonts.hankenGrotesk(
                       fontSize: 15,
                       color: AppColors.textSecondary,

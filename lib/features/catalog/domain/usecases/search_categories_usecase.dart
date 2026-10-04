@@ -1,3 +1,4 @@
+import '../../../../shared/utils/search_text_normalizer.dart';
 import '../entities/category_node.dart';
 import '../entities/category_search_result.dart';
 
@@ -11,7 +12,7 @@ import '../entities/category_search_result.dart';
 class SearchCategoriesUseCase {
   const SearchCategoriesUseCase();
 
-  /// Returns all nodes (at any depth) whose name contains [query] (case-insensitive).
+  /// Returns nodes whose name contains [query], ignoring case and diacritics.
   /// Requires at least [minLength] characters (default 2) to optimize performance.
   /// Returns an empty list if [query] is shorter than [minLength].
   List<CategorySearchResult> call(
@@ -19,9 +20,9 @@ class SearchCategoriesUseCase {
     String query, {
     int minLength = 2,
   }) {
-    final trimmed = query.trim();
-    if (trimmed.length < minLength) return [];
-    return _search(tree, trimmed.toLowerCase(), []);
+    final normalizedQuery = normalizeSearchText(query);
+    if (normalizedQuery.length < minLength) return [];
+    return _search(tree, normalizedQuery, []);
   }
 
   List<CategorySearchResult> _search(
@@ -32,7 +33,7 @@ class SearchCategoriesUseCase {
     final results = <CategorySearchResult>[];
     for (final node in nodes) {
       final trail = [...path, node.name];
-      if (node.name.toLowerCase().contains(query)) {
+      if (normalizeSearchText(node.name).contains(query)) {
         results.add(CategorySearchResult(node: node, breadcrumb: trail));
       }
       // Always recurse — a child may match even when the parent doesn't.

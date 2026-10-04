@@ -401,7 +401,7 @@ void main() {
     expect(shape.side.color, isNot(Colors.transparent));
   });
 
-  testWidgets('keeps each missing provider photo in its intended shape',
+  testWidgets('uses honest provider fallbacks with the intended shapes',
       (tester) async {
     await tester.pumpWidget(subject(AsyncValue.data([fixture()])));
 
@@ -441,6 +441,33 @@ void main() {
       findsOneWidget,
     );
   }, semanticsEnabled: true);
+
+  testWidgets('uses the uploaded workshop photo instead of the fallback',
+      (tester) async {
+    await tester.pumpWidget(
+      subject(
+        AsyncValue.data([
+          fixture(photo: 'https://example.com/workshop.jpg'),
+        ]),
+      ),
+    );
+
+    final networkPhoto =
+        find.byKey(const Key('top-provider-workshop-network-workshop-1'));
+    expect(networkPhoto, findsOneWidget);
+    expect(
+      tester.widget<Image>(networkPhoto).image,
+      isA<NetworkImage>().having(
+        (image) => image.url,
+        'url',
+        'https://example.com/workshop.jpg',
+      ),
+    );
+    expect(
+      find.byKey(const Key('top-provider-workshop-fallback-workshop-1')),
+      findsNothing,
+    );
+  });
 
   testWidgets('overlays workshop availability in the lower media corner',
       (tester) async {

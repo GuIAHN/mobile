@@ -1,31 +1,37 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
+import '../../../../../core/router/route_names.dart';
 import '../../../../../core/domain/enums/part_type.dart';
 import '../../../../../shared/widgets/image_source_selector_sheet.dart';
 import '../../../../../shared/widgets/error_view.dart';
 import '../../../../../shared/widgets/skeleton_loader.dart';
+import '../../../../../shared/utils/subcategory_presentation.dart';
 import '../../../../../core/services/location_service.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
-import '../../../../vehicles/domain/entities/user_car.dart';
+import '../../../../../core/domain/entities/user_car.dart';
 import '../../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../../../../vehicles/presentation/widgets/vehicle_selection_modal.dart';
 import '../../../../vehicles/presentation/widgets/_atoms/vehicle_type_illustration.dart';
 import '../../../../catalog/domain/entities/category.dart';
 import '../../../../chat/presentation/providers/chat_providers.dart';
+import '../../../../reviews/presentation/providers/reviews_providers.dart';
 import '../../providers/home_providers.dart';
 import '../form_parts/form_part_type_selector.dart';
 import 'category_subcategory_selector_sheet.dart';
-import 'request_location_picker_dialog.dart';
-import 'request_location_preview.dart';
 import 'request_location_seed.dart';
-import 'request_location_selection.dart';
+import '../../../../../shared/location/domain/entities/request_location_selection.dart';
+import '../../../../../shared/location/presentation/widgets/request_location_picker_dialog.dart';
+import '../../../../../shared/location/presentation/widgets/request_location_preview.dart';
 
 // Parts
 part 'spare_part_wizard_step1.dart';
@@ -34,31 +40,79 @@ part 'spare_part_wizard_step3.dart';
 part 'spare_part_wizard_chrome.dart';
 part 'spare_part_wizard_summary.dart';
 part 'vehicle_option_card.dart';
+part 'cbk_recommendation_dialog.dart';
 
 class SparePartWizardPage extends ConsumerStatefulWidget {
   final UserCar? initialVehicle;
-  final String? initialVariantId;
+  final String? initialModelId;
   final VoidCallback? onSubmitted;
 
   const SparePartWizardPage({
     super.key,
     this.initialVehicle,
-    this.initialVariantId,
+    this.initialModelId,
     this.onSubmitted,
   });
 
   static Future<void> show(
     BuildContext context, {
     UserCar? initialVehicle,
-    String? initialVariantId,
+    String? initialModelId,
     VoidCallback? onSubmitted,
-  }) {
-    return Navigator.push(
+  }) async {
+    final container = ProviderScope.containerOf(context);
+    final pendingState = container.read(pendingReviewsProvider);
+    var loadingVisible = false;
+
+    if (!pendingState.hasValue) {
+      loadingVisible = true;
+      unawaited(
+        showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
+        ),
+      );
+    }
+
+    var pendingCount = 0;
+    try {
+      final cachedItems = pendingState.valueOrNull;
+      if (cachedItems != null) {
+        pendingCount = cachedItems.length;
+      } else {
+        final pendingItems =
+            await container.read(pendingReviewsProvider.future);
+        pendingCount = pendingItems.length;
+      }
+    } catch (_) {
+      // Una falla al consultar recordatorios no debe bloquear una solicitud.
+      // El backend repite esta validación antes de crearla.
+    } finally {
+      if (loadingVisible && context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
+
+    if (!context.mounted) return;
+    if (pendingCount > 1) {
+      await showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (_) => _PendingReviewsGateSheet(count: pendingCount),
+      );
+      return;
+    }
+
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => SparePartWizardPage(
           initialVehicle: initialVehicle,
-          initialVariantId: initialVariantId,
+          initialModelId: initialModelId,
           onSubmitted: onSubmitted,
         ),
       ),
@@ -70,7 +124,101 @@ class SparePartWizardPage extends ConsumerStatefulWidget {
       _SparePartWizardPageState();
 }
 
+class _PendingReviewsGateSheet extends StatelessWidget {
+  final int count;
+
+  const _PendingReviewsGateSheet({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.grey300,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const AppLineIcon(
+              AppIcons.rating,
+              size: AppIconSize.feature,
+              color: AppColors.primary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Tienes valoraciones pendientes',
+              textAlign: TextAlign.center,
+              style: AppTypography.h2,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Antes de pedir otro repuesto, ayúdanos a cerrar tus compras anteriores. Tienes $count reseñas pendientes y completarlas solo te tomará un momento.',
+              textAlign: TextAlign.center,
+              style: AppTypography.body.copyWith(
+                color: AppColors.textSecondary,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.push(RouteNames.pendingReviews);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(32),
+                  ),
+                ),
+                child: Text(
+                  'IR A RESEÑAS PENDIENTES',
+                  style: AppTypography.label.copyWith(color: Colors.white),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'AHORA NO',
+                  style: AppTypography.label.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
+  static const _cbkPreference =
+      'Pastillas CBK preferiblemente para mi compra, por favor';
+
   int _currentStep = 1;
   late final PageController _pageController;
   bool _isSubmitting = false;
@@ -81,7 +229,7 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
   String? _temporaryModelId;
 
   @visibleForTesting
-  String? get debugTemporaryVariantId => _temporaryModelId;
+  String? get debugTemporaryModelId => _temporaryModelId;
 
   @visibleForTesting
   double? get debugWizardPage =>
@@ -94,13 +242,17 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
   final _detailsController = TextEditingController();
   String? _selectedImagePath;
   RequestLocationSelection? _requestLocation;
+  bool _isLocatingRequest = false;
+  bool _requestedCurrentLocation = false;
+  String? _requestLocationError;
+  String? _cbkPromptedSubcategoryId;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
     _selectedVehicle = widget.initialVehicle;
-    _temporaryModelId = widget.initialVariantId;
+    _temporaryModelId = widget.initialModelId;
   }
 
   @override
@@ -113,20 +265,106 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
   Future<void> _goToStep(int nextStep) async {
     if (nextStep < 1 || nextStep > 3 || nextStep == _currentStep) return;
     FocusManager.instance.primaryFocus?.unfocus();
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    // A full-page slide keeps both dense form steps visible at once and can
+    // look frozen on iOS. Swap the page immediately; the header and progress
+    // indicator provide the lightweight continuity cue.
+    _pageController.jumpToPage(nextStep - 1);
     setState(() {
       _currentStep = nextStep;
       _submitError = null;
     });
-    if (reduceMotion) {
-      _pageController.jumpToPage(nextStep - 1);
+    if (nextStep == 3) {
+      await _showCbkRecommendationIfNeeded();
+      if (!mounted) return;
+      await _loadCurrentRequestLocation();
+    }
+  }
+
+  Future<void> _showCbkRecommendationIfNeeded() async {
+    final subcategory = _selectedSubcategory;
+    if (subcategory == null ||
+        !_isBrakePads(subcategory.name) ||
+        _cbkPromptedSubcategoryId == subcategory.id) {
       return;
     }
-    await _pageController.animateToPage(
-      nextStep - 1,
-      duration: const Duration(milliseconds: 360),
-      curve: Curves.easeInOutCubicEmphasized,
+
+    _cbkPromptedSubcategoryId = subcategory.id;
+    final acceptsRecommendation = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      builder: (context) => const _CbkRecommendationSheet(),
     );
+    if (!mounted || acceptsRecommendation != true) return;
+
+    final currentDetails = _detailsController.text.trim();
+    if (currentDetails.toLowerCase().contains(_cbkPreference.toLowerCase())) {
+      return;
+    }
+
+    _detailsController.text = currentDetails.isEmpty
+        ? _cbkPreference
+        : '$currentDetails\n$_cbkPreference';
+    _detailsController.selection = TextSelection.collapsed(
+      offset: _detailsController.text.length,
+    );
+    setState(() => _isDirty = true);
+  }
+
+  bool _isBrakePads(String name) {
+    final normalized =
+        name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9áéíóúüñ]+'), ' ').trim();
+    return normalized.contains('pastilla') &&
+        (normalized.contains('freno') || normalized == 'pastillas');
+  }
+
+  Future<void> _loadCurrentRequestLocation() async {
+    final user = ref.read(authProvider).user;
+    final usesSavedLocation = user?.role.usesSavedLocationForSearch ?? false;
+    if (usesSavedLocation ||
+        _requestedCurrentLocation ||
+        _requestLocation != null) {
+      return;
+    }
+
+    _requestedCurrentLocation = true;
+    setState(() {
+      _isLocatingRequest = true;
+      _requestLocationError = null;
+    });
+
+    final found =
+        await ref.read(userLocationProvider.notifier).updateLocation();
+    if (!mounted) return;
+    final position = ref.read(userLocationProvider).valueOrNull;
+    if (!found || position == null) {
+      setState(() {
+        _isLocatingRequest = false;
+        _requestLocationError =
+            'No pudimos obtener tu ubicación actual. Puedes elegirla en el mapa.';
+      });
+      return;
+    }
+
+    final label =
+        await ref.read(locationServiceProvider).getAddressFromCoordinates(
+              position.latitude,
+              position.longitude,
+            );
+    if (!mounted) return;
+    ref.read(isLocationSharedProvider.notifier).state = true;
+    setState(() {
+      _requestLocation = RequestLocationSelection(
+        latitude: position.latitude,
+        longitude: position.longitude,
+        source: RequestLocationSource.gps,
+        label: label,
+      );
+      _isLocatingRequest = false;
+      _requestLocationError = null;
+      _isDirty = true;
+    });
   }
 
   Future<void> _prevStep() async {
@@ -214,10 +452,14 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
     final isShared = ref.read(isLocationSharedProvider);
     final current = ref.read(userLocationProvider).valueOrNull;
     final user = ref.read(authProvider).user;
+    final canUseTemporaryLocation =
+        !(user?.role.usesSavedLocationForSearch ?? false);
     return resolveRequestLocationSeed(
       requestSelection: _requestLocation,
-      gpsLatitude: isShared ? current?.latitude : null,
-      gpsLongitude: isShared ? current?.longitude : null,
+      gpsLatitude:
+          canUseTemporaryLocation && isShared ? current?.latitude : null,
+      gpsLongitude:
+          canUseTemporaryLocation && isShared ? current?.longitude : null,
       profileLatitude: user?.latitude,
       profileLongitude: user?.longitude,
     );
@@ -244,11 +486,13 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
     final vehicle = _selectedVehicle;
     final subcat = _selectedSubcategory;
     final partType = _selectedPartType;
+    final details = _detailsController.text.trim();
     final requestLocation = _resolveEffectiveRequestLocation().selection;
 
     if (vehicle == null ||
         subcat == null ||
         partType == null ||
+        details.isEmpty ||
         requestLocation == null) {
       return;
     }
@@ -266,7 +510,9 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
           return;
         }
         final addResult = await ref.read(addCarToGarageUseCaseProvider)(
-          variantId: _temporaryModelId!,
+          modelId: _temporaryModelId!,
+          year: vehicle.year,
+          motor: vehicle.motor,
         );
         if (!mounted) return;
         final registeredCar = addResult.fold((failure) {
@@ -289,7 +535,7 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
       await ref.read(searchRequestNotifierProvider.notifier).submitSearch(
             userCarId: userCarId,
             subcategoryId: subcat.id,
-            details: _detailsController.text.trim(),
+            details: details,
             partType: partType,
             fotoUrl: _selectedImagePath,
             lat: requestLocation.latitude,
@@ -387,7 +633,14 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
                       child: Text(
                         '${_selectedVehicle!.brand} '
                         '${_selectedVehicle!.model} · '
-                        '${_selectedSubcategory!.name}',
+                        '${presentSubcategoryPath(
+                          categoryName: _selectedCategory?.name,
+                          subcategoryName: _selectedSubcategory?.name,
+                          isCatchAll: _selectedSubcategory!.isCatchAll,
+                          audience: SubcategoryPresentationAudience.requester,
+                          sameCategoryAndSubcategory:
+                              _selectedCategory?.id == _selectedSubcategory?.id,
+                        )}',
                         textAlign: TextAlign.center,
                         style: AppTypography.title,
                       ),
@@ -444,11 +697,8 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
       case 2:
         return _selectedSubcategory != null && _selectedPartType != null;
       default:
-        final hasRequiredDetails =
-            _selectedSubcategory?.id != kOtherSubcategoryId ||
-                _detailsController.text.trim().isNotEmpty;
         return _resolveEffectiveRequestLocation().selection != null &&
-            hasRequiredDetails;
+            _detailsController.text.trim().isNotEmpty;
     }
   }
 
@@ -526,6 +776,9 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
           selectedPartType: _selectedPartType,
           onCategoryChanged: (cat, subcat) {
             setState(() {
+              if (_selectedSubcategory?.id != subcat?.id) {
+                _cbkPromptedSubcategoryId = null;
+              }
               _selectedCategory = cat;
               _selectedSubcategory = subcat;
               _isDirty = true;
@@ -540,7 +793,13 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
           onEditVehicle: () => _goToStep(1),
         );
       case 3:
-        final effectiveLocation = _resolveEffectiveRequestLocation().selection;
+        // While GPS is resolving (or if it failed), do not briefly present a
+        // saved/profile coordinate as though it were the consumer's current
+        // position. Manual selection remains available after an error.
+        final effectiveLocation =
+            _isLocatingRequest || _requestLocationError != null
+                ? _requestLocation
+                : _resolveEffectiveRequestLocation().selection;
         return SparePartWizardStep3(
           key: const ValueKey('step3'),
           selectedVehicle: _selectedVehicle,
@@ -549,8 +808,9 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
           selectedPartType: _selectedPartType,
           detailsController: _detailsController,
           selectedImagePath: _selectedImagePath,
-          isOtroCategory: _selectedSubcategory?.id == kOtherSubcategoryId,
           requestLocation: effectiveLocation,
+          isLocatingLocation: _isLocatingRequest,
+          locationError: _requestLocationError,
           onLocationTap: _openRequestLocationPicker,
           onEditVehicle: () => _goToStep(1),
           onEditPart: () => _goToStep(2),

@@ -7,12 +7,12 @@ class SparePartWizardStep3 extends StatefulWidget {
   final PartType? selectedPartType;
   final TextEditingController detailsController;
   final String? selectedImagePath;
-  final bool isOtroCategory;
   final RequestLocationSelection? requestLocation;
+  final bool isLocatingLocation;
+  final String? locationError;
   final VoidCallback onLocationTap;
   final VoidCallback? onEditVehicle;
   final VoidCallback? onEditPart;
-  final VoidCallback? onSubmit;
   final void Function(String?) onImagePicked;
 
   const SparePartWizardStep3({
@@ -23,12 +23,12 @@ class SparePartWizardStep3 extends StatefulWidget {
     this.selectedPartType,
     required this.detailsController,
     required this.selectedImagePath,
-    required this.isOtroCategory,
     required this.requestLocation,
+    this.isLocatingLocation = false,
+    this.locationError,
     required this.onLocationTap,
     this.onEditVehicle,
     this.onEditPart,
-    this.onSubmit,
     required this.onImagePicked,
   });
 
@@ -82,11 +82,11 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
             ),
           ],
           const SizedBox(height: 32),
-          _WizardSectionHeader(
+          const _WizardSectionHeader(
             icon: Icons.notes_rounded,
             title: 'Describe la pieza',
-            helper: 'Agrega datos que ayuden a identificarla',
-            badge: widget.isOtroCategory ? 'Requerido' : 'Opcional',
+            helper: 'Indica características que ayuden a identificarla',
+            badge: 'Requerido',
           ),
           const SizedBox(height: 10),
           TextField(
@@ -111,9 +111,8 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
               hintStyle: AppTypography.body.copyWith(
                 color: AppColors.textPlaceholder,
               ),
-              helperText: widget.isOtroCategory
-                  ? 'Describe la pieza para que puedan identificarla.'
-                  : null,
+              helperText:
+                  'Incluye ubicación, medidas, versión o cualquier detalle útil.',
               filled: true,
               fillColor: AppColors.surface,
               contentPadding: const EdgeInsets.all(16),
@@ -138,6 +137,8 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
           const SizedBox(height: 10),
           RequestLocationPreview(
             selection: widget.requestLocation,
+            isLocating: widget.isLocatingLocation,
+            errorMessage: widget.locationError,
             onTap: widget.onLocationTap,
           ),
           const SizedBox(height: 32),
@@ -167,11 +168,15 @@ class _SparePartWizardStep3State extends State<SparePartWizardStep3> {
   }
 
   String get _partTitle {
-    final category = widget.selectedCategory?.name;
-    final subcategory = widget.selectedSubcategory?.name;
-    if (category == null) return subcategory ?? 'Repuesto';
-    if (subcategory == null || category == subcategory) return category;
-    return '$category › $subcategory';
+    final subcategory = widget.selectedSubcategory;
+    return presentSubcategoryPath(
+      categoryName: widget.selectedCategory?.name,
+      subcategoryName: subcategory?.name,
+      isCatchAll: subcategory?.isCatchAll ?? false,
+      audience: SubcategoryPresentationAudience.requester,
+      sameCategoryAndSubcategory:
+          widget.selectedCategory?.id == subcategory?.id,
+    );
   }
 
   Widget _buildPhotoArea(BuildContext context) {

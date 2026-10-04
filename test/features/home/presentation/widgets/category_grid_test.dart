@@ -1,3 +1,5 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,9 +10,13 @@ import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
 import 'package:guiautomotriz_mobile/core/providers/current_user_provider.dart';
 import 'package:guiautomotriz_mobile/core/router/route_names.dart';
 import 'package:guiautomotriz_mobile/core/theme/app_colors.dart';
+import 'package:guiautomotriz_mobile/core/theme/app_icons.dart';
+import 'package:guiautomotriz_mobile/core/theme/app_spacing.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/navigation/category_grid.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/spare_part_wizard/spare_part_wizard_page.dart';
+import 'package:guiautomotriz_mobile/features/reviews/domain/entities/pending_review.dart';
+import 'package:guiautomotriz_mobile/features/reviews/presentation/providers/reviews_providers.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/domain/entities/user_car.dart';
 import 'package:guiautomotriz_mobile/features/vehicles/presentation/providers/vehicle_providers.dart';
 
@@ -40,6 +46,7 @@ void main() {
     double width = 375,
     double textScale = 1,
     bool disableAnimations = false,
+    List<PendingReview> pendingReviews = const [],
   }) {
     final router = GoRouter(
       initialLocation: '/',
@@ -73,6 +80,12 @@ void main() {
             body: Text('mechanics-route'),
           ),
         ),
+        GoRoute(
+          path: RouteNames.pendingReviews,
+          builder: (_, __) => const Scaffold(
+            body: Text('pending-reviews-route'),
+          ),
+        ),
       ],
     );
 
@@ -80,10 +93,11 @@ void main() {
       overrides: [
         currentRoleProvider.overrideWithValue(role),
         searchVehicleProvider.overrideWith((ref) => selectedVehicle),
-        searchVehicleVariantIdProvider.overrideWith(
+        searchVehicleModelIdProvider.overrideWith(
           (ref) => selectedVariantId,
         ),
         userCarsProvider.overrideWith((ref) async => const [fixtureCar]),
+        pendingReviewsProvider.overrideWith((ref) async => pendingReviews),
       ],
       child: MediaQuery(
         data: MediaQueryData(
@@ -96,7 +110,7 @@ void main() {
     );
   }
 
-  testWidgets('consumer actions keep action titles and short subtitles',
+  testWidgets('consumer actions keep titles without visible subtitles',
       (tester) async {
     await tester.pumpWidget(subject());
 
@@ -108,7 +122,7 @@ void main() {
       'Opciones cercanas',
       'Servicio a domicilio',
     ]) {
-      expect(find.text(subtitle), findsOneWidget);
+      expect(find.text(subtitle), findsNothing);
     }
 
     await tester.tap(find.text('Buscar taller'));
@@ -122,18 +136,56 @@ void main() {
     expect(find.text('mechanics-route'), findsOneWidget);
   });
 
-  testWidgets('uses centered icons, subtle borders and no arrow affordances',
+  testWidgets('blocks a new parts request and links to pending reviews',
+      (tester) async {
+    const pending = [
+      PendingReview(
+        targetId: 'store-user-1',
+        providerProfileId: 'store-1',
+        providerName: 'Tienda 1',
+        conversationId: 'conversation-1',
+      ),
+      PendingReview(
+        targetId: 'store-user-2',
+        providerProfileId: 'store-2',
+        providerName: 'Tienda 2',
+        conversationId: 'conversation-2',
+      ),
+    ];
+
+    await tester.pumpWidget(subject(pendingReviews: pending));
+    await tester.tap(find.text('Pedir repuesto'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tienes valoraciones pendientes'), findsOneWidget);
+    expect(find.textContaining('Tienes 2 reseñas pendientes'), findsOneWidget);
+
+    await tester.tap(find.text('IR A RESEÑAS PENDIENTES'));
+    await tester.pumpAndSettle();
+    expect(find.text('pending-reviews-route'), findsOneWidget);
+    expect(find.byType(SparePartWizardPage), findsNothing);
+  });
+
+  testWidgets('uses Lucide automotive icons and clear selection borders',
       (tester) async {
     await tester.pumpWidget(subject());
 
     expect(find.text('¿Qué buscas hoy?'), findsOneWidget);
     expect(find.byIcon(Icons.chevron_right_rounded), findsNothing);
-    expect(find.byIcon(Icons.handyman_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.storefront_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.engineering_rounded), findsOneWidget);
+    expect(find.byIcon(AppIcons.catalog), findsNWidgets(2));
+    expect(find.byIcon(AppIcons.workshop), findsNWidgets(2));
+    expect(find.byIcon(AppIcons.mechanic), findsNWidgets(2));
+    expect(find.byType(AppLineIcon), findsNWidgets(6));
+    for (final label in actionLabels) {
+      expect(
+        find.byKey(ValueKey<String>('category-watermark-$label')),
+        findsOneWidget,
+      );
+    }
     expect(find.byType(Image), findsNothing);
 
     for (final label in actionLabels) {
+      final isSelected = label == 'Pedir repuesto';
       final action = find.bySemanticsLabel(label);
       final decorations = tester
           .widgetList<Container>(
@@ -145,13 +197,63 @@ void main() {
           decorations.firstWhere((decoration) => decoration.boxShadow != null);
       final border = cardDecoration.border! as Border;
 
-      expect(border.top.width, 1.25);
+      expect(border.top.width, 1.5);
       expect(
         border.top.color,
-        AppColors.primary.withValues(alpha: 0.22),
+        isSelected ? AppColors.primary : AppColors.border,
       );
     }
   });
+
+  testWidgets('marks the current home action with a stronger border',
+      (tester) async {
+    await tester.pumpWidget(subject());
+
+    final selectedAction = find.bySemanticsLabel('Pedir repuesto');
+    final selectedData = tester.getSemantics(selectedAction).getSemanticsData();
+    expect(selectedData.flagsCollection.isSelected, Tristate.isTrue);
+
+    for (final label in const ['Buscar taller', 'Buscar mecánico']) {
+      final action = find.bySemanticsLabel(label);
+      final data = tester.getSemantics(action).getSemanticsData();
+      expect(data.flagsCollection.isSelected, Tristate.isFalse);
+    }
+  }, semanticsEnabled: true);
+
+  testWidgets('keeps the last selected home action highlighted on return',
+      (tester) async {
+    await tester.pumpWidget(subject());
+
+    await tester.tap(find.text('Buscar taller'));
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    final selectedAction = find.bySemanticsLabel('Buscar taller');
+    final decorations = tester
+        .widgetList<Container>(
+          find.descendant(
+            of: selectedAction,
+            matching: find.byType(Container),
+          ),
+        )
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>();
+    final cardDecoration =
+        decorations.firstWhere((decoration) => decoration.boxShadow != null);
+    final border = cardDecoration.border! as Border;
+
+    expect(border.top.color, AppColors.primary);
+    expect(border.top.width, 1.5);
+    expect(
+      tester
+          .getSemantics(selectedAction)
+          .getSemanticsData()
+          .flagsCollection
+          .isSelected,
+      Tristate.isTrue,
+    );
+  }, semanticsEnabled: true);
 
   testWidgets('each consumer action is a button with a 48 dp touch target',
       (tester) async {
@@ -174,10 +276,42 @@ void main() {
         );
         expect(tester.getSize(action).width, greaterThanOrEqualTo(48));
         expect(tester.getSize(action).height, greaterThanOrEqualTo(48));
+        expect(tester.getSize(action).height, lessThan(148));
       }
     } finally {
       semantics.dispose();
     }
+  });
+
+  testWidgets('uses compact and equal spacing for every consumer action',
+      (tester) async {
+    await tester.pumpWidget(subject());
+
+    final header = find.text('¿Qué buscas hoy?');
+    final firstAction = find.bySemanticsLabel(actionLabels.first);
+    expect(
+      tester.getTopLeft(firstAction).dy - tester.getBottomLeft(header).dy,
+      AppSpacing.sm,
+    );
+
+    final actionHeights = <double>[];
+    final titleOffsets = <double>[];
+    for (final label in actionLabels) {
+      final action = find.bySemanticsLabel(label);
+      actionHeights.add(tester.getSize(action).height);
+      titleOffsets.add(
+        tester
+                .getTopLeft(
+                  find.byKey(ValueKey<String>('category-title-slot-$label')),
+                )
+                .dy -
+            tester.getTopLeft(action).dy,
+      );
+    }
+
+    expect(actionHeights.toSet(), hasLength(1));
+    expect(actionHeights.first, lessThanOrEqualTo(104));
+    expect(titleOffsets.toSet(), hasLength(1));
   });
 
   testWidgets('consumer actions stay equal and overflow-free on phone widths',
@@ -286,7 +420,7 @@ void main() {
       find.byType(SparePartWizardPage),
     );
     expect(wizard.initialVehicle, fixtureCar);
-    expect(wizard.initialVariantId, 'variant-1');
+    expect(wizard.initialModelId, 'variant-1');
   });
 
   testWidgets(

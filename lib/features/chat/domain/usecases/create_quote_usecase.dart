@@ -9,13 +9,17 @@ class CreateQuoteUseCase {
 
   Future<Either<Failure, ChatConversation>> call({
     required String threadId,
+    String? searchMatchId,
     double? price,
+    double? deliveryCost,
     String? brand,
     String? photoPath,
   }) =>
       repository.createQuote(
         threadId: threadId,
+        searchMatchId: searchMatchId,
         price: price,
+        deliveryCost: deliveryCost,
         brand: brand,
         photoPath: photoPath,
       );

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_icons.dart';
+import '../../../../core/utils/extensions.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/guia_map.dart';
+import '../../../../core/domain/entities/user_car.dart';
 
 /// Widgets compartidos por las pantallas de detalle de proveedor
 /// (mecánico, taller y tienda). Mantienen el sistema de diseño GuIA:
@@ -180,7 +182,7 @@ class _DecorCircle extends StatelessWidget {
   }
 }
 
-/// Botón back circular para usar como leading del SliverAppBar.
+/// Botón back lineal para usar como leading del SliverAppBar.
 class DetailBackButton extends StatelessWidget {
   const DetailBackButton({super.key});
 
@@ -191,14 +193,14 @@ class DetailBackButton extends StatelessWidget {
       child: Semantics(
         button: true,
         label: 'Volver',
-        child: CircleAvatar(
-          backgroundColor: Colors.white,
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-            color: AppColors.textPrimary,
-            tooltip: 'Volver',
-            onPressed: () => Navigator.pop(context),
+        child: IconButton(
+          icon: const AppLineIcon(
+            AppIcons.back,
+            size: AppIconSize.leading,
           ),
+          color: Colors.white,
+          tooltip: 'Volver',
+          onPressed: () => Navigator.pop(context),
         ),
       ),
     );
@@ -258,7 +260,8 @@ class DetailHeroStatsCard extends StatelessWidget {
           Expanded(
             child: _HeroStatItem(
               icon: Icons.star_rounded,
-              iconColor: hasRating ? const Color(0xFFF59E0B) : AppColors.grey400,
+              iconColor:
+                  hasRating ? const Color(0xFFF59E0B) : AppColors.grey400,
               value: ratingValue,
               label: ratingSub,
             ),
@@ -632,13 +635,49 @@ abstract class ContactActions {
     }
   }
 
-  static Future<void> whatsapp(BuildContext context, String phone) async {
+  static String providerInquiryMessage({UserCar? vehicle}) {
+    if (vehicle == null) {
+      return 'Hola, te contacto desde GuIA-HN';
+    }
+
+    final version = vehicle.version?.trim();
+    return 'Hola, te contacto desde GuIA-HN. Quisiera consultar por servicios '
+        'para este vehículo:\n'
+        'Marca: ${vehicle.brand}\n'
+        'Modelo: ${vehicle.model}\n'
+        'Año: ${vehicle.year}\n'
+        'Versión: ${version == null || version.isEmpty ? 'No especificada' : version}';
+  }
+
+  static Uri whatsappUri(
+    String phone, {
+    String? message,
+  }) {
     String cleanDigits = phone.replaceAll(RegExp(r'\D'), '');
-    if (cleanDigits.length == 8) {
+    if (cleanDigits.length == 11 && cleanDigits.startsWith('1')) {
+      cleanDigits = '58${cleanDigits.substring(1)}';
+    } else if (cleanDigits.length == 12 && cleanDigits.startsWith('10')) {
+      cleanDigits = '58${cleanDigits.substring(2)}';
+    } else if (cleanDigits.length == 11 && cleanDigits.startsWith('0')) {
+      cleanDigits = '58${cleanDigits.substring(1)}';
+    } else if (cleanDigits.length == 10 && cleanDigits.startsWith('4')) {
+      cleanDigits = '58$cleanDigits';
+    } else if (cleanDigits.length == 8) {
       cleanDigits = '504$cleanDigits';
     }
-    final message = Uri.encodeComponent('Hola, te contacto desde GuIA-HN');
-    final whatsappUrl = Uri.parse('https://wa.me/$cleanDigits?text=$message');
+    return Uri.https(
+      'wa.me',
+      '/$cleanDigits',
+      {'text': message ?? providerInquiryMessage()},
+    );
+  }
+
+  static Future<void> whatsapp(
+    BuildContext context,
+    String phone, {
+    String? message,
+  }) async {
+    final whatsappUrl = whatsappUri(phone, message: message);
 
     if (!await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication)) {
       if (!context.mounted) return;
@@ -661,19 +700,7 @@ abstract class ContactActions {
       mapsUri = Uri.parse(
           'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Ubicación no disponible',
-            style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.w600),
-          ),
-          backgroundColor: AppColors.secondary,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-      );
+      context.showSnackBar('Ubicación no disponible');
       return;
     }
 
@@ -694,36 +721,29 @@ abstract class ContactActions {
   ) async {
     await Clipboard.setData(ClipboardData(text: value));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.w600),
-        ),
-        backgroundColor: AppColors.secondary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-        duration: const Duration(seconds: 2),
-      ),
+    context.showSnackBar(
+      message,
+      isSuccess: true,
+      duration: const Duration(seconds: 2),
     );
   }
 }
 
 // ── Card de Ubicación y Mapa ──────────────────────────────────────────────
 
-/// Card de ubicación con mapa interactivo OpenStreetMap y botón para abrir en Google Maps.
+/// Card de ubicación con Google Maps y botón para abrir la navegación externa.
 class DetailLocationCard extends StatelessWidget {
   final String? direccion;
   final double? lat;
   final double? lng;
+  final bool embedded;
 
   const DetailLocationCard({
     super.key,
     this.direccion,
     this.lat,
     this.lng,
+    this.embedded = false,
   });
 
   @override
@@ -733,9 +753,80 @@ class DetailLocationCard extends StatelessWidget {
     }
 
     final hasCoordinates = lat != null && lng != null;
-    final point = hasCoordinates
-        ? LatLng(lat!, lng!)
-        : const LatLng(14.0723, -87.1921);
+    final point =
+        hasCoordinates ? LatLng(lat!, lng!) : const LatLng(10.4806, -66.9036);
+
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (direccion != null && direccion!.isNotEmpty) ...[
+          Row(
+            children: [
+              const AppLineIcon(
+                AppIcons.location,
+                size: AppIconSize.action,
+                color: AppColors.primaryInk,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  direccion!,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+        ],
+
+        // Google Maps compartido por todas las superficies de ubicación.
+        GuiaMap(
+          point: point,
+          isApproximate: !hasCoordinates,
+        ),
+        const SizedBox(height: 14),
+
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () => ContactActions.openGoogleMaps(
+              context,
+              lat: lat,
+              lng: lng,
+              address: direccion,
+            ),
+            icon: const AppLineIcon(
+              AppIcons.externalLink,
+              size: AppIconSize.action,
+            ),
+            label: Text(
+              'ABRIR EN GOOGLE MAPS',
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.5,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(32),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    if (embedded) return content;
 
     return Container(
       width: double.infinity,
@@ -751,85 +842,12 @@ class DetailLocationCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (direccion != null && direccion!.isNotEmpty) ...[
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.location_on_rounded,
-                      color: AppColors.primary, size: 18),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    direccion!,
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-          ],
-
-          // Mapa real con OpenStreetMap via flutter_map usando el widget compartido
-          GuiaMap(
-            point: point,
-            isApproximate: !hasCoordinates,
-          ),
-          const SizedBox(height: 14),
-
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => ContactActions.openGoogleMaps(
-                context,
-                lat: lat,
-                lng: lng,
-                address: direccion,
-              ),
-              icon: const Icon(Icons.open_in_new_rounded, size: 18),
-              label: Text(
-                'ABRIR EN GOOGLE MAPS',
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.5,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(32),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+      child: content,
     );
   }
 }
 
-
-
 // ── CTA ───────────────────────────────────────────────────────────────────
-
-
 
 // ── Estados de carga y error ──────────────────────────────────────────────
 
@@ -898,14 +916,10 @@ class DetailErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: const BoxDecoration(
-                color: AppColors.errorLight,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.wifi_off_rounded,
-                  size: 34, color: AppColors.error),
+            const AppLineIcon(
+              AppIcons.connectivityError,
+              size: AppIconSize.feature,
+              color: AppColors.error,
             ),
             const SizedBox(height: 18),
             Text(
@@ -933,7 +947,10 @@ class DetailErrorView extends StatelessWidget {
               height: 48,
               child: ElevatedButton.icon(
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded, size: 18),
+                icon: const AppLineIcon(
+                  AppIcons.retry,
+                  size: AppIconSize.action,
+                ),
                 label: Text(
                   'Reintentar',
                   style: GoogleFonts.hankenGrotesk(

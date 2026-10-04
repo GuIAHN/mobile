@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.example.guiautomotrizMobile</string>
+	<string>com.guiahn.automotriz</string>
 	<key>PROJECT_ID</key>
 	<string>guia-hn-5a494</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:396997122901:ios:aa43b248d3fd6df5d26ddc</string>
+	<string>1:396997122901:ios:06f144efbe61586cd26ddc</string>
 </dict>
 </plist>

@@ -1,4 +1,3 @@
-import 'dart:ui' show ImageFilter;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,7 +23,8 @@ import '../providers/social_registration_state.dart';
 const Color _bg = AppColors.background; //        #F5F6FA — fondo de pantalla
 const Color _surface = AppColors.loginSurface; // #FFFFFF — campos y superficies
 const Color _ink = AppColors.loginOnSurface; //   #1A1C1E — texto principal
-const Color _muted = AppColors.loginOnSurfaceVar; // #6C757D — labels y placeholders
+const Color _muted =
+    AppColors.loginOnSurfaceVar; // #6C757D — labels y placeholders
 const Color _line = AppColors.grey300; //         #DEE2E6 — borde de campos
 const Color _hairline = AppColors.loginOutlineVar; // #E9ECEF — divisores
 const Color _brand = AppColors.loginPrimary; //   #F25C05 — acento y CTA
@@ -67,8 +67,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _submitted = false;
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS ? '1062705330448-6nego3r9aaijmelviu38b7f5g09lb4te.apps.googleusercontent.com' : null,
-    serverClientId: '1062705330448-1n5l9ahrjltarem41a5uiim4dc81hj63.apps.googleusercontent.com',
+    clientId: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
+        ? '1062705330448-6nego3r9aaijmelviu38b7f5g09lb4te.apps.googleusercontent.com'
+        : null,
+    serverClientId:
+        '1062705330448-1n5l9ahrjltarem41a5uiim4dc81hj63.apps.googleusercontent.com',
     scopes: ['email'],
   );
 
@@ -129,7 +132,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         if (idToken == null) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No se pudo obtener el token de Google.')),
+              const SnackBar(
+                  content: Text('No se pudo obtener el token de Google.')),
             );
           }
           return;
@@ -158,7 +162,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         idToken = appleCredential.identityToken;
         email = appleCredential.email;
         name = appleCredential.givenName != null
-            ? '${appleCredential.givenName} ${appleCredential.familyName ?? ''}'.trim()
+            ? '${appleCredential.givenName} ${appleCredential.familyName ?? ''}'
+                .trim()
             : null;
       } catch (e) {
         if (mounted) {
@@ -180,11 +185,25 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     result.fold(
       (failure) {
         if (failure is SocialNotRegisteredFailure) {
+          final registrationEmail =
+              failure.email.isNotEmpty ? failure.email : email;
+          if (registrationEmail == null || registrationEmail.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'No pudimos obtener el correo de Apple. Intenta nuevamente.',
+                ),
+              ),
+            );
+            return;
+          }
           ref.read(socialRegistrationProvider.notifier).setData(
                 idToken: idToken!,
                 provider: provider,
-                email: email!,
-                name: name ?? 'Usuario Social',
+                email: registrationEmail,
+                name: failure.name.isNotEmpty
+                    ? failure.name
+                    : name ?? 'Usuario Social',
               );
           context.go(RouteNames.register);
         }
@@ -281,22 +300,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               onChanged: _clearApiError,
                             ),
                             const SizedBox(height: AppSpacing.xl),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const _FieldLabel('Contraseña'),
-                                GestureDetector(
-                                  onTap: () => context.push(RouteNames.forgotPassword),
-                                  behavior: HitTestBehavior.opaque,
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-                                    child: Text(
-                                      '¿Olvidaste tu contraseña?',
-                                      style: _font(12, FontWeight.w700, _brand),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            _PasswordLabelRow(
+                              onForgotPassword: () =>
+                                  context.push(RouteNames.forgotPassword),
                             ),
                             const SizedBox(height: AppSpacing.sm),
                             _LoginField(
@@ -334,20 +340,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           children: [
                             const _LabeledDivider('O continuar con'),
                             const SizedBox(height: AppSpacing.xl),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _SocialButton.google(
-                                    onPressed: () => _handleSocialLogin('GOOGLE'),
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.md),
-                                Expanded(
-                                  child: _SocialButton.apple(
-                                    onPressed: () => _handleSocialLogin('APPLE'),
-                                  ),
-                                ),
-                              ],
+                            _SocialActions(
+                              onGoogle: () => _handleSocialLogin('GOOGLE'),
+                              onApple: () => _handleSocialLogin('APPLE'),
                             ),
                             const SizedBox(height: AppSpacing.xl3),
                             const _RegisterFooter(),
@@ -454,9 +449,8 @@ class _PressScaleState extends State<_PressScale> {
     final active = widget.enabled && _pressed && !reduceMotion;
 
     return Listener(
-      onPointerDown: widget.enabled
-          ? (_) => setState(() => _pressed = true)
-          : null,
+      onPointerDown:
+          widget.enabled ? (_) => setState(() => _pressed = true) : null,
       onPointerUp: _release,
       onPointerCancel: _release,
       child: AnimatedScale(
@@ -479,14 +473,18 @@ class _BrandHeader extends StatelessWidget {
     return Column(
       children: [
         const SizedBox(height: 32),
-        Image.asset(
-          'assets/images/logo.png',
-          width: 320,
-          fit: BoxFit.contain,
-          semanticLabel: 'guIAutomotriz HN',
-          errorBuilder: (_, __, ___) => Text(
-            'guIAutomotriz HN',
-            style: _font(24, FontWeight.w800, _ink, letterSpacing: -0.3),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: Image.asset(
+            'assets/images/logo.png',
+            width: double.infinity,
+            fit: BoxFit.contain,
+            semanticLabel: 'GuIA Automotriz HN',
+            errorBuilder: (_, __, ___) => Text(
+              'GuIA Automotriz HN',
+              textAlign: TextAlign.center,
+              style: _font(24, FontWeight.w800, _ink, letterSpacing: -0.3),
+            ),
           ),
         ),
       ],
@@ -505,6 +503,56 @@ class _FieldLabel extends StatelessWidget {
     return Text(
       text.toUpperCase(),
       style: _font(12, FontWeight.w700, _muted, letterSpacing: 1.5),
+    );
+  }
+}
+
+class _PasswordLabelRow extends StatelessWidget {
+  final VoidCallback onForgotPassword;
+
+  const _PasswordLabelRow({required this.onForgotPassword});
+
+  @override
+  Widget build(BuildContext context) {
+    final forgotButton = TextButton(
+      key: const Key('open-forgot-password'),
+      onPressed: onForgotPassword,
+      style: TextButton.styleFrom(
+        foregroundColor: _brand,
+        minimumSize: const Size(0, 48),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+        tapTargetSize: MaterialTapTargetSize.padded,
+      ),
+      child: Text(
+        '¿Olvidaste tu contraseña?',
+        textAlign: TextAlign.end,
+        style: _font(12, FontWeight.w700, _brand),
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scaledLabel = MediaQuery.textScalerOf(context).scale(12);
+        final stack = constraints.maxWidth < 320 || scaledLabel >= 18;
+
+        if (stack) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _FieldLabel('Contraseña'),
+              Align(alignment: Alignment.centerRight, child: forgotButton),
+            ],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const _FieldLabel('Contraseña'),
+            Flexible(child: forgotButton),
+          ],
+        );
+      },
     );
   }
 }
@@ -595,8 +643,8 @@ class _LoginField extends StatelessWidget {
         errorBorder: _border(AppColors.loginError, 1),
         focusedErrorBorder: _border(AppColors.loginError, 1.5),
         errorMaxLines: 2,
-        errorStyle: _font(12, FontWeight.w500, AppColors.loginErrorText,
-            height: 1.35),
+        errorStyle:
+            _font(12, FontWeight.w500, AppColors.loginErrorText, height: 1.35),
       ),
     );
   }
@@ -707,11 +755,14 @@ class _LabeledDivider extends StatelessWidget {
     return Row(
       children: [
         const Expanded(child: Divider(color: _hairline, thickness: 1)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Text(
-            label.toUpperCase(),
-            style: _font(11, FontWeight.w600, _muted, letterSpacing: 1.5),
+        Flexible(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Text(
+              label.toUpperCase(),
+              textAlign: TextAlign.center,
+              style: _font(11, FontWeight.w600, _muted, letterSpacing: 1.5),
+            ),
           ),
         ),
         const Expanded(child: Divider(color: _hairline, thickness: 1)),
@@ -789,6 +840,27 @@ class _SocialButton extends StatelessWidget {
   }
 }
 
+class _SocialActions extends StatelessWidget {
+  final VoidCallback onGoogle;
+  final VoidCallback onApple;
+
+  const _SocialActions({
+    required this.onGoogle,
+    required this.onApple,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: _SocialButton.google(onPressed: onGoogle)),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(child: _SocialButton.apple(onPressed: onApple)),
+      ],
+    );
+  }
+}
+
 // ── Logotipo de Google ───────────────────────────────────────────────────────
 // Anillo de cuatro segmentos + barra, con los ángulos y proporciones tomados
 // del SVG oficial (viewBox 48×48, centro 24,24, radio exterior 22, interior 13)
@@ -850,42 +922,6 @@ class _GoogleMarkPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// ── Link de texto con área táctil de 44px ────────────────────────────────────
-
-class _TextLink extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  final double fontSize;
-  final EdgeInsets padding;
-
-  const _TextLink({
-    required this.label,
-    required this.onTap,
-    this.fontSize = 13.5,
-    this.padding = const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 44),
-          alignment: Alignment.center,
-          padding: padding,
-          child: Text(
-            label,
-            style: _font(fontSize, FontWeight.w700, _brand),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 // ── Pie de registro ──────────────────────────────────────────────────────────

@@ -119,4 +119,24 @@ void main() {
     expect(provider.photo, 'https://example.com/ana.jpg');
     expect(provider.type, ServiceType.mechanic);
   });
+
+  test('parses photoUrl used by provider list payloads', () {
+    final provider = ProviderModel.fromJson(
+      providerJson({'photoUrl': 'https://example.com/workshop.jpg'}),
+      ServiceType.workshops,
+    );
+
+    expect(provider.photo, 'https://example.com/workshop.jpg');
+  });
+
+  test('uses the nested user photo when the provider has no direct photo', () {
+    final provider = ProviderModel.fromJson(
+      providerJson({
+        'user': {'photo': 'https://example.com/user-workshop.jpg'},
+      }),
+      ServiceType.workshops,
+    );
+
+    expect(provider.photo, 'https://example.com/user-workshop.jpg');
+  });
 }

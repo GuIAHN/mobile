@@ -54,7 +54,7 @@ class _PartTypeTileState extends State<_PartTypeTile> {
     return Semantics(
       button: true,
       selected: widget.isSelected,
-      label: widget.type.label + ', ' + widget.type.description,
+      label: '${widget.type.label}, ${widget.type.description}',
       excludeSemantics: true,
       child: AnimatedScale(
         scale: _isPressed ? 0.95 : 1.0,

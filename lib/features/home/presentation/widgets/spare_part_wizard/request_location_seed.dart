@@ -1,6 +1,6 @@
 import 'package:latlong2/latlong.dart';
 
-import 'request_location_selection.dart';
+import '../../../../../shared/location/domain/entities/request_location_selection.dart';
 
 class RequestLocationSeed {
   final RequestLocationSelection? selection;

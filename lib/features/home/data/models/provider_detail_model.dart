@@ -65,17 +65,19 @@ class ProviderDetailModel extends ProviderDetail {
         locationMap?['lon'] ?? locationMap?['lng'] ?? json['longitude']);
     final ratingCount = _toInt(json['ratingCount'] ?? json['rating_count']);
     final ident = _parseIdentification(json['identification']);
-    final photo = json['photo'] as String? ?? (json['user'] as Map?)?['photo'] as String?;
+    final photo =
+        json['photo'] as String? ?? (json['user'] as Map?)?['photo'] as String?;
 
     return ProviderDetailModel(
       id: json['id'] as String,
-      userId: json['userId'] as String? ??
-          (json['user'] as Map?)?['id'] as String?,
+      userId:
+          json['userId'] as String? ?? (json['user'] as Map?)?['id'] as String?,
       nombre: json['name'] as String? ??
           json['nombre'] as String? ??
           (json['user'] as Map?)?['name'] as String? ??
           'Sin nombre',
-      esTaller: json['isWorkshop'] as bool? ?? json['esTaller'] as bool? ?? false,
+      esTaller:
+          json['isWorkshop'] as bool? ?? json['esTaller'] as bool? ?? false,
       descripcion:
           json['description'] as String? ?? json['descripcion'] as String?,
       rating: _toDouble(json['rating']),
@@ -99,12 +101,13 @@ class ProviderDetailModel extends ProviderDetail {
         (json['user'] as Map?)?['name'] as String? ??
         'Sin nombre';
 
-    final categorias = (json['categories'] as List<dynamic>? ?? [])
+    final coverage = json['coverage'] as Map<String, dynamic>?;
+    final coverageBrands = coverage?['brands'] as List<dynamic>? ?? const [];
+    final categorias = (coverage?['subcategories'] as List<dynamic>? ?? [])
         .whereType<Map>()
         .map((c) => ProviderCategory(
-              name: c['categoryName']?.toString() ?? 'Categoría',
-              startingPrice: _toDouble(c['startingPrice']),
-              brands: (c['brands'] as List<dynamic>? ?? [])
+              name: c['name']?.toString() ?? 'Subcategoría',
+              brands: coverageBrands
                   .map((b) => b is Map ? b['name'].toString() : b.toString())
                   .toList(),
             ))
@@ -116,12 +119,13 @@ class ProviderDetailModel extends ProviderDetail {
         locationMap?['lon'] ?? locationMap?['lng'] ?? json['longitude']);
     final ratingCount = _toInt(json['ratingCount'] ?? json['rating_count']);
     final ident = _parseIdentification(json['identification']);
-    final photo = json['photo'] as String? ?? (json['user'] as Map?)?['photo'] as String?;
+    final photo =
+        json['photo'] as String? ?? (json['user'] as Map?)?['photo'] as String?;
 
     return ProviderDetailModel(
       id: json['id'] as String,
-      userId: json['userId'] as String? ??
-          (json['user'] as Map?)?['id'] as String?,
+      userId:
+          json['userId'] as String? ?? (json['user'] as Map?)?['id'] as String?,
       nombre: nombre,
       esTaller: true,
       descripcion:

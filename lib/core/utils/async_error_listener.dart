@@ -40,4 +40,3 @@ extension WidgetRefAsyncError on WidgetRef {
     });
   }
 }
-

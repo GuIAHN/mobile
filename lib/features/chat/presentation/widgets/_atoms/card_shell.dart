@@ -5,7 +5,6 @@ import '../../../../../shared/widgets/image_viewer_dialog.dart';
 import 'card_tokens.dart';
 import '../../../../vehicles/presentation/widgets/_atoms/vehicle_type_illustration.dart';
 
-
 /// Contenedor único de las cards de solicitud/oferta.
 ///
 /// Rediseño: superficie **neutra**, sin bordes de color ni sombras teñidas.
@@ -47,7 +46,8 @@ class _CardShellState extends State<CardShell> {
 
   @override
   Widget build(BuildContext context) {
-    final hasAccent = widget.accentColor != null && widget.accentColor != Colors.transparent;
+    final hasAccent =
+        widget.accentColor != null && widget.accentColor != Colors.transparent;
 
     final content = GestureDetector(
       onTapDown: (_) => setState(() => _isPressed = true),
@@ -98,8 +98,6 @@ class _CardShellState extends State<CardShell> {
       ),
     );
 
-
-
     if (widget.semanticLabel == null) return content;
 
     return Semantics(
@@ -137,6 +135,7 @@ class CardThumb extends StatelessWidget {
   final IconData fallbackIcon;
   final String? title;
   final String? vehicleType;
+  final bool enableViewer;
 
   const CardThumb({
     super.key,
@@ -145,6 +144,7 @@ class CardThumb extends StatelessWidget {
     this.fallbackIcon = Icons.directions_car_rounded,
     this.title,
     this.vehicleType,
+    this.enableViewer = true,
   });
 
   @override
@@ -169,7 +169,7 @@ class CardThumb extends StatelessWidget {
       ),
     );
 
-    if (!hasValidUrl) return childWidget;
+    if (!hasValidUrl || !enableViewer) return childWidget;
 
     return GestureDetector(
       onTap: () => ImageViewerDialog.show(context, url!, title: title),
@@ -187,7 +187,8 @@ class CardThumb extends StatelessWidget {
           assetPath,
           fit: BoxFit.contain,
           errorBuilder: (_, __, ___) => Center(
-            child: Icon(fallbackIcon, size: size * 0.36, color: AppColors.grey400),
+            child:
+                Icon(fallbackIcon, size: size * 0.36, color: AppColors.grey400),
           ),
         ),
       );
@@ -197,4 +198,3 @@ class CardThumb extends StatelessWidget {
     );
   }
 }
-

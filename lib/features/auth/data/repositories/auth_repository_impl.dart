@@ -3,7 +3,7 @@ import '../../../../core/error/error_mapper.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../domain/entities/user.dart';
-import '../../domain/entities/store_category_config.dart';
+import '../../domain/entities/store_coverage_config.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
 import '../models/user_model.dart';
@@ -82,17 +82,48 @@ class AuthRepositoryImpl implements AuthRepository {
     String? phone,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
   }) async {
+    User? registeredUser;
     try {
       // 1. Create the user in the backend.
-      final registeredUser = await remoteDataSource.register(
-        email: email,
-        password: password,
-        name: name,
-        role: role,
-        idToken: idToken,
-        provider: provider,
-      );
+      try {
+        registeredUser = await remoteDataSource.register(
+          email: email,
+          password: password,
+          name: name,
+          role: role,
+          idToken: idToken,
+          provider: provider,
+          acceptedTerms: acceptedTerms,
+        );
+      } catch (registrationError) {
+        // A previous social attempt may have created the account before the
+        // follow-up login/profile request failed. Retrying social login makes
+        // that partial success recoverable instead of trapping the user in an
+        // "already registered" loop.
+        if (idToken == null || provider == null) rethrow;
+
+        try {
+          final loginResponse = await remoteDataSource.socialLogin(
+            idToken: idToken,
+            provider: provider,
+          );
+          await _persistSession(loginResponse);
+          if (phone != null && phone.trim().isNotEmpty) {
+            try {
+              await remoteDataSource.updateProfile(phone: phone);
+            } catch (_) {
+              // Recovery should still complete when optional enrichment fails.
+            }
+          }
+          final recoveredUser = await remoteDataSource.getCurrentUser();
+          await secureStorage.saveUserId(recoveredUser.id);
+          return Right(recoveredUser);
+        } catch (_) {
+          throw registrationError;
+        }
+      }
 
       // 2. Log in automatically to obtain tokens for the active session.
       final LoginResponseModel loginResponse;
@@ -108,24 +139,40 @@ class AuthRepositoryImpl implements AuthRepository {
         );
       }
 
-      // Save obtained tokens securely.
-      await secureStorage.saveToken(loginResponse.accessToken);
-      if (loginResponse.refreshToken != null) {
-        await secureStorage.saveRefreshToken(loginResponse.refreshToken!);
-      }
+      // Save obtained tokens securely. From this point onward registration is
+      // complete; optional profile enrichment must not turn it into a failure.
+      await _persistSession(loginResponse);
       await secureStorage.saveUserId(registeredUser.id);
 
       // 3. Register the phone number if specified.
       if (phone != null && phone.trim().isNotEmpty) {
-        await remoteDataSource.updateProfile(phone: phone);
+        try {
+          await remoteDataSource.updateProfile(phone: phone);
+        } catch (_) {
+          // The account and session already exist. The phone can be completed
+          // later from the profile without forcing the user to register again.
+        }
       }
 
       // 4. Retrieve the updated full profile from the API.
-      final finalUser = await remoteDataSource.getCurrentUser();
+      User finalUser = registeredUser;
+      try {
+        finalUser = await remoteDataSource.getCurrentUser();
+      } catch (_) {
+        // Keep the valid registration response when profile refresh is
+        // temporarily unavailable.
+      }
 
       return Right(finalUser);
     } catch (e) {
       return Left(ErrorMapper.map(e));
+    }
+  }
+
+  Future<void> _persistSession(LoginResponseModel loginResponse) async {
+    await secureStorage.saveToken(loginResponse.accessToken);
+    if (loginResponse.refreshToken != null) {
+      await secureStorage.saveRefreshToken(loginResponse.refreshToken!);
     }
   }
 
@@ -143,6 +190,9 @@ class AuthRepositoryImpl implements AuthRepository {
     required List<String> specialtyIds,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
+    String? idPhotoPath,
+    String? rifPhotoPath,
   }) async {
     try {
       final registeredUser = await remoteDataSource.registerMechanic(
@@ -158,29 +208,12 @@ class AuthRepositoryImpl implements AuthRepository {
         specialtyIds: specialtyIds,
         idToken: idToken,
         provider: provider,
+        acceptedTerms: acceptedTerms,
+        idPhotoPath: idPhotoPath,
+        rifPhotoPath: rifPhotoPath,
       );
 
-      final LoginResponseModel loginResponse;
-      if (idToken != null && provider != null) {
-        loginResponse = await remoteDataSource.socialLogin(
-          idToken: idToken,
-          provider: provider,
-        );
-      } else {
-        loginResponse = await remoteDataSource.login(
-          email: email,
-          password: password!,
-        );
-      }
-
-      await secureStorage.saveToken(loginResponse.accessToken);
-      if (loginResponse.refreshToken != null) {
-        await secureStorage.saveRefreshToken(loginResponse.refreshToken!);
-      }
-      await secureStorage.saveUserId(registeredUser.id);
-
-      final finalUser = await remoteDataSource.getCurrentUser();
-      return Right(finalUser);
+      return Right(registeredUser);
     } catch (e) {
       return Left(ErrorMapper.map(e));
     }
@@ -196,10 +229,12 @@ class AuthRepositoryImpl implements AuthRepository {
     required double longitude,
     required String address,
     required String rif,
-    required List<StoreCategoryConfig> catalog,
+    required StoreCoverageConfig coverage,
     required bool hasDelivery,
     String? idToken,
     String? provider,
+    required bool acceptedTerms,
+    required String rifPhotoPath,
   }) async {
     try {
       final registeredUser = await remoteDataSource.registerStore(
@@ -211,33 +246,17 @@ class AuthRepositoryImpl implements AuthRepository {
         longitude: longitude,
         address: address,
         rif: rif,
-        catalog: catalog,
+        coverage: coverage,
         hasDelivery: hasDelivery,
         idToken: idToken,
         provider: provider,
+        acceptedTerms: acceptedTerms,
+        rifPhotoPath: rifPhotoPath,
       );
 
-      final LoginResponseModel loginResponse;
-      if (idToken != null && provider != null) {
-        loginResponse = await remoteDataSource.socialLogin(
-          idToken: idToken,
-          provider: provider,
-        );
-      } else {
-        loginResponse = await remoteDataSource.login(
-          email: email,
-          password: password!,
-        );
-      }
-
-      await secureStorage.saveToken(loginResponse.accessToken);
-      if (loginResponse.refreshToken != null) {
-        await secureStorage.saveRefreshToken(loginResponse.refreshToken!);
-      }
-      await secureStorage.saveUserId(registeredUser.id);
-
-      final finalUser = await remoteDataSource.getCurrentUser();
-      return Right(finalUser);
+      // Stores also require approval, so registration success is intentionally
+      // not an authenticated session.
+      return Right(registeredUser);
     } catch (e) {
       return Left(ErrorMapper.map(e));
     }
@@ -253,6 +272,36 @@ class AuthRepositoryImpl implements AuthRepository {
       // Even if the endpoint fails, always clear local tokens.
       await secureStorage.clearTokens();
       return const Right(null);
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> forgotPassword({
+    required String email,
+  }) async {
+    try {
+      return Right(await remoteDataSource.forgotPassword(email: email));
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      return Right(
+        await remoteDataSource.resetPassword(
+          email: email,
+          code: code,
+          newPassword: newPassword,
+        ),
+      );
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
     }
   }
 
@@ -281,6 +330,7 @@ class AuthRepositoryImpl implements AuthRepository {
     String? name,
     String? photo,
     String? phone,
+    String? description,
     double? latitude,
     double? longitude,
   }) async {
@@ -289,6 +339,7 @@ class AuthRepositoryImpl implements AuthRepository {
         name: name,
         photo: photo,
         phone: phone,
+        description: description,
         latitude: latitude,
         longitude: longitude,
       );
@@ -299,7 +350,48 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, void>> registerDeviceToken(String token, {String? deviceOs}) async {
+  Future<Either<Failure, void>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await remoteDataSource.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+      return const Right(null);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, DateTime>> requestAccountDeletion({
+    String? password,
+  }) async {
+    try {
+      final purgeAt = await remoteDataSource.requestAccountDeletion(
+        password: password,
+      );
+      return Right(purgeAt);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> restoreAccount() async {
+    try {
+      await remoteDataSource.restoreAccount();
+      return const Right(null);
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> registerDeviceToken(String token,
+      {String? deviceOs}) async {
     try {
       await remoteDataSource.registerDeviceToken(token, deviceOs: deviceOs);
       return const Right(null);
@@ -318,4 +410,3 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 }
-

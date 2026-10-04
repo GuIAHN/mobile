@@ -1,16 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/providers/cache_for.dart';
 import '../../../../core/domain/enums/part_type.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../core/providers/current_user_provider.dart';
+import '../../../../core/session/session_generation_provider.dart';
 import '../../data/datasources/search_remote_datasource.dart';
 import '../../data/datasources/home_remote_datasource.dart';
 import '../../data/repositories/home_repository_impl.dart';
 import '../../data/repositories/search_repository_impl.dart';
 import '../../domain/entities/home_filters.dart';
 import '../../domain/entities/home_item.dart';
-import '../../domain/entities/promo.dart';
 import '../../domain/entities/provider_detail.dart';
 import '../../domain/entities/sort_option.dart';
 import '../../domain/entities/top_providers_result.dart';
@@ -18,11 +19,10 @@ import '../../domain/repositories/home_repository.dart';
 import '../../domain/repositories/search_repository.dart';
 import '../../domain/usecases/create_search_request_usecase.dart';
 import '../../domain/usecases/get_home_items_usecase.dart';
-import '../../domain/usecases/get_promos_usecase.dart';
 import '../../domain/usecases/get_provider_detail_usecase.dart';
 import '../../domain/usecases/get_top_providers_usecase.dart';
 import '../../domain/usecases/search_providers_usecase.dart';
-import '../../../vehicles/domain/entities/user_car.dart';
+import '../../../../core/domain/entities/user_car.dart';
 import '../../../chat/presentation/providers/chat_providers.dart';
 
 int _compareKnownDistanceFirst(double? a, double? b) {
@@ -48,25 +48,11 @@ enum SearchRequestStatus { idle, loading, success, error }
 class SearchRequestState {
   final SearchRequestStatus status;
   final String? errorMessage;
-  final Map<String, dynamic>? data;
 
   const SearchRequestState({
     this.status = SearchRequestStatus.idle,
     this.errorMessage,
-    this.data,
   });
-
-  SearchRequestState copyWith({
-    SearchRequestStatus? status,
-    String? errorMessage,
-    Map<String, dynamic>? data,
-  }) {
-    return SearchRequestState(
-      status: status ?? this.status,
-      errorMessage: errorMessage ?? this.errorMessage,
-      data: data ?? this.data,
-    );
-  }
 }
 
 class SearchRequestNotifier extends StateNotifier<SearchRequestState> {
@@ -106,12 +92,9 @@ class SearchRequestNotifier extends StateNotifier<SearchRequestState> {
           errorMessage: failure.message,
         );
       },
-      (data) {
+      (_) {
         _ref?.invalidate(consumerRequestsProvider);
-        state = SearchRequestState(
-          status: SearchRequestStatus.success,
-          data: data,
-        );
+        state = const SearchRequestState(status: SearchRequestStatus.success);
       },
     );
   }
@@ -123,6 +106,7 @@ class SearchRequestNotifier extends StateNotifier<SearchRequestState> {
 
 final searchRequestNotifierProvider =
     StateNotifierProvider<SearchRequestNotifier, SearchRequestState>((ref) {
+  ref.watch(sessionGenerationProvider);
   final useCase = ref.watch(createSearchRequestUseCaseProvider);
   return SearchRequestNotifier(useCase, ref);
 });
@@ -146,10 +130,6 @@ final homeRepositoryProvider = Provider<HomeRepository>((ref) {
 });
 
 // ── Use Case Providers ────────────────────────────────────────────────────────
-
-final getPromosUseCaseProvider = Provider<GetPromosUseCase>((ref) {
-  return GetPromosUseCase(ref.watch(homeRepositoryProvider));
-});
 
 final getHomeItemsUseCaseProvider = Provider<GetHomeItemsUseCase>((ref) {
   return GetHomeItemsUseCase(ref.watch(homeRepositoryProvider));
@@ -183,55 +163,44 @@ final selectedServiceTypeProvider = StateProvider<ServiceType>((ref) {
 
 /// Filtros de búsqueda (se envían al backend en mecánicos/talleres)
 final homeFiltersProvider = StateProvider<HomeFilters>((ref) {
+  ref.watch(sessionGenerationProvider);
   return const HomeFilters();
 });
 
 /// Query de búsqueda textual (filtro local sobre la lista)
 final searchQueryProvider = StateProvider<String>((ref) {
+  ref.watch(sessionGenerationProvider);
   return '';
 });
 
 /// Vehículo seleccionado para buscar mecánicos o talleres
 final searchVehicleProvider = StateProvider<UserCar?>((ref) {
+  ref.watch(sessionGenerationProvider);
   return null;
 });
 
-/// ID de variante de vehículo temporario/manual seleccionado
-final searchVehicleVariantIdProvider = StateProvider<String?>((ref) {
+/// ID de modelo del vehículo temporario/manual seleccionado.
+final searchVehicleModelIdProvider = StateProvider<String?>((ref) {
+  ref.watch(sessionGenerationProvider);
   return null;
 });
-
-@Deprecated('Use searchVehicleVariantIdProvider instead')
-final searchVehicleModelIdProvider = searchVehicleVariantIdProvider;
 
 /// Destinos estables de la navegación principal.
 ///
-/// [commerce] se presenta como "Compras" para quien solicita repuestos y
-/// como "Ventas" para la tienda. Mantener un valor semántico evita que el
-/// índice de Perfil cambie según el rol, como ocurría con los enteros.
-enum MainNavigationTab { home, chats, commerce, profile }
+enum MainNavigationTab { home, purchases, requests, profile }
 
 final homeTabProvider = StateProvider<MainNavigationTab>((ref) {
+  ref.watch(sessionGenerationProvider);
   return MainNavigationTab.home;
 });
 
 // ── Async Data Providers ──────────────────────────────────────────────────────
 
-/// Promos/banners por tipo de servicio
-final promosProvider = FutureProvider.family
-    .autoDispose<List<Promo>, ServiceType>((ref, type) async {
-  final useCase = ref.watch(getPromosUseCaseProvider);
-  final result = await useCase(type);
-  return result.fold(
-    (failure) => throw Exception(failure.message),
-    (promos) => promos,
-  );
-});
-
 /// Proveedores filtrados desde el backend. Fuera de producción, spareParts
 /// conserva el mock local configurado por el repositorio.
 final homeItemsProvider = FutureProvider.family
     .autoDispose<List<HomeItem>, ServiceType>((ref, type) async {
+  ref.watch(sessionGenerationProvider);
   if (type == ServiceType.spareParts) {
     final useCase = ref.watch(getHomeItemsUseCaseProvider);
     final result = await useCase(type);
@@ -243,9 +212,14 @@ final homeItemsProvider = FutureProvider.family
 
   // Mecánicos y Talleres: usar búsqueda real con filtros actuales
   var filters = ref.watch(homeFiltersProvider);
+  final role = ref.watch(currentRoleProvider);
 
   final isLocationShared = ref.watch(isLocationSharedProvider);
-  if (isLocationShared) {
+  if (role.usesSavedLocationForSearch) {
+    // El backend resuelve la ubicación guardada del usuario autenticado
+    // cuando lat/lng no vienen en el query.
+    filters = filters.copyWith(clearLocation: true);
+  } else if (isLocationShared) {
     final locationAsync = ref.watch(userLocationProvider);
     var location = locationAsync.valueOrNull;
 
@@ -279,7 +253,11 @@ final homeItemsProvider = FutureProvider.family
 /// Una única carga agrupada para las dos secciones destacadas del Home.
 final homeTopProvidersProvider =
     FutureProvider.autoDispose<TopProvidersResult>((ref) async {
-  final isLocationShared = ref.watch(isLocationSharedProvider);
+  ref.watch(sessionGenerationProvider);
+  ref.cacheFor(const Duration(minutes: 30));
+  final role = ref.watch(currentRoleProvider);
+  final isLocationShared =
+      !role.usesSavedLocationForSearch && ref.watch(isLocationSharedProvider);
   var location =
       isLocationShared ? ref.read(userLocationProvider).valueOrNull : null;
 

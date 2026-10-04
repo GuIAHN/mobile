@@ -11,8 +11,6 @@ class AppConfig {
   static const int sendTimeoutMs = 30000;
 
   // ── Paginación ──────────────────────────────────────────────────────────
-  static const int defaultPageSize = 20;
-
   // ── API ─────────────────────────────────────────────────────────────────
   static String get apiBaseUrl => Env.baseUrl;
 

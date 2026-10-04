@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_icons.dart';
+
 /// Tipo de repuesto disponible para búsqueda.
 /// Mapea directamente al enum `PartType` del backend.
 enum PartType {
   performance,
   original,
   generic,
+  used,
 }
 
 extension PartTypeX on PartType {
@@ -18,6 +21,8 @@ extension PartTypeX on PartType {
         return 'ORIGINAL';
       case PartType.generic:
         return 'GENERIC';
+      case PartType.used:
+        return 'USED';
     }
   }
 
@@ -25,11 +30,13 @@ extension PartTypeX on PartType {
   String get label {
     switch (this) {
       case PartType.performance:
-        return 'Performance';
+        return 'Alto rendimiento';
       case PartType.original:
-        return 'Original';
+        return 'OEM';
       case PartType.generic:
         return 'Genérico';
+      case PartType.used:
+        return 'Usado';
     }
   }
 
@@ -37,11 +44,13 @@ extension PartTypeX on PartType {
   String get description {
     switch (this) {
       case PartType.performance:
-        return 'Alto rendimiento';
+        return 'Mejora el desempeño';
       case PartType.original:
-        return 'Marca del fabricante';
+        return 'Equipo del fabricante';
       case PartType.generic:
         return 'Alternativo / compatible';
+      case PartType.used:
+        return 'Repuesto previamente utilizado';
     }
   }
 
@@ -49,11 +58,20 @@ extension PartTypeX on PartType {
   IconData get icon {
     switch (this) {
       case PartType.performance:
-        return Icons.speed_rounded;
+        return AppIcons.partPerformance;
       case PartType.original:
-        return Icons.verified_rounded;
+        return AppIcons.partOriginal;
       case PartType.generic:
-        return Icons.handyman_rounded;
+        return AppIcons.partGeneric;
+      case PartType.used:
+        return AppIcons.partUsed;
     }
   }
+}
+
+String partTypeLabelFromApi(String raw) {
+  for (final type in PartType.values) {
+    if (type.apiValue == raw) return type.label;
+  }
+  return raw;
 }
