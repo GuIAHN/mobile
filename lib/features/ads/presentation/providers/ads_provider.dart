@@ -47,8 +47,7 @@ final trackAdClickUseCaseProvider = Provider<TrackAdClickUseCase>((ref) {
 
 final adsFeedProvider = FutureProvider.autoDispose<List<Ad>>((ref) async {
   ref.cacheFor(const Duration(minutes: 5));
-  final positionAsync = ref.watch(userLocationProvider);
-  final position = positionAsync.value;
+  final position = ref.watch(userLocationProvider).valueOrNull;
 
   final usecase = ref.watch(getAdsUseCaseProvider);
   final result = await usecase.call(position?.latitude, position?.longitude);

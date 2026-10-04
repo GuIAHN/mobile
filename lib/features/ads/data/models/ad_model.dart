@@ -14,12 +14,12 @@ class AdModel extends Ad {
 
   factory AdModel.fromJson(Map<String, dynamic> json) {
     return AdModel(
-      id: json['id'] as String,
-      brandName: json['brandName'] as String,
-      type: json['type'] as String,
-      title: json['title'] as String,
+      id: (json['id'] as String?) ?? '',
+      brandName: (json['brandName'] as String?) ?? '',
+      type: (json['type'] as String?) ?? 'HOME_BANNER',
+      title: (json['title'] as String?) ?? '',
       description: json['description'] as String?,
-      mediaUrl: json['mediaUrl'] as String,
+      mediaUrl: (json['mediaUrl'] as String?) ?? '',
       ctaUrl: json['ctaUrl'] as String?,
       ctaLabel: json['ctaLabel'] as String?,
     );
