@@ -63,7 +63,7 @@ class Env {
           url = 'https://guia-api-test.onrender.com/api';
           break;
         case AppEnvironment.production:
-          url = 'https://guia-api-yggl.onrender.com/api';
+          url = 'https://api.guiahn.com/api';
           break;
       }
     }

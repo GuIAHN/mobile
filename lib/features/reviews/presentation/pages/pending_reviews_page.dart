@@ -36,14 +36,20 @@ class PendingReviewsPage extends ConsumerWidget {
     if (!context.mounted) return;
     if (saved == true) {
       context.go(RouteNames.home);
+    } else {
+      // The queue can be older than the saved review, including when another
+      // session completed it. Reconcile the list and badge on dismissal too.
+      ref.invalidate(pendingReviewsProvider);
     }
   }
 
-  MyReviewStatus _reviewStatus(PendingReview item) {
+  MyReviewStatus? _reviewStatus(PendingReview item) {
     final reviewId = item.reviewId;
     final rating = item.reviewRating;
     if (!item.hasReviewed || reviewId == null || rating == null) {
-      return const MyReviewStatus(hasReviewed: false);
+      // Missing review metadata is not proof that a review does not exist.
+      // Let the sheet fetch /reviews/mine before choosing POST versus PATCH.
+      return null;
     }
     return MyReviewStatus(
       hasReviewed: true,

@@ -10,6 +10,7 @@ import 'package:guiautomotriz_mobile/core/providers/current_user_provider.dart';
 import 'package:guiautomotriz_mobile/core/services/socket_service.dart';
 import 'package:guiautomotriz_mobile/core/theme/app_colors.dart';
 import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_conversation.dart';
+import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_message.dart';
 import 'package:guiautomotriz_mobile/features/chat/domain/repositories/chat_repository.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/pages/chat_conversation_page.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/providers/chat_providers.dart';
@@ -199,5 +200,125 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Enviar oferta'), findsOneWidget);
+  });
+  testWidgets('a sold request blocks quoting even if refreshed chat is stale',
+      (tester) async {
+    final repository = _MockChatRepository();
+    final socket = _MockSocketService();
+    final details = ChatConversation(
+      id: 'conversation-1',
+      threadId: 'request-1',
+      participantName: 'Carlos',
+      lastMessage: '',
+      unreadCount: 0,
+      lastMessageAt: DateTime.utc(2026, 8, 24),
+      offerId: 'offer-1',
+      offerStatus: 'INQUIRY',
+      searchMatchId: 'match-1',
+      hasQuote: true,
+      isInquiry: true,
+      subcategoryName: 'Pastillas de freno',
+    );
+    when(() => repository.getConversationDetails('conversation-1'))
+        .thenAnswer((_) async => Right(details));
+    when(() => repository.getMessages('conversation-1'))
+        .thenAnswer((_) async => Right([
+              ChatMessage(
+                  id: 'message-1',
+                  conversationId: 'conversation-1',
+                  senderId: 'client-1',
+                  senderName: 'Carlos',
+                  isFromMe: false,
+                  content: 'Necesito frenos delanteros.',
+                  createdAt: DateTime.utc(2026, 8, 24)),
+              ...List.generate(
+                  40,
+                  (index) => ChatMessage(
+                        id: 'previous-$index',
+                        conversationId: 'conversation-1',
+                        senderId: 'client-1',
+                        senderName: 'Carlos',
+                        isFromMe: false,
+                        content: 'Mensaje anterior $index',
+                        createdAt: DateTime.utc(2026, 8, 23)
+                            .subtract(Duration(minutes: index)),
+                      )),
+            ]));
+    when(() => repository.markAsRead('conversation-1'))
+        .thenAnswer((_) async => const Right(null));
+    when(() => repository.quoteOffer(
+              offerId: any(named: 'offerId'),
+              price: any(named: 'price'),
+              updateDeliveryCost: any(named: 'updateDeliveryCost'),
+              deliveryCost: any(named: 'deliveryCost'),
+              brand: any(named: 'brand'),
+              photoPath: any(named: 'photoPath'),
+            ))
+        .thenAnswer((_) async => const Left(RequestUnavailableFailure(
+            RequestUnavailableReason.soldByAnotherStore)));
+    when(() => socket.onSearchMatched).thenAnswer((_) => const Stream.empty());
+    when(() => socket.onOfferUpdated).thenAnswer((_) => const Stream.empty());
+    when(() => socket.onNotification).thenAnswer((_) => const Stream.empty());
+    when(() => socket.onMessage).thenAnswer((_) => const Stream.empty());
+    when(() => socket.onReconnect).thenAnswer((_) => const Stream.empty());
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        currentRoleProvider.overrideWithValue(UserRole.store),
+        chatRepositoryProvider.overrideWithValue(repository),
+        socketServiceProvider.overrideWithValue(socket),
+      ],
+      child: MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: const TextScaler.linear(2),
+            disableAnimations: true,
+            padding: const EdgeInsets.fromLTRB(0, 32, 0, 24),
+            viewPadding: const EdgeInsets.fromLTRB(0, 32, 0, 24),
+          ),
+          child: child!,
+        ),
+        home: const ChatConversationPage(conversationId: 'conversation-1'),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, 500));
+    await tester.pumpAndSettle();
+    expect(tester.widget<ListView>(find.byType(ListView)).controller!.offset,
+        greaterThan(0));
+    await tester.tap(find.text('Cotizar'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.byWidgetPredicate((widget) =>
+            widget is TextField && widget.decoration?.hintText == '00.00'),
+        '125');
+    await tester.pump();
+    await tester.ensureVisible(find.text('ENVIAR OFERTA'));
+    await tester.tap(find.text('ENVIAR OFERTA'));
+    await tester.pumpAndSettle();
+    expect(find.text('Esta solicitud ya fue vendida por otra tienda.'),
+        findsOneWidget);
+    expect(find.text('Cotizar'), findsNothing);
+    expect(find.text('Declinar'), findsNothing);
+    expect(find.text('CONSULTA ABIERTA'), findsNothing);
+    expect(
+        tester
+            .widget<CustomScrollView>(find.byType(CustomScrollView))
+            .controller!
+            .offset,
+        0);
+    expect(find.text('Mensaje anterior 39'), findsOneWidget);
+    verify(() => repository.getConversationDetails('conversation-1')).called(2);
+    expect(tester.takeException(), isNull);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.view.devicePixelRatio = 1;
+    for (final size in const [Size(320, 700), Size(430, 932), Size(700, 320)]) {
+      tester.view.physicalSize = size;
+      await tester.pumpAndSettle();
+      expect(find.text('Esta solicitud ya fue vendida por otra tienda.'),
+          findsOneWidget);
+      expect(find.text('Cotizar'), findsNothing);
+      expect(tester.takeException(), isNull, reason: '$size');
+    }
   });
 }

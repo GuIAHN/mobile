@@ -531,7 +531,7 @@ void main() {
     );
   });
 
-  testWidgets('spare-part action uses the first cached garage car',
+  testWidgets('spare-part action shows the recruitment announcement',
       (tester) async {
     final container = containerFor(
       workshops: const AsyncValue.data([]),
@@ -549,10 +549,17 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    final wizard = tester.widget<SparePartWizardPage>(
-      find.byType(SparePartWizardPage),
-    );
-    expect(wizard.initialVehicle, car);
+    expect(find.text('Próximamente'), findsOneWidget);
+    expect(find.textContaining('captación de tiendas de repuestos'),
+        findsOneWidget);
+    expect(find.textContaining('19 de octubre'), findsOneWidget);
+    expect(find.byType(SparePartWizardPage), findsNothing);
+
+    await tester.tap(find.text('ENTENDIDO'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Próximamente'), findsNothing);
+    expect(container.read(searchVehicleProvider), isNull);
   });
 
   testWidgets('consumer ignores a stale store dashboard selection',
@@ -643,6 +650,7 @@ void main() {
   for (final providerCase in const [
     ('mechanic', mechanic),
     ('workshop', workshop),
+    ('store', store),
   ]) {
     testWidgets('${providerCase.$1} Home shows advertising', (tester) async {
       var promoLoads = 0;
@@ -650,7 +658,9 @@ void main() {
         workshops: const AsyncValue.data([]),
         mechanics: const AsyncValue.data([]),
         user: providerCase.$2,
-        initialServiceType: ServiceType.spareParts,
+        initialServiceType: providerCase.$2.role.isStore
+            ? ServiceType.storeDashboard
+            : ServiceType.spareParts,
         loadPromos: (ref, type) async {
           promoLoads++;
           return const [promo];
@@ -664,8 +674,108 @@ void main() {
       expect(find.byKey(const Key('home-promo-section')), findsOneWidget);
       expect(find.byType(PromoCarousel), findsOneWidget);
       expect(find.byKey(const Key('promo-indicator-0')), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.byKey(const Key('home-promo-section'))).dy,
+        lessThan(
+          tester.getTopLeft(find.byKey(const Key('home-category-section'))).dy,
+        ),
+      );
+      if (providerCase.$2.role.isStore) {
+        expect(find.byType(StoreDashboardView), findsOneWidget);
+        expect(find.byKey(const Key('cbk-location-disabled-ad')), findsNothing);
+      }
     });
   }
+
+  testWidgets('store advertising handles loading, retry, empty and feed data',
+      (tester) async {
+    var feed = Completer<List<Ad>>();
+    final container = containerFor(
+      workshops: const AsyncValue.data([]),
+      mechanics: const AsyncValue.data([]),
+      user: store,
+      initialServiceType: ServiceType.storeDashboard,
+      loadAdsFeed: (ref) => feed.future,
+    );
+    addTearDown(container.dispose);
+    await pumpHome(tester, container, disableAnimations: true);
+
+    expect(find.byType(PromoSkeleton), findsOneWidget);
+    expect(find.byType(StoreDashboardView), findsOneWidget);
+    feed.completeError(StateError('private advertising error'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('promo-error-card')), findsOneWidget);
+    expect(find.textContaining('private advertising error'), findsNothing);
+    final retry = find.widgetWithText(TextButton, 'Reintentar');
+    expect(tester.getSize(retry).height, greaterThanOrEqualTo(48));
+    feed = Completer<List<Ad>>();
+    await tester.tap(retry);
+    await tester.pump();
+
+    feed.complete(const []);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('home-promo-section')), findsNothing);
+    expect(find.byType(StoreDashboardView), findsOneWidget);
+
+    feed = Completer<List<Ad>>();
+    container.invalidate(adsFeedProvider);
+    await tester.pump();
+    feed.complete(const [
+      Ad(
+        id: 'store-ad-1',
+        brandName: 'CBK',
+        type: 'BANNER',
+        title: 'Publicidad para tiendas',
+        mediaUrl: 'https://example.com/store-ad.jpg',
+        ctaUrl: 'https://example.com/oferta',
+      ),
+    ]);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PromoCarousel), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(
+        'Publicidad: Publicidad para tiendas. Abrir enlace externo',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(StoreDashboardView), findsOneWidget);
+  });
+
+  testWidgets('store advertising fits phone widths with scaled text',
+      (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final width in [320.0, 430.0]) {
+      final height = width == 320 ? 640.0 : 932.0;
+      await tester.binding.setSurfaceSize(Size(width, height));
+      final container = containerFor(
+        workshops: const AsyncValue.data([]),
+        mechanics: const AsyncValue.data([]),
+        user: store,
+        initialServiceType: ServiceType.storeDashboard,
+        loadPromos: (ref, type) async => const [promo],
+      );
+      await pumpHome(
+        tester,
+        container,
+        width: width,
+        height: height,
+        textScale: 2,
+        disableAnimations: true,
+      );
+
+      final banner = find.byType(PromoCarousel);
+      expect(banner, findsOneWidget);
+      final rect = tester.getRect(banner);
+      expect(rect.left, greaterThanOrEqualTo(0));
+      expect(rect.right, lessThanOrEqualTo(width));
+      expect(rect.height, greaterThanOrEqualTo(48));
+      expect(tester.takeException(), isNull, reason: 'width $width');
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+    }
+  });
 
   testWidgets('consumer Home shows the CBK ad while location is disabled',
       (tester) async {

@@ -25,6 +25,7 @@ class ChatThread extends Equatable {
   final String? categoryName;
   final DateTime? expiresAt;
   final bool isExpired;
+  final bool soldByAnotherStore;
   final int totalOffersCount;
   final int quotesCount;
   final int questionsCount;
@@ -78,6 +79,7 @@ class ChatThread extends Equatable {
     this.categoryName,
     this.expiresAt,
     this.isExpired = false,
+    this.soldByAnotherStore = false,
     this.totalOffersCount = 0,
     this.quotesCount = 0,
     this.questionsCount = 0,
@@ -141,6 +143,7 @@ class ChatThread extends Equatable {
         categoryName,
         expiresAt,
         isExpired,
+        soldByAnotherStore,
         totalOffersCount,
         quotesCount,
         questionsCount,
