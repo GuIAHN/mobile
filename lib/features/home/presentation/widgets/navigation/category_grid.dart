@@ -11,10 +11,8 @@ import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
-import '../../../../vehicles/presentation/providers/vehicle_providers.dart';
-import '../../../../../core/domain/entities/user_car.dart';
 import '../../providers/home_providers.dart';
-import '../spare_part_wizard/spare_part_wizard_page.dart';
+import '../spare_part_wizard/spare_parts_availability_dialog.dart';
 
 /// Configuración visual de cada tipo de acción del buscador principal.
 class _CategoryConfig {
@@ -39,22 +37,12 @@ class CategoryGrid extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     ServiceType type,
-    List<UserCar>? garageCars,
   ) {
     HapticFeedback.selectionClick();
     ref.read(selectedServiceTypeProvider.notifier).state = type;
     switch (type) {
       case ServiceType.spareParts:
-        final selectedVehicle = ref.read(searchVehicleProvider);
-        final displayedVehicle = selectedVehicle ??
-            (garageCars == null || garageCars.isEmpty
-                ? null
-                : garageCars.first);
-        SparePartWizardPage.show(
-          context,
-          initialVehicle: displayedVehicle,
-          initialModelId: ref.read(searchVehicleModelIdProvider),
-        );
+        SparePartsAvailabilityDialog.show(context);
         break;
       case ServiceType.workshops:
         context.push(RouteNames.workshops);
@@ -74,7 +62,7 @@ class CategoryGrid extends ConsumerWidget {
           icon: AppIcons.catalog,
           label: 'Pedir repuesto',
           semanticsLabel: 'Pedir repuesto',
-          semanticsHint: 'Cotiza piezas',
+          semanticsHint: 'Disponible el 19 de octubre. Ver anuncio',
         );
       case ServiceType.workshops:
         return const _CategoryConfig(
@@ -104,9 +92,6 @@ class CategoryGrid extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentRole = ref.watch(currentRoleProvider);
     final selectedType = ref.watch(selectedServiceTypeProvider);
-    final garageCars = currentRole.canRequestSpareParts
-        ? ref.watch(userCarsProvider).valueOrNull
-        : null;
     final allowedTypes = currentRole.allowedServiceTypes;
     final availableTypes = ServiceType.values
         .where((type) => allowedTypes.contains(type))
@@ -134,7 +119,6 @@ class CategoryGrid extends ConsumerWidget {
                     context,
                     ref,
                     availableTypes[index],
-                    garageCars,
                   ),
                 );
 

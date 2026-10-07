@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
@@ -47,6 +48,8 @@ void main() {
     double textScale = 1,
     bool disableAnimations = false,
     List<PendingReview> pendingReviews = const [],
+    Future<List<UserCar>> Function()? loadCars,
+    Future<List<PendingReview>> Function()? loadReviews,
   }) {
     final router = GoRouter(
       initialLocation: '/',
@@ -96,16 +99,22 @@ void main() {
         searchVehicleModelIdProvider.overrideWith(
           (ref) => selectedVariantId,
         ),
-        userCarsProvider.overrideWith((ref) async => const [fixtureCar]),
-        pendingReviewsProvider.overrideWith((ref) async => pendingReviews),
-      ],
-      child: MediaQuery(
-        data: MediaQueryData(
-          size: Size(width, 800),
-          textScaler: TextScaler.linear(textScale),
-          disableAnimations: disableAnimations,
+        userCarsProvider.overrideWith(
+          (ref) => loadCars?.call() ?? Future.value(const [fixtureCar]),
         ),
-        child: MaterialApp.router(routerConfig: router),
+        pendingReviewsProvider.overrideWith(
+          (ref) => loadReviews?.call() ?? Future.value(pendingReviews),
+        ),
+      ],
+      child: MaterialApp.router(
+        routerConfig: router,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(textScale),
+            disableAnimations: disableAnimations,
+          ),
+          child: child!,
+        ),
       ),
     );
   }
@@ -136,7 +145,7 @@ void main() {
     expect(find.text('mechanics-route'), findsOneWidget);
   });
 
-  testWidgets('blocks a new parts request and links to pending reviews',
+  testWidgets('shows the recruitment announcement even with pending reviews',
       (tester) async {
     const pending = [
       PendingReview(
@@ -157,12 +166,21 @@ void main() {
     await tester.tap(find.text('Pedir repuesto'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Tienes valoraciones pendientes'), findsOneWidget);
-    expect(find.textContaining('Tienes 2 reseñas pendientes'), findsOneWidget);
+    expect(find.text('Próximamente'), findsOneWidget);
+    expect(
+      find.text('Estamos en etapa de captación de tiendas de repuestos.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('La opción «Pedir repuesto» se habilitará el 19 de octubre.'),
+      findsOneWidget,
+    );
+    expect(find.text('Tienes valoraciones pendientes'), findsNothing);
 
-    await tester.tap(find.text('IR A RESEÑAS PENDIENTES'));
+    await tester.tap(find.text('ENTENDIDO'));
     await tester.pumpAndSettle();
-    expect(find.text('pending-reviews-route'), findsOneWidget);
+    expect(find.text('Próximamente'), findsNothing);
+    expect(find.byType(CategoryGrid), findsOneWidget);
     expect(find.byType(SparePartWizardPage), findsNothing);
   });
 
@@ -320,14 +338,24 @@ void main() {
     final actionSizesByConfiguration = <List<Size>>[];
     final gridWidths = <double>[];
     final labelsThatExceededMaxLines = <String>[];
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    tester.view.padding = const FakeViewPadding(top: 44, bottom: 34);
+    addTearDown(tester.view.resetPadding);
     final previousOnError = FlutterError.onError;
     FlutterError.onError = flutterErrors.add;
 
     try {
-      for (final width in <double>[375, 430]) {
+      for (final width in <double>[320, 375, 430]) {
         for (final textScale in <double>[1, 1.3, 2]) {
+          tester.view.physicalSize = Size(width, 800);
           await tester.pumpWidget(
-            subject(width: width, textScale: textScale),
+            subject(
+              width: width,
+              textScale: textScale,
+              disableAnimations: textScale == 2,
+            ),
           );
           await tester.pump();
 
@@ -360,6 +388,30 @@ void main() {
             }
           }
           actionSizesByConfiguration.add(actionSizes);
+
+          await tester.tap(find.text('Pedir repuesto'));
+          await tester.pumpAndSettle();
+          expect(find.text('Próximamente'), findsOneWidget);
+          expect(find.byType(SparePartWizardPage), findsNothing);
+          final dismiss = find.widgetWithText(TextButton, 'ENTENDIDO');
+          expect(tester.getSize(dismiss).height, greaterThanOrEqualTo(48));
+          expect(tester.getSize(dismiss).width, greaterThanOrEqualTo(48));
+          final dialogSurface = find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Material && widget.type == MaterialType.card,
+            ),
+          );
+          final dialogRect = tester.getRect(dialogSurface);
+          expect(dialogRect.left, greaterThanOrEqualTo(24));
+          expect(dialogRect.right, lessThanOrEqualTo(width - 24));
+          expect(dialogRect.top, greaterThanOrEqualTo(44));
+          expect(dialogRect.bottom, lessThanOrEqualTo(800 - 34));
+          final date = find.textContaining('se habilitará el 19 de octubre');
+          expect(tester.widget<Text>(date).maxLines, isNull);
+          await tester.tap(dismiss);
+          await tester.pumpAndSettle();
         }
       }
     } finally {
@@ -372,7 +424,7 @@ void main() {
       reason:
           flutterErrors.map((error) => error.exceptionAsString()).join('\n'),
     );
-    expect(gridWidths, <double>[335, 335, 335, 390, 390, 390]);
+    expect(gridWidths, <double>[280, 280, 280, 335, 335, 335, 390, 390, 390]);
     expect(labelsThatExceededMaxLines, isEmpty);
     for (var i = 0; i < actionSizesByConfiguration.length; i++) {
       final actionSizes = actionSizesByConfiguration[i];
@@ -403,24 +455,45 @@ void main() {
     await gesture.cancel();
   });
 
-  testWidgets('spare-parts action passes shared vehicle context to the wizard',
+  testWidgets('announcement works across loading, error, empty and data states',
       (tester) async {
-    await tester.pumpWidget(
-      subject(
-        selectedVehicle: fixtureCar,
-        selectedVariantId: 'variant-1',
-      ),
-    );
+    for (final state in ['loading', 'error', 'empty', 'data']) {
+      await tester.pumpWidget(
+        subject(
+          selectedVehicle: fixtureCar,
+          selectedVariantId: 'variant-1',
+          loadCars: () => switch (state) {
+            'loading' => Completer<List<UserCar>>().future,
+            'error' => Future.error(StateError('Garage unavailable')),
+            'empty' => Future.value(const <UserCar>[]),
+            _ => Future.value(const [fixtureCar]),
+          },
+          loadReviews: () => switch (state) {
+            'loading' => Completer<List<PendingReview>>().future,
+            'error' => Future.error(StateError('Reviews unavailable')),
+            _ => Future.value(const <PendingReview>[]),
+          },
+        ),
+      );
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(CategoryGrid)),
+      );
+      container.read(userCarsProvider);
+      container.read(pendingReviewsProvider);
+      await tester.pump();
 
-    await tester.tap(find.text('Pedir repuesto'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Pedir repuesto'));
+      await tester.pumpAndSettle();
 
-    final wizard = tester.widget<SparePartWizardPage>(
-      find.byType(SparePartWizardPage),
-    );
-    expect(wizard.initialVehicle, fixtureCar);
-    expect(wizard.initialModelId, 'variant-1');
+      expect(find.text('Próximamente'), findsOneWidget, reason: state);
+      expect(find.byType(SparePartWizardPage), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Próximamente'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
   });
 
   testWidgets(

@@ -531,7 +531,7 @@ void main() {
     );
   });
 
-  testWidgets('spare-part action uses the first cached garage car',
+  testWidgets('spare-part action shows the recruitment announcement',
       (tester) async {
     final container = containerFor(
       workshops: const AsyncValue.data([]),
@@ -549,10 +549,17 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    final wizard = tester.widget<SparePartWizardPage>(
-      find.byType(SparePartWizardPage),
-    );
-    expect(wizard.initialVehicle, car);
+    expect(find.text('Próximamente'), findsOneWidget);
+    expect(find.textContaining('captación de tiendas de repuestos'),
+        findsOneWidget);
+    expect(find.textContaining('19 de octubre'), findsOneWidget);
+    expect(find.byType(SparePartWizardPage), findsNothing);
+
+    await tester.tap(find.text('ENTENDIDO'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Próximamente'), findsNothing);
+    expect(container.read(searchVehicleProvider), isNull);
   });
 
   testWidgets('consumer ignores a stale store dashboard selection',
