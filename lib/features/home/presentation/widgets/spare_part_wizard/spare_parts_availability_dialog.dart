@@ -49,7 +49,7 @@ class SparePartsAvailabilityDialog extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
-            'La opción «Pedir repuesto» se habilitará el 19 de octubre.',
+            'La opción «Pedir repuesto» se habilitará el 26 de octubre.',
             textAlign: TextAlign.center,
             style: AppTypography.title,
           ),
