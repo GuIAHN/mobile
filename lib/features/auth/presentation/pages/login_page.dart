@@ -68,7 +68,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     clientId: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
-        ? '1062705330448-6nego3r9aaijmelviu38b7f5g09lb4te.apps.googleusercontent.com'
+        ? '1062705330448-lagga83850e0ea1f2t3vvs278qecbddc.apps.googleusercontent.com'
         : null,
     serverClientId:
         '1062705330448-1n5l9ahrjltarem41a5uiim4dc81hj63.apps.googleusercontent.com',

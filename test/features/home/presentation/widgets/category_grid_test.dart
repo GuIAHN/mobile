@@ -184,6 +184,20 @@ void main() {
     expect(find.byType(SparePartWizardPage), findsNothing);
   });
 
+  testWidgets('announcement allows continuing to the spare-part request',
+      (tester) async {
+    await tester.pumpWidget(subject());
+    await tester.tap(find.text('Pedir repuesto'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('CONTINUAR'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Próximamente'), findsNothing);
+    expect(find.byType(SparePartWizardPage), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('uses Lucide automotive icons and clear selection borders',
       (tester) async {
     await tester.pumpWidget(subject());
@@ -393,6 +407,11 @@ void main() {
           await tester.pumpAndSettle();
           expect(find.text('Próximamente'), findsOneWidget);
           expect(find.byType(SparePartWizardPage), findsNothing);
+          final continueAction = find.widgetWithText(TextButton, 'CONTINUAR');
+          expect(
+              tester.getSize(continueAction).height, greaterThanOrEqualTo(48));
+          expect(
+              tester.getSize(continueAction).width, greaterThanOrEqualTo(48));
           final dismiss = find.widgetWithText(TextButton, 'ENTENDIDO');
           expect(tester.getSize(dismiss).height, greaterThanOrEqualTo(48));
           expect(tester.getSize(dismiss).width, greaterThanOrEqualTo(48));

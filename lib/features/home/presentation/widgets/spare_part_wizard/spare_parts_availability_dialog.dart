@@ -9,7 +9,7 @@ import '../../../../../core/theme/app_typography.dart';
 class SparePartsAvailabilityDialog extends StatelessWidget {
   const SparePartsAvailabilityDialog({super.key});
 
-  static Future<void> show(BuildContext context) => showDialog<void>(
+  static Future<bool?> show(BuildContext context) => showDialog<bool>(
         context: context,
         animationStyle: MediaQuery.disableAnimationsOf(context)
             ? AnimationStyle.noAnimation
@@ -62,6 +62,19 @@ class SparePartsAvailabilityDialog extends StatelessWidget {
         AppSpacing.xl2,
       ),
       actions: [
+        SizedBox(
+          width: double.infinity,
+          child: TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textPrimary,
+              minimumSize: const Size(48, 48),
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              shape: const StadiumBorder(),
+            ),
+            child: Text('CONTINUAR', style: AppTypography.label),
+          ),
+        ),
         SizedBox(
           width: double.infinity,
           child: TextButton(
