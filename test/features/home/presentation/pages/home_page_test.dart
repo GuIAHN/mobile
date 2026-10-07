@@ -552,7 +552,7 @@ void main() {
     expect(find.text('Próximamente'), findsOneWidget);
     expect(find.textContaining('captación de tiendas de repuestos'),
         findsOneWidget);
-    expect(find.textContaining('19 de octubre'), findsOneWidget);
+    expect(find.textContaining('26 de octubre'), findsOneWidget);
     expect(find.byType(SparePartWizardPage), findsNothing);
 
     await tester.tap(find.text('ENTENDIDO'));

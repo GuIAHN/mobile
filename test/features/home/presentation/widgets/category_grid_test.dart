@@ -172,7 +172,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text('La opción «Pedir repuesto» se habilitará el 19 de octubre.'),
+      find.text('La opción «Pedir repuesto» se habilitará el 26 de octubre.'),
       findsOneWidget,
     );
     expect(find.text('Tienes valoraciones pendientes'), findsNothing);
@@ -427,7 +427,7 @@ void main() {
           expect(dialogRect.right, lessThanOrEqualTo(width - 24));
           expect(dialogRect.top, greaterThanOrEqualTo(44));
           expect(dialogRect.bottom, lessThanOrEqualTo(800 - 34));
-          final date = find.textContaining('se habilitará el 19 de octubre');
+          final date = find.textContaining('se habilitará el 26 de octubre');
           expect(tester.widget<Text>(date).maxLines, isNull);
           await tester.tap(dismiss);
           await tester.pumpAndSettle();
