@@ -109,10 +109,42 @@ void main() {
           maxDelay: Duration(milliseconds: 1),
         ),
         messageAckTimeout: const Duration(milliseconds: 1),
+        connectionTimeout: const Duration(milliseconds: 20),
       );
     });
 
     tearDown(() => service.dispose());
+
+    test('keeps the pending handshake when connect is requested again',
+        () async {
+      await service.connect();
+      await service.connect();
+      first.trigger('connect');
+
+      expect(factoryCalls, 1);
+      expect(service.isConnected, isTrue);
+    });
+
+    test('waits for a pending connection before sending the message', () async {
+      when(() => first.socket.emitWithAck(any(), any(), ack: any(named: 'ack')))
+          .thenAnswer((invocation) {
+        (invocation.namedArguments[#ack] as Function)({'status': 'ok'});
+      });
+      await service.connect();
+      final sent = service.sendMessage('conversation-1', 'hola');
+      first.trigger('connect');
+
+      expect(await sent, isTrue);
+      expect(factoryCalls, 1);
+    });
+
+    test('opens a connection on send and reports an unavailable server',
+        () async {
+      expect(await service.sendMessage('conversation-1', 'hola'), isFalse);
+      expect(factoryCalls, 1);
+      verifyNever(
+          () => first.socket.emitWithAck(any(), any(), ack: any(named: 'ack')));
+    });
 
     test('publishes every successful connection for dependent providers',
         () async {

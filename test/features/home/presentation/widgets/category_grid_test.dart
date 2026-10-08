@@ -172,7 +172,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text('La opción «Pedir repuesto» se habilitará el 26 de octubre.'),
+      find.text('La opción Pedir repuesto se habilitará el 26 de octubre.'),
       findsOneWidget,
     );
     expect(find.text('Tienes valoraciones pendientes'), findsNothing);
@@ -407,7 +407,7 @@ void main() {
           await tester.pumpAndSettle();
           expect(find.text('Próximamente'), findsOneWidget);
           expect(find.byType(SparePartWizardPage), findsNothing);
-          final continueAction = find.widgetWithText(TextButton, 'CONTINUAR');
+          final continueAction = find.widgetWithText(ElevatedButton, 'CONTINUAR');
           expect(
               tester.getSize(continueAction).height, greaterThanOrEqualTo(48));
           expect(
@@ -416,7 +416,7 @@ void main() {
           expect(tester.getSize(dismiss).height, greaterThanOrEqualTo(48));
           expect(tester.getSize(dismiss).width, greaterThanOrEqualTo(48));
           final dialogSurface = find.descendant(
-            of: find.byType(AlertDialog),
+            of: find.byType(Dialog),
             matching: find.byWidgetPredicate(
               (widget) =>
                   widget is Material && widget.type == MaterialType.card,

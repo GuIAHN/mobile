@@ -66,11 +66,13 @@ class SocketService {
     ReconnectPolicy reconnectPolicy = const ReconnectPolicy(),
     Duration catchUpThreshold = Duration.zero,
     Duration messageAckTimeout = const Duration(seconds: 8),
+    Duration connectionTimeout = const Duration(seconds: 8),
   })  : _socketFactory =
             socketFactory ?? ((uri, options) => io.io(uri, options)),
         _reconnectPolicy = reconnectPolicy,
         _catchUpThreshold = catchUpThreshold,
-        _messageAckTimeout = messageAckTimeout;
+        _messageAckTimeout = messageAckTimeout,
+        _connectionTimeout = connectionTimeout;
 
   final SecureStorage _secureStorage;
   final TokenRefreshCoordinator _tokenRefreshCoordinator;
@@ -78,10 +80,12 @@ class SocketService {
   final ReconnectPolicy _reconnectPolicy;
   final Duration _catchUpThreshold;
   final Duration _messageAckTimeout;
+  final Duration _connectionTimeout;
 
   io.Socket? _socket;
   String? _connectedToken;
   bool _isConnecting = false;
+  bool _handshakePending = false;
   bool _shouldReconnect = false;
   bool _refreshInProgress = false;
   bool _requiresRefresh = false;
@@ -144,7 +148,9 @@ class SocketService {
         debugPrint('[SocketService] No access token available.');
         return;
       }
-      if (_socket?.connected == true && _connectedToken == token) return;
+      if (_connectedToken == token && (isConnected || _handshakePending)) {
+        return;
+      }
 
       _disposeSocket();
       _connectedToken = token;
@@ -158,8 +164,10 @@ class SocketService {
       final socketUrl = _socketUrl();
       final socket = _socketFactory(socketUrl, options);
       _socket = socket;
+      _handshakePending = true;
 
       socket.onConnect((_) {
+        _handshakePending = false;
         _reconnectAttempt = 0;
         _requiresRefresh = false;
         _reconnectTimer?.cancel();
@@ -204,6 +212,7 @@ class SocketService {
         unawaited(_refreshAndReconnect());
       });
       socket.onDisconnect((reason) {
+        _handshakePending = false;
         _proactiveRefreshTimer?.cancel();
         _proactiveRefreshTimer = null;
         _disconnectedAt ??= DateTime.now();
@@ -396,7 +405,24 @@ class SocketService {
     String content, {
     String type = 'text',
   }) async {
-    if (_socket?.connected != true) return false;
+    if (!isConnected) {
+      if (_disposed) return false;
+      final connected = Completer<void>();
+      final subscription = onConnected.listen((_) {
+        if (!connected.isCompleted) connected.complete();
+      });
+      try {
+        await connect();
+        if (!isConnected) {
+          await connected.future.timeout(_connectionTimeout);
+        }
+      } on TimeoutException {
+        return false;
+      } finally {
+        await subscription.cancel();
+      }
+      if (!isConnected) return false;
+    }
     const maxAttempts = 2;
     final commandKey = '$conversationId\u0000$type\u0000$content';
     final clientMessageId = _pendingMessageIds.putIfAbsent(
@@ -491,6 +517,7 @@ class SocketService {
   }
 
   void _disposeSocket() {
+    _handshakePending = false;
     final socket = _socket;
     _socket = null;
     _connectedToken = null;
