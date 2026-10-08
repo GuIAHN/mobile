@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:guiautomotriz_mobile/core/config/app_config.dart';
 import 'package:guiautomotriz_mobile/core/network/token_refresh_coordinator.dart';
 import 'package:guiautomotriz_mobile/core/realtime/reconnect_policy.dart';
 import 'package:guiautomotriz_mobile/core/services/socket_service.dart';
@@ -83,6 +84,7 @@ void main() {
     late SocketService service;
     var accessToken = 'not-a-jwt';
     var factoryCalls = 0;
+    String? socketUri;
 
     setUp(() {
       storage = _MockSecureStorage();
@@ -90,6 +92,7 @@ void main() {
       first = _SocketHarness('socket-1');
       second = _SocketHarness('socket-2');
       factoryCalls = 0;
+      socketUri = null;
       accessToken = 'not-a-jwt';
       when(() => storage.getToken()).thenAnswer((_) async => accessToken);
       when(() => coordinator.refreshAccessToken()).thenAnswer((_) async {
@@ -100,7 +103,8 @@ void main() {
       service = SocketService(
         storage,
         coordinator,
-        socketFactory: (_, __) {
+        socketFactory: (uri, _) {
+          socketUri = uri;
           final harness = factoryCalls++ == 0 ? first : second;
           return harness.socket;
         },
@@ -114,6 +118,17 @@ void main() {
     });
 
     tearDown(() => service.dispose());
+
+    test('preserves the API hostname for the root socket namespace',
+        () async {
+      await service.connect();
+      final socketEndpoint = Uri.parse(socketUri!);
+      final apiEndpoint = Uri.parse(AppConfig.apiBaseUrl);
+      expect(socketEndpoint.host, apiEndpoint.host);
+      expect(socketEndpoint.scheme, apiEndpoint.scheme);
+      expect(socketEndpoint.port, apiEndpoint.port);
+      expect(socketEndpoint.path, isEmpty);
+    });
 
     test('keeps the pending handshake when connect is requested again',
         () async {
