@@ -543,9 +543,9 @@ class SocketService {
   }
 
   String _socketUrl() {
-    var url = AppConfig.apiBaseUrl.replaceAll('/api', '');
-    if (url.endsWith('/')) url = url.substring(0, url.length - 1);
-    return url;
+    // Socket.IO uses the root namespace. Remove the REST path without
+    // altering an API subdomain such as api.guiahn.com.
+    return Uri.parse(AppConfig.apiBaseUrl).origin;
   }
 
   void dispose() {
