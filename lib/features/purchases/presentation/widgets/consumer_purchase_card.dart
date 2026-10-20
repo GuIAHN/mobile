@@ -44,14 +44,16 @@ class ConsumerPurchaseCard extends StatelessWidget {
         textScale > 1.3 || MediaQuery.sizeOf(context).width < 360;
     final canReviewCancellation = purchase.status == PurchaseStatus.cancelled &&
         !purchase.hasReviewed &&
+        purchase.canReview &&
         purchase.storeId?.trim().isNotEmpty == true &&
-        purchase.conversationId?.trim().isNotEmpty == true;
+        purchase.offerId?.trim().isNotEmpty == true;
     final canLeaveReview =
         (purchase.needsReview && purchase.canReview) || canReviewCancellation;
     final canViewReview = purchase.hasReviewed &&
         purchase.reviewTargetId?.trim().isNotEmpty == true;
-    final showReviewAction =
-        onReview != null && (canLeaveReview || canViewReview);
+    final showReviewAction = onReview != null &&
+        purchase.offerId?.trim().isNotEmpty == true &&
+        (canLeaveReview || canViewReview);
     final partName = presentSubcategoryPath(
       categoryName: purchase.categoryName,
       subcategoryName: purchase.partName,

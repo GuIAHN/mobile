@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/service_type.dart';
+import 'package:guiautomotriz_mobile/core/router/app_router.dart';
+import 'package:guiautomotriz_mobile/core/router/route_names.dart';
+import 'package:guiautomotriz_mobile/core/storage/secure_storage.dart';
 import 'package:guiautomotriz_mobile/core/theme/app_colors.dart';
 import 'package:guiautomotriz_mobile/core/theme/app_icons.dart';
 import 'package:guiautomotriz_mobile/features/home/domain/entities/provider_detail.dart';
@@ -11,7 +14,8 @@ import 'package:guiautomotriz_mobile/features/home/presentation/pages/mechanic_d
 import 'package:guiautomotriz_mobile/features/home/presentation/pages/store_detail_page.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/provider_detail_widgets.dart';
-import 'package:guiautomotriz_mobile/features/home/presentation/widgets/service_provider_detail_view.dart';
+import 'package:guiautomotriz_mobile/features/home/presentation/widgets/provider_detail_skeleton.dart';
+import 'package:guiautomotriz_mobile/features/reviews/presentation/widgets/provider_feedback_integration.dart';
 import 'package:guiautomotriz_mobile/features/reviews/domain/entities/my_review_status.dart';
 import 'package:guiautomotriz_mobile/features/reviews/presentation/providers/reviews_providers.dart';
 import 'package:guiautomotriz_mobile/shared/widgets/guia_map.dart';
@@ -31,6 +35,7 @@ ProviderDetail _fixture({
   bool empty = false,
   List<String>? specialties,
   String? description,
+  double? distanceKm = 2.4,
 }) {
   return ProviderDetail(
     id: isStore
@@ -49,7 +54,7 @@ ProviderDetail _fixture({
     rating: empty ? null : 4.8,
     ratingCount: empty ? 0 : 24,
     tarifa: empty ? null : 35,
-    distanciaKm: empty ? null : 2.4,
+    distanciaKm: empty ? null : distanceKm,
     especialidades: empty
         ? const []
         : specialties ??
@@ -75,13 +80,13 @@ Widget _subject({
   EdgeInsets padding = const EdgeInsets.only(top: 44, bottom: 20),
   double textScale = 1,
   bool disableAnimations = true,
-  String? reviewConversationId,
+  String? reviewOfferId,
 }) {
   final page = switch (type) {
     ServiceType.mechanic => const MechanicDetailPage(mechanicId: 'mechanic-1'),
     ServiceType.spareParts => StoreDetailPage(
         storeId: 'store-1',
-        reviewConversationId: reviewConversationId,
+        reviewOfferId: reviewOfferId,
       ),
     ServiceType.workshops ||
     ServiceType.storeDashboard =>
@@ -106,7 +111,7 @@ Widget _subject({
         textScaler: TextScaler.linear(textScale),
         disableAnimations: disableAnimations,
       ),
-      child: MaterialApp(home: page),
+      child: MaterialApp(home: ProviderFeedbackIntegration(child: page)),
     ),
   );
 }
@@ -117,7 +122,47 @@ Future<void> _pumpResolved(WidgetTester tester, Widget widget) async {
   await tester.pump();
 }
 
+class _AuthenticatedStorage extends SecureStorage {
+  @override
+  Future<bool> hasToken() async => true;
+
+  @override
+  Future<bool> hasSeenOnboarding() async => true;
+}
+
 void main() {
+  for (final path in [
+    RouteNames.mechanicDetailPath('mechanic-1'),
+    RouteNames.workshopDetailPath('workshop-1'),
+    RouteNames.storeDetailPath('store-1'),
+  ]) {
+    testWidgets('shows the card distance on $path without a backend distance',
+        (tester) async {
+      final listenable = ChangeNotifier();
+      final router = AppRouter(_AuthenticatedStorage(), listenable).router;
+      addTearDown(router.dispose);
+      addTearDown(listenable.dispose);
+      router.go(path, extra: 6.7);
+
+      await _pumpResolved(
+        tester,
+        ProviderScope(
+          overrides: [
+            providerDetailProvider.overrideWith(
+              (ref, args) async => _fixture(distanceKm: null),
+            ),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('6.7 km'), findsOneWidget);
+      expect(find.text('Sin dato'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('groups the mechanic information and keeps contact actions fixed',
       (tester) async {
     await _pumpResolved(
@@ -147,6 +192,14 @@ void main() {
       find.byKey(const Key('service-provider-overview-card')),
     );
     expect(overviewRect.top, greaterThanOrEqualTo(heroRect.bottom));
+    expect(overviewRect.top, lessThan(160));
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('service-provider-overview-card')),
+        matching: find.byKey(const Key('mechanic-profile-photo')),
+      ),
+      findsOneWidget,
+    );
 
     final scrollRect = tester.getRect(
       find.byKey(const Key('service-provider-detail-scroll')),
@@ -257,7 +310,7 @@ void main() {
       tester,
       _subject(
         type: ServiceType.spareParts,
-        reviewConversationId: 'conversation-cancelled',
+        reviewOfferId: 'offer-cancelled',
         load: (args) async {
           expect(args.type, ServiceType.spareParts);
           return _fixture(isStore: true);

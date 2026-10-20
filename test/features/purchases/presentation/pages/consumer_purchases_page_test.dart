@@ -107,7 +107,8 @@ void main() {
       lastActivityAt: DateTime.utc(2026, 8, 31),
       partName: 'Pastillas de Frenos',
       price: 32,
-      conversationId: 'conversation-review',
+      offerId: 'offer-review',
+      reviewTargetId: 'store-user-1',
       needsReview: true,
       canReview: true,
     );
@@ -164,6 +165,61 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+      'opens the review of each delivered purchase with its own offer id',
+      (tester) async {
+    final router = GoRouter(initialLocation: RouteNames.purchases, routes: [
+      GoRoute(
+          path: RouteNames.purchases,
+          builder: (_, __) => const ConsumerPurchasesPage()),
+      GoRoute(
+          path: RouteNames.reviewEditor,
+          builder: (_, state) => Scaffold(
+                  body: Text(
+                '${state.uri.queryParameters['targetId']} / ${state.uri.queryParameters['offerId']} / ${state.uri.queryParameters['readOnly']}',
+              ))),
+    ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        consumerPurchasesProvider
+            .overrideWith((ref) async => PurchasesResult(purchases: [
+                  ConsumerPurchase(
+                      id: 'request-1',
+                      offerId: 'offer-1',
+                      vehicleName: 'Toyota',
+                      storeName: 'Misma tienda',
+                      status: PurchaseStatus.delivered,
+                      lastActivityAt: DateTime.utc(2026, 10, 18),
+                      hasReviewed: true,
+                      reviewTargetId: 'store-user'),
+                  ConsumerPurchase(
+                      id: 'request-2',
+                      offerId: 'offer-2',
+                      vehicleName: 'Toyota',
+                      storeName: 'Misma tienda',
+                      status: PurchaseStatus.delivered,
+                      lastActivityAt: DateTime.utc(2026, 10, 18),
+                      needsReview: true,
+                      canReview: true,
+                      reviewTargetId: 'store-user'),
+                ]))
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ver reseña'));
+    await tester.pumpAndSettle();
+    expect(find.text('store-user / offer-1 / true'), findsOneWidget);
+    router.pop();
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Dejar reseña'));
+    await tester.tap(find.text('Dejar reseña'));
+    await tester.pumpAndSettle();
+    expect(find.text('store-user / offer-2 / null'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('reviewed purchase exposes only the read action', (tester) async {
     var pressed = false;
     await tester.pumpWidget(
@@ -172,6 +228,7 @@ void main() {
           body: ConsumerPurchaseCard(
             purchase: ConsumerPurchase(
               id: 'reviewed-purchase',
+              offerId: 'offer-reviewed',
               vehicleName: 'Toyota Corolla',
               storeName: 'Repuestos Central',
               status: PurchaseStatus.delivered,
@@ -205,7 +262,8 @@ void main() {
       lastActivityAt: DateTime.utc(2026, 8, 31),
       partName: 'Pastillas de Frenos',
       price: 32,
-      conversationId: 'conversation-cancelled',
+      offerId: 'offer-cancelled',
+      canReview: true,
     );
     final router = GoRouter(
       initialLocation: RouteNames.purchases,
@@ -219,7 +277,7 @@ void main() {
           builder: (_, state) => Scaffold(
             body: Text(
               'Detalle tienda ${state.pathParameters['id']} '
-              '${state.uri.queryParameters['reviewConversationId']}',
+              '${state.uri.queryParameters['reviewOfferId']}',
             ),
           ),
         ),
@@ -258,7 +316,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Detalle tienda store-1 conversation-cancelled'),
+      find.text('Detalle tienda store-1 offer-cancelled'),
       findsOneWidget,
     );
     expect(find.textContaining('Detalle taller'), findsNothing);

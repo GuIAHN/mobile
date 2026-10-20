@@ -221,12 +221,14 @@ class _ConsumerPurchasesPageState extends ConsumerState<ConsumerPurchasesPage> {
   bool _hasReviewAction(ConsumerPurchase purchase) {
     final cancelledStoreReview = purchase.status == PurchaseStatus.cancelled &&
         !purchase.hasReviewed &&
+        purchase.canReview &&
         purchase.storeId?.trim().isNotEmpty == true &&
-        purchase.conversationId?.trim().isNotEmpty == true;
+        purchase.offerId?.trim().isNotEmpty == true;
     final canWrite = purchase.needsReview &&
         purchase.canReview &&
-        purchase.conversationId?.trim().isNotEmpty == true;
+        purchase.offerId?.trim().isNotEmpty == true;
     final canRead = purchase.hasReviewed &&
+        purchase.offerId?.trim().isNotEmpty == true &&
         purchase.reviewTargetId?.trim().isNotEmpty == true;
     return cancelledStoreReview || canWrite || canRead;
   }
@@ -234,12 +236,13 @@ class _ConsumerPurchasesPageState extends ConsumerState<ConsumerPurchasesPage> {
   Future<void> _openReview(ConsumerPurchase purchase) async {
     if (purchase.status == PurchaseStatus.cancelled &&
         !purchase.hasReviewed &&
+        purchase.canReview &&
         purchase.storeId?.trim().isNotEmpty == true &&
-        purchase.conversationId?.trim().isNotEmpty == true) {
+        purchase.offerId?.trim().isNotEmpty == true) {
       await context.push(
         RouteNames.storeDetailForReviewPath(
           purchase.storeId!.trim(),
-          conversationId: purchase.conversationId!.trim(),
+          offerId: purchase.offerId!.trim(),
         ),
       );
       return;
@@ -249,6 +252,7 @@ class _ConsumerPurchasesPageState extends ConsumerState<ConsumerPurchasesPage> {
       RouteNames.reviewEditorPath(
         targetId: purchase.reviewTargetId,
         conversationId: purchase.conversationId,
+        offerId: purchase.offerId,
         providerName: purchase.storeName,
         readOnly: purchase.hasReviewed,
       ),

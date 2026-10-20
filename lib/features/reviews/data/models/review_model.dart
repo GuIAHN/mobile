@@ -6,6 +6,7 @@ class ReviewModel extends Review {
     required super.authorId,
     required super.targetId,
     super.conversationId,
+    super.offerId,
     required super.rating,
     super.comentario,
     required super.createdAt,
@@ -24,6 +25,7 @@ class ReviewModel extends Review {
       authorId: rawAuthorId?.toString() ?? '',
       targetId: rawTargetId?.toString() ?? '',
       conversationId: rawConversationId?.toString(),
+      offerId: (json['offerId'] ?? json['offer_id'])?.toString(),
       rating: json['rating'] is num
           ? (json['rating'] as num).toInt()
           : int.tryParse(json['rating']?.toString() ?? '0') ?? 0,

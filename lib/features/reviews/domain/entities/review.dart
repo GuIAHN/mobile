@@ -5,6 +5,7 @@ class Review extends Equatable {
   final String authorId;
   final String targetId;
   final String? conversationId;
+  final String? offerId;
   final int rating;
   final String? comentario;
   final DateTime createdAt;
@@ -15,6 +16,7 @@ class Review extends Equatable {
     required this.authorId,
     required this.targetId,
     this.conversationId,
+    this.offerId,
     required this.rating,
     this.comentario,
     required this.createdAt,
@@ -27,6 +29,7 @@ class Review extends Equatable {
         authorId,
         targetId,
         conversationId,
+        offerId,
         rating,
         comentario,
         createdAt,

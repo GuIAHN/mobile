@@ -8,20 +8,21 @@ import '../../domain/entities/provider_detail.dart';
 import '../providers/home_providers.dart';
 import '../widgets/provider_detail_widgets.dart';
 import '../widgets/service_provider_detail_view.dart';
-import '../../../reviews/presentation/providers/reviews_providers.dart';
-import '../../../reviews/presentation/widgets/provider_review_action_card.dart';
-import '../../../reviews/presentation/widgets/provider_reviews_button.dart';
+import '../widgets/provider_detail_skeleton.dart';
+import '../../../../shared/provider_feedback/provider_feedback_scope.dart';
 
 class StoreDetailPage extends ConsumerWidget {
   final String storeId;
   final ServiceType serviceType;
-  final String? reviewConversationId;
+  final String? reviewOfferId;
+  final double? distanceKm;
 
   const StoreDetailPage({
     super.key,
     required this.storeId,
     this.serviceType = ServiceType.spareParts,
-    this.reviewConversationId,
+    this.reviewOfferId,
+    this.distanceKm,
   });
 
   @override
@@ -29,6 +30,7 @@ class StoreDetailPage extends ConsumerWidget {
     final args = (id: storeId, type: serviceType);
     final detailAsync = ref.watch(providerDetailProvider(args));
     final selectedVehicle = ref.watch(searchVehicleProvider);
+    final feedback = ProviderFeedbackScope.of(context);
     final isStore = serviceType == ServiceType.spareParts;
     final providerLabel = isStore ? 'tienda' : 'taller';
 
@@ -43,12 +45,20 @@ class StoreDetailPage extends ConsumerWidget {
           onRetry: () => ref.invalidate(providerDetailProvider(args)),
         ),
         data: (detail) {
+          final reviewTarget = detail.userId == null
+              ? null
+              : ProviderFeedbackTarget(
+                  userId: detail.userId!,
+                  profileId: detail.id,
+                  name: detail.nombre,
+                );
           if (serviceType != ServiceType.storeDashboard) {
             return ServiceProviderDetailView(
               detail: detail,
+              distanceKm: distanceKm,
               heroTag: 'provider-avatar-$storeId',
               serviceType: serviceType,
-              reviewConversationId: reviewConversationId,
+              reviewOfferId: reviewOfferId,
             );
           }
 
@@ -94,7 +104,7 @@ class StoreDetailPage extends ConsumerWidget {
                     ),
                     if (!isStore && detail.userId != null) ...[
                       const SizedBox(height: 12),
-                      ProviderReviewsButton(targetId: detail.userId!),
+                      feedback.buildReviewsButton(reviewTarget!),
                     ],
                     const SizedBox(height: 24),
                     if (detail.hasDelivery) ...[
@@ -153,11 +163,8 @@ class StoreDetailPage extends ConsumerWidget {
                           semanticsHint: 'Toca para llamar',
                           onTap: () async {
                             if (!isStore) {
-                              await registerProviderContact(
-                                ref,
-                                providerProfileId: detail.id,
-                                channel: 'PHONE',
-                              );
+                              await feedback.registerContact(
+                                  detail.id, 'PHONE');
                             }
                             if (context.mounted) {
                               await ContactActions.call(
@@ -173,11 +180,8 @@ class StoreDetailPage extends ConsumerWidget {
                           semanticsHint: 'Toca para escribir por WhatsApp',
                           onTap: () async {
                             if (!isStore) {
-                              await registerProviderContact(
-                                ref,
-                                providerProfileId: detail.id,
-                                channel: 'WHATSAPP',
-                              );
+                              await feedback.registerContact(
+                                  detail.id, 'WHATSAPP');
                             }
                             if (context.mounted) {
                               await ContactActions.whatsapp(
@@ -194,11 +198,7 @@ class StoreDetailPage extends ConsumerWidget {
                       const SizedBox(height: 24),
                     ],
                     if (!isStore && detail.userId != null) ...[
-                      ProviderReviewActionCard(
-                        targetId: detail.userId!,
-                        providerProfileId: detail.id,
-                        providerName: detail.nombre,
-                      ),
+                      feedback.buildReviewAction(reviewTarget!),
                       const SizedBox(height: 24),
                     ],
                     const SizedBox(height: 32),

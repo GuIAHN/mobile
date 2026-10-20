@@ -24,6 +24,7 @@ import '../../features/chat/presentation/pages/chat_conversation_page.dart';
 import '../../features/purchases/presentation/pages/consumer_purchases_page.dart';
 import '../../features/chat/presentation/pages/store_sales_page.dart';
 import '../../features/reviews/presentation/pages/provider_reviews_page.dart';
+import '../../features/reviews/presentation/widgets/provider_feedback_integration.dart';
 import '../../features/reviews/presentation/pages/pending_reviews_page.dart';
 import '../../features/reviews/presentation/pages/review_editor_sheet.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
@@ -150,7 +151,11 @@ class AppRouter {
             name: 'mechanicDetail',
             builder: (context, state) {
               final id = state.pathParameters['id']!;
-              return MechanicDetailPage(mechanicId: id);
+              return ProviderFeedbackIntegration(
+                  child: MechanicDetailPage(
+                mechanicId: id,
+                distanceKm: (state.extra as num?)?.toDouble(),
+              ));
             },
           ),
           GoRoute(
@@ -158,10 +163,12 @@ class AppRouter {
             name: 'workshopDetail',
             builder: (context, state) {
               final id = state.pathParameters['id']!;
-              return StoreDetailPage(
+              return ProviderFeedbackIntegration(
+                  child: StoreDetailPage(
                 storeId: id,
                 serviceType: ServiceType.workshops,
-              );
+                distanceKm: (state.extra as num?)?.toDouble(),
+              ));
             },
           ),
           GoRoute(
@@ -169,11 +176,12 @@ class AppRouter {
             name: 'storeDetail',
             builder: (context, state) {
               final id = state.pathParameters['id']!;
-              return StoreDetailPage(
+              return ProviderFeedbackIntegration(
+                  child: StoreDetailPage(
                 storeId: id,
-                reviewConversationId:
-                    state.uri.queryParameters['reviewConversationId'],
-              );
+                distanceKm: (state.extra as num?)?.toDouble(),
+                reviewOfferId: state.uri.queryParameters['reviewOfferId'],
+              ));
             },
           ),
           GoRoute(
@@ -181,11 +189,10 @@ class AppRouter {
             name: 'providerReviews',
             builder: (context, state) {
               final id = state.pathParameters['targetId']!;
-              final conversationId =
-                  state.uri.queryParameters['conversationId'];
+              final offerId = state.uri.queryParameters['offerId'];
               return ProviderReviewsPage(
                 targetId: id,
-                conversationId: conversationId,
+                offerId: offerId,
                 isOwnProfile: state.uri.queryParameters['view'] == 'received',
               );
             },
@@ -215,6 +222,7 @@ class AppRouter {
                 child: ReviewEditorSheet(
                   targetId: query['targetId'],
                   conversationId: query['conversationId'],
+                  offerId: query['offerId'],
                   providerName: query['providerName'] ?? 'la tienda',
                   readOnly: query['readOnly'] == 'true',
                 ),

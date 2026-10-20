@@ -1,6 +1,8 @@
 import 'package:equatable/equatable.dart';
 
 class PendingReview extends Equatable {
+  final String id;
+  final String? offerId;
   final String targetId;
   final String providerProfileId;
   final String providerName;
@@ -13,6 +15,8 @@ class PendingReview extends Equatable {
   final String? reviewComment;
 
   const PendingReview({
+    this.id = '',
+    this.offerId,
     required this.targetId,
     required this.providerProfileId,
     required this.providerName,
@@ -27,6 +31,8 @@ class PendingReview extends Equatable {
 
   @override
   List<Object?> get props => [
+        id,
+        offerId,
         targetId,
         providerProfileId,
         providerName,

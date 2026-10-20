@@ -9,13 +9,13 @@ class CreateReviewUseCase {
   CreateReviewUseCase(this.repository);
 
   Future<Either<Failure, Review>> call({
-    String? conversationId,
+    String? offerId,
     String? targetId,
     required int rating,
     String? comentario,
   }) {
     return repository.createReview(
-      conversationId: conversationId,
+      offerId: offerId,
       targetId: targetId,
       rating: rating,
       comentario: comentario,

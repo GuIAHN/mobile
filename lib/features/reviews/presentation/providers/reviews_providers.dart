@@ -11,6 +11,7 @@ import '../../domain/repositories/reviews_repository.dart';
 import '../../domain/usecases/create_review_usecase.dart';
 import '../../domain/usecases/get_reviews_usecase.dart';
 import '../../domain/usecases/update_review_usecase.dart';
+import '../../domain/usecases/track_provider_contact_usecase.dart';
 
 // ── Dependencies ─────────────────────────────────────────────────────────────
 
@@ -33,6 +34,11 @@ final createReviewUseCaseProvider = Provider<CreateReviewUseCase>((ref) {
 
 final updateReviewUseCaseProvider = Provider<UpdateReviewUseCase>((ref) {
   return UpdateReviewUseCase(ref.watch(reviewsRepositoryProvider));
+});
+
+final trackProviderContactUseCaseProvider =
+    Provider<TrackProviderContactUseCase>((ref) {
+  return TrackProviderContactUseCase(ref.watch(reviewsRepositoryProvider));
 });
 
 // ── State Providers ──────────────────────────────────────────────────────────
@@ -61,11 +67,14 @@ final pendingReviewsProvider =
   return items;
 });
 
+typedef MyReviewKey = ({String targetId, String? offerId});
+
 final myReviewProvider = FutureProvider.family
-    .autoDispose<MyReviewStatus, String>((ref, targetId) async {
+    .autoDispose<MyReviewStatus, MyReviewKey>((ref, key) async {
   ref.watch(sessionGenerationProvider);
-  final result =
-      await ref.watch(reviewsRepositoryProvider).getMyReview(targetId);
+  final result = await ref
+      .watch(reviewsRepositoryProvider)
+      .getMyReview(key.targetId, offerId: key.offerId);
   return result.fold(
     (failure) => throw Exception(failure.message),
     (status) => status,
@@ -99,16 +108,16 @@ Future<bool> registerProviderContact(
   required String providerProfileId,
   required String channel,
 }) async {
-  final result = await ref
-      .read(reviewsRepositoryProvider)
-      .trackProviderContact(providerProfileId, channel);
+  final storage = ref.read(secureStorageProvider);
+  final result = await ref.read(trackProviderContactUseCaseProvider)(
+      providerProfileId, channel);
   return result.fold<Future<bool>>(
     (_) async => false,
     (_) async {
-      await ref
-          .read(secureStorageProvider)
-          .markProviderContacted(providerProfileId);
-      ref.invalidate(hasContactedProviderProvider(providerProfileId));
+      await storage.markProviderContacted(providerProfileId);
+      if (ref.context.mounted) {
+        ref.invalidate(hasContactedProviderProvider(providerProfileId));
+      }
       return true;
     },
   );
@@ -124,14 +133,14 @@ class CreateReviewNotifier extends StateNotifier<AsyncValue<void>> {
       : super(const AsyncValue.data(null));
 
   Future<bool> createReview({
-    String? conversationId,
+    String? offerId,
     String? targetId,
     required int rating,
     String? comentario,
   }) async {
     state = const AsyncValue.loading();
     final result = await _createReviewUseCase(
-      conversationId: conversationId,
+      offerId: offerId,
       targetId: targetId,
       rating: rating,
       comentario: comentario,

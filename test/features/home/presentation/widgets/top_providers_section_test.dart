@@ -67,6 +67,16 @@ void main() {
           path: RouteNames.mechanics,
           builder: (_, __) => const Scaffold(body: Text('mechanics-route')),
         ),
+        for (final path in [
+          RouteNames.mechanicDetail,
+          RouteNames.workshopDetail,
+        ])
+          GoRoute(
+            path: path,
+            builder: (_, state) => Scaffold(
+              body: Text('detail-distance: ${state.extra}'),
+            ),
+          ),
       ],
     );
 
@@ -129,6 +139,21 @@ void main() {
     expect(tester.getSize(media).width, 327);
     expect(tester.getSize(media).height, closeTo(183.9375, 0.1));
   });
+
+  for (final type in [ServiceType.mechanic, ServiceType.workshops]) {
+    testWidgets('passes the displayed $type distance to its detail route',
+        (tester) async {
+      await tester.pumpWidget(subject(
+        AsyncData([fixture(type: type, distanceKm: 6.7)]),
+        type: type,
+        disableAnimations: true,
+      ));
+      await tester.tap(find.text('Taller Norte'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('detail-distance: 6.7'), findsOneWidget);
+    });
+  }
 
   testWidgets('shows an empty state and navigates to all workshops',
       (tester) async {
@@ -205,7 +230,7 @@ void main() {
     expect(find.text('4.8'), findsOneWidget);
     expect(find.text('24 reseñas'), findsOneWidget);
     expect(find.text('2.4 km'), findsOneWidget);
-    expect(find.text('Abierto'), findsOneWidget);
+    expect(find.text('Abierto'), findsNothing);
   });
 
   testWidgets('announces each provider card with one consolidated label',
@@ -469,24 +494,23 @@ void main() {
     );
   });
 
-  testWidgets('overlays workshop availability in the lower media corner',
+  testWidgets('hides schedule labels for workshops and mechanics',
       (tester) async {
-    await tester.pumpWidget(subject(AsyncValue.data([fixture()])));
-
-    final media = find.byKey(const Key('top-provider-media-workshop-1'));
-    final availability =
-        find.byKey(const Key('top-provider-availability-workshop-1'));
-    expect(availability, findsOneWidget);
-    expect(
-      find.descendant(of: media, matching: availability),
-      findsOneWidget,
-    );
-
-    final mediaRect = tester.getRect(media);
-    final availabilityRect = tester.getRect(availability);
-    expect(availabilityRect.left, lessThan(mediaRect.center.dx));
-    expect(availabilityRect.center.dy, greaterThan(mediaRect.center.dy));
-    expect(availabilityRect.bottom, lessThanOrEqualTo(mediaRect.bottom));
+    for (final type in const [ServiceType.workshops, ServiceType.mechanic]) {
+      for (final isOpen in const [true, false, null]) {
+        await tester.pumpWidget(
+          subject(
+            AsyncValue.data([fixture(type: type, isOpen: isOpen)]),
+            type: type,
+          ),
+        );
+        expect(find.text('Abierto'), findsNothing);
+        expect(find.text('Cerrado'), findsNothing);
+        expect(find.text('Horario no disponible'), findsNothing);
+        expect(find.byKey(const Key('top-provider-availability-workshop-1')),
+            findsNothing);
+      }
+    }
   });
 
   testWidgets('labels a provider with no reviews honestly', (tester) async {
@@ -499,18 +523,23 @@ void main() {
   testWidgets(
       'does not invent distance or open status when metadata is missing',
       (tester) async {
-    await tester.pumpWidget(
-      subject(
-        AsyncValue.data([
-          fixture(distanceKm: null, isOpen: null),
-        ]),
-      ),
-    );
+    for (final type in const [ServiceType.workshops, ServiceType.mechanic]) {
+      await tester.pumpWidget(
+        subject(
+          AsyncValue.data([
+            fixture(type: type, distanceKm: null, isOpen: null),
+          ]),
+          type: type,
+        ),
+      );
 
-    expect(find.text('Distancia no disponible'), findsOneWidget);
-    expect(find.text('Horario no disponible'), findsOneWidget);
-    expect(find.text('0.0 km'), findsNothing);
-    expect(find.text('Abierto'), findsNothing);
+      expect(find.text('Distancia no disponible'), findsOneWidget);
+      expect(find.text('Horario no disponible'), findsNothing);
+      expect(find.byKey(const Key('top-provider-availability-workshop-1')),
+          findsNothing);
+      expect(find.text('0.0 km'), findsNothing);
+      expect(find.text('Abierto'), findsNothing);
+    }
   });
 
   testWidgets('keeps provider information available on small and large phones',
@@ -562,7 +591,7 @@ void main() {
           expect(find.text('4.8'), findsOneWidget);
           expect(find.text('24 reseñas'), findsOneWidget);
           expect(find.text('2.4 km'), findsOneWidget);
-          expect(find.text('Abierto'), findsOneWidget);
+          expect(find.text('Abierto'), findsNothing);
           expect(find.text('Diagnóstico y frenos'), findsOneWidget);
         }
       }

@@ -624,6 +624,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                   final res = await context.push<bool>(
                     RouteNames.reviewEditorPath(
                       targetId: details.storeUserId,
+                      offerId: details.offerId,
                       conversationId: widget.conversationId,
                       providerName: details.participantName,
                     ),

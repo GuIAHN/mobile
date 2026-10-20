@@ -20,7 +20,7 @@ abstract class ReviewsRepository {
   });
 
   Future<Either<Failure, Review>> createReview({
-    String? conversationId,
+    String? offerId,
     String? targetId,
     required int rating,
     String? comentario,
@@ -34,7 +34,10 @@ abstract class ReviewsRepository {
 
   Future<Either<Failure, List<PendingReview>>> getPendingReviews();
 
-  Future<Either<Failure, MyReviewStatus>> getMyReview(String targetId);
+  Future<Either<Failure, MyReviewStatus>> getMyReview(String targetId,
+      {String? offerId});
+
+  Future<Either<Failure, void>> dismissPendingReview(String promptId);
 
   Future<Either<Failure, void>> trackProviderContact(
     String providerProfileId,

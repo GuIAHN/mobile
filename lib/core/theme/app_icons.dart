@@ -21,6 +21,8 @@ abstract class AppIcons {
   static const IconData showPassword = LucideIcons.eye;
   static const IconData hidePassword = LucideIcons.eyeOff;
   static const IconData search = LucideIcons.search;
+  static const IconData zoomIn = LucideIcons.zoomIn;
+  static const IconData zoomOut = LucideIcons.zoomOut;
   static const IconData searchEmpty = LucideIcons.searchX;
   static const IconData filter = LucideIcons.listFilter;
   static const IconData inbox = LucideIcons.inbox;

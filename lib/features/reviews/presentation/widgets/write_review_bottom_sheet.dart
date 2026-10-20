@@ -7,12 +7,16 @@ import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/entities/my_review_status.dart';
+import '../../../purchases/presentation/providers/purchases_providers.dart';
+import '../../../chat/presentation/providers/chat_providers.dart';
+import '../../../home/presentation/providers/home_providers.dart';
 import '../providers/reviews_providers.dart';
 import 'star_rating_input.dart';
 
 class WriteReviewBottomSheet extends ConsumerStatefulWidget {
   final String? targetId;
   final String? conversationId;
+  final String? offerId;
   final String providerName;
   final MyReviewStatus? initialStatus;
   final bool readOnly;
@@ -21,16 +25,17 @@ class WriteReviewBottomSheet extends ConsumerStatefulWidget {
     super.key,
     this.targetId,
     this.conversationId,
+    this.offerId,
     this.providerName = 'este proveedor',
     this.initialStatus,
     this.readOnly = false,
   })  : assert(
-          targetId != null || conversationId != null,
-          'A review needs a targetId or conversationId',
+          targetId != null || offerId != null,
+          'A review needs a targetId or offerId',
         ),
         assert(
           initialStatus != null || targetId != null,
-          'An initialStatus is required when reviewing by conversationId only',
+          'An initialStatus is required when reviewing by offerId only',
         );
 
   @override
@@ -40,6 +45,9 @@ class WriteReviewBottomSheet extends ConsumerStatefulWidget {
 
 class _WriteReviewBottomSheetState
     extends ConsumerState<WriteReviewBottomSheet> {
+  MyReviewKey get _reviewKey =>
+      (targetId: widget.targetId!, offerId: widget.offerId);
+
   int _rating = 0;
   bool _initialized = false;
   final _commentController = TextEditingController();
@@ -68,8 +76,8 @@ class _WriteReviewBottomSheetState
             comentario: comment,
           )
         : await notifier.createReview(
-            conversationId: widget.conversationId,
-            targetId: widget.conversationId == null ? widget.targetId : null,
+            offerId: widget.offerId,
+            targetId: widget.offerId == null ? widget.targetId : null,
             rating: _rating,
             comentario: comment,
           );
@@ -78,15 +86,26 @@ class _WriteReviewBottomSheetState
       final targetId = widget.targetId;
       if (targetId != null && targetId.isNotEmpty) {
         ref.invalidate(reviewsProvider(targetId));
-        ref.invalidate(myReviewProvider(targetId));
+        ref.invalidate(myReviewProvider(_reviewKey));
       }
       // This sheet is shared by pending reviews, chat and provider profiles.
       // Invalidate once here so every successful entry point refreshes the
       // badge/gate without requiring caller-specific duplicate requests.
       ref.invalidate(pendingReviewsProvider);
+      ref.invalidate(consumerPurchasesProvider);
+      ref.invalidate(requestDetailProvider);
+      ref.invalidate(consumerRequestsProvider);
+      ref.invalidate(myConversationsProvider);
+      ref.invalidate(chatConversationsProvider);
+      ref.invalidate(providerDetailProvider);
+      ref.invalidate(homeItemsProvider);
+      ref.invalidate(homeTopProvidersProvider);
       final conversationId = widget.conversationId;
       if (conversationId != null && conversationId.isNotEmpty) {
+        ref.invalidate(chatConversationDetailsProvider(conversationId));
         await markStoreReviewHandled(ref, conversationId);
+      } else {
+        ref.invalidate(chatConversationDetailsProvider);
       }
       if (!mounted) return;
       context.pop(true);
@@ -96,224 +115,225 @@ class _WriteReviewBottomSheetState
   @override
   Widget build(BuildContext context) {
     final statusAsync = widget.initialStatus == null
-        ? ref.watch(myReviewProvider(widget.targetId!))
+        ? ref.watch(myReviewProvider(_reviewKey))
         : AsyncValue.data(widget.initialStatus!);
     final submitState = ref.watch(createReviewProvider);
 
-    return Container(
+    return Material(
       key: const Key('write-review-sheet-surface'),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppSpacing.radiusXl),
+      color: AppColors.surface,
+      borderRadius: const BorderRadius.vertical(
+        top: Radius.circular(AppSpacing.radiusXl),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.88,
         ),
-      ),
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.88,
-      ),
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(context).bottom +
-            MediaQuery.paddingOf(context).bottom +
-            AppSpacing.xl2,
-        top: AppSpacing.md,
-        left: AppSpacing.xl2,
-        right: AppSpacing.xl2,
-      ),
-      child: statusAsync.when(
-        loading: () => const SizedBox(
-          height: 300,
-          child: Center(
-            child: CircularProgressIndicator(color: AppColors.primary),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom +
+              MediaQuery.paddingOf(context).bottom +
+              AppSpacing.xl2,
+          top: AppSpacing.md,
+          left: AppSpacing.xl2,
+          right: AppSpacing.xl2,
+        ),
+        child: statusAsync.when(
+          loading: () => const SizedBox(
+            height: 300,
+            child: Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
           ),
-        ),
-        error: (error, _) => SizedBox(
-          height: 300,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const AppLineIcon(
-                AppIcons.cloudError,
-                size: AppIconSize.feature,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text('No pudimos cargar tu valoración',
-                  style: AppTypography.title, textAlign: TextAlign.center),
-              const SizedBox(height: AppSpacing.sm),
-              TextButton(
-                onPressed: () =>
-                    ref.invalidate(myReviewProvider(widget.targetId!)),
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(48, 48),
-                  foregroundColor: AppColors.primaryInk,
-                ),
-                child: Text(
-                  'Reintentar',
-                  style: AppTypography.label.copyWith(
-                    color: AppColors.primaryInk,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        data: (status) {
-          _initialize(status);
-          return SingleChildScrollView(
+          error: (error, _) => SizedBox(
+            height: 300,
             child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
+                const AppLineIcon(
+                  AppIcons.cloudError,
+                  size: AppIconSize.feature,
+                  color: AppColors.textSecondary,
                 ),
-                const SizedBox(height: AppSpacing.xl2),
-                Text(
-                  status.hasReviewed
-                      ? widget.readOnly
-                          ? 'Tu reseña'
-                          : 'Editar valoración'
-                      : '¿Cómo fue tu experiencia?',
-                  style: AppTypography.h2,
-                  textAlign: TextAlign.center,
-                ),
+                const SizedBox(height: AppSpacing.md),
+                Text('No pudimos cargar tu valoración',
+                    style: AppTypography.title, textAlign: TextAlign.center),
                 const SizedBox(height: AppSpacing.sm),
-                Text(
-                  widget.readOnly
-                      ? 'Esta fue tu valoración para ${widget.providerName}.'
-                      : 'Califica a ${widget.providerName}. Las estrellas son obligatorias.',
-                  style: AppTypography.bodySm,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppSpacing.xl3),
-                Center(
-                  child: StarRatingInput(
-                    rating: _rating,
-                    onChanged: widget.readOnly
-                        ? null
-                        : (value) => setState(() => _rating = value),
-                    size: 36,
-                    readOnly: widget.readOnly,
+                TextButton(
+                  onPressed: () => ref.invalidate(myReviewProvider(_reviewKey)),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(48, 48),
+                    foregroundColor: AppColors.primaryInk,
                   ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  _rating == 0
-                      ? widget.readOnly
-                          ? 'Sin puntuación'
-                          : 'Selecciona de 1 a 5 estrellas'
-                      : '$_rating de 5 estrellas',
-                  style: AppTypography.meta.copyWith(
-                    color: _rating == 0
-                        ? AppColors.errorInk
-                        : AppColors.textSecondary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                if (widget.readOnly) ...[
-                  const SizedBox(height: AppSpacing.xl3),
-                  Text('TU COMENTARIO', style: AppTypography.overline),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    _commentController.text.trim().isEmpty
-                        ? 'No agregaste un comentario.'
-                        : _commentController.text.trim(),
-                    key: const Key('review-read-only-comment'),
-                    style: AppTypography.body,
-                  ),
-                ] else ...[
-                  const SizedBox(height: AppSpacing.xl3),
-                  Text('COMENTARIO (OPCIONAL)', style: AppTypography.overline),
-                  const SizedBox(height: AppSpacing.sm),
-                  TextFormField(
-                    controller: _commentController,
-                    maxLines: 4,
-                    maxLength: 500,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: InputDecoration(
-                      hintText: 'Cuéntanos sobre tu experiencia...',
-                      filled: true,
-                      fillColor: AppColors.surface,
-                      contentPadding: const EdgeInsets.all(AppSpacing.lg),
-                      border: OutlineInputBorder(
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.radiusMd),
-                        borderSide: const BorderSide(color: AppColors.border),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.radiusMd),
-                        borderSide: const BorderSide(color: AppColors.border),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.radiusMd),
-                        borderSide:
-                            const BorderSide(color: AppColors.borderFocus),
-                      ),
-                    ),
-                    style: AppTypography.body,
-                  ),
-                  if (submitState.hasError) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      submitState.error.toString(),
-                      style: AppTypography.bodySm
-                          .copyWith(color: AppColors.errorInk),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                  const SizedBox(height: AppSpacing.lg),
-                  SizedBox(
-                    height: AppSpacing.buttonHeightLg,
-                    child: ElevatedButton(
-                      onPressed: _rating > 0 && !submitState.isLoading
-                          ? () => _submitReview(status)
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.textOnPrimary,
-                        disabledBackgroundColor: AppColors.disabledBackground,
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppSpacing.radiusFull),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: submitState.isLoading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(
-                              status.hasReviewed
-                                  ? 'GUARDAR CAMBIOS'
-                                  : 'PUBLICAR RESEÑA',
-                              style: AppTypography.label.copyWith(
-                                color: _rating > 0
-                                    ? Colors.white
-                                    : AppColors.disabledText,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
+                  child: Text(
+                    'Reintentar',
+                    style: AppTypography.label.copyWith(
+                      color: AppColors.primaryInk,
                     ),
                   ),
-                ],
+                ),
               ],
             ),
-          );
-        },
+          ),
+          data: (status) {
+            _initialize(status);
+            return SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.border,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl2),
+                  Text(
+                    status.hasReviewed
+                        ? widget.readOnly
+                            ? 'Tu reseña'
+                            : 'Editar valoración'
+                        : '¿Cómo fue tu experiencia?',
+                    style: AppTypography.h2,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    widget.readOnly
+                        ? 'Esta fue tu valoración para ${widget.providerName}.'
+                        : 'Califica a ${widget.providerName}. Las estrellas son obligatorias.',
+                    style: AppTypography.bodySm,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.xl3),
+                  Center(
+                    child: StarRatingInput(
+                      rating: _rating,
+                      onChanged: widget.readOnly
+                          ? null
+                          : (value) => setState(() => _rating = value),
+                      size: 36,
+                      readOnly: widget.readOnly,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    _rating == 0
+                        ? widget.readOnly
+                            ? 'Sin puntuación'
+                            : 'Selecciona de 1 a 5 estrellas'
+                        : '$_rating de 5 estrellas',
+                    style: AppTypography.meta.copyWith(
+                      color: _rating == 0
+                          ? AppColors.errorInk
+                          : AppColors.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (widget.readOnly) ...[
+                    const SizedBox(height: AppSpacing.xl3),
+                    Text('TU COMENTARIO', style: AppTypography.overline),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      _commentController.text.trim().isEmpty
+                          ? 'No agregaste un comentario.'
+                          : _commentController.text.trim(),
+                      key: const Key('review-read-only-comment'),
+                      style: AppTypography.body,
+                    ),
+                  ] else ...[
+                    const SizedBox(height: AppSpacing.xl3),
+                    Text('COMENTARIO (OPCIONAL)',
+                        style: AppTypography.overline),
+                    const SizedBox(height: AppSpacing.sm),
+                    TextFormField(
+                      controller: _commentController,
+                      maxLines: 4,
+                      maxLength: 500,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: InputDecoration(
+                        hintText: 'Cuéntanos sobre tu experiencia...',
+                        filled: true,
+                        fillColor: AppColors.surface,
+                        contentPadding: const EdgeInsets.all(AppSpacing.lg),
+                        border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radiusMd),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radiusMd),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radiusMd),
+                          borderSide:
+                              const BorderSide(color: AppColors.borderFocus),
+                        ),
+                      ),
+                      style: AppTypography.body,
+                    ),
+                    if (submitState.hasError) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        submitState.error.toString(),
+                        style: AppTypography.bodySm
+                            .copyWith(color: AppColors.errorInk),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.lg),
+                    SizedBox(
+                      height: AppSpacing.buttonHeightLg,
+                      child: ElevatedButton(
+                        onPressed: _rating > 0 && !submitState.isLoading
+                            ? () => _submitReview(status)
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.textOnPrimary,
+                          disabledBackgroundColor: AppColors.disabledBackground,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.radiusFull),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: submitState.isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                status.hasReviewed
+                                    ? 'GUARDAR CAMBIOS'
+                                    : 'PUBLICAR RESEÑA',
+                                style: AppTypography.label.copyWith(
+                                  color: _rating > 0
+                                      ? Colors.white
+                                      : AppColors.disabledText,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

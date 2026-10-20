@@ -16,7 +16,7 @@ void main() {
     final repository = _MockReviewsRepository();
     when(
       () => repository.createReview(
-        conversationId: 'conversation-1',
+        offerId: 'offer-1',
         rating: 4,
         comentario: 'Buen servicio',
       ),
@@ -34,7 +34,7 @@ void main() {
     );
 
     final saved = await notifier.createReview(
-      conversationId: 'conversation-1',
+      offerId: 'offer-1',
       rating: 4,
       comentario: 'Buen servicio',
     );

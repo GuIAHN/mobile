@@ -25,7 +25,7 @@ void main() {
               targetId: 'store-user-1',
               providerProfileId: 'store-1',
               providerName: 'Repuestos Centro',
-              conversationId: 'conversation-cancelled',
+              offerId: 'offer-cancelled',
             ),
           ),
         ),
