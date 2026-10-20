@@ -79,7 +79,7 @@ Widget _subject({
 void main() {
   for (final serviceType in [ServiceType.workshops, ServiceType.mechanic]) {
     testWidgets(
-      'shows vehicle context without compatibility wording in the ${serviceType.name} list',
+      'shows the ${serviceType.name} list without a vehicle selector',
       (tester) async {
         addTearDown(() => tester.binding.setSurfaceSize(null));
         await tester.binding.setSurfaceSize(const Size(430, 932));
@@ -95,15 +95,13 @@ void main() {
         );
         await tester.pump();
 
-        expect(find.text('Selecciona el vehículo'), findsOneWidget);
-        expect(find.textContaining('Lo incluiremos'), findsNothing);
-        expect(find.textContaining('COMPATIBILIDAD'), findsNothing);
-        expect(
-          tester
-              .getSize(find.byKey(const Key('vehicle-context-action')))
-              .height,
-          greaterThanOrEqualTo(48),
-        );
+        expect(find.text('Selecciona el vehículo'), findsNothing);
+        expect(find.text('TU VEHÍCULO'), findsNothing);
+        expect(find.text('Elegir'), findsNothing);
+        expect(find.bySemanticsLabel('Elegir vehículo'), findsNothing);
+        expect(find.byKey(const Key('vehicle-context-card')), findsNothing);
+        expect(find.text('Aún no hay resultados en tu zona'), findsOneWidget);
+        expect(tester.takeException(), isNull);
       },
     );
   }

@@ -8,8 +8,6 @@ import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/entities/pending_review.dart';
-import '../../domain/entities/my_review_status.dart';
-import '../../domain/entities/review.dart';
 import '../../../../core/utils/media_url.dart';
 import '../providers/reviews_providers.dart';
 import '../widgets/write_review_bottom_sheet.dart';
@@ -29,8 +27,8 @@ class PendingReviewsPage extends ConsumerWidget {
       builder: (_) => WriteReviewBottomSheet(
         targetId: item.targetId,
         conversationId: item.conversationId,
+        offerId: item.offerId,
         providerName: item.providerName,
-        initialStatus: _reviewStatus(item),
       ),
     );
     if (!context.mounted) return;
@@ -41,29 +39,6 @@ class PendingReviewsPage extends ConsumerWidget {
       // session completed it. Reconcile the list and badge on dismissal too.
       ref.invalidate(pendingReviewsProvider);
     }
-  }
-
-  MyReviewStatus? _reviewStatus(PendingReview item) {
-    final reviewId = item.reviewId;
-    final rating = item.reviewRating;
-    if (!item.hasReviewed || reviewId == null || rating == null) {
-      // Missing review metadata is not proof that a review does not exist.
-      // Let the sheet fetch /reviews/mine before choosing POST versus PATCH.
-      return null;
-    }
-    return MyReviewStatus(
-      hasReviewed: true,
-      review: Review(
-        id: reviewId,
-        authorId: '',
-        targetId: item.targetId,
-        conversationId: item.conversationId,
-        rating: rating,
-        comentario: item.reviewComment,
-        createdAt: item.eligibleAt ?? DateTime.fromMillisecondsSinceEpoch(0),
-        authorName: '',
-      ),
-    );
   }
 
   @override
@@ -112,6 +87,7 @@ class PendingReviewsPage extends ConsumerWidget {
                       const SizedBox(height: AppSpacing.xl2),
                       for (final item in items) ...[
                         _PendingReviewCard(
+                          key: ValueKey('pending-review-${item.id}'),
                           item: item,
                           onPressed: () => _review(context, ref, item),
                         ),
@@ -126,14 +102,43 @@ class PendingReviewsPage extends ConsumerWidget {
   }
 }
 
-class _PendingReviewCard extends StatelessWidget {
+class _PendingReviewCard extends ConsumerStatefulWidget {
   final PendingReview item;
   final VoidCallback onPressed;
 
-  const _PendingReviewCard({required this.item, required this.onPressed});
+  const _PendingReviewCard(
+      {super.key, required this.item, required this.onPressed});
+
+  @override
+  ConsumerState<_PendingReviewCard> createState() => _PendingReviewCardState();
+}
+
+class _PendingReviewCardState extends ConsumerState<_PendingReviewCard> {
+  bool _dismissing = false;
+  bool _dismissFailed = false;
+
+  Future<void> _dismiss() async {
+    if (_dismissing) return;
+    setState(() {
+      _dismissing = true;
+      _dismissFailed = false;
+    });
+    final result = await ref
+        .read(reviewsRepositoryProvider)
+        .dismissPendingReview(widget.item.id);
+    if (!mounted) return;
+    result.fold(
+      (_) => setState(() {
+        _dismissing = false;
+        _dismissFailed = true;
+      }),
+      (_) => ref.invalidate(pendingReviewsProvider),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final item = widget.item;
     final photoUrl = resolveMediaUrl(item.providerPhoto);
     return Semantics(
       container: true,
@@ -197,18 +202,20 @@ class _PendingReviewCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.lg),
             SizedBox(
               width: double.infinity,
-              height: AppSpacing.buttonHeightMd,
               child: ElevatedButton.icon(
-                onPressed: onPressed,
+                onPressed: _dismissing ? null : widget.onPressed,
                 icon: const AppLineIcon(
                   AppIcons.rating,
                   size: AppIconSize.action,
                 ),
                 label: Text(
-                  item.hasReviewed ? 'EDITAR VALORACIÓN' : 'DEJAR VALORACIÓN',
+                  'DEJAR VALORACIÓN',
                   style: AppTypography.label.copyWith(color: Colors.white),
                 ),
                 style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(48, 48),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   elevation: 0,
@@ -218,6 +225,34 @@ class _PendingReviewCard extends StatelessWidget {
                 ),
               ),
             ),
+            if (item.id.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.sm),
+              TextButton(
+                key: ValueKey('dismiss-review-${item.id}'),
+                onPressed: _dismissing ? null : _dismiss,
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(48, 48),
+                  foregroundColor: AppColors.textSecondary,
+                ),
+                child: _dismissing
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Descartar recordatorio'),
+              ),
+            ],
+            if (_dismissFailed) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  'No pudimos descartar el recordatorio. Inténtalo de nuevo.',
+                  style:
+                      AppTypography.bodySm.copyWith(color: AppColors.errorInk),
+                ),
+              ),
+            ],
           ],
         ),
       ),

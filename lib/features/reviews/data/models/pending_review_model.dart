@@ -2,6 +2,8 @@ import '../../domain/entities/pending_review.dart';
 
 class PendingReviewModel extends PendingReview {
   const PendingReviewModel({
+    super.id,
+    super.offerId,
     required super.targetId,
     required super.providerProfileId,
     required super.providerName,
@@ -16,6 +18,8 @@ class PendingReviewModel extends PendingReview {
 
   factory PendingReviewModel.fromJson(Map<String, dynamic> json) {
     return PendingReviewModel(
+      id: json['id']?.toString() ?? '',
+      offerId: json['offerId']?.toString(),
       targetId: json['targetId']?.toString() ?? '',
       providerProfileId: json['providerProfileId']?.toString() ?? '',
       providerName: json['providerName']?.toString() ?? 'Tienda',

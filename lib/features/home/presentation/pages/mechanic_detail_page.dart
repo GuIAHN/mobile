@@ -8,8 +8,13 @@ import '../widgets/service_provider_detail_view.dart';
 
 class MechanicDetailPage extends ConsumerWidget {
   final String mechanicId;
+  final double? distanceKm;
 
-  const MechanicDetailPage({super.key, required this.mechanicId});
+  const MechanicDetailPage({
+    super.key,
+    required this.mechanicId,
+    this.distanceKm,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,7 +24,7 @@ class MechanicDetailPage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: detailAsync.when(
-        loading: () => const ServiceProviderDetailSkeleton(),
+        loading: () => const ServiceProviderDetailSkeleton(compact: true),
         error: (e, _) => DetailErrorView(
           title: 'No se pudo cargar el perfil',
           message:
@@ -28,6 +33,7 @@ class MechanicDetailPage extends ConsumerWidget {
         ),
         data: (detail) => ServiceProviderDetailView(
           detail: detail,
+          distanceKm: distanceKm,
           heroTag: 'provider-avatar-$mechanicId',
         ),
       ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dartz/dartz.dart';
+import 'package:guiautomotriz_mobile/core/error/failures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -52,6 +53,76 @@ void main() {
     createdAt: DateTime.utc(2026, 9, 24),
     authorName: 'Pepe',
   );
+
+  testWidgets(
+      'dismissing one purchase leaves the other reminder for the same store',
+      (tester) async {
+    final repository = _MockReviewsRepository();
+    const first = PendingReview(
+        id: 'prompt-1',
+        offerId: 'offer-1',
+        targetId: 'store-user',
+        providerProfileId: 'store',
+        providerName: 'Misma tienda');
+    const second = PendingReview(
+        id: 'prompt-2',
+        offerId: 'offer-2',
+        targetId: 'store-user',
+        providerProfileId: 'store',
+        providerName: 'Misma tienda');
+    var dismissed = false;
+    when(repository.getPendingReviews)
+        .thenAnswer((_) async => Right(dismissed ? [second] : [first, second]));
+    final request = Completer<Either<Failure, void>>();
+    when(() => repository.dismissPendingReview('prompt-1'))
+        .thenAnswer((_) => request.future);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [reviewsRepositoryProvider.overrideWithValue(repository)],
+      child: const MaterialApp(home: PendingReviewsPage()),
+    ));
+    await tester.pumpAndSettle();
+    final action = find.byKey(const ValueKey('dismiss-review-prompt-1'));
+    expect(tester.getSize(action).height, greaterThanOrEqualTo(48));
+    await tester.tap(action);
+    await tester.pump();
+    expect(tester.widget<TextButton>(action).onPressed, isNull);
+    dismissed = true;
+    request.complete(const Right(null));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('pending-review-prompt-1')), findsNothing);
+    expect(
+        find.byKey(const ValueKey('pending-review-prompt-2')), findsOneWidget);
+    verify(() => repository.dismissPendingReview('prompt-1')).called(1);
+  });
+
+  testWidgets('failed dismissal keeps the reminder and allows retry',
+      (tester) async {
+    final repository = _MockReviewsRepository();
+    const item = PendingReview(
+        id: 'prompt-failed',
+        offerId: 'offer-1',
+        targetId: 'store-user',
+        providerProfileId: 'store',
+        providerName: 'Tienda');
+    when(repository.getPendingReviews)
+        .thenAnswer((_) async => const Right([item]));
+    when(() => repository.dismissPendingReview('prompt-failed'))
+        .thenAnswer((_) async => const Left(ServerFailure(message: 'offline')));
+    await tester.pumpWidget(ProviderScope(
+      overrides: [reviewsRepositoryProvider.overrideWithValue(repository)],
+      child: const MaterialApp(home: PendingReviewsPage()),
+    ));
+    await tester.pumpAndSettle();
+    final action = find.byKey(const ValueKey('dismiss-review-prompt-failed'));
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('pending-review-prompt-failed')),
+        findsOneWidget);
+    expect(
+        find.text('No pudimos descartar el recordatorio. Inténtalo de nuevo.'),
+        findsOneWidget);
+    expect(tester.widget<TextButton>(action).onPressed, isNotNull);
+  });
 
   testWidgets('edits the saved review when the pending list is stale',
       (tester) async {
@@ -198,6 +269,8 @@ void main() {
         override: pendingReviewsProvider.overrideWith(
           (ref) async => [
             PendingReview(
+              id: 'prompt-store-1',
+              offerId: 'offer-1',
               targetId: 'store-user-1',
               providerProfileId: 'store-1',
               providerName: 'Repuestos Centro',
@@ -319,6 +392,8 @@ void main() {
           override: pendingReviewsProvider.overrideWith(
             (ref) async => [
               PendingReview(
+                id: 'prompt-store-1',
+                offerId: 'offer-1',
                 targetId: 'store-user-1',
                 providerProfileId: 'store-1',
                 providerName: 'Tienda de repuestos con un nombre muy largo',
@@ -334,6 +409,11 @@ void main() {
       await tester.scrollUntilVisible(find.text('DEJAR VALORACIÓN'), 200);
       expect(tester.takeException(), isNull, reason: 'phone size $size');
       expect(find.text('DEJAR VALORACIÓN'), findsOneWidget);
+      final dismiss =
+          find.byKey(const ValueKey('dismiss-review-prompt-store-1'));
+      await tester.ensureVisible(dismiss);
+      expect(tester.getSize(dismiss).height, greaterThanOrEqualTo(48));
+      expect(tester.takeException(), isNull);
     }
   });
 }

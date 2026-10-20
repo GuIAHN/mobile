@@ -1,4 +1,12 @@
+import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:guiautomotriz_mobile/features/home/domain/entities/top_providers_result.dart';
+import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
+import 'package:guiautomotriz_mobile/features/reviews/domain/repositories/reviews_repository.dart';
+import 'package:guiautomotriz_mobile/features/purchases/domain/entities/purchases_result.dart';
+import 'package:guiautomotriz_mobile/features/purchases/presentation/providers/purchases_providers.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:guiautomotriz_mobile/features/reviews/domain/entities/my_review_status.dart';
@@ -6,7 +14,93 @@ import 'package:guiautomotriz_mobile/features/reviews/domain/entities/review.dar
 import 'package:guiautomotriz_mobile/features/reviews/presentation/providers/reviews_providers.dart';
 import 'package:guiautomotriz_mobile/features/reviews/presentation/widgets/write_review_bottom_sheet.dart';
 
+class _ReviewsRepository extends Mock implements ReviewsRepository {}
+
 void main() {
+  testWidgets(
+      'publishes a new purchase review and refreshes purchases and reminders',
+      (tester) async {
+    final repository = _ReviewsRepository();
+    final saved = Review(
+        id: 'review-2',
+        authorId: 'consumer',
+        targetId: 'store-user',
+        offerId: 'offer-2',
+        rating: 5,
+        createdAt: DateTime.utc(2026, 10, 18),
+        authorName: 'Cliente');
+    when(() => repository.getMyReview('store-user', offerId: 'offer-2'))
+        .thenAnswer(
+            (_) async => const Right(MyReviewStatus(hasReviewed: false)));
+    when(() => repository.createReview(
+        offerId: 'offer-2',
+        rating: 5,
+        comentario: 'Segunda compra')).thenAnswer((_) async => Right(saved));
+    var purchasesLoads = 0;
+    var pendingLoads = 0;
+    var topProvidersLoads = 0;
+    final router = GoRouter(routes: [
+      GoRoute(
+          path: '/',
+          builder: (_, __) => Consumer(builder: (context, ref, _) {
+                ref.watch(consumerPurchasesProvider);
+                ref.watch(pendingReviewsProvider);
+                ref.watch(homeTopProvidersProvider);
+                return Scaffold(
+                    body: ElevatedButton(
+                        onPressed: () => showModalBottomSheet<bool>(
+                              context: context,
+                              isScrollControlled: true,
+                              builder: (_) => const WriteReviewBottomSheet(
+                                targetId: 'store-user',
+                                offerId: 'offer-2',
+                                providerName: 'Tienda',
+                              ),
+                            ),
+                        child: const Text('Valorar segunda compra')));
+              }))
+    ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        reviewsRepositoryProvider.overrideWithValue(repository),
+        homeTopProvidersProvider.overrideWith((ref) async {
+          topProvidersLoads++;
+          return const TopProvidersResult(mechanics: [], workshops: []);
+        }),
+        consumerPurchasesProvider.overrideWith((ref) async {
+          purchasesLoads++;
+          return const PurchasesResult(purchases: []);
+        }),
+        pendingReviewsProvider.overrideWith((ref) async {
+          pendingLoads++;
+          return [];
+        }),
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    ));
+    await tester.pumpAndSettle();
+    expect(purchasesLoads, 1);
+    expect(pendingLoads, 1);
+    await tester.tap(find.text('Valorar segunda compra'));
+    await tester.pumpAndSettle();
+    expect(find.text('Editar valoración'), findsNothing);
+    await tester.tap(find.bySemanticsLabel('5 estrellas'));
+    await tester.enterText(find.byType(TextFormField), 'Segunda compra');
+    await tester.ensureVisible(find.text('PUBLICAR RESEÑA'));
+    await tester.tap(find.text('PUBLICAR RESEÑA'));
+    await tester.pumpAndSettle();
+    expect(find.byType(WriteReviewBottomSheet), findsNothing);
+    expect(purchasesLoads, 2);
+    expect(pendingLoads, 2);
+    expect(topProvidersLoads, 2);
+    verify(() => repository.createReview(
+        offerId: 'offer-2', rating: 5, comentario: 'Segunda compra')).called(1);
+    verifyNever(() => repository.updateReview(any(),
+        rating: any(named: 'rating'), comentario: any(named: 'comentario')));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('blocks submission until stars are selected', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -82,7 +176,7 @@ void main() {
               review: Review(
                 id: 'review-1',
                 authorId: 'consumer-1',
-                targetId: targetId,
+                targetId: targetId.targetId,
                 rating: 4,
                 comentario: 'Entrega rápida y buen repuesto.',
                 createdAt: DateTime.utc(2026, 8, 20),

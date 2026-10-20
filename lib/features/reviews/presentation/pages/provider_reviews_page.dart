@@ -12,25 +12,25 @@ import '../../../../shared/widgets/staggered_entrance.dart';
 
 class ProviderReviewsPage extends ConsumerWidget {
   final String targetId;
-  final String? conversationId;
+  final String? offerId;
   final bool isOwnProfile;
 
   const ProviderReviewsPage({
     super.key,
     required this.targetId,
-    this.conversationId,
+    this.offerId,
     this.isOwnProfile = false,
   });
 
   void _showWriteReviewBottomSheet(BuildContext context) {
-    if (conversationId == null) return;
+    if (offerId == null) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => WriteReviewBottomSheet(
         targetId: targetId,
-        conversationId: conversationId!,
+        offerId: offerId!,
       ),
     );
   }
@@ -58,7 +58,7 @@ class ProviderReviewsPage extends ConsumerWidget {
           ),
         ),
       ),
-      floatingActionButton: conversationId != null
+      floatingActionButton: offerId != null
           ? FloatingActionButton.extended(
               onPressed: () => _showWriteReviewBottomSheet(context),
               backgroundColor: AppColors.primary,

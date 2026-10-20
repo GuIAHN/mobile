@@ -8,12 +8,14 @@ class ReviewEditorSheet extends StatelessWidget {
     super.key,
     this.targetId,
     this.conversationId,
+    this.offerId,
     required this.providerName,
     this.readOnly = false,
   });
 
   final String? targetId;
   final String? conversationId;
+  final String? offerId;
   final String providerName;
   final bool readOnly;
 
@@ -24,6 +26,7 @@ class ReviewEditorSheet extends StatelessWidget {
       child: WriteReviewBottomSheet(
         targetId: targetId,
         conversationId: conversationId,
+        offerId: offerId,
         providerName: providerName,
         initialStatus: targetId == null && !readOnly
             ? const MyReviewStatus(hasReviewed: false)

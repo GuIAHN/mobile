@@ -13,36 +13,34 @@ class ProviderReviewActionCard extends ConsumerWidget {
   final String targetId;
   final String providerProfileId;
   final String providerName;
-  final String? conversationId;
+  final String? offerId;
 
   const ProviderReviewActionCard({
     super.key,
     required this.targetId,
     required this.providerProfileId,
     required this.providerName,
-    this.conversationId,
+    this.offerId,
   });
 
-  Future<void> _openForm(BuildContext context, WidgetRef ref) async {
-    final saved = await showModalBottomSheet<bool>(
+  Future<void> _openForm(BuildContext context) async {
+    await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => WriteReviewBottomSheet(
         targetId: targetId,
-        conversationId: conversationId,
+        offerId: offerId,
         providerName: providerName,
       ),
     );
-    if (saved == true) {
-      ref.invalidate(myReviewProvider(targetId));
-    }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final myReview = ref.watch(myReviewProvider(targetId));
-    final hasPurchaseContext = conversationId?.trim().isNotEmpty == true;
+    final myReview =
+        ref.watch(myReviewProvider((targetId: targetId, offerId: offerId)));
+    final hasPurchaseContext = offerId?.trim().isNotEmpty == true;
     final contacted = hasPurchaseContext
         ? const AsyncValue<bool>.data(true)
         : ref.watch(hasContactedProviderProvider(providerProfileId));
@@ -87,7 +85,8 @@ class ProviderReviewActionCard extends ConsumerWidget {
             ),
             TextButton(
               onPressed: () {
-                ref.invalidate(myReviewProvider(targetId));
+                ref.invalidate(
+                    myReviewProvider((targetId: targetId, offerId: offerId)));
                 if (!hasPurchaseContext) {
                   ref.invalidate(
                     hasContactedProviderProvider(providerProfileId),
@@ -182,7 +181,7 @@ class ProviderReviewActionCard extends ConsumerWidget {
               width: double.infinity,
               height: AppSpacing.buttonHeightMd,
               child: OutlinedButton.icon(
-                onPressed: () => _openForm(context, ref),
+                onPressed: () => _openForm(context),
                 icon: AppLineIcon(
                   review == null ? AppIcons.reviews : AppIcons.edit,
                   size: AppIconSize.action,

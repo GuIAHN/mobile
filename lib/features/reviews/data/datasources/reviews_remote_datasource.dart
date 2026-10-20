@@ -33,16 +33,23 @@ class ReviewsRemoteDataSource {
   }
 
   Future<ReviewModel> createReview({
-    String? conversationId,
+    String? offerId,
     String? targetId,
     required int rating,
     String? comentario,
   }) async {
+    final hasOffer = offerId?.trim().isNotEmpty == true;
+    final hasTarget = targetId?.trim().isNotEmpty == true;
+    if (hasOffer == hasTarget ||
+        (offerId != null && !hasOffer) ||
+        (targetId != null && !hasTarget)) {
+      throw ArgumentError('Envía exactamente uno de offerId o targetId.');
+    }
     final response = await _dioClient.post(
       '/reviews',
       data: {
-        if (conversationId != null) 'conversationId': conversationId,
-        if (targetId != null) 'targetId': targetId,
+        if (hasOffer) 'offerId': offerId!.trim(),
+        if (hasTarget) 'targetId': targetId!.trim(),
         'rating': rating,
         if (comentario != null && comentario.isNotEmpty)
           'comentario': comentario,
@@ -60,7 +67,7 @@ class ReviewsRemoteDataSource {
         id: '',
         authorId: '',
         targetId: '',
-        conversationId: conversationId,
+        offerId: offerId,
         rating: rating,
         comentario: comentario,
         createdAt: DateTime.now(),
@@ -96,8 +103,11 @@ class ReviewsRemoteDataSource {
         .toList();
   }
 
-  Future<MyReviewStatus> getMyReview(String targetId) async {
-    final response = await _dioClient.get('/reviews/mine/$targetId');
+  Future<MyReviewStatus> getMyReview(String targetId, {String? offerId}) async {
+    final response = await _dioClient.get(
+      '/reviews/mine/$targetId',
+      queryParameters: offerId == null ? null : {'offerId': offerId},
+    );
     final data = Map<String, dynamic>.from(response.data as Map);
     final reviewData = data['review'];
     if (data['hasReviewed'] != true || reviewData is! Map) {
@@ -109,6 +119,10 @@ class ReviewsRemoteDataSource {
       hasReviewed: true,
       review: ReviewModel.fromJson(json),
     );
+  }
+
+  Future<void> dismissPendingReview(String promptId) async {
+    await _dioClient.post('/reviews/pending/$promptId/dismiss');
   }
 
   Future<void> trackProviderContact(

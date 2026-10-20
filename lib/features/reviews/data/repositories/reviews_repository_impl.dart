@@ -32,14 +32,14 @@ class ReviewsRepositoryImpl implements ReviewsRepository {
 
   @override
   Future<Either<Failure, Review>> createReview({
-    String? conversationId,
+    String? offerId,
     String? targetId,
     required int rating,
     String? comentario,
   }) async {
     try {
       final review = await remoteDataSource.createReview(
-        conversationId: conversationId,
+        offerId: offerId,
         targetId: targetId,
         rating: rating,
         comentario: comentario,
@@ -78,9 +78,21 @@ class ReviewsRepositoryImpl implements ReviewsRepository {
   }
 
   @override
-  Future<Either<Failure, MyReviewStatus>> getMyReview(String targetId) async {
+  Future<Either<Failure, MyReviewStatus>> getMyReview(String targetId,
+      {String? offerId}) async {
     try {
-      return Right(await remoteDataSource.getMyReview(targetId));
+      return Right(
+          await remoteDataSource.getMyReview(targetId, offerId: offerId));
+    } catch (e) {
+      return Left(ErrorMapper.map(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> dismissPendingReview(String promptId) async {
+    try {
+      await remoteDataSource.dismissPendingReview(promptId);
+      return const Right(null);
     } catch (e) {
       return Left(ErrorMapper.map(e));
     }

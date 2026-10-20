@@ -29,15 +29,24 @@ class _ItemCardState extends State<ItemCard> {
 
     switch (item.type) {
       case ServiceType.mechanic:
-        context.push(RouteNames.mechanicDetailPath(item.id!));
+        context.push(
+          RouteNames.mechanicDetailPath(item.id!),
+          extra: item.distanceKm,
+        );
         break;
       case ServiceType.workshops:
-        context.push(RouteNames.workshopDetailPath(item.id!));
+        context.push(
+          RouteNames.workshopDetailPath(item.id!),
+          extra: item.distanceKm,
+        );
         break;
       case ServiceType.storeDashboard:
         break;
       case ServiceType.spareParts:
-        context.push(RouteNames.storeDetailPath(item.id!));
+        context.push(
+          RouteNames.storeDetailPath(item.id!),
+          extra: item.distanceKm,
+        );
         break;
     }
   }

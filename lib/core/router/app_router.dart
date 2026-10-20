@@ -150,7 +150,10 @@ class AppRouter {
             name: 'mechanicDetail',
             builder: (context, state) {
               final id = state.pathParameters['id']!;
-              return MechanicDetailPage(mechanicId: id);
+              return MechanicDetailPage(
+                mechanicId: id,
+                distanceKm: (state.extra as num?)?.toDouble(),
+              );
             },
           ),
           GoRoute(
@@ -161,6 +164,7 @@ class AppRouter {
               return StoreDetailPage(
                 storeId: id,
                 serviceType: ServiceType.workshops,
+                distanceKm: (state.extra as num?)?.toDouble(),
               );
             },
           ),
@@ -171,8 +175,8 @@ class AppRouter {
               final id = state.pathParameters['id']!;
               return StoreDetailPage(
                 storeId: id,
-                reviewConversationId:
-                    state.uri.queryParameters['reviewConversationId'],
+                distanceKm: (state.extra as num?)?.toDouble(),
+                reviewOfferId: state.uri.queryParameters['reviewOfferId'],
               );
             },
           ),
@@ -181,11 +185,10 @@ class AppRouter {
             name: 'providerReviews',
             builder: (context, state) {
               final id = state.pathParameters['targetId']!;
-              final conversationId =
-                  state.uri.queryParameters['conversationId'];
+              final offerId = state.uri.queryParameters['offerId'];
               return ProviderReviewsPage(
                 targetId: id,
-                conversationId: conversationId,
+                offerId: offerId,
                 isOwnProfile: state.uri.queryParameters['view'] == 'received',
               );
             },
@@ -215,6 +218,7 @@ class AppRouter {
                 child: ReviewEditorSheet(
                   targetId: query['targetId'],
                   conversationId: query['conversationId'],
+                  offerId: query['offerId'],
                   providerName: query['providerName'] ?? 'la tienda',
                   readOnly: query['readOnly'] == 'true',
                 ),

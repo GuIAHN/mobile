@@ -13,8 +13,6 @@ import '../providers/home_providers.dart';
 import '../widgets/filters_sheet.dart';
 import '../widgets/item_card.dart';
 import '../widgets/home_list_header.dart';
-import '../widgets/vehicle_context_card.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/widgets/app_search_field.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_view.dart';
@@ -124,8 +122,6 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
     final filteredItemsAsync = ref.watch(filteredHomeItemsProvider);
     final filters = ref.watch(homeFiltersProvider);
     final query = ref.watch(searchQueryProvider);
-    final user = ref.watch(authProvider).user;
-    final isConsumer = user == null || user.role.isConsumer;
     final topInset = MediaQuery.of(context).padding.top;
     final titleRowHeight = _titleRowHeight(context);
 
@@ -160,8 +156,6 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
                 ),
               ),
             ),
-            if (isConsumer)
-              const SliverToBoxAdapter(child: VehicleContextCard()),
             SliverToBoxAdapter(
               child: HomeListHeader(
                 itemCount: filteredItemsAsync.valueOrNull?.length ?? 0,

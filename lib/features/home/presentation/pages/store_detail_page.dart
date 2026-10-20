@@ -15,13 +15,15 @@ import '../../../reviews/presentation/widgets/provider_reviews_button.dart';
 class StoreDetailPage extends ConsumerWidget {
   final String storeId;
   final ServiceType serviceType;
-  final String? reviewConversationId;
+  final String? reviewOfferId;
+  final double? distanceKm;
 
   const StoreDetailPage({
     super.key,
     required this.storeId,
     this.serviceType = ServiceType.spareParts,
-    this.reviewConversationId,
+    this.reviewOfferId,
+    this.distanceKm,
   });
 
   @override
@@ -46,9 +48,10 @@ class StoreDetailPage extends ConsumerWidget {
           if (serviceType != ServiceType.storeDashboard) {
             return ServiceProviderDetailView(
               detail: detail,
+              distanceKm: distanceKm,
               heroTag: 'provider-avatar-$storeId',
               serviceType: serviceType,
-              reviewConversationId: reviewConversationId,
+              reviewOfferId: reviewOfferId,
             );
           }
 

@@ -61,11 +61,14 @@ final pendingReviewsProvider =
   return items;
 });
 
+typedef MyReviewKey = ({String targetId, String? offerId});
+
 final myReviewProvider = FutureProvider.family
-    .autoDispose<MyReviewStatus, String>((ref, targetId) async {
+    .autoDispose<MyReviewStatus, MyReviewKey>((ref, key) async {
   ref.watch(sessionGenerationProvider);
-  final result =
-      await ref.watch(reviewsRepositoryProvider).getMyReview(targetId);
+  final result = await ref
+      .watch(reviewsRepositoryProvider)
+      .getMyReview(key.targetId, offerId: key.offerId);
   return result.fold(
     (failure) => throw Exception(failure.message),
     (status) => status,
@@ -124,14 +127,14 @@ class CreateReviewNotifier extends StateNotifier<AsyncValue<void>> {
       : super(const AsyncValue.data(null));
 
   Future<bool> createReview({
-    String? conversationId,
+    String? offerId,
     String? targetId,
     required int rating,
     String? comentario,
   }) async {
     state = const AsyncValue.loading();
     final result = await _createReviewUseCase(
-      conversationId: conversationId,
+      offerId: offerId,
       targetId: targetId,
       rating: rating,
       comentario: comentario,

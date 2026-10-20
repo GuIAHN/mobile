@@ -65,6 +65,12 @@ void main() {
             body: Text('Tienda ${state.pathParameters['id']}'),
           ),
         ),
+        GoRoute(
+          path: RouteNames.mechanicDetail,
+          builder: (_, state) => Scaffold(
+            body: Text('detail-distance: ${state.extra}'),
+          ),
+        ),
       ],
     );
     return MaterialApp.router(routerConfig: router);
@@ -79,6 +85,15 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(Image), findsNothing);
+  });
+
+  testWidgets('passes the listed mechanic distance to the detail route',
+      (tester) async {
+    await tester.pumpWidget(subject(mechanic()));
+    await tester.tap(find.text('Carlos Mecánico'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('detail-distance: 1.2'), findsOneWidget);
   });
 
   testWidgets('does not offer favorites for workshops or mechanics',

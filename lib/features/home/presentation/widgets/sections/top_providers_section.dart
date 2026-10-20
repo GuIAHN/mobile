@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+// import 'package:google_fonts/google_fonts.dart'; // Reactivar con los horarios.
 
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
@@ -268,10 +268,16 @@ class _ProviderCard extends StatelessWidget {
 
     switch (item.type) {
       case ServiceType.mechanic:
-        context.push(RouteNames.mechanicDetailPath(item.id!));
+        context.push(
+          RouteNames.mechanicDetailPath(item.id!),
+          extra: item.distanceKm,
+        );
         break;
       case ServiceType.workshops:
-        context.push(RouteNames.workshopDetailPath(item.id!));
+        context.push(
+          RouteNames.workshopDetailPath(item.id!),
+          extra: item.distanceKm,
+        );
         break;
       case ServiceType.spareParts:
       case ServiceType.storeDashboard:
@@ -410,8 +416,9 @@ class _MechanicProviderBody extends StatelessWidget {
                 const SizedBox(height: 2),
                 _DistanceSummary(item: item, fillAvailableWidth: true),
                 const SizedBox(height: CardTokens.gap),
-                _AvailabilityLine(isOpen: item.isOpen),
-                const SizedBox(height: 6),
+                // Horarios desactivados temporalmente hasta su actualización.
+                // _AvailabilityLine(isOpen: item.isOpen),
+                // const SizedBox(height: 6),
                 _SpecialtyText(item: item),
               ],
             ),
@@ -546,18 +553,19 @@ class _WorkshopProviderMedia extends StatelessWidget {
               fallback: fallback,
             ),
           ),
-          Positioned(
-            left: 12,
-            right: 12,
-            bottom: 10,
-            child: Align(
-              alignment: Alignment.bottomLeft,
-              child: _AvailabilityPill(
-                key: Key('top-provider-availability-$id'),
-                isOpen: item.isOpen,
-              ),
-            ),
-          ),
+          // Horarios desactivados temporalmente hasta su actualización.
+          // Positioned(
+          //   left: 12,
+          //   right: 12,
+          //   bottom: 10,
+          //   child: Align(
+          //     alignment: Alignment.bottomLeft,
+          //     child: _AvailabilityPill(
+          //       key: Key('top-provider-availability-$id'),
+          //       isOpen: item.isOpen,
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
@@ -646,6 +654,8 @@ class _ProviderFallback extends StatelessWidget {
   }
 }
 
+// Componentes de horario reservados para la próxima actualización.
+/*
 class _AvailabilityPill extends StatelessWidget {
   final bool? isOpen;
 
@@ -706,6 +716,8 @@ class _AvailabilityLine extends StatelessWidget {
     );
   }
 }
+
+*/
 
 class _SectionStateCard extends StatelessWidget {
   final String message;

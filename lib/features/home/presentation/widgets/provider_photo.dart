@@ -23,6 +23,9 @@ class ProviderPhoto extends StatelessWidget {
   final Alignment alignment;
   final Key? networkKey;
 
+  /// Personaliza la espera hasta que se decodifique el primer fotograma.
+  final ImageFrameBuilder? frameBuilder;
+
   const ProviderPhoto({
     super.key,
     required this.photoUrl,
@@ -32,6 +35,7 @@ class ProviderPhoto extends StatelessWidget {
     this.fit = BoxFit.cover,
     this.alignment = Alignment.center,
     this.networkKey,
+    this.frameBuilder,
   });
 
   @override
@@ -44,6 +48,7 @@ class ProviderPhoto extends StatelessWidget {
         fit: fit,
         alignment: alignment,
         semanticLabel: 'Foto de $providerName',
+        frameBuilder: frameBuilder,
         loadingBuilder: (context, child, progress) =>
             progress == null ? child : (loadingFallback ?? fallback),
         errorBuilder: (_, __, ___) => fallback,

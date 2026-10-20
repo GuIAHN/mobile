@@ -32,11 +32,11 @@ abstract class RouteNames {
   static String storeDetailPath(String id) => '/stores/$id';
   static String storeDetailForReviewPath(
     String id, {
-    required String conversationId,
+    required String offerId,
   }) =>
       Uri(
         path: storeDetailPath(id),
-        queryParameters: {'reviewConversationId': conversationId},
+        queryParameters: {'reviewOfferId': offerId},
       ).toString();
 
   // ── Vehículos ─────────────────────────────────────────────────────────────
@@ -66,6 +66,7 @@ abstract class RouteNames {
   static String reviewEditorPath({
     String? targetId,
     String? conversationId,
+    String? offerId,
     required String providerName,
     bool readOnly = false,
   }) {
@@ -75,6 +76,7 @@ abstract class RouteNames {
         if (targetId?.trim().isNotEmpty == true) 'targetId': targetId!.trim(),
         if (conversationId?.trim().isNotEmpty == true)
           'conversationId': conversationId!.trim(),
+        if (offerId?.trim().isNotEmpty == true) 'offerId': offerId!.trim(),
         'providerName': providerName,
         if (readOnly) 'readOnly': 'true',
       },

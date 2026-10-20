@@ -17,6 +17,7 @@ import '../../domain/entities/provider_detail.dart';
 import '../providers/home_providers.dart';
 import 'provider_detail_widgets.dart';
 import 'provider_photo.dart';
+import 'mechanic_profile_header.dart';
 
 /// Detalle compacto para mecánicos y talleres.
 ///
@@ -27,14 +28,16 @@ class ServiceProviderDetailView extends ConsumerWidget {
   final ProviderDetail detail;
   final String heroTag;
   final ServiceType serviceType;
-  final String? reviewConversationId;
+  final String? reviewOfferId;
+  final double? distanceKm;
 
   const ServiceProviderDetailView({
     super.key,
     required this.detail,
     required this.heroTag,
     this.serviceType = ServiceType.mechanic,
-    this.reviewConversationId,
+    this.reviewOfferId,
+    this.distanceKm,
   });
 
   @override
@@ -44,6 +47,7 @@ class ServiceProviderDetailView extends ConsumerWidget {
     final compactHero = MediaQuery.sizeOf(context).height < 760;
     final selectedVehicle = ref.watch(searchVehicleProvider);
     final isStore = serviceType == ServiceType.spareParts;
+    final isMechanic = serviceType == ServiceType.mechanic;
 
     Future<void> contact(String channel) async {
       HapticFeedback.lightImpact();
@@ -76,24 +80,46 @@ class ServiceProviderDetailView extends ConsumerWidget {
             physics: const BouncingScrollPhysics(),
             slivers: [
               SliverAppBar(
-                expandedHeight: compactHero ? 228 : 252,
+                expandedHeight:
+                    isMechanic ? kToolbarHeight : (compactHero ? 228 : 252),
                 pinned: true,
-                stretch: true,
-                backgroundColor: AppColors.primary,
+                stretch: !isMechanic,
+                backgroundColor:
+                    isMechanic ? AppColors.background : AppColors.primary,
                 surfaceTintColor: Colors.transparent,
                 foregroundColor: Colors.white,
-                systemOverlayStyle: SystemUiOverlayStyle.light,
+                systemOverlayStyle: isMechanic
+                    ? SystemUiOverlayStyle.dark
+                    : SystemUiOverlayStyle.light,
                 leadingWidth: 64,
-                leading: const DetailBackButton(),
-                flexibleSpace: FlexibleSpaceBar(
-                  collapseMode: CollapseMode.parallax,
-                  stretchModes: const [StretchMode.zoomBackground],
-                  background: _ProviderHero(
-                    detail: detail,
-                    heroTag: heroTag,
-                    serviceType: serviceType,
-                  ),
-                ),
+                leading: isMechanic
+                    ? IconButton(
+                        tooltip: 'Volver',
+                        constraints: const BoxConstraints(
+                          minWidth: 48,
+                          minHeight: 48,
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        icon: const AppLineIcon(
+                          AppIcons.back,
+                          color: AppColors.textPrimary,
+                        ),
+                      )
+                    : const DetailBackButton(),
+                flexibleSpace: isMechanic
+                    ? const ColoredBox(
+                        key: Key('service-provider-hero'),
+                        color: AppColors.background,
+                      )
+                    : FlexibleSpaceBar(
+                        collapseMode: CollapseMode.parallax,
+                        stretchModes: const [StretchMode.zoomBackground],
+                        background: _ProviderHero(
+                          detail: detail,
+                          heroTag: heroTag,
+                          serviceType: serviceType,
+                        ),
+                      ),
               ),
               SliverToBoxAdapter(
                 child: Padding(
@@ -106,21 +132,26 @@ class ServiceProviderDetailView extends ConsumerWidget {
                   child: Column(
                     children: [
                       _ProviderOverviewCard(
+                        heroTag: heroTag,
                         detail: detail,
                         serviceType: serviceType,
+                        distanceKm: distanceKm,
                       ),
                       if (detail.userId != null) ...[
                         const SizedBox(height: AppSpacing.md),
                         ProviderReviewsButton(
                           targetId: detail.userId!,
                         ),
-                        const SizedBox(height: AppSpacing.md),
-                        ProviderReviewActionCard(
-                          targetId: detail.userId!,
-                          providerProfileId: detail.id,
-                          providerName: detail.nombre,
-                          conversationId: reviewConversationId,
-                        ),
+                        if (!isStore ||
+                            reviewOfferId?.trim().isNotEmpty == true) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          ProviderReviewActionCard(
+                            targetId: detail.userId!,
+                            providerProfileId: detail.id,
+                            providerName: detail.nombre,
+                            offerId: reviewOfferId,
+                          ),
+                        ],
                       ],
                     ],
                   ),
@@ -154,27 +185,28 @@ class _ProviderHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final photo = detail.photo?.trim();
+    final image = Hero(
+      tag: heroTag,
+      child: ProviderPhoto(
+        photoUrl: photo,
+        providerName: detail.nombre,
+        networkKey: const Key('service-provider-hero-photo'),
+        loadingFallback: _HeroFallback(
+          icon: _providerIcon(serviceType),
+          showProgress: true,
+        ),
+        fallback: _HeroFallback(
+          key: const Key('service-provider-hero-fallback'),
+          icon: _providerIcon(serviceType),
+        ),
+      ),
+    );
 
     return Stack(
       key: const Key('service-provider-hero'),
       fit: StackFit.expand,
       children: [
-        Hero(
-          tag: heroTag,
-          child: ProviderPhoto(
-            photoUrl: photo,
-            providerName: detail.nombre,
-            networkKey: const Key('service-provider-hero-photo'),
-            loadingFallback: _HeroFallback(
-              icon: _providerIcon(serviceType),
-              showProgress: true,
-            ),
-            fallback: _HeroFallback(
-              key: const Key('service-provider-hero-fallback'),
-              icon: _providerIcon(serviceType),
-            ),
-          ),
-        ),
+        image,
         if (showsProviderImage(
           photoUrl: photo,
         ))
@@ -195,35 +227,48 @@ class _ProviderHero extends StatelessWidget {
         Positioned(
           left: AppSpacing.lg,
           bottom: AppSpacing.lg,
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.94),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AppLineIcon(
-                  _providerIcon(serviceType),
-                  size: AppIconSize.inline,
-                  color: AppColors.primaryInk,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  _providerTypeLabel(serviceType),
-                  style: AppTypography.label.copyWith(
-                    color: AppColors.primaryInk,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          child: _ProviderTypeBadge(serviceType: serviceType),
         ),
       ],
+    );
+  }
+}
+
+class _ProviderTypeBadge extends StatelessWidget {
+  final ServiceType serviceType;
+
+  const _ProviderTypeBadge({required this.serviceType});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppLineIcon(
+            _providerIcon(serviceType),
+            size: AppIconSize.inline,
+            color: AppColors.primaryInk,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            _providerTypeLabel(serviceType),
+            style: AppTypography.label.copyWith(
+              color: serviceType == ServiceType.mechanic
+                  ? AppColors.textPrimary
+                  : AppColors.primaryInk,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -271,12 +316,16 @@ class _HeroFallback extends StatelessWidget {
 }
 
 class _ProviderOverviewCard extends StatelessWidget {
+  final String heroTag;
   final ProviderDetail detail;
   final ServiceType serviceType;
+  final double? distanceKm;
 
   const _ProviderOverviewCard({
+    required this.heroTag,
     required this.detail,
     required this.serviceType,
+    this.distanceKm,
   });
 
   @override
@@ -306,32 +355,39 @@ class _ProviderOverviewCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  detail.nombre,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.h1,
-                ),
-              ),
-              if (detail.verified) ...[
-                const SizedBox(width: AppSpacing.sm),
-                Semantics(
-                  label: 'Perfil verificado',
-                  child: const AppLineIcon(
-                    AppIcons.verified,
-                    size: AppIconSize.leading,
-                    color: AppColors.celesteInk,
+          if (serviceType == ServiceType.mechanic)
+            MechanicProfileHeader(detail: detail, heroTag: heroTag)
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    detail.nombre,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.h1,
                   ),
                 ),
+                if (detail.verified) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  Semantics(
+                    label: 'Perfil verificado',
+                    child: const AppLineIcon(
+                      AppIcons.verified,
+                      size: AppIconSize.leading,
+                      color: AppColors.celesteInk,
+                    ),
+                  ),
+                ],
               ],
-            ],
-          ),
+            ),
           const SizedBox(height: AppSpacing.lg),
-          _ProviderMetrics(detail: detail),
+          _ProviderMetrics(
+            detail: detail,
+            distanceKm: distanceKm,
+            fullWidthForLargeText: serviceType == ServiceType.mechanic,
+          ),
           if (hasDescription) ...[
             const SizedBox(height: AppSpacing.lg),
             _ProviderIntroduction(
@@ -481,11 +537,18 @@ class _ProviderIntroduction extends StatelessWidget {
 
 class _ProviderMetrics extends StatelessWidget {
   final ProviderDetail detail;
+  final double? distanceKm;
+  final bool fullWidthForLargeText;
 
-  const _ProviderMetrics({required this.detail});
+  const _ProviderMetrics({
+    required this.detail,
+    this.distanceKm,
+    this.fullWidthForLargeText = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final displayedDistanceKm = distanceKm ?? detail.distanciaKm;
     final hasRating =
         detail.rating != null && detail.rating! > 0 && detail.ratingCount > 0;
     final items = [
@@ -500,8 +563,8 @@ class _ProviderMetrics extends StatelessWidget {
       _MetricData(
         icon: AppIcons.distance,
         iconColor: AppColors.primaryInk,
-        value: detail.distanciaKm != null
-            ? '${detail.distanciaKm!.toStringAsFixed(1)} km'
+        value: displayedDistanceKm != null
+            ? '${displayedDistanceKm.toStringAsFixed(1)} km'
             : 'Sin dato',
         label: 'Distancia',
       ),
@@ -527,7 +590,9 @@ class _ProviderMetrics extends StatelessWidget {
             children: [
               for (final item in items)
                 SizedBox(
-                  width: (constraints.maxWidth - AppSpacing.sm) / 2,
+                  width: fullWidthForLargeText && textScale >= 1.6
+                      ? constraints.maxWidth
+                      : (constraints.maxWidth - AppSpacing.sm) / 2,
                   child: _MetricTile(data: item, horizontal: true),
                 ),
             ],
@@ -1068,25 +1133,34 @@ class _ServicesSheetContent extends StatelessWidget {
 
 /// Skeleton que conserva la silueta del nuevo detalle compacto.
 class ServiceProviderDetailSkeleton extends StatelessWidget {
-  const ServiceProviderDetailSkeleton({super.key});
+  final bool compact;
+
+  const ServiceProviderDetailSkeleton({super.key, this.compact = false});
 
   @override
   Widget build(BuildContext context) {
-    return const SingleChildScrollView(
-      physics: NeverScrollableScrollPhysics(),
-      child: Column(
-        children: [
-          SkeletonBox(height: 252, borderRadius: 0),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.lg,
-              AppSpacing.lg,
-              0,
+    return TickerMode(
+      enabled: !compact || !MediaQuery.disableAnimationsOf(context),
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            if (compact)
+              const SafeArea(
+                  bottom: false, child: SizedBox(height: kToolbarHeight))
+            else
+              const SkeletonBox(height: 252, borderRadius: 0),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg,
+                0,
+              ),
+              child: SkeletonBox(height: 356, borderRadius: 16),
             ),
-            child: SkeletonBox(height: 356, borderRadius: 16),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
