@@ -91,6 +91,21 @@ lib/
 - **Componente reutilizable en varias features** → `shared/widgets/`.
 - **Componente de una sola feature** → `features/<feature>/presentation/widgets/`.
 
+## Composición entre features
+
+Cuando una pantalla integra capacidades de otra feature, depende de un contrato
+en `shared/`; no importa sus widgets, providers o repositorios directamente.
+El contrato compartido tampoco importa features. La composición concreta se
+realiza en la raíz de navegación (`core/router/app_router.dart`).
+
+En el detalle de proveedores, `home` usa `ProviderFeedbackScope`, definido en
+`shared/provider_feedback/`. El router instala `ProviderFeedbackIntegration`,
+que pertenece a `reviews` y proporciona los widgets de reseñas y la acción de
+registrar contacto. El registro sigue `Provider → UseCase → Repository`.
+
+La prueba `test/architecture/provider_detail_boundaries_test.dart` protege este
+límite y evita esconder una dependencia entre features dentro del contrato.
+
 ---
 
 # Plantilla de una Feature (MOLDE OBLIGATORIO)

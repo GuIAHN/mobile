@@ -5,6 +5,7 @@ import '../../../../core/domain/enums/service_type.dart';
 import '../providers/home_providers.dart';
 import '../widgets/provider_detail_widgets.dart';
 import '../widgets/service_provider_detail_view.dart';
+import '../widgets/provider_detail_skeleton.dart';
 
 class MechanicDetailPage extends ConsumerWidget {
   final String mechanicId;

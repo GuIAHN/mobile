@@ -14,7 +14,8 @@ import 'package:guiautomotriz_mobile/features/home/presentation/pages/mechanic_d
 import 'package:guiautomotriz_mobile/features/home/presentation/pages/store_detail_page.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/providers/home_providers.dart';
 import 'package:guiautomotriz_mobile/features/home/presentation/widgets/provider_detail_widgets.dart';
-import 'package:guiautomotriz_mobile/features/home/presentation/widgets/service_provider_detail_view.dart';
+import 'package:guiautomotriz_mobile/features/home/presentation/widgets/provider_detail_skeleton.dart';
+import 'package:guiautomotriz_mobile/features/reviews/presentation/widgets/provider_feedback_integration.dart';
 import 'package:guiautomotriz_mobile/features/reviews/domain/entities/my_review_status.dart';
 import 'package:guiautomotriz_mobile/features/reviews/presentation/providers/reviews_providers.dart';
 import 'package:guiautomotriz_mobile/shared/widgets/guia_map.dart';
@@ -110,7 +111,7 @@ Widget _subject({
         textScaler: TextScaler.linear(textScale),
         disableAnimations: disableAnimations,
       ),
-      child: MaterialApp(home: page),
+      child: MaterialApp(home: ProviderFeedbackIntegration(child: page)),
     ),
   );
 }

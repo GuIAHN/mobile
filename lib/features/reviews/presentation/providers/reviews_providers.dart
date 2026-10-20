@@ -11,6 +11,7 @@ import '../../domain/repositories/reviews_repository.dart';
 import '../../domain/usecases/create_review_usecase.dart';
 import '../../domain/usecases/get_reviews_usecase.dart';
 import '../../domain/usecases/update_review_usecase.dart';
+import '../../domain/usecases/track_provider_contact_usecase.dart';
 
 // ── Dependencies ─────────────────────────────────────────────────────────────
 
@@ -33,6 +34,11 @@ final createReviewUseCaseProvider = Provider<CreateReviewUseCase>((ref) {
 
 final updateReviewUseCaseProvider = Provider<UpdateReviewUseCase>((ref) {
   return UpdateReviewUseCase(ref.watch(reviewsRepositoryProvider));
+});
+
+final trackProviderContactUseCaseProvider =
+    Provider<TrackProviderContactUseCase>((ref) {
+  return TrackProviderContactUseCase(ref.watch(reviewsRepositoryProvider));
 });
 
 // ── State Providers ──────────────────────────────────────────────────────────
@@ -102,16 +108,16 @@ Future<bool> registerProviderContact(
   required String providerProfileId,
   required String channel,
 }) async {
-  final result = await ref
-      .read(reviewsRepositoryProvider)
-      .trackProviderContact(providerProfileId, channel);
+  final storage = ref.read(secureStorageProvider);
+  final result = await ref.read(trackProviderContactUseCaseProvider)(
+      providerProfileId, channel);
   return result.fold<Future<bool>>(
     (_) async => false,
     (_) async {
-      await ref
-          .read(secureStorageProvider)
-          .markProviderContacted(providerProfileId);
-      ref.invalidate(hasContactedProviderProvider(providerProfileId));
+      await storage.markProviderContacted(providerProfileId);
+      if (ref.context.mounted) {
+        ref.invalidate(hasContactedProviderProvider(providerProfileId));
+      }
       return true;
     },
   );
