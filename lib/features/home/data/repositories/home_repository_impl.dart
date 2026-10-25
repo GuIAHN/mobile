@@ -5,6 +5,7 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../domain/entities/home_filters.dart';
 import '../../domain/entities/home_item.dart';
+import '../../domain/entities/provider_search_page.dart';
 import '../../domain/entities/provider_detail.dart';
 import '../../domain/entities/top_providers_result.dart';
 import '../../domain/repositories/home_repository.dart';
@@ -114,6 +115,17 @@ class HomeRepositoryImpl implements HomeRepository {
     required HomeFilters filters,
     int page = 1,
   }) async {
+    final result =
+        await searchProvidersPage(type: type, filters: filters, page: page);
+    return result.map((result) => result.items);
+  }
+
+  @override
+  Future<Either<Failure, ProviderSearchPage>> searchProvidersPage({
+    required ServiceType type,
+    required HomeFilters filters,
+    int page = 1,
+  }) async {
     try {
       final params = {
         ...filters.toQueryParams(),
@@ -134,7 +146,14 @@ class HomeRepositoryImpl implements HomeRepository {
 
       final List<dynamic> data = response['data'] as List<dynamic>? ?? [];
       final providers = ProviderModel.fromJsonList(data, type);
-      return Right(providers);
+      return Right(ProviderSearchPage(
+        items: providers,
+        total: (response['total'] as num?)?.toInt(),
+        page: (response['page'] as num?)?.toInt() ?? page,
+        pageSize: (response['pageSize'] as num? ?? response['limit'] as num?)
+                ?.toInt() ??
+            20,
+      ));
     } on DioException catch (e) {
       return Left(_mapDioError(e));
     } catch (e) {

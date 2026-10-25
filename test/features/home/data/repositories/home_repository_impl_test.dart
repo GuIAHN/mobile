@@ -4,6 +4,7 @@ import 'package:guiautomotriz_mobile/features/home/data/datasources/home_remote_
 import 'package:guiautomotriz_mobile/features/home/data/datasources/search_remote_datasource.dart';
 import 'package:guiautomotriz_mobile/features/home/data/repositories/home_repository_impl.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:guiautomotriz_mobile/features/home/domain/entities/home_filters.dart';
 
 class _MockSearchRemoteDatasource extends Mock
     implements SearchRemoteDatasource {}
@@ -11,6 +12,40 @@ class _MockSearchRemoteDatasource extends Mock
 class _MockHomeRemoteDatasource extends Mock implements HomeRemoteDatasource {}
 
 void main() {
+  for (final type in [ServiceType.workshops, ServiceType.mechanic]) {
+    test('preserves pagination metadata for ${type.name}', () async {
+      final source = _MockSearchRemoteDatasource();
+      final home = _MockHomeRemoteDatasource();
+      final response = {
+        'data': [
+          {'id': 'provider-21', 'nombre': 'Proveedor 21'}
+        ],
+        'total': 41,
+        'page': 2,
+        'pageSize': 20,
+      };
+      when(() => source.searchWorkshops(any()))
+          .thenAnswer((_) async => response);
+      when(() => source.searchMechanics(any()))
+          .thenAnswer((_) async => response);
+      final result = await HomeRepositoryImpl(source, home).searchProvidersPage(
+        type: type,
+        filters: const HomeFilters(),
+        page: 2,
+      );
+      final page = result.getOrElse(() => throw StateError('unexpected error'));
+      expect(page.items.single.id, 'provider-21');
+      expect(page.total, 41);
+      expect(page.page, 2);
+      expect(page.hasMore, isTrue);
+      final params = verify(() => type == ServiceType.workshops
+          ? source.searchWorkshops(captureAny())
+          : source.searchMechanics(captureAny())).captured.single as Map;
+      expect(params['page'], 2);
+      expect(params['pageSize'], 20);
+    });
+  }
+
   test('maps both grouped collections without changing backend order',
       () async {
     final searchDatasource = _MockSearchRemoteDatasource();

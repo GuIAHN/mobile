@@ -39,7 +39,7 @@ void main() {
         }
         expect(
             find.text(
-                'La opción Pedir repuesto se habilitará el 26 de octubre.'),
+                'La opción Pedir repuesto se habilitará el 1ro de noviembre.'),
             findsOneWidget);
       });
     }

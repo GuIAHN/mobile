@@ -3,6 +3,7 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../entities/home_filters.dart';
 import '../entities/home_item.dart';
+import '../entities/provider_search_page.dart';
 import '../entities/provider_detail.dart';
 import '../entities/top_providers_result.dart';
 
@@ -20,6 +21,13 @@ abstract class HomeRepository {
   /// Búsqueda real de mecánicos o talleres contra el backend.
   /// [type] debe ser [ServiceType.mechanic] o [ServiceType.workshops].
   Future<Either<Failure, List<HomeItem>>> searchProviders({
+    required ServiceType type,
+    required HomeFilters filters,
+    int page = 1,
+  });
+
+  /// Directorio paginado con el total y tamaño efectivo del servidor.
+  Future<Either<Failure, ProviderSearchPage>> searchProvidersPage({
     required ServiceType type,
     required HomeFilters filters,
     int page = 1,

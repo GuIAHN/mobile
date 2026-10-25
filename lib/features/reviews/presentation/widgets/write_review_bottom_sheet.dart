@@ -99,6 +99,7 @@ class _WriteReviewBottomSheetState
       ref.invalidate(chatConversationsProvider);
       ref.invalidate(providerDetailProvider);
       ref.invalidate(homeItemsProvider);
+      ref.invalidate(paginatedProvidersProvider);
       ref.invalidate(homeTopProvidersProvider);
       final conversationId = widget.conversationId;
       if (conversationId != null && conversationId.isNotEmpty) {

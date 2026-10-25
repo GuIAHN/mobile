@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -5,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../domain/entities/home_filters.dart';
@@ -22,9 +22,8 @@ import '../../../../shared/widgets/staggered_entrance.dart';
 /// Pantalla completa de listado de proveedores (Talleres o Mecánicos).
 /// Contiene el buscador, filtros y la lista de resultados.
 ///
-/// La lista se virtualiza con [SliverList.builder] (antes construía un
-/// Column con todos los ítems de una sola vez) y el buscador queda fijo en
-/// un header adherido mientras se hace scroll por los resultados.
+/// La grilla virtualizada carga páginas del servidor al acercarse al final.
+/// El buscador queda fijo mientras se hace scroll por los resultados.
 class ProvidersListPage extends ConsumerStatefulWidget {
   final ServiceType serviceType;
 
@@ -35,15 +34,13 @@ class ProvidersListPage extends ConsumerStatefulWidget {
 }
 
 class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
-  static const int _itemsPerPage = 6;
-
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
-  int _currentPage = 1;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_loadNearEnd);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       // Sincronizar el tipo de servicio y limpiar estado de búsqueda previo
@@ -82,32 +79,30 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
 
     if (result != null) {
       ref.read(homeFiltersProvider.notifier).state = result;
-      setState(() => _currentPage = 1);
+      _resetScroll();
     }
   }
 
-  void _changePage(int page) {
-    if (page == _currentPage) return;
-    setState(() => _currentPage = page);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) return;
-      final reduceMotion = MediaQuery.disableAnimationsOf(context);
-      if (reduceMotion) {
-        _scrollController.jumpTo(0);
-      } else {
-        _scrollController.animateTo(
-          0,
-          duration: const Duration(milliseconds: 240),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+  void _resetScroll() {
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
+  }
+
+  void _loadNearEnd() {
+    if (!_scrollController.hasClients) return;
+    final state =
+        ref.read(paginatedProvidersProvider(widget.serviceType)).valueOrNull;
+    if (state == null || state.loadMoreError != null) return;
+    if (_scrollController.position.extentAfter < 600) {
+      unawaited(ref
+          .read(paginatedProvidersProvider(widget.serviceType).notifier)
+          .loadMore());
+    }
   }
 
   Future<void> _handleRefresh() async {
-    ref.invalidate(homeItemsProvider(widget.serviceType));
+    ref.invalidate(paginatedProvidersProvider(widget.serviceType));
     try {
-      await ref.read(homeItemsProvider(widget.serviceType).future);
+      await ref.read(paginatedProvidersProvider(widget.serviceType).future);
     } catch (_) {
       // El error ya queda reflejado en el AsyncValue; el indicador de
       // refresco solo necesita completar.
@@ -119,9 +114,34 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredItemsAsync = ref.watch(filteredHomeItemsProvider);
+    final filteredItemsAsync =
+        ref.watch(filteredProvidersProvider(widget.serviceType));
+    final pagination =
+        ref.watch(paginatedProvidersProvider(widget.serviceType));
+    final listState = pagination.valueOrNull;
+    ref.listen(homeFiltersProvider, (_, __) => _resetScroll());
     final filters = ref.watch(homeFiltersProvider);
     final query = ref.watch(searchQueryProvider);
+    // Text search is local because this endpoint has no text query. Scan the
+    // remaining pages rather than reporting a false empty result after page 1.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final current = ref.read(paginatedProvidersProvider(widget.serviceType));
+      final value = current.valueOrNull;
+      if (current.isLoading ||
+          value == null ||
+          value.isLoadingMore ||
+          value.loadMoreError != null) {
+        return;
+      }
+      if (query.trim().isNotEmpty && value.hasMore) {
+        unawaited(ref
+            .read(paginatedProvidersProvider(widget.serviceType).notifier)
+            .loadMore());
+      } else {
+        _loadNearEnd();
+      }
+    });
     final topInset = MediaQuery.of(context).padding.top;
     final titleRowHeight = _titleRowHeight(context);
 
@@ -145,26 +165,26 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
                   titleRowHeight: titleRowHeight,
                   searchController: _searchController,
                   hintText: widget.serviceType.hint,
-                  activeFilters: filters.activeCount,
                   onFilterTap: _openFilters,
                   onChanged: (value) {
                     ref.read(searchQueryProvider.notifier).state = value;
-                    if (_currentPage != 1) {
-                      setState(() => _currentPage = 1);
-                    }
+                    _resetScroll();
                   },
                 ),
               ),
             ),
             SliverToBoxAdapter(
               child: HomeListHeader(
-                itemCount: filteredItemsAsync.valueOrNull?.length ?? 0,
-                hasActiveFilters: filters.activeCount > 0,
+                itemCount: query.trim().isEmpty
+                    ? listState?.total ??
+                        filteredItemsAsync.valueOrNull?.length ??
+                        0
+                    : filteredItemsAsync.valueOrNull?.length ?? 0,
               ),
             ),
             filteredItemsAsync.when(
               data: (items) {
-                if (items.isEmpty) {
+                if (items.isEmpty && !(listState?.hasMore ?? false)) {
                   return SliverToBoxAdapter(
                     child: _EmptyResultsState(
                       query: query,
@@ -172,23 +192,16 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
                       onClearQuery: () {
                         _searchController.clear();
                         ref.read(searchQueryProvider.notifier).state = '';
-                        setState(() => _currentPage = 1);
+                        _resetScroll();
                       },
                       onClearFilters: () {
                         ref.read(homeFiltersProvider.notifier).state =
                             const HomeFilters();
-                        setState(() => _currentPage = 1);
+                        _resetScroll();
                       },
                     ),
                   );
                 }
-                final totalPages = (items.length / _itemsPerPage).ceil();
-                final page = _currentPage.clamp(1, totalPages);
-                final start = (page - 1) * _itemsPerPage;
-                final pageItems = items
-                    .skip(start)
-                    .take(_itemsPerPage)
-                    .toList(growable: false);
                 final textScale =
                     MediaQuery.textScalerOf(context).scale(14) / 14;
                 final useSingleColumn =
@@ -210,26 +223,30 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
                         ),
                         delegate: SliverChildBuilderDelegate(
                           (context, index) => StaggeredEntrance(
-                            index: index,
-                            child: ItemCard(item: pageItems[index]),
+                            index: index % 20,
+                            child: ItemCard(
+                                key: ValueKey(items[index].id),
+                                item: items[index]),
                           ),
-                          childCount: pageItems.length,
+                          childCount: items.length,
+                          addAutomaticKeepAlives: false,
                         ),
                       ),
                     ),
-                    if (totalPages > 1)
-                      SliverToBoxAdapter(
-                        child: _PaginationBar(
-                          currentPage: page,
-                          totalPages: totalPages,
-                          onPrevious:
-                              page > 1 ? () => _changePage(page - 1) : null,
-                          onNext: page < totalPages
-                              ? () => _changePage(page + 1)
-                              : null,
+                    SliverToBoxAdapter(
+                      child: SafeArea(
+                        top: false,
+                        child: _LoadMoreFooter(
+                          state: listState,
+                          reduceMotion: MediaQuery.disableAnimationsOf(context),
+                          onLoadMore: () => ref
+                              .read(
+                                  paginatedProvidersProvider(widget.serviceType)
+                                      .notifier)
+                              .loadMore(),
                         ),
                       ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 40)),
+                    ),
                   ],
                 );
               },
@@ -250,8 +267,8 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
                   padding: const EdgeInsets.only(top: 32),
                   child: ErrorView(
                     message: 'No pudimos cargar los resultados.',
-                    onRetry: () =>
-                        ref.invalidate(homeItemsProvider(widget.serviceType)),
+                    onRetry: () => ref.invalidate(
+                        paginatedProvidersProvider(widget.serviceType)),
                   ),
                 ),
               ),
@@ -276,87 +293,68 @@ class _ProvidersListPageState extends ConsumerState<ProvidersListPage> {
   }
 }
 
-class _PaginationBar extends StatelessWidget {
-  final int currentPage;
-  final int totalPages;
-  final VoidCallback? onPrevious;
-  final VoidCallback? onNext;
+class _LoadMoreFooter extends StatelessWidget {
+  final ProvidersListState? state;
+  final bool reduceMotion;
+  final VoidCallback onLoadMore;
 
-  const _PaginationBar({
-    required this.currentPage,
-    required this.totalPages,
-    required this.onPrevious,
-    required this.onNext,
-  });
+  const _LoadMoreFooter(
+      {required this.state,
+      required this.reduceMotion,
+      required this.onLoadMore});
 
   @override
   Widget build(BuildContext context) {
+    final value = state;
+    if (value == null || value.items.isEmpty && !value.hasMore) {
+      return const SizedBox(height: 24);
+    }
+    final message = value.loadMoreError != null
+        ? 'No pudimos cargar más resultados.'
+        : value.isLoadingMore
+            ? 'Cargando más resultados…'
+            : value.hasMore
+                ? value.total == null
+                    ? '${value.items.length} resultados cargados'
+                    : '${value.items.length} de ${value.total} resultados'
+                : 'Has visto todos los resultados';
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Semantics(
-        container: true,
-        label: 'Página $currentPage de $totalPages',
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 64),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.border),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      child: Column(
+        children: [
+          Semantics(
+            liveRegion: true,
+            child: Text(message,
+                textAlign: TextAlign.center,
+                style: AppTypography.bodySm
+                    .copyWith(color: AppColors.textPrimary)),
           ),
-          child: Row(
-            children: [
-              _PageButton(
-                tooltip: 'Página anterior',
-                icon: AppIcons.back,
-                onPressed: onPrevious,
-              ),
-              Expanded(
-                child: Text(
-                  'Página $currentPage de $totalPages',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.bodySm.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
+          if (value.isLoadingMore && !reduceMotion)
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: SizedBox.square(
+                  dimension: 24,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: AppColors.primary)),
+            ),
+          if (value.hasMore && !value.isLoadingMore)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: OutlinedButton(
+                onPressed: onLoadMore,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(160, 48),
+                  foregroundColor: AppColors.primary,
+                  textStyle: AppTypography.bodySm
+                      .copyWith(fontSize: 20, fontWeight: FontWeight.w700),
+                  side: const BorderSide(color: AppColors.primary, width: 1.5),
+                  shape: const StadiumBorder(),
                 ),
+                child: Text(
+                    value.loadMoreError != null ? 'Reintentar' : 'Cargar más'),
               ),
-              _PageButton(
-                tooltip: 'Página siguiente',
-                icon: AppIcons.next,
-                onPressed: onNext,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PageButton extends StatelessWidget {
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback? onPressed;
-
-  const _PageButton({
-    required this.tooltip,
-    required this.icon,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox.square(
-      dimension: 48,
-      child: IconButton(
-        tooltip: tooltip,
-        onPressed: onPressed,
-        icon: AppLineIcon(
-          icon,
-          size: AppIconSize.action,
-          color: onPressed == null ? AppColors.textDisabled : AppColors.primary,
-        ),
+            ),
+        ],
       ),
     );
   }
@@ -375,7 +373,6 @@ class _StickyHeaderContent extends StatelessWidget {
   final double titleRowHeight;
   final TextEditingController searchController;
   final String hintText;
-  final int activeFilters;
   final VoidCallback onFilterTap;
   final ValueChanged<String> onChanged;
 
@@ -384,7 +381,6 @@ class _StickyHeaderContent extends StatelessWidget {
     required this.titleRowHeight,
     required this.searchController,
     required this.hintText,
-    required this.activeFilters,
     required this.onFilterTap,
     required this.onChanged,
   });
@@ -433,7 +429,6 @@ class _StickyHeaderContent extends StatelessWidget {
               controller: searchController,
               hintText: hintText,
               onChanged: onChanged,
-              activeFilters: activeFilters,
               onFilterTap: onFilterTap,
             ),
           ],
@@ -501,7 +496,7 @@ class _EmptyResultsState extends StatelessWidget {
           icon: Icons.search_off_rounded,
           action: SizedBox(
             width: 200,
-            height: 44,
+            height: 48,
             child: OutlinedButton(
               onPressed: onClearQuery,
               style: OutlinedButton.styleFrom(
@@ -527,7 +522,7 @@ class _EmptyResultsState extends StatelessWidget {
           icon: Icons.filter_alt_off_rounded,
           action: SizedBox(
             width: 180,
-            height: 44,
+            height: 48,
             child: ElevatedButton(
               onPressed: onClearFilters,
               style: ElevatedButton.styleFrom(

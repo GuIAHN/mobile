@@ -12,6 +12,7 @@ import '../../data/repositories/home_repository_impl.dart';
 import '../../data/repositories/search_repository_impl.dart';
 import '../../domain/entities/home_filters.dart';
 import '../../domain/entities/home_item.dart';
+import '../../domain/entities/provider_search_page.dart';
 import '../../domain/entities/provider_detail.dart';
 import '../../domain/entities/sort_option.dart';
 import '../../domain/entities/top_providers_result.dart';
@@ -24,12 +25,6 @@ import '../../domain/usecases/get_top_providers_usecase.dart';
 import '../../domain/usecases/search_providers_usecase.dart';
 import '../../../../core/domain/entities/user_car.dart';
 import '../../../chat/presentation/providers/chat_providers.dart';
-
-int _compareKnownDistanceFirst(double? a, double? b) {
-  if (a == null) return b == null ? 0 : 1;
-  if (b == null) return -1;
-  return a.compareTo(b);
-}
 
 // ── Search Providers ────────────────────────────────────────────────────────
 final searchRepositoryProvider = Provider<SearchRepository>((ref) {
@@ -210,6 +205,19 @@ final homeItemsProvider = FutureProvider.family
     );
   }
 
+  final useCase = ref.watch(searchProvidersUseCaseProvider);
+  final filters = await ref.watch(providerSearchFiltersProvider.future);
+  final result = await useCase(type: type, filters: filters);
+  return result.fold(
+    (failure) => throw Exception(failure.message),
+    (items) => items,
+  );
+});
+
+/// Resolve the same location policy for every page of a directory search.
+final providerSearchFiltersProvider =
+    FutureProvider.autoDispose<HomeFilters>((ref) async {
+  ref.watch(sessionGenerationProvider);
   // Mecánicos y Talleres: usar búsqueda real con filtros actuales
   var filters = ref.watch(homeFiltersProvider);
   final role = ref.watch(currentRoleProvider);
@@ -242,12 +250,7 @@ final homeItemsProvider = FutureProvider.family
     filters = filters.copyWith(clearLocation: true);
   }
 
-  final useCase = ref.watch(searchProvidersUseCaseProvider);
-  final result = await useCase(type: type, filters: filters);
-  return result.fold(
-    (failure) => throw Exception(failure.message),
-    (items) => items,
-  );
+  return filters;
 });
 
 /// Una única carga agrupada para las dos secciones destacadas del Home.
@@ -307,8 +310,15 @@ final providerDetailProvider = FutureProvider.autoDispose
 /// Lista filtrada localmente (búsqueda textual) sobre los resultados del backend.
 final filteredHomeItemsProvider =
     Provider.autoDispose<AsyncValue<List<HomeItem>>>((ref) {
-  final selectedType = ref.watch(selectedServiceTypeProvider);
-  final itemsAsync = ref.watch(homeItemsProvider(selectedType));
+  return ref
+      .watch(filteredProvidersProvider(ref.watch(selectedServiceTypeProvider)));
+});
+
+final filteredProvidersProvider = Provider.autoDispose
+    .family<AsyncValue<List<HomeItem>>, ServiceType>((ref, selectedType) {
+  final itemsAsync = ref
+      .watch(paginatedProvidersProvider(selectedType))
+      .whenData((state) => state.items);
   final query = ref.watch(searchQueryProvider).toLowerCase().trim();
   final filters = ref.watch(homeFiltersProvider);
 
@@ -324,21 +334,148 @@ final filteredHomeItemsProvider =
       }).toList();
     }
 
-    // 3. Ordenamiento local (como complemento al orderBy del backend)
-    switch (filters.sortBy) {
-      case SortOption.cercania:
-        list.sort(
-          (a, b) => _compareKnownDistanceFirst(a.distanceKm, b.distanceKm),
-        );
-        break;
-      case SortOption.rating:
-        list.sort((a, b) => b.rating.compareTo(a.rating));
-        break;
-      case SortOption.populares:
-        list.sort((a, b) => b.reviews.compareTo(a.reviews));
-        break;
+    // Rating and distance already come ordered by the server. Re-sorting
+    // accumulated pages can move unseen providers above the scroll position.
+    // Popularity is only exposed after the complete directory has loaded.
+    if (filters.sortBy == SortOption.populares) {
+      list.sort((a, b) => b.reviews.compareTo(a.reviews));
     }
 
     return list;
   });
 });
+
+class ProvidersListState {
+  final List<HomeItem> items;
+  final int? total;
+  final int page;
+  final bool hasMore;
+  final bool isLoadingMore;
+  final String? loadMoreError;
+
+  const ProvidersListState({
+    required this.items,
+    this.total,
+    this.page = 1,
+    this.hasMore = false,
+    this.isLoadingMore = false,
+    this.loadMoreError,
+  });
+
+  factory ProvidersListState.fromPage(ProviderSearchPage page) =>
+      ProvidersListState(
+        items: List.unmodifiable(page.items),
+        total: page.total,
+        page: page.page,
+        hasMore: page.hasMore,
+      );
+}
+
+final paginatedProvidersProvider = AsyncNotifierProvider.autoDispose
+    .family<PaginatedProvidersNotifier, ProvidersListState, ServiceType>(
+  PaginatedProvidersNotifier.new,
+);
+
+class PaginatedProvidersNotifier
+    extends AutoDisposeFamilyAsyncNotifier<ProvidersListState, ServiceType> {
+  int _generation = 0;
+  late HomeRepository _repository;
+  late HomeFilters _filters;
+
+  @override
+  Future<ProvidersListState> build(ServiceType arg) async {
+    final generation = ++_generation;
+    ref.onDispose(() => _generation++);
+    ref.watch(sessionGenerationProvider);
+    final repository = ref.watch(homeRepositoryProvider);
+    final filters = await ref.watch(providerSearchFiltersProvider.future);
+    if (generation != _generation) throw StateError('Search superseded');
+    _repository = repository;
+    _filters = filters;
+    final result =
+        await repository.searchProvidersPage(type: arg, filters: filters);
+    var page = result.fold(
+        (failure) => throw Exception(failure.message), (page) => page);
+    if (filters.sortBy != SortOption.populares) {
+      return ProvidersListState.fromPage(page);
+    }
+
+    // This API cannot order by popularity. Load the entire matching set before
+    // showing that local order, so later pages never insert above the viewport.
+    final items = [...page.items];
+    final ids = items.map((item) => item.id).whereType<String>().toSet();
+    while (page.hasMore) {
+      if (generation != _generation) throw StateError('Search superseded');
+      final next = await repository.searchProvidersPage(
+        type: arg,
+        filters: filters,
+        page: page.page + 1,
+      );
+      if (generation != _generation) throw StateError('Search superseded');
+      final nextPage = next.fold(
+          (failure) => throw Exception(failure.message), (page) => page);
+      if (nextPage.page <= page.page) break;
+      items.addAll(
+          nextPage.items.where((item) => item.id == null || ids.add(item.id!)));
+      page = nextPage;
+    }
+    return ProvidersListState(
+        items: List.unmodifiable(items), total: page.total, page: page.page);
+  }
+
+  Future<void> loadMore() async {
+    final current = state.valueOrNull;
+    if (state.isLoading ||
+        current == null ||
+        !current.hasMore ||
+        current.isLoadingMore) {
+      return;
+    }
+    final generation = _generation;
+    state = AsyncData(ProvidersListState(
+      items: current.items,
+      total: current.total,
+      page: current.page,
+      hasMore: current.hasMore,
+      isLoadingMore: true,
+    ));
+    try {
+      final result = await _repository.searchProvidersPage(
+        type: arg,
+        filters: _filters,
+        page: current.page + 1,
+      );
+      if (generation != _generation) return;
+      state = result.fold(
+        (failure) => AsyncData(ProvidersListState(
+          items: current.items,
+          total: current.total,
+          page: current.page,
+          hasMore: current.hasMore,
+          loadMoreError: failure.message,
+        )),
+        (page) {
+          final ids =
+              current.items.map((item) => item.id).whereType<String>().toSet();
+          final added =
+              page.items.where((item) => item.id == null || ids.add(item.id!));
+          return AsyncData(ProvidersListState(
+            items: List.unmodifiable([...current.items, ...added]),
+            total: page.total,
+            page: page.page,
+            hasMore: page.hasMore && page.page > current.page,
+          ));
+        },
+      );
+    } catch (error) {
+      if (generation != _generation) return;
+      state = AsyncData(ProvidersListState(
+        items: current.items,
+        total: current.total,
+        page: current.page,
+        hasMore: current.hasMore,
+        loadMoreError: error.toString(),
+      ));
+    }
+  }
+}

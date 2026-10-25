@@ -112,11 +112,13 @@ class _ItemCardState extends State<ItemCard> {
                           ),
                         ),
                       ),
-                      Positioned(
-                        left: 10,
-                        top: 10,
-                        child: _TypeLabel(label: providerType),
-                      ),
+                      if (item.type != ServiceType.workshops &&
+                          item.type != ServiceType.mechanic)
+                        Positioned(
+                          left: 10,
+                          top: 10,
+                          child: _TypeLabel(label: providerType),
+                        ),
                     ],
                   ),
                 ),

@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import 'package:guiautomotriz_mobile/features/home/domain/entities/provider_search_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
@@ -44,6 +45,15 @@ class _FakeHomeRepository implements HomeRepository {
     required ServiceType type,
   }) =>
       throw UnimplementedError();
+
+  @override
+  Future<Either<Failure, ProviderSearchPage>> searchProvidersPage({
+    required ServiceType type,
+    required HomeFilters filters,
+    int page = 1,
+  }) async =>
+      const Right(
+          ProviderSearchPage(items: [], total: 0, page: 1, pageSize: 20));
 
   @override
   Future<Either<Failure, List<HomeItem>>> searchProviders({
