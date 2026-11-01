@@ -7,6 +7,7 @@ import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../providers/chat_providers.dart';
+import '../../../../shared/utils/buyer_identity.dart';
 import '../../domain/entities/chat_thread.dart';
 import '../widgets/chat_thread_card.dart';
 import '../widgets/consumer_thread_card.dart';
@@ -82,7 +83,11 @@ class _RequestsInboxPageState extends ConsumerState<RequestsInboxPage> {
     final q = _query.trim().toLowerCase();
     return threads.where((t) {
       return t.title.toLowerCase().contains(q) ||
-          (t.clientName?.toLowerCase().contains(q) ?? false) ||
+          (widget.mode.isStore
+              ? BuyerIdentity.displayName(t.clientName, t.offerStatus)
+                  .toLowerCase()
+                  .contains(q)
+              : (t.clientName?.toLowerCase().contains(q) ?? false)) ||
           (t.subcategory?.toLowerCase().contains(q) ?? false) ||
           (t.details?.toLowerCase().contains(q) ?? false);
     }).toList();

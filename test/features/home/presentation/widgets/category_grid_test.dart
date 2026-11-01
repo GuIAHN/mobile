@@ -145,7 +145,7 @@ void main() {
     expect(find.text('mechanics-route'), findsOneWidget);
   });
 
-  testWidgets('shows the recruitment announcement even with pending reviews',
+  testWidgets('keeps the pending-review gate when requesting a spare part',
       (tester) async {
     const pending = [
       PendingReview(
@@ -166,35 +166,30 @@ void main() {
     await tester.tap(find.text('Pedir repuesto'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Próximamente'), findsOneWidget);
-    expect(
-      find.text('Estamos en etapa de captación de tiendas de repuestos.'),
-      findsOneWidget,
-    );
-    expect(
-      find.text('La opción Pedir repuesto se habilitará el 1ro de noviembre'),
-      findsOneWidget,
-    );
-    expect(find.text('Tienes valoraciones pendientes'), findsNothing);
+    expect(find.text('Tienes valoraciones pendientes'), findsOneWidget);
 
-    await tester.tap(find.text('ENTENDIDO'));
+    await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
-    expect(find.text('Próximamente'), findsNothing);
     expect(find.byType(CategoryGrid), findsOneWidget);
     expect(find.byType(SparePartWizardPage), findsNothing);
   });
 
-  testWidgets('announcement allows continuing to the spare-part request',
+  testWidgets('opens the spare-part request directly with the selected vehicle',
       (tester) async {
-    await tester.pumpWidget(subject());
+    await tester.pumpWidget(subject(
+      selectedVehicle: fixtureCar,
+      selectedVariantId: 'variant-1',
+    ));
     await tester.tap(find.text('Pedir repuesto'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('CONTINUAR'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Próximamente'), findsNothing);
     expect(find.byType(SparePartWizardPage), findsOneWidget);
+    final wizard = tester.widget<SparePartWizardPage>(
+      find.byType(SparePartWizardPage),
+    );
+    expect(wizard.initialVehicle, fixtureCar);
+    expect(wizard.initialModelId, 'variant-1');
+    expect(find.byType(Dialog), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -378,7 +373,10 @@ void main() {
           for (var i = 0; i < actionLabels.length; i++) {
             final action = find.bySemanticsLabel(actionLabels[i]);
             if (action.evaluate().length == 1) {
-              actionSizes.add(tester.getSize(action));
+              final size = tester.getSize(action);
+              actionSizes.add(size);
+              expect(size.height, greaterThanOrEqualTo(48));
+              expect(size.width, greaterThanOrEqualTo(48));
             }
             if (textScale == 2) {
               final label = visibleActionLabels[i];
@@ -402,35 +400,6 @@ void main() {
             }
           }
           actionSizesByConfiguration.add(actionSizes);
-
-          await tester.tap(find.text('Pedir repuesto'));
-          await tester.pumpAndSettle();
-          expect(find.text('Próximamente'), findsOneWidget);
-          expect(find.byType(SparePartWizardPage), findsNothing);
-          final continueAction = find.widgetWithText(ElevatedButton, 'CONTINUAR');
-          expect(
-              tester.getSize(continueAction).height, greaterThanOrEqualTo(48));
-          expect(
-              tester.getSize(continueAction).width, greaterThanOrEqualTo(48));
-          final dismiss = find.widgetWithText(TextButton, 'ENTENDIDO');
-          expect(tester.getSize(dismiss).height, greaterThanOrEqualTo(48));
-          expect(tester.getSize(dismiss).width, greaterThanOrEqualTo(48));
-          final dialogSurface = find.descendant(
-            of: find.byType(Dialog),
-            matching: find.byWidgetPredicate(
-              (widget) =>
-                  widget is Material && widget.type == MaterialType.card,
-            ),
-          );
-          final dialogRect = tester.getRect(dialogSurface);
-          expect(dialogRect.left, greaterThanOrEqualTo(24));
-          expect(dialogRect.right, lessThanOrEqualTo(width - 24));
-          expect(dialogRect.top, greaterThanOrEqualTo(44));
-          expect(dialogRect.bottom, lessThanOrEqualTo(800 - 34));
-          final date = find.textContaining('se habilitará el 1ro de noviembre');
-          expect(tester.widget<Text>(date).maxLines, isNull);
-          await tester.tap(dismiss);
-          await tester.pumpAndSettle();
         }
       }
     } finally {
@@ -474,21 +443,21 @@ void main() {
     await gesture.cancel();
   });
 
-  testWidgets('announcement works across loading, error, empty and data states',
+  testWidgets('request opens across loading, error, empty and data states',
       (tester) async {
     for (final state in ['loading', 'error', 'empty', 'data']) {
+      final cars = Completer<List<UserCar>>();
+      final reviews = Completer<List<PendingReview>>();
       await tester.pumpWidget(
         subject(
-          selectedVehicle: fixtureCar,
-          selectedVariantId: 'variant-1',
           loadCars: () => switch (state) {
-            'loading' => Completer<List<UserCar>>().future,
+            'loading' => cars.future,
             'error' => Future.error(StateError('Garage unavailable')),
             'empty' => Future.value(const <UserCar>[]),
             _ => Future.value(const [fixtureCar]),
           },
           loadReviews: () => switch (state) {
-            'loading' => Completer<List<PendingReview>>().future,
+            'loading' => reviews.future,
             'error' => Future.error(StateError('Reviews unavailable')),
             _ => Future.value(const <PendingReview>[]),
           },
@@ -502,14 +471,23 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Pedir repuesto'));
+      if (state == 'loading') {
+        await tester.pump();
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.byType(SparePartWizardPage), findsNothing);
+        reviews.complete(const []);
+        cars.complete(const [fixtureCar]);
+      }
       await tester.pumpAndSettle();
 
-      expect(find.text('Próximamente'), findsOneWidget, reason: state);
-      expect(find.byType(SparePartWizardPage), findsNothing);
+      expect(find.byType(SparePartWizardPage), findsOneWidget, reason: state);
+      expect(find.byType(Dialog), findsNothing);
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      if (state == 'error') {
+        expect(find.text('No pudimos cargar tus vehículos.'), findsOneWidget);
+      }
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(find.text('Próximamente'), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     }

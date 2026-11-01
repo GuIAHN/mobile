@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:guiautomotriz_mobile/core/error/failures.dart';
+import 'package:guiautomotriz_mobile/core/providers/current_user_provider.dart';
+import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
 import 'package:guiautomotriz_mobile/features/notifications/domain/entities/user_notification.dart';
 import 'package:guiautomotriz_mobile/features/notifications/domain/repositories/notifications_repository.dart';
 import 'package:guiautomotriz_mobile/features/notifications/presentation/pages/notifications_page.dart';
@@ -98,10 +100,12 @@ Widget _subject(
   _FakeNotificationsRepository repository, {
   double textScale = 1,
   bool disableAnimations = false,
+  UserRole role = UserRole.consumer,
 }) {
   return ProviderScope(
     overrides: [
       notificationsRepositoryProvider.overrideWithValue(repository),
+      currentRoleProvider.overrideWithValue(role),
     ],
     child: MaterialApp(
       builder: (context, child) => MediaQuery(
@@ -136,6 +140,22 @@ Future<void> _pumpResolved(
 }
 
 void main() {
+  testWidgets('store notification card and detail hide the buyer identity',
+      (tester) async {
+    final repository = _FakeNotificationsRepository()
+      ..onGetUnread = (_, __) async =>
+          Right([_fixture(2, body: 'Taller El Motor: ¿Tienes la pieza?')]);
+    await tester.pumpWidget(_subject(repository, role: UserRole.store));
+    await tester.pumpAndSettle();
+    expect(find.text('TE-426F6F'), findsOneWidget);
+    expect(find.textContaining('Taller El Motor'), findsNothing);
+    await tester.tap(find.text('TE-426F6F'));
+    await tester.pumpAndSettle();
+    expect(find.byType(NotificationDetailSheet), findsOneWidget);
+    expect(find.textContaining('Taller El Motor'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('shows four geometry-matched cards during the initial request',
       (tester) async {
     final pending = Completer<Either<Failure, List<UserNotification>>>();

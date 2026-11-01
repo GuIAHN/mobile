@@ -12,6 +12,7 @@ import 'package:guiautomotriz_mobile/features/chat/presentation/pages/consumer_r
 import 'package:guiautomotriz_mobile/features/chat/presentation/pages/store_sales_page.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/pages/store_requests_page.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/providers/chat_providers.dart';
+import 'package:guiautomotriz_mobile/features/chat/presentation/widgets/store_chat_card.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 void main() {
@@ -117,6 +118,37 @@ void main() {
     await tester.tap(find.byKey(Key('status-filter-$status')));
     await tester.pumpAndSettle();
   }
+
+  testWidgets('store cannot search an unpurchased chat by the raw buyer name',
+      (tester) async {
+    await pumpPage(
+      tester,
+      role: UserRole.store,
+      page: const ConversationsInboxPage(),
+      conversations: [
+        ChatConversation(
+          id: 'conversation-1',
+          threadId: 'request-1',
+          participantName: 'Taller El Motor',
+          lastMessage: '¿Tienes la pieza?',
+          unreadCount: 0,
+          lastMessageAt: DateTime.utc(2026, 8, 14),
+          offerStatus: 'SENT',
+        )
+      ],
+    );
+    expect(find.text('TE-426F6F'), findsOneWidget);
+    expect(find.text('Taller El Motor'), findsNothing);
+    await tester.enterText(find.byType(TextField), 'Taller El Motor');
+    await tester.pumpAndSettle();
+    expect(find.text('Sin resultados'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'TE-426F6F');
+    await tester.pumpAndSettle();
+    expect(
+        find.descendant(
+            of: find.byType(StoreChatCard), matching: find.text('TE-426F6F')),
+        findsOneWidget);
+  });
 
   testWidgets('store requests use the backend TO_ANSWER filter',
       (tester) async {

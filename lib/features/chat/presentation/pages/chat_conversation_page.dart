@@ -9,6 +9,7 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/error/failures.dart';
 import '../providers/chat_providers.dart';
+import '../../../../shared/utils/buyer_identity.dart';
 import '../widgets/chat_message_bubble.dart';
 import '../widgets/chat_message_composer.dart';
 import '../widgets/active_offer_header_card.dart';
@@ -334,6 +335,13 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
 
     final detailsAsync =
         ref.watch(chatConversationDetailsProvider(widget.conversationId));
+    final details = detailsAsync.valueOrNull;
+    final participantName = isStore
+        ? BuyerIdentity.displayName(
+            details?.participantName, details?.offerStatus)
+        : details?.participantName;
+    final hideBuyerIdentity =
+        isStore && !BuyerIdentity.isRevealed(details?.offerStatus);
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -350,19 +358,24 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
           error: (_, __) => const Text('Chat'),
           data: (details) {
             final hideStoreIdentity = !isStore && !details.revealsStoreIdentity;
-            final avatarUrl =
-                hideStoreIdentity ? null : details.participantAvatarUrl;
+            final avatarUrl = hideStoreIdentity || hideBuyerIdentity
+                ? null
+                : details.participantAvatarUrl;
             return Row(
               children: [
                 Semantics(
                   image: true,
                   label: hideStoreIdentity
                       ? 'Perfil genérico de la tienda'
-                      : 'Foto de perfil de ${details.participantName}',
+                      : hideBuyerIdentity
+                          ? 'Perfil de $participantName'
+                          : 'Foto de perfil de $participantName',
                   child: Container(
                     key: hideStoreIdentity
                         ? const Key('generic-store-avatar')
-                        : const Key('participant-avatar'),
+                        : hideBuyerIdentity
+                            ? const Key('generic-buyer-avatar')
+                            : const Key('participant-avatar'),
                     width: 40,
                     height: 40,
                     clipBehavior: Clip.antiAlias,
@@ -395,7 +408,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        details.participantName,
+                        participantName ?? 'Usuario',
                         style: GoogleFonts.hankenGrotesk(
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
@@ -406,7 +419,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                       ),
                       const SizedBox(height: 1),
                       Text(
-                        isStore ? 'Comprador' : 'Tienda',
+                        isStore ? 'Solicitud' : 'Tienda',
                         style: GoogleFonts.hankenGrotesk(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
@@ -678,7 +691,12 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                                 itemCount: chronological.length,
                                 itemBuilder: (context, index) =>
                                     ChatMessageBubble(
-                                        message: chronological[index]),
+                                        message: chronological[index],
+                                        senderNameOverride: hideBuyerIdentity
+                                            ? BuyerIdentity.alias(details
+                                                    ?.participantName ??
+                                                chronological[index].senderName)
+                                            : null),
                               ),
                             );
                           },
@@ -706,8 +724,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                       data: (messages) {
                         if (messages.isEmpty) {
                           return _EmptyChatState(
-                            participantName:
-                                detailsAsync.valueOrNull?.participantName,
+                            participantName: participantName,
                           );
                         }
                         return ListView.builder(
@@ -721,7 +738,14 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                           itemCount: messages.length,
                           itemBuilder: (context, index) {
                             final message = messages[index];
-                            return ChatMessageBubble(message: message);
+                            return ChatMessageBubble(
+                              message: message,
+                              senderNameOverride: hideBuyerIdentity
+                                  ? BuyerIdentity.alias(
+                                      details?.participantName ??
+                                          message.senderName)
+                                  : null,
+                            );
                           },
                         );
                       },

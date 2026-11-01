@@ -12,6 +12,71 @@ import 'package:mocktail/mocktail.dart';
 class _MockChatRepository extends Mock implements ChatRepository {}
 
 void main() {
+  for (final width in [320.0, 430.0]) {
+    for (final purchased in [false, true]) {
+      testWidgets(
+          'hides the raw buyer name until purchase at width $width, purchased=$purchased',
+          (tester) async {
+        tester.view.physicalSize = Size(width, 1000);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final name = purchased ? 'Taller El Motor' : 'TE-426F6F';
+        final thread = ChatThread(
+          id: 'request-1',
+          title: 'Toyota Corolla',
+          requestType: ServiceType.spareParts,
+          unreadCount: 0,
+          conversationCount: purchased ? 1 : 0,
+          lastActivityAt: DateTime.utc(2026, 8, 24),
+          clientName: 'Taller El Motor',
+          searchMatchId: 'match-1',
+          matchState: purchased ? 'BOUGHT' : 'PENDING',
+          hasOffer: purchased,
+          offerStatus: purchased ? 'BOUGHT' : null,
+          subcategory: 'Pastillas de freno',
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: const TextScaler.linear(1.5),
+                  disableAnimations: true,
+                  padding: const EdgeInsets.only(top: 24, bottom: 34),
+                ),
+                child: child!,
+              ),
+              home: Scaffold(
+                body: SafeArea(
+                  child: SingleChildScrollView(
+                    child: ChatThreadCard(
+                      thread: thread,
+                      onTap: () {},
+                      onViewDetail: () {},
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining(name, findRichText: true), findsWidgets);
+        expect(find.bySemanticsLabel(RegExp('Solicitud de $name,')),
+            findsOneWidget);
+        if (!purchased) {
+          expect(find.textContaining('Taller El Motor'), findsNothing);
+          expect(
+              find.bySemanticsLabel(RegExp('Taller El Motor')), findsNothing);
+        }
+        expect(tester.takeException(), isNull);
+      }, semanticsEnabled: true);
+    }
+  }
+
   testWidgets('presents a catch-all store label with its root path',
       (tester) async {
     final thread = ChatThread(

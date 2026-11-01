@@ -8,6 +8,7 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../core/domain/enums/offer_status.dart';
 import '../../domain/entities/chat_conversation.dart';
 import '../providers/chat_providers.dart';
+import '../../../../shared/utils/buyer_identity.dart';
 import '_atoms/status_badge.dart';
 
 /// Vincula un único card a los mensajes de su conversación. El `select` del
@@ -104,6 +105,12 @@ class StoreChatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final conv = conversation;
+    final participantName = consumerPerspective
+        ? conv.participantName
+        : BuyerIdentity.displayName(conv.participantName, conv.offerStatus);
+    final participantAvatarUrl = consumerPerspective
+        ? conv.participantAvatarUrl
+        : BuyerIdentity.avatarUrl(conv.participantAvatarUrl, conv.offerStatus);
     final timeStr = Formatters.relativeDate(conv.lastMessageAt);
     final status = _resolveStatus(conv);
     final hasUnread = conv.unreadCount > 0;
@@ -114,7 +121,7 @@ class StoreChatCard extends StatelessWidget {
         : (conv.note?.trim().isNotEmpty == true ? conv.note! : '');
 
     final semanticLabel = StringBuffer(
-      'Chat con ${conv.participantName}, '
+      'Chat con $participantName, '
       '${(consumerPerspective ? status.consumerLabel : status.label).toLowerCase()}',
     );
     if (conv.hasFormalQuote) {
@@ -128,7 +135,7 @@ class StoreChatCard extends StatelessWidget {
       final sender = conv.lastMessageIsFromMe == true
           ? 'tú'
           : conv.lastMessageIsFromMe == false
-              ? conv.participantName
+              ? participantName
               : null;
       semanticLabel.write(
         ', último mensaje${sender == null ? '' : ' de $sender'}: $message',
@@ -166,8 +173,8 @@ class StoreChatCard extends StatelessWidget {
                   // ── Avatar con badge de no leídos ──────────────────────────
                   if (!usesLargeText) ...[
                     _ClientAvatar(
-                      url: conv.participantAvatarUrl,
-                      name: conv.participantName,
+                      url: participantAvatarUrl,
+                      name: participantName,
                       unreadCount: conv.unreadCount,
                       showGenericStore:
                           consumerPerspective && !conv.revealsStoreIdentity,
@@ -184,7 +191,7 @@ class StoreChatCard extends StatelessWidget {
                         // segunda línea para conservarla completa.
                         if (usesLargeText) ...[
                           Text(
-                            conv.participantName,
+                            participantName,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.hankenGrotesk(
@@ -215,7 +222,7 @@ class StoreChatCard extends StatelessWidget {
                             children: [
                               Expanded(
                                 child: Text(
-                                  conv.participantName,
+                                  participantName,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.hankenGrotesk(
@@ -290,7 +297,7 @@ class StoreChatCard extends StatelessWidget {
                                       TextSpan(
                                         text: conv.lastMessageIsFromMe!
                                             ? 'Tú: '
-                                            : '${conv.participantName}: ',
+                                            : '$participantName: ',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w700,
                                         ),

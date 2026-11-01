@@ -10,13 +10,15 @@ import '../../domain/entities/chat_message.dart';
 
 class ChatMessageBubble extends StatelessWidget {
   final ChatMessage message;
+  final String? senderNameOverride;
 
-  const ChatMessageBubble({super.key, required this.message});
+  const ChatMessageBubble(
+      {super.key, required this.message, this.senderNameOverride});
 
   @override
   Widget build(BuildContext context) {
     final isMe = message.isFromMe;
-    final time = DateFormat('h:mm a').format(message.createdAt);
+    final time = DateFormat('h:mm a').format(message.createdAt.toLocal());
 
     if (message.type == MessageType.system) {
       return _SystemMessage(message: message, time: time);
@@ -25,7 +27,7 @@ class ChatMessageBubble extends StatelessWidget {
     final maxWidth = MediaQuery.sizeOf(context).width >= 600
         ? 480.0
         : MediaQuery.sizeOf(context).width * 0.78;
-    final sender = isMe ? 'Tú' : message.senderName;
+    final sender = isMe ? 'Tú' : senderNameOverride ?? message.senderName;
     final isImage = message.type == MessageType.image;
 
     return Align(

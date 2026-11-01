@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/socket_service.dart';
+import '../providers/current_user_provider.dart';
+import '../../shared/utils/buyer_identity.dart';
 import 'notification_provider.dart';
 import 'notification_type.dart';
 import '../../features/notifications/services/notification_route_resolver.dart';
@@ -28,10 +30,17 @@ final foregroundNotificationToastProvider = Provider<void>((ref) {
     );
 
     if (tipo == 'message.new') {
-      final separator = cuerpo.indexOf(':');
-      if (separator > 0 && separator < cuerpo.length - 1) {
-        titulo = cuerpo.substring(0, separator).trim();
-        mensaje = cuerpo.substring(separator + 1).trim();
+      if (ref.read(currentRoleProvider).isStore) {
+        // Notifications carry no confirmed purchase status. Keep the sender
+        // generic here; the destination chat resolves its current identity.
+        titulo = BuyerIdentity.aliasFromMessage(cuerpo);
+        mensaje = BuyerIdentity.hiddenMessagePreview;
+      } else {
+        final separator = cuerpo.indexOf(':');
+        if (separator > 0 && separator < cuerpo.length - 1) {
+          titulo = cuerpo.substring(0, separator).trim();
+          mensaje = cuerpo.substring(separator + 1).trim();
+        }
       }
     }
 

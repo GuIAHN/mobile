@@ -36,6 +36,7 @@ void main() {
     required ChatConversation value,
     double width = 375,
     double textScale = 1,
+    bool consumerPerspective = true,
   }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = Size(width, 700);
@@ -54,7 +55,7 @@ void main() {
               padding: const EdgeInsets.all(24),
               child: StoreChatCard(
                 conversation: value,
-                consumerPerspective: true,
+                consumerPerspective: consumerPerspective,
                 onTap: () {},
               ),
             ),
@@ -85,6 +86,28 @@ void main() {
     expect(find.text('COMPRADA'), findsOneWidget);
     expect(find.text(conversation().formattedPrice), findsOneWidget);
   });
+
+  for (final width in [320.0, 430.0]) {
+    testWidgets('store hides buyer name, photo and preview author at $width',
+        (tester) async {
+      await pumpCard(
+        tester,
+        value: conversation(
+            offerStatus: 'SENT',
+            participantAvatarUrl: 'https://example.com/private-workshop.jpg',
+            lastMessageIsFromMe: false),
+        consumerPerspective: false,
+        width: width,
+        textScale: 2,
+      );
+      expect(find.text('RC-48FD36'), findsOneWidget);
+      expect(find.textContaining('Repuestos Central', findRichText: true),
+          findsNothing);
+      expect(find.bySemanticsLabel(RegExp('Repuestos Central')), findsNothing);
+      expect(find.byType(Image), findsNothing);
+      expect(tester.takeException(), isNull);
+    }, semanticsEnabled: true);
+  }
 
   testWidgets('stacks status and price at large text without overflow',
       (tester) async {

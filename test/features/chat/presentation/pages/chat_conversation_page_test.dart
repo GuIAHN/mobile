@@ -21,6 +21,79 @@ class _MockChatRepository extends Mock implements ChatRepository {}
 class _MockSocketService extends Mock implements SocketService {}
 
 void main() {
+  testWidgets('store reveals the buyer only after a confirmed detail response',
+      (tester) async {
+    final repository = _MockChatRepository();
+    final socket = _MockSocketService();
+    final offers = StreamController<Map<String, dynamic>>.broadcast();
+    addTearDown(offers.close);
+    ChatConversation details(String status) => ChatConversation(
+          id: 'conversation-1',
+          threadId: 'request-1',
+          participantName: 'Taller El Motor',
+          lastMessage: '',
+          unreadCount: 0,
+          lastMessageAt: DateTime.utc(2026, 8, 24),
+          offerId: 'offer-1',
+          offerStatus: status,
+          hasQuote: true,
+          price: 125,
+        );
+    Either<Failure, ChatConversation> response = Right(details('SENT'));
+    when(() => repository.getConversationDetails('conversation-1'))
+        .thenAnswer((_) async => response);
+    when(() => repository.getMessages('conversation-1'))
+        .thenAnswer((_) async => Right([
+              ChatMessage(
+                  id: 'message-1',
+                  conversationId: 'conversation-1',
+                  senderId: 'buyer-1',
+                  senderName: 'Taller El Motor',
+                  isFromMe: false,
+                  content: '¿Tienes la pieza?',
+                  createdAt: DateTime.utc(2026, 8, 24)),
+            ]));
+    when(() => repository.markAsRead('conversation-1'))
+        .thenAnswer((_) async => const Right(null));
+    when(() => socket.onSearchMatched).thenAnswer((_) => const Stream.empty());
+    when(() => socket.onOfferUpdated).thenAnswer((_) => offers.stream);
+    when(() => socket.onNotification).thenAnswer((_) => const Stream.empty());
+    when(() => socket.onMessage).thenAnswer((_) => const Stream.empty());
+    when(() => socket.onReconnect).thenAnswer((_) => const Stream.empty());
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        currentRoleProvider.overrideWithValue(UserRole.store),
+        chatRepositoryProvider.overrideWithValue(repository),
+        socketServiceProvider.overrideWithValue(socket)
+      ],
+      child: const MaterialApp(
+          home: ChatConversationPage(conversationId: 'conversation-1')),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Taller El Motor'), findsNothing);
+    expect(find.bySemanticsLabel(RegExp('Taller El Motor')), findsNothing);
+    expect(find.byKey(const Key('generic-buyer-avatar')), findsOneWidget);
+
+    // A realtime signal triggers a refetch, but cannot reveal identity while
+    // the persisted detail still reports SENT or that request fails.
+    offers.add({'offerId': 'offer-1', 'status': 'BOUGHT'});
+    await tester.pumpAndSettle();
+    expect(find.text('Taller El Motor'), findsNothing);
+    response = const Left(ServerFailure(message: 'No se pudo actualizar'));
+    offers.add({'offerId': 'offer-1', 'status': 'BOUGHT'});
+    await tester.pumpAndSettle();
+    expect(find.text('Taller El Motor'), findsNothing);
+    expect(find.bySemanticsLabel(RegExp('Taller El Motor')), findsNothing);
+
+    response = Right(details('BOUGHT'));
+    offers.add({'offerId': 'offer-1', 'status': 'BOUGHT'});
+    await tester.pumpAndSettle();
+    expect(find.text('Taller El Motor'), findsOneWidget);
+    expect(find.byKey(const Key('generic-buyer-avatar')), findsNothing);
+    expect(tester.takeException(), isNull);
+  }, semanticsEnabled: true);
+
   testWidgets('submits delivery only once while the first request is pending',
       (tester) async {
     final repository = _MockChatRepository();

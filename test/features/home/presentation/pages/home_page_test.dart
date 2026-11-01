@@ -531,7 +531,7 @@ void main() {
     );
   });
 
-  testWidgets('spare-part action shows the recruitment announcement',
+  testWidgets('spare-part action opens the request directly',
       (tester) async {
     final container = containerFor(
       workshops: const AsyncValue.data([]),
@@ -549,16 +549,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Próximamente'), findsOneWidget);
-    expect(find.textContaining('captación de tiendas de repuestos'),
-        findsOneWidget);
-    expect(find.textContaining('1ro de noviembre'), findsOneWidget);
-    expect(find.byType(SparePartWizardPage), findsNothing);
-
-    await tester.tap(find.text('ENTENDIDO'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Próximamente'), findsNothing);
+    expect(find.byType(SparePartWizardPage), findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
     expect(container.read(searchVehicleProvider), isNull);
   });
 

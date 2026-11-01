@@ -13,6 +13,7 @@ import '../../../../shared/widgets/staggered_entrance.dart';
 import '../../../../shared/layout/bottom_navigation_insets.dart';
 import '../../domain/entities/chat_conversation.dart';
 import '../providers/chat_providers.dart';
+import '../../../../shared/utils/buyer_identity.dart';
 import '../widgets/store_chat_card.dart';
 
 /// Bandeja transversal de conversaciones.
@@ -45,7 +46,11 @@ class _ConversationsInboxPageState
     if (query.isEmpty) return visibleConversations.toList();
 
     return visibleConversations.where((conversation) {
-      return conversation.participantName.toLowerCase().contains(query) ||
+      final name = ref.read(currentRoleProvider).isStore
+          ? BuyerIdentity.displayName(
+              conversation.participantName, conversation.offerStatus)
+          : conversation.participantName;
+      return name.toLowerCase().contains(query) ||
           (conversation.spareBrand?.toLowerCase().contains(query) ?? false) ||
           conversation.lastMessage.toLowerCase().contains(query) ||
           (conversation.note?.toLowerCase().contains(query) ?? false);

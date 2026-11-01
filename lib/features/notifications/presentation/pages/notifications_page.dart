@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/notifications/notification_provider.dart';
 import '../../../../core/router/route_names.dart';
+import '../../../../core/providers/current_user_provider.dart';
+import '../../../../shared/utils/buyer_identity.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -178,7 +180,21 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
             );
           }
 
-          final notification = state.items[index];
+          final original = state.items[index];
+          // Message notifications have no purchase status. Resolve identity
+          // inside the chat, and keep its inbox preview generic for stores.
+          final notification = ref.watch(currentRoleProvider).isStore &&
+                  original.type == 'message.new'
+              ? UserNotification(
+                  id: original.id,
+                  type: original.type,
+                  title: BuyerIdentity.aliasFromMessage(original.body),
+                  body: BuyerIdentity.hiddenMessagePreview,
+                  data: original.data,
+                  isRead: original.isRead,
+                  createdAt: original.createdAt,
+                )
+              : original;
           return NotificationCard(
             notification: notification,
             isMarking: state.markingIds.contains(notification.id),

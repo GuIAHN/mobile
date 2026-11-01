@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/domain/enums/offer_status.dart';
 
 class ChatConversation extends Equatable {
   final String id;
@@ -148,9 +149,7 @@ class ChatConversation extends Equatable {
   /// compra. CANCELLED conserva la identidad porque ese estado ocurre después
   /// de BOUGHT y volver a ocultarla rompería el historial de la conversación.
   bool get revealsStoreIdentity =>
-      offerStatus == 'BOUGHT' ||
-      offerStatus == 'DELIVERED' ||
-      offerStatus == 'CANCELLED';
+      OfferStatusX.fromApi(offerStatus).revealsIdentity;
 
   /// Una conversación deja de ser accionable en la bandeja cuando la compra
   /// ya fue entregada y el consumidor completó su reseña.

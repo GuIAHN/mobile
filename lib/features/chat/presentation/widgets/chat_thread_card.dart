@@ -10,6 +10,7 @@ import '../../domain/entities/chat_thread.dart';
 import '../../domain/entities/non_delivery_reason.dart';
 import '../../../reports/presentation/providers/reports_provider.dart';
 import '../providers/chat_providers.dart';
+import '../../../../shared/utils/buyer_identity.dart';
 import 'decline_match_dialog.dart';
 import 'non_delivery_dialog.dart';
 import '_atoms/card_shell.dart';
@@ -171,6 +172,8 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
   @override
   Widget build(BuildContext context) {
     final thread = widget.thread;
+    final buyerName =
+        BuyerIdentity.displayName(thread.clientName, thread.offerStatus);
     final subcategoryLabel = presentSubcategoryPath(
       categoryName: thread.categoryName,
       subcategoryName: thread.subcategory,
@@ -233,7 +236,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
     }
 
     final semanticLabel = StringBuffer(
-      'Solicitud de ${thread.clientName ?? "cliente"}, ${thread.title}',
+      'Solicitud de $buyerName, ${thread.title}',
     );
     if (thread.subcategory != null) {
       semanticLabel.write(', $subcategoryLabel');
@@ -346,8 +349,7 @@ class _ChatThreadCardState extends ConsumerState<ChatThreadCard> {
           // ── Zona 3: contexto del cliente ─────────────────────────────────
           MetaLine(
             items: [
-              MetaItem(thread.clientName ?? 'Cliente',
-                  icon: Icons.person_outline_rounded),
+              MetaItem(buyerName, icon: Icons.person_outline_rounded),
               if (thread.distance != null)
                 MetaItem(
                   '${thread.distance!.toStringAsFixed(1)} km',

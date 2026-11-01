@@ -12,7 +12,6 @@ import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../providers/home_providers.dart';
-import '../spare_part_wizard/spare_parts_availability_dialog.dart';
 import '../spare_part_wizard/spare_part_wizard_page.dart';
 
 /// Configuración visual de cada tipo de acción del buscador principal.
@@ -43,14 +42,11 @@ class CategoryGrid extends ConsumerWidget {
     ref.read(selectedServiceTypeProvider.notifier).state = type;
     switch (type) {
       case ServiceType.spareParts:
-        final shouldContinue = await SparePartsAvailabilityDialog.show(context);
-        if (shouldContinue == true && context.mounted) {
-          await SparePartWizardPage.show(
-            context,
-            initialVehicle: ref.read(searchVehicleProvider),
-            initialModelId: ref.read(searchVehicleModelIdProvider),
-          );
-        }
+        await SparePartWizardPage.show(
+          context,
+          initialVehicle: ref.read(searchVehicleProvider),
+          initialModelId: ref.read(searchVehicleModelIdProvider),
+        );
         break;
       case ServiceType.workshops:
         context.push(RouteNames.workshops);
@@ -70,7 +66,7 @@ class CategoryGrid extends ConsumerWidget {
           icon: AppIcons.catalog,
           label: 'Pedir repuesto',
           semanticsLabel: 'Pedir repuesto',
-          semanticsHint: 'Ver aviso y continuar con la solicitud',
+          semanticsHint: 'Abrir solicitud de repuesto',
         );
       case ServiceType.workshops:
         return const _CategoryConfig(

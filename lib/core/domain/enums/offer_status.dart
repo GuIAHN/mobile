@@ -44,6 +44,12 @@ enum OfferStatus {
 }
 
 extension OfferStatusX on OfferStatus {
+  /// CANCELLED retains identity because cancellation follows a confirmed buy.
+  bool get revealsIdentity =>
+      this == OfferStatus.bought ||
+      this == OfferStatus.delivered ||
+      this == OfferStatus.cancelled;
+
   /// Parsea el string crudo del backend (`offerStatus`/`bestOfferStatus`).
   /// [hasOffer] distingue entre "sin ofertas" (solicitud) y "sin cotizar"
   /// (tienda) cuando el status es null.

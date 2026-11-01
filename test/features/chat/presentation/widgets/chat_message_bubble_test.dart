@@ -9,6 +9,7 @@ void main() {
     MessageType type = MessageType.text,
     bool isFromMe = true,
     String content = '¿Todavía está disponible?',
+    DateTime? createdAt,
   }) {
     return ChatMessage(
       id: 'message-1',
@@ -18,7 +19,7 @@ void main() {
       isFromMe: isFromMe,
       content: content,
       type: type,
-      createdAt: DateTime(2026, 8, 24, 10, 42),
+      createdAt: createdAt ?? DateTime(2026, 8, 24, 10, 42),
     );
   }
 
@@ -48,6 +49,41 @@ void main() {
       find.bySemanticsLabel(
         'Tú: ¿Todavía está disponible?. 10:42 AM',
       ),
+      findsOneWidget,
+    );
+  });
+
+  for (final isFromMe in [true, false]) {
+    testWidgets('shows UTC messages in device time (isFromMe: $isFromMe)',
+        (tester) async {
+      // The API sends UTC; the user should see the device's wall-clock time.
+      final sentAt = DateTime(2026, 10, 30, 19, 36).toUtc();
+      await pumpBubble(
+        tester,
+        message(isFromMe: isFromMe, createdAt: sentAt),
+      );
+
+      expect(find.text('7:36 PM'), findsOneWidget);
+      final sender = isFromMe ? 'Tú' : 'Elio';
+      expect(
+        find.bySemanticsLabel('$sender: ¿Todavía está disponible?. 7:36 PM'),
+        findsOneWidget,
+      );
+    });
+  }
+
+  testWidgets('shows system message time in device time across UTC midnight',
+      (tester) async {
+    const content = 'La compra fue cancelada por el consumidor';
+    final sentAt = DateTime(2026, 10, 30, 23, 36).toUtc();
+    await pumpBubble(
+      tester,
+      message(type: MessageType.system, content: content, createdAt: sentAt),
+    );
+
+    expect(find.textContaining('11:36 PM', findRichText: true), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Actualización: $content. 11:36 PM'),
       findsOneWidget,
     );
   });
