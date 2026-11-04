@@ -1,11 +1,14 @@
+import '../../../../core/domain/entities/paged_result.dart';
 import 'chat_thread.dart';
 
-class ChatThreadsResult {
-  final List<ChatThread> threads;
-  final Map<String, int> counts;
-
+class ChatThreadsResult extends PagedResult<ChatThread> {
   const ChatThreadsResult({
-    required this.threads,
-    this.counts = const {},
-  });
+    required List<ChatThread> threads,
+    super.counts,
+    super.page,
+    super.pageSize,
+    super.total,
+  }) : super(items: threads);
+
+  List<ChatThread> get threads => items;
 }

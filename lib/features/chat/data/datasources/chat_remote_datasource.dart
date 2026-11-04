@@ -1,3 +1,4 @@
+import '../../../../core/network/page_metadata.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../models/chat_thread_model.dart';
@@ -35,9 +36,9 @@ class ChatRemoteDataSource {
     var endpoint =
         isStore ? ApiEndpoints.storeSearchRequests : ApiEndpoints.searchMe;
     if (statusFilter != null && statusFilter.isNotEmpty) {
-      endpoint = '$endpoint?status=$statusFilter&page=$page&pageSize=$pageSize';
+      endpoint = '$endpoint?status=$statusFilter&page=$page&limit=$pageSize';
     } else {
-      endpoint = '$endpoint?page=$page&pageSize=$pageSize';
+      endpoint = '$endpoint?page=$page&limit=$pageSize';
     }
 
     final response = await _dioClient.get(endpoint);
@@ -64,7 +65,14 @@ class ChatRemoteDataSource {
           : _consumerThreadFromJson(json);
     }).toList();
 
+    threads.sort((a, b) => (b.createdAt ?? b.lastActivityAt)
+        .compareTo(a.createdAt ?? a.lastActivityAt));
+    final metadata =
+        PageMetadata.fromResponse(rawData, page: page, pageSize: pageSize);
     return ChatThreadsResult(
+      page: metadata.page,
+      pageSize: metadata.pageSize,
+      total: metadata.total,
       threads: threads,
       counts: counts,
     );
@@ -115,6 +123,7 @@ class ChatRemoteDataSource {
       requestType: ServiceType.spareParts,
       unreadCount: _asInt(json['unreadCount']) ?? 0,
       conversationCount: _asInt(json['totalOffersCount']) ?? (hasOffer ? 1 : 0),
+      createdAt: _asDateTime(json['createdAt']),
       lastActivityAt: DateTime.parse(
         (json['lastMessageAt'] ?? json['createdAt']).toString(),
       ),
@@ -187,6 +196,7 @@ class ChatRemoteDataSource {
       requestType: ServiceType.spareParts,
       unreadCount: _asInt(json['unreadCount']) ?? count,
       conversationCount: _asInt(json['totalOffersCount']) ?? count,
+      createdAt: _asDateTime(json['createdAt']),
       lastActivityAt: DateTime.parse(
         (json['lastMessageAt'] ?? json['createdAt']).toString(),
       ),
@@ -251,10 +261,33 @@ class ChatRemoteDataSource {
       return const [];
     }
 
-    // Consumer side
-    final response = await _dioClient.get(ApiEndpoints.searchOffers(threadId));
-    final raw = response.data;
-    final data = raw is Map ? (raw['items'] as List? ?? const []) : raw as List;
+    // Offer comparison and its local price/distance filters require the whole
+    // matching set. Traverse server pages rather than silently keeping 20/50.
+    final data = <dynamic>[];
+    final ids = <String>{};
+    var page = 1;
+    var pageSize = 20;
+    while (true) {
+      final response = await _dioClient.get(
+          '${ApiEndpoints.searchOffers(threadId)}?page=$page&limit=$pageSize');
+      final raw = response.data;
+      final batch =
+          raw is Map ? (raw['items'] as List? ?? const []) : raw as List;
+      final metadata =
+          PageMetadata.fromResponse(raw, page: page, pageSize: pageSize);
+      final additions =
+          batch.where((item) => ids.add(item['id'].toString())).toList();
+      data.addAll(additions);
+      if (batch.isEmpty ||
+          (additions.isEmpty && metadata.total == null) ||
+          (metadata.total != null
+              ? metadata.page * metadata.pageSize >= metadata.total!
+              : batch.length < metadata.pageSize)) {
+        break;
+      }
+      page = metadata.page + 1;
+      pageSize = metadata.pageSize;
+    }
 
     return data.map((json) {
       final store = json['store'] as Map<String, dynamic>?;
@@ -310,9 +343,14 @@ class ChatRemoteDataSource {
   }
 
   Future<List<ChatMessageModel>> getMessages(
-      String conversationId, UserRole role) async {
-    final response =
-        await _dioClient.get('conversations/$conversationId/messages');
+      String conversationId, UserRole role,
+      {DateTime? before, int limit = 30}) async {
+    final endpoint =
+        Uri(path: 'conversations/$conversationId/messages', queryParameters: {
+      'limit': '$limit',
+      if (before != null) 'before': before.toUtc().toIso8601String(),
+    });
+    final response = await _dioClient.get(endpoint.toString());
     final data = response.data as List;
     final currentUserId = getCurrentUserId();
     return data
@@ -340,8 +378,10 @@ class ChatRemoteDataSource {
     return response.data['id'];
   }
 
-  Future<List<ChatConversationModel>> getMyConversations() async {
-    final response = await _dioClient.get('conversations/me');
+  Future<List<ChatConversationModel>> getMyConversations(
+      {int page = 1, int pageSize = 20}) async {
+    final response =
+        await _dioClient.get('conversations/me?page=$page&limit=$pageSize');
     final data = response.data as List;
     final currentUserId = getCurrentUserId();
     return data
@@ -385,23 +425,8 @@ class ChatRemoteDataSource {
     // as a compatibility fallback for old deep links and stale local state.
     var resolvedSearchMatchId = searchMatchId;
     if (resolvedSearchMatchId == null || resolvedSearchMatchId.isEmpty) {
-      // A stale/deep-link request may no longer be in the default PENDING
-      // page. Keep this compatibility lookup bounded while covering all
-      // statuses and a substantially larger window.
-      const fallbackEndpoint =
-          '${ApiEndpoints.storeSearchRequests}?status=ALL&page=1&pageSize=100';
-      final reqsRes = await _dioClient.get(fallbackEndpoint);
-      final rawReqs = reqsRes.data;
-      final List reqs = rawReqs is Map && rawReqs.containsKey('items')
-          ? (rawReqs['items'] as List)
-          : (rawReqs is List ? rawReqs : []);
-      Map<String, dynamic>? match;
-      for (final rawRequest in reqs) {
-        if (rawRequest is! Map || rawRequest['id'] != threadId) continue;
-        match = Map<String, dynamic>.from(rawRequest);
-        break;
-      }
-      resolvedSearchMatchId = match?['searchMatchId']?.toString();
+      final detail = await getRequestDetail(threadId, UserRole.store);
+      resolvedSearchMatchId = detail.searchMatchId;
     }
     if (resolvedSearchMatchId == null || resolvedSearchMatchId.isEmpty) {
       throw Exception('SearchMatch not found for this request');

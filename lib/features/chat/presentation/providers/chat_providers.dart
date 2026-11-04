@@ -1,5 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/domain/entities/paged_result.dart';
+import '../../../../core/providers/paged_list_notifier.dart';
 import '../../data/datasources/chat_remote_datasource.dart';
 import '../../data/repositories/chat_repository_impl.dart';
 import '../../domain/entities/chat_threads_result.dart';
@@ -487,6 +491,39 @@ final storeRequestsByStatusProvider = FutureProvider.family
   );
 });
 
+/// The first-page providers also feed badges and existing invalidation paths.
+/// Visible inboxes retain subsequent pages in this shared, cancellable state.
+final paginatedRequestsProvider = AsyncNotifierProvider.autoDispose.family<
+    PagedListNotifier<ChatThread, String>, PagedListState<ChatThread>, String>(
+  () => PagedListNotifier(
+    firstPage: (ref, key) => ref.watch(key == 'consumer'
+        ? consumerRequestsProvider.future
+        : key == 'store'
+            ? storeSalesRequestsProvider.future
+            : storeRequestsByStatusProvider(key).future),
+    nextPage: (ref, key, page, pageSize) async {
+      final result = await ref.read(getChatThreadsUseCaseProvider)(
+        role: key == 'consumer' ? UserRole.consumer : UserRole.store,
+        statusFilter: key == 'consumer'
+            ? ref.read(consumerStatusFilterProvider)
+            : key == 'store'
+                ? ref.read(storeStatusFilterProvider)
+                : key,
+        page: page,
+        pageSize: pageSize,
+      );
+      return result.fold(
+          (failure) => throw Exception(failure.message), (page) => page);
+    },
+    idOf: (thread) => thread.id,
+    compare: (a, b) {
+      final date = (b.createdAt ?? b.lastActivityAt)
+          .compareTo(a.createdAt ?? a.lastActivityAt);
+      return date != 0 ? date : b.id.compareTo(a.id);
+    },
+  ),
+);
+
 typedef RequestDetailKey = ({String requestId, UserRole role});
 
 /// Detalle estable por ID, independiente del filtro y de la página visible en
@@ -510,24 +547,53 @@ final requestDetailProvider = FutureProvider.autoDispose
 });
 
 final myConversationsProvider =
-    FutureProvider<List<ChatConversation>>((ref) async {
+    FutureProvider<PagedResult<ChatConversation>>((ref) async {
   ref.watch(sessionGenerationProvider);
   final repository = ref.watch(chatRepositoryProvider);
   ref.watch(
-    _chatRealtimeRevisionProvider.select((value) => value.conversations),
-  );
-
-  final result = await repository.getMyConversations();
-  final conversations = result.fold(
-    (failure) => throw Exception(failure.message),
-    (conversations) => conversations,
-  );
+      _chatRealtimeRevisionProvider.select((value) => value.conversations));
   final storage = ref.watch(secureStorageProvider);
-  return filterVisibleChatConversations(
-    conversations,
-    hasHandledReview: storage.hasHandledStoreReview,
-  );
+  final result = await repository.getMyConversations();
+  final raw = result.fold(
+      (failure) => throw Exception(failure.message), (items) => items);
+  final visible = await filterVisibleChatConversations(raw,
+      hasHandledReview: storage.hasHandledStoreReview);
+  return _ConversationPage(items: visible, page: 1, rawCount: raw.length);
 });
+
+class _ConversationPage extends PagedResult<ChatConversation> {
+  const _ConversationPage(
+      {required super.items,
+      required super.page,
+      super.pageSize,
+      required this.rawCount});
+  final int rawCount;
+  @override
+  bool get hasMore => rawCount >= pageSize;
+}
+
+final paginatedConversationsProvider = AsyncNotifierProvider.autoDispose.family<
+    PagedListNotifier<ChatConversation, String>,
+    PagedListState<ChatConversation>,
+    String>(
+  () => PagedListNotifier(
+    firstPage: (ref, _) => ref.watch(myConversationsProvider.future),
+    nextPage: (ref, _, page, pageSize) async {
+      final storage = ref.read(secureStorageProvider);
+      final result = await ref
+          .read(chatRepositoryProvider)
+          .getMyConversations(page: page, pageSize: pageSize);
+      final raw = result.fold(
+          (failure) => throw Exception(failure.message), (items) => items);
+      final visible = await filterVisibleChatConversations(raw,
+          hasHandledReview: storage.hasHandledStoreReview);
+      return _ConversationPage(
+          items: visible, page: page, pageSize: pageSize, rawCount: raw.length);
+    },
+    idOf: (conversation) => conversation.id,
+    compare: (a, b) => b.lastMessageAt.compareTo(a.lastMessageAt),
+  ),
+);
 
 Future<List<ChatConversation>> filterVisibleChatConversations(
   List<ChatConversation> conversations, {
@@ -587,6 +653,22 @@ final chatConversationsProvider = FutureProvider.autoDispose
 
 // ── Messages Notifier ────────────────────────────────────────────────────────
 
+class MessageHistoryState {
+  const MessageHistoryState(
+      {this.hasMore = false,
+      this.isLoading = false,
+      this.error,
+      this.retryRefresh = false});
+  final bool retryRefresh;
+  final bool hasMore;
+  final bool isLoading;
+  final String? error;
+}
+
+final messageHistoryProvider = StateProvider.autoDispose
+    .family<MessageHistoryState, String>(
+        (ref, _) => const MessageHistoryState());
+
 class ChatMessagesNotifier
     extends StateNotifier<AsyncValue<List<ChatMessage>>> {
   final GetMessagesUseCase _getMessagesUseCase;
@@ -594,6 +676,12 @@ class ChatMessagesNotifier
   final String _conversationId;
   final String _currentUserId;
   final void Function(ChatMessage) _onLatestLoaded;
+  static const historyPageSize = 30;
+  final void Function(MessageHistoryState) _onHistoryChanged;
+  DateTime? _oldestLoaded;
+  bool _hasOlder = false;
+  bool _loadingOlder = false;
+  int _historyGeneration = 0;
   StreamSubscription? _msgSub;
   StreamSubscription? _reconnectSub;
 
@@ -603,11 +691,13 @@ class ChatMessagesNotifier
     required String conversationId,
     required String currentUserId,
     required void Function(ChatMessage) onLatestLoaded,
+    void Function(MessageHistoryState)? onHistoryChanged,
   })  : _getMessagesUseCase = getMessagesUseCase,
         _socketService = socketService,
         _conversationId = conversationId,
         _currentUserId = currentUserId,
         _onLatestLoaded = onLatestLoaded,
+        _onHistoryChanged = onHistoryChanged ?? _ignoreHistory,
         super(const AsyncValue.loading()) {
     loadMessages();
     _socketService.joinConversation(_conversationId);
@@ -624,29 +714,102 @@ class ChatMessagesNotifier
     });
   }
 
+  static void _ignoreHistory(MessageHistoryState _) {}
+
+  List<ChatMessage> _mergeMessages(List<ChatMessage> messages) {
+    final byId = {
+      for (final m in state.valueOrNull ?? <ChatMessage>[]) m.id: m,
+      for (final m in messages) m.id: m
+    };
+    return byId.values.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
+  void _publishHistory({String? error, bool retryRefresh = false}) =>
+      _onHistoryChanged(MessageHistoryState(
+          hasMore: _hasOlder,
+          isLoading: _loadingOlder,
+          error: error,
+          retryRefresh: retryRefresh));
+
   Future<void> loadMessages() async {
+    final generation = ++_historyGeneration;
+    _loadingOlder = false;
     final result = await _getMessagesUseCase(_conversationId);
-    if (!mounted) return;
-    result.fold(
-      (failure) {
-        if (mounted) {
+    if (!mounted || generation != _historyGeneration) return;
+    await result.fold<Future<void>>(
+      (failure) async {
+        if (!state.hasValue) {
           state = AsyncValue.error(failure.message, StackTrace.current);
         }
+        _publishHistory(error: failure.message, retryRefresh: true);
       },
-      (messages) {
-        if (mounted) {
-          state = AsyncValue.data(messages);
-          if (messages.isNotEmpty) {
-            final latest = messages.reduce(
-              (current, candidate) => candidate.createdAt.isAfter(
-                current.createdAt,
-              )
-                  ? candidate
-                  : current,
-            );
-            _onLatestLoaded(latest);
-          }
+      (messages) async {
+        DateTime oldest(List<ChatMessage> items) => items
+            .map((m) => m.createdAt)
+            .reduce((a, b) => a.isBefore(b) ? a : b);
+        final previous = state.valueOrNull;
+        final previousNewest = previous == null || previous.isEmpty
+            ? null
+            : previous.first.createdAt;
+        final fresh = [...messages];
+        var batch = messages;
+        // Reconnection may introduce more than one page of new messages.
+        // Bridge back to the loaded history before publishing, avoiding a gap
+        // that an older cursor could otherwise skip permanently.
+        while (previousNewest != null &&
+            batch.length >= historyPageSize &&
+            oldest(batch).isAfter(previousNewest)) {
+          final cursor = oldest(batch);
+          final next = await _getMessagesUseCase(_conversationId,
+              before: cursor, limit: historyPageSize);
+          if (!mounted || generation != _historyGeneration) return;
+          final nextBatch = next.fold<List<ChatMessage>?>((failure) {
+            _publishHistory(error: failure.message, retryRefresh: true);
+            return null;
+          }, (items) => items);
+          if (nextBatch == null) return;
+          fresh.addAll(nextBatch);
+          batch = nextBatch;
+          if (batch.isEmpty || !oldest(batch).isBefore(cursor)) break;
         }
+        if (_oldestLoaded == null ||
+            (fresh.isNotEmpty && oldest(fresh).isBefore(_oldestLoaded!))) {
+          _hasOlder = batch.length >= historyPageSize;
+          if (fresh.isNotEmpty) _oldestLoaded = oldest(fresh);
+        }
+        final merged = _mergeMessages(fresh);
+        state = AsyncValue.data(merged);
+        _publishHistory();
+        if (merged.isNotEmpty) _onLatestLoaded(merged.first);
+      },
+    );
+  }
+
+  Future<void> loadOlder() async {
+    if (!mounted || !_hasOlder || _loadingOlder || _oldestLoaded == null) {
+      return;
+    }
+    final generation = _historyGeneration;
+    _loadingOlder = true;
+    _publishHistory();
+    final result = await _getMessagesUseCase(_conversationId,
+        before: _oldestLoaded, limit: historyPageSize);
+    if (!mounted || generation != _historyGeneration) return;
+    _loadingOlder = false;
+    result.fold(
+      (failure) => _publishHistory(error: failure.message),
+      (messages) {
+        final previousCursor = _oldestLoaded!;
+        if (messages.isNotEmpty) {
+          _oldestLoaded = messages
+              .map((m) => m.createdAt)
+              .reduce((a, b) => a.isBefore(b) ? a : b);
+        }
+        _hasOlder = messages.length >= historyPageSize &&
+            _oldestLoaded!.isBefore(previousCursor);
+        state = AsyncValue.data(_mergeMessages(messages));
+        _publishHistory();
       },
     );
   }
@@ -713,5 +876,8 @@ final chatMessagesProvider = StateNotifierProvider.family
     currentUserId: ref.watch(currentUserProvider)?.id ?? '',
     onLatestLoaded:
         ref.read(_conversationRealtimeUpdatesProvider.notifier).seedReadMessage,
+    onHistoryChanged: (history) => ref
+        .read(messageHistoryProvider(conversationId).notifier)
+        .state = history,
   );
 });

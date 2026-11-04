@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../../core/providers/paged_list_notifier.dart';
+import '../../../../shared/widgets/paged_list_body.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
@@ -169,13 +172,7 @@ class _RequestsInboxPageState extends ConsumerState<RequestsInboxPage> {
   @override
   Widget build(BuildContext context) {
     final isStore = widget.mode.isStore;
-    final threadsAsync = ref.watch(
-      isStore
-          ? storeRequestsByStatusProvider(
-              _mapFilterToParam(_statusFilter, true),
-            )
-          : consumerRequestsProvider,
-    );
+    final threadsAsync = ref.watch(paginatedRequestsProvider(_paginationKey));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -188,11 +185,14 @@ class _RequestsInboxPageState extends ConsumerState<RequestsInboxPage> {
           skipLoadingOnReload: true,
           loading: () => _buildLoadingState(isStore),
           error: (err, _) => _buildErrorState(err.toString(), isStore),
-          data: (res) => _buildThreadsList(res.threads, isStore, res.counts),
+          data: (res) => _buildThreadsList(res, isStore),
         ),
       ),
     );
   }
+
+  String get _paginationKey =>
+      widget.mode.isStore ? _mapFilterToParam(_statusFilter, true) : 'consumer';
 
   Future<void> _refreshRequests() {
     return ref.refresh(
@@ -282,21 +282,27 @@ class _RequestsInboxPageState extends ConsumerState<RequestsInboxPage> {
   }
 
   Widget _buildThreadsList(
-    List<ChatThread> threads,
+    PagedListState<ChatThread> result,
     bool isProvider,
-    Map<String, int> counts,
   ) {
+    final threads = result.items;
+    final counts = result.counts;
     final searchFiltered = _applySearch(threads);
     final activeCount = counts['open'] ??
         counts['toReceive'] ??
         searchFiltered.where((t) => t.isOpen && !t.isExpired).length;
-    // El contador debe representar exactamente lo que puede abrirse desde
-    // Pendientes. No usamos los conteos del servidor porque una respuesta
-    // desactualizada podría seguir incluyendo solicitudes ya vencidas.
-    final pendingCount = searchFiltered
+    // While pages remain, use global counts rather than counting only the
+    // loaded subset. Once complete, exclude stale expired/closed requests.
+    final loadedPendingCount = searchFiltered
         .where((thread) =>
             _matchesFilter(thread, _StatusFilter.pending, isProvider))
         .length;
+    final pendingCount = result.hasMore
+        ? counts['toAnswer'] ??
+            ((counts['pending'] != null || counts['inquiring'] != null)
+                ? (counts['pending'] ?? 0) + (counts['inquiring'] ?? 0)
+                : loadedPendingCount)
+        : loadedPendingCount;
     final quotedCount = counts['quoted'] ??
         counts['withOffer'] ??
         searchFiltered
@@ -337,18 +343,19 @@ class _RequestsInboxPageState extends ConsumerState<RequestsInboxPage> {
           questionsCount: questionsCount,
         ),
         Expanded(
-          child: _buildListBody(threads, searchFiltered, visible, isProvider),
+          child: _buildListBody(result, searchFiltered, visible, isProvider),
         ),
       ],
     );
   }
 
   Widget _buildListBody(
-    List<ChatThread> threads,
+    PagedListState<ChatThread> result,
     List<ChatThread> searchFiltered,
     List<ChatThread> visible,
     bool isProvider,
   ) {
+    final threads = result.items;
     Widget? emptyWidget;
 
     // Sin ninguna solicitud/oferta en absoluto.
@@ -378,70 +385,52 @@ class _RequestsInboxPageState extends ConsumerState<RequestsInboxPage> {
       );
     }
 
-    if (emptyWidget != null) {
-      return RefreshIndicator(
-        onRefresh: _refreshRequests,
-        color: AppColors.primary,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics()),
-          padding: EdgeInsets.only(
-            bottom: bottomNavigationContentInset(context) + AppSpacing.xl2,
-          ),
-          children: [
-            const SizedBox(height: 80),
-            emptyWidget,
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
+    return PagedListBody<ChatThread>(
+      key: ValueKey(_paginationKey),
+      state: result,
+      itemCount: visible.length,
+      empty: emptyWidget ?? const SizedBox.shrink(),
+      completeSearch: _query.trim().isNotEmpty ||
+          (!isProvider && _statusFilter == _StatusFilter.inquiring) ||
+          (visible.isEmpty && result.hasMore),
       onRefresh: _refreshRequests,
-      color: AppColors.primary,
-      child: ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics()),
-        padding: EdgeInsets.fromLTRB(
-          24,
-          8,
-          24,
-          bottomNavigationContentInset(context) + AppSpacing.xl2,
-        ),
-        itemCount: visible.length,
-        itemBuilder: (context, index) {
-          final thread = visible[index];
-          return StaggeredEntrance(
-            key: ValueKey('request-${thread.id}'),
-            index: index,
-            child: isProvider
-                ? ChatThreadCard(
-                    thread: thread,
-                    onViewDetail: () {
+      onLoadMore: () => ref
+          .read(paginatedRequestsProvider(_paginationKey).notifier)
+          .loadMore(),
+      padding: EdgeInsets.fromLTRB(
+          24, 8, 24, bottomNavigationContentInset(context) + AppSpacing.xl2),
+      itemBuilder: (context, index) {
+        final thread = visible[index];
+        return StaggeredEntrance(
+          key: ValueKey('request-${thread.id}'),
+          index: index,
+          child: isProvider
+              ? ChatThreadCard(
+                  thread: thread,
+                  onViewDetail: () {
+                    context.push(RouteNames.saleDetailPath(thread.id));
+                  },
+                  onTap: () {
+                    if (thread.conversationId != null &&
+                        thread.conversationId!.isNotEmpty) {
+                      context.push(
+                        RouteNames.chatConversationPath(
+                          thread.conversationId!,
+                        ),
+                      );
+                    } else {
                       context.push(RouteNames.saleDetailPath(thread.id));
-                    },
-                    onTap: () {
-                      if (thread.conversationId != null &&
-                          thread.conversationId!.isNotEmpty) {
-                        context.push(
-                          RouteNames.chatConversationPath(
-                            thread.conversationId!,
-                          ),
-                        );
-                      } else {
-                        context.push(RouteNames.saleDetailPath(thread.id));
-                      }
-                    },
-                  )
-                : ConsumerThreadCard(
-                    thread: thread,
-                    onTap: () {
-                      context.push(RouteNames.purchaseDetailPath(thread.id));
-                    },
-                  ),
-          );
-        },
-      ),
+                    }
+                  },
+                )
+              : ConsumerThreadCard(
+                  thread: thread,
+                  onTap: () {
+                    context.push(RouteNames.purchaseDetailPath(thread.id));
+                  },
+                ),
+        );
+      },
     );
   }
 

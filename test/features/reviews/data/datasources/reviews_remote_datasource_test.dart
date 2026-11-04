@@ -7,6 +7,33 @@ import 'package:mocktail/mocktail.dart';
 class _MockDioClient extends Mock implements DioClient {}
 
 void main() {
+  test('retains review pagination metadata instead of stopping after 20',
+      () async {
+    final client = _MockDioClient();
+    when(() => client.get('/users/target/reviews',
+            queryParameters: {'page': 2, 'limit': 5}))
+        .thenAnswer((_) async => Response(
+                requestOptions: RequestOptions(path: '/users/target/reviews'),
+                data: {
+                  'items': [
+                    {
+                      'id': 'review',
+                      'rating': 5,
+                      'created_at': '2026-11-03T00:00:00Z'
+                    }
+                  ],
+                  'page': 2,
+                  'limit': 5,
+                  'total': 13
+                }));
+    final result = await ReviewsRemoteDataSource(client)
+        .getReviewsByTarget('target', page: 2, limit: 5);
+    expect(result.page, 2);
+    expect(result.pageSize, 5);
+    expect(result.total, 13);
+    expect(result.hasMore, isTrue);
+  });
+
   test('maps purchase and prompt identifiers', () async {
     final client = _MockDioClient();
     when(() => client.get('/reviews/pending')).thenAnswer(

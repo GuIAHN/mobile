@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/review.dart';
 import 'star_rating_input.dart';
@@ -12,7 +13,8 @@ class ReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial = review.authorName.isNotEmpty ? review.authorName[0].toUpperCase() : '?';
+    final initial =
+        review.authorName.isNotEmpty ? review.authorName[0].toUpperCase() : '?';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -57,8 +59,6 @@ class ReviewCard extends StatelessWidget {
                         fontSize: 15,
                         color: AppColors.textPrimary,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     StarRatingInput(
@@ -66,15 +66,16 @@ class ReviewCard extends StatelessWidget {
                       readOnly: true,
                       size: 16,
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat('dd MMM yyyy').format(review.createdAt),
+                      style: GoogleFonts.hankenGrotesk(
+                        fontWeight: FontWeight.w400,
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ],
-                ),
-              ),
-              Text(
-                DateFormat('dd MMM yyyy').format(review.createdAt),
-                style: GoogleFonts.hankenGrotesk(
-                  fontWeight: FontWeight.w400,
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
                 ),
               ),
             ],

@@ -1,11 +1,14 @@
+import '../../../../core/domain/entities/paged_result.dart';
 import 'consumer_purchase.dart';
 
-class PurchasesResult {
+class PurchasesResult extends PagedResult<ConsumerPurchase> {
   const PurchasesResult({
-    required this.purchases,
-    this.counts = const {},
-  });
+    required List<ConsumerPurchase> purchases,
+    super.counts,
+    super.page,
+    super.pageSize,
+    super.total,
+  }) : super(items: purchases);
 
-  final List<ConsumerPurchase> purchases;
-  final Map<String, int> counts;
+  List<ConsumerPurchase> get purchases => items;
 }

@@ -1,3 +1,4 @@
+import 'package:guiautomotriz_mobile/core/domain/entities/paged_result.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -74,7 +75,7 @@ void main() {
         overrides: [
           currentRoleProvider.overrideWithValue(role),
           myConversationsProvider.overrideWith(
-            (ref) async => conversations ?? [conversation],
+            (ref) async => PagedResult(items: conversations ?? [conversation]),
           ),
           consumerRequestsProvider.overrideWith(
             (ref) async => resultFor(consumerRequest),

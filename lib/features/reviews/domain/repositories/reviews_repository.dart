@@ -1,15 +1,14 @@
 import 'package:dartz/dartz.dart';
+
+import '../../../../core/domain/entities/paged_result.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/review.dart';
 import '../entities/my_review_status.dart';
 import '../entities/pending_review.dart';
 
-class PaginatedReviews {
-  final List<Review> items;
-
-  const PaginatedReviews({
-    required this.items,
-  });
+class PaginatedReviews extends PagedResult<Review> {
+  const PaginatedReviews(
+      {required super.items, super.page, super.pageSize, super.total});
 }
 
 abstract class ReviewsRepository {

@@ -1,4 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/providers/paged_list_notifier.dart';
+import '../../domain/entities/review.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/providers/cache_for.dart';
 import '../../../../core/storage/secure_storage.dart';
@@ -52,6 +55,20 @@ final reviewsProvider = FutureProvider.family
     (paginated) => paginated,
   );
 });
+
+final paginatedReviewsProvider = AsyncNotifierProvider.autoDispose
+    .family<PagedListNotifier<Review, String>, PagedListState<Review>, String>(
+  () => PagedListNotifier(
+    firstPage: (ref, targetId) => ref.watch(reviewsProvider(targetId).future),
+    nextPage: (ref, targetId, page, pageSize) async {
+      final result = await ref.read(getReviewsUseCaseProvider)(targetId,
+          page: page, limit: pageSize);
+      return result.fold(
+          (failure) => throw Exception(failure.message), (page) => page);
+    },
+    idOf: (review) => review.id,
+  ),
+);
 
 final pendingReviewsProvider =
     FutureProvider.autoDispose<List<PendingReview>>((ref) async {

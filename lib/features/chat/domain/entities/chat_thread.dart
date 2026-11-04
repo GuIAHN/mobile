@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+
 import '../../../../core/domain/enums/service_type.dart';
 
 class ChatThread extends Equatable {
@@ -8,6 +9,7 @@ class ChatThread extends Equatable {
   final int unreadCount;
   final int conversationCount;
   final DateTime lastActivityAt;
+  final DateTime? createdAt;
   final bool isOpen;
   final String? clientName; // Nombre del creador (para vista de tienda)
   final String? clientId;
@@ -64,6 +66,7 @@ class ChatThread extends Equatable {
     required this.unreadCount,
     required this.conversationCount,
     required this.lastActivityAt,
+    this.createdAt,
     this.isOpen = true,
     this.clientName,
     this.clientId,
@@ -128,6 +131,7 @@ class ChatThread extends Equatable {
         unreadCount,
         conversationCount,
         lastActivityAt,
+        createdAt,
         isOpen,
         clientName,
         clientId,

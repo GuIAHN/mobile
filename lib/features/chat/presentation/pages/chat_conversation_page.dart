@@ -3,6 +3,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/router/route_names.dart';
@@ -57,6 +58,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_loadOlderNearTop);
     _messageController.addListener(_handleTextChange);
     _messageFocusNode.addListener(_handleFocusChange);
     // Mark as read in the background
@@ -89,14 +91,69 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
     super.dispose();
   }
 
+  void _loadOlderNearTop() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final remaining = _unavailableFailure != null
+        ? position.extentBefore
+        : position.extentAfter;
+    final history = ref.read(messageHistoryProvider(widget.conversationId));
+    if (remaining < 600 &&
+        history.hasMore &&
+        !history.isLoading &&
+        history.error == null) {
+      ref
+          .read(chatMessagesProvider(widget.conversationId).notifier)
+          .loadOlder();
+    }
+  }
+
+  Widget _historyFooter(MessageHistoryState history) {
+    if (!history.hasMore && history.error == null) {
+      return const SizedBox.shrink();
+    }
+    return SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: history.isLoading
+              ? Center(
+                  child: Semantics(
+                      label: 'Cargando mensajes anteriores',
+                      child: const CircularProgressIndicator()))
+              : Center(
+                  child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(180, 48),
+                      foregroundColor: AppColors.textPrimary),
+                  onPressed: () {
+                    final notifier = ref.read(
+                        chatMessagesProvider(widget.conversationId).notifier);
+                    if (history.retryRefresh) {
+                      notifier.loadMessages();
+                    } else {
+                      notifier.loadOlder();
+                    }
+                  },
+                  child: Text(history.error != null
+                      ? 'Reintentar mensajes anteriores'
+                      : 'Mensajes anteriores'),
+                )),
+        ));
+  }
+
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       if (MediaQuery.disableAnimationsOf(context)) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        _scrollController.jumpTo((_unavailableFailure != null
+            ? _scrollController.position.maxScrollExtent
+            : _scrollController.position.minScrollExtent));
         return;
       }
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+        (_unavailableFailure != null
+            ? _scrollController.position.maxScrollExtent
+            : _scrollController.position.minScrollExtent),
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
@@ -323,13 +380,22 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
   Widget build(BuildContext context) {
     final messagesAsync =
         ref.watch(chatMessagesProvider(widget.conversationId));
+    final history = ref.watch(messageHistoryProvider(widget.conversationId));
     final currentRole = ref.watch(currentRoleProvider);
     final isStore = currentRole == UserRole.store;
 
     // Scroll to bottom when data initially loads or updates
     ref.listen(chatMessagesProvider(widget.conversationId), (prev, next) {
-      if (next.hasValue) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+      final oldMessages = prev?.valueOrNull;
+      final newMessages = next.valueOrNull;
+      if (newMessages != null &&
+          newMessages.isNotEmpty &&
+          (oldMessages == null ||
+              oldMessages.isEmpty ||
+              oldMessages.first.id != newMessages.first.id)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _scrollToBottom();
+        });
       }
     });
 
@@ -673,6 +739,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                             ),
                           ),
                         ),
+                        SliverToBoxAdapter(child: _historyFooter(history)),
                         messagesAsync.when(
                           loading: () => const SliverToBoxAdapter(
                               child: MessageBubbleSkeleton()),
@@ -735,8 +802,14 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                           physics: const BouncingScrollPhysics(),
                           padding: const EdgeInsets.symmetric(
                               horizontal: 18, vertical: 16),
-                          itemCount: messages.length,
+                          itemCount: messages.length +
+                              (history.hasMore || history.error != null
+                                  ? 1
+                                  : 0),
                           itemBuilder: (context, index) {
+                            if (index == messages.length) {
+                              return _historyFooter(history);
+                            }
                             final message = messages[index];
                             return ChatMessageBubble(
                               message: message,

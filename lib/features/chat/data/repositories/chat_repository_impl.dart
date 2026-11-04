@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/error/error_mapper.dart';
@@ -70,11 +71,12 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, List<ChatMessage>>> getMessages(
-      String conversationId) async {
+  Future<Either<Failure, List<ChatMessage>>> getMessages(String conversationId,
+      {DateTime? before, int limit = 30}) async {
     try {
       final role = getCurrentRole();
-      final messages = await remoteDataSource.getMessages(conversationId, role);
+      final messages = await remoteDataSource.getMessages(conversationId, role,
+          before: before, limit: limit);
       return Right(messages);
     } catch (e) {
       return Left(ErrorMapper.map(e));
@@ -151,9 +153,11 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, List<ChatConversation>>> getMyConversations() async {
+  Future<Either<Failure, List<ChatConversation>>> getMyConversations(
+      {int page = 1, int pageSize = 20}) async {
     try {
-      final conversations = await remoteDataSource.getMyConversations();
+      final conversations = await remoteDataSource.getMyConversations(
+          page: page, pageSize: pageSize);
       return Right(conversations);
     } catch (e) {
       return Left(ErrorMapper.map(e));

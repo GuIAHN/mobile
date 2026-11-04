@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import '../../../../shared/widgets/paged_list_body.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../providers/reviews_providers.dart';
 import '../widgets/review_card.dart';
@@ -37,7 +39,7 @@ class ProviderReviewsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final reviewsAsync = ref.watch(reviewsProvider(targetId));
+    final reviewsAsync = ref.watch(paginatedReviewsProvider(targetId));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -81,53 +83,55 @@ class ProviderReviewsPage extends ConsumerWidget {
         data: (paginated) {
           final reviews = paginated.items;
 
-          if (reviews.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.star_outline_rounded,
-                      size: 64, color: AppColors.border),
-                  const SizedBox(height: 16),
-                  Text(
-                    isOwnProfile
-                        ? 'Aún no has recibido reseñas'
-                        : 'Aún no hay reseñas',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
+          final empty = Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.star_outline_rounded,
+                    size: 64, color: AppColors.border),
+                const SizedBox(height: 16),
+                Text(
+                  isOwnProfile
+                      ? 'Aún no has recibido reseñas'
+                      : 'Aún no hay reseñas',
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    isOwnProfile
-                        ? 'Cuando un cliente te valore, aparecerá aquí.'
-                        : 'Este proveedor aún no tiene calificaciones.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 15,
-                      color: AppColors.textSecondary,
-                    ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isOwnProfile
+                      ? 'Cuando un cliente te valore, aparecerá aquí.'
+                      : 'Este proveedor aún no tiene calificaciones.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 15,
+                    color: AppColors.textSecondary,
                   ),
-                ],
-              ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(reviewsProvider(targetId)),
-            color: AppColors.primary,
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              itemCount: reviews.length,
-              itemBuilder: (context, index) {
-                return StaggeredEntrance(
-                  index: index,
-                  child: ReviewCard(review: reviews[index]),
-                );
-              },
+                ),
+              ],
             ),
+          );
+
+          return PagedListBody(
+            state: paginated,
+            empty: empty,
+            onLoadMore: () => ref
+                .read(paginatedReviewsProvider(targetId).notifier)
+                .loadMore(),
+            onRefresh: () => ref.refresh(reviewsProvider(targetId).future),
+            padding: EdgeInsets.fromLTRB(
+                24, 16, 24, 16 + MediaQuery.paddingOf(context).bottom),
+            itemCount: reviews.length,
+            itemBuilder: (context, index) {
+              return StaggeredEntrance(
+                key: ValueKey('review-${reviews[index].id}'),
+                index: index,
+                child: ReviewCard(review: reviews[index]),
+              );
+            },
           );
         },
       ),

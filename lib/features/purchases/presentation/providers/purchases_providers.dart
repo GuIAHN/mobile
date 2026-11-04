@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/paged_list_notifier.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/socket_service.dart';
 import '../../../../core/session/session_generation_provider.dart';
@@ -70,3 +71,21 @@ final consumerPurchasesProvider = FutureProvider<PurchasesResult>((ref) async {
     (purchases) => purchases,
   );
 });
+
+final paginatedPurchasesProvider = AsyncNotifierProvider.autoDispose.family<
+    PagedListNotifier<ConsumerPurchase, String>,
+    PagedListState<ConsumerPurchase>,
+    String>(
+  () => PagedListNotifier(
+    firstPage: (ref, _) => ref.watch(consumerPurchasesProvider.future),
+    nextPage: (ref, _, page, pageSize) async {
+      final result = await ref.read(getConsumerPurchasesUseCaseProvider)(
+          filter: ref.read(purchaseFilterProvider),
+          page: page,
+          pageSize: pageSize);
+      return result.fold(
+          (failure) => throw Exception(failure.message), (page) => page);
+    },
+    idOf: (purchase) => purchase.id,
+  ),
+);

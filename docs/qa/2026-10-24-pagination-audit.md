@@ -1,5 +1,8 @@
 # Auditoría de paginación — 24 de octubre de 2026
 
+> Seguimiento: los listados marcados como pendientes en este documento histórico
+> se corrigieron en la [auditoría del 3 de noviembre](2026-11-03-pagination-audit.md).
+
 ## Talleres y mecánicos: corregido
 
 La app solicitaba únicamente `page=1&pageSize=20`, descartaba `total`, `page`

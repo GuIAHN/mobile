@@ -1,3 +1,4 @@
+import '../../../../core/network/page_metadata.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../domain/entities/purchases_result.dart';
@@ -33,6 +34,13 @@ class PurchasesRemoteDataSource {
     final counts = (raw['counts'] as Map? ?? const {}).map(
       (key, value) => MapEntry(key.toString(), (value as num).toInt()),
     );
-    return PurchasesResult(purchases: purchases, counts: counts);
+    final metadata =
+        PageMetadata.fromResponse(raw, page: page, pageSize: pageSize);
+    return PurchasesResult(
+        purchases: purchases,
+        counts: counts,
+        page: metadata.page,
+        pageSize: metadata.pageSize,
+        total: metadata.total);
   }
 }

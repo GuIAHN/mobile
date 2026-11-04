@@ -1,7 +1,7 @@
 name: guiautomotriz_mobile
 description: App móvil para gestión automotriz. Consume API REST (NestJS).
 publish_to: 'none'
-version: 1.0.7+9
+version: 1.0.8+10
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -52,6 +52,7 @@ dependencies:
   flutter_svg: ^2.3.0
   geocoding: ^5.0.0
   uuid: ^4.5.3
+  upgrader: ^13.7.0
 
 dev_dependencies:
   flutter_test:

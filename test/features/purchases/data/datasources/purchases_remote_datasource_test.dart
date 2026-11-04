@@ -9,6 +9,33 @@ import 'package:mocktail/mocktail.dart';
 class _MockDioClient extends Mock implements DioClient {}
 
 void main() {
+  test('retains total, page and effective limit for subsequent purchases pages',
+      () async {
+    final client = _MockDioClient();
+    const endpoint = 'me/purchases?status=ALL&page=2&limit=5';
+    when(() => client.get(endpoint)).thenAnswer((_) async =>
+        Response(requestOptions: RequestOptions(path: endpoint), data: {
+          'items': [
+            {
+              'searchRequestId': 'r',
+              'status': 'BOUGHT',
+              'boughtAt': '2026-11-03T00:00:00Z'
+            }
+          ],
+          'page': 2,
+          'pageSize': 5,
+          'total': 13,
+          'counts': {'all': 13},
+        }));
+    final result = await PurchasesRemoteDataSource(client)
+        .getPurchases(page: 2, pageSize: 5);
+    expect(result.page, 2);
+    expect(result.pageSize, 5);
+    expect(result.total, 13);
+    expect(result.hasMore, isTrue);
+    expect(result.counts['all'], 13);
+  });
+
   test('keeps legacy purchases compatible when catch-all metadata is absent',
       () {
     final purchase = ConsumerPurchaseModel.fromJson(const {

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/providers/paged_list_notifier.dart';
+import '../../../../shared/widgets/paged_list_body.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
@@ -13,7 +15,6 @@ import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../shared/widgets/staggered_entrance.dart';
 import '../../../../shared/widgets/status_filter_selector.dart';
 import '../../domain/entities/consumer_purchase.dart';
-import '../../domain/entities/purchases_result.dart';
 import '../providers/purchases_providers.dart';
 import '../widgets/consumer_purchase_card.dart';
 
@@ -37,7 +38,7 @@ class _ConsumerPurchasesPageState extends ConsumerState<ConsumerPurchasesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final purchases = ref.watch(consumerPurchasesProvider);
+    final purchases = ref.watch(paginatedPurchasesProvider('consumer'));
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -140,11 +141,11 @@ class _ConsumerPurchasesPageState extends ConsumerState<ConsumerPurchasesPage> {
     );
   }
 
-  Widget _buildData(PurchasesResult result) {
+  Widget _buildData(PagedListState<ConsumerPurchase> result) {
     final query = _query.trim().toLowerCase();
     final visible = query.isEmpty
-        ? result.purchases
-        : result.purchases.where((purchase) {
+        ? result.items
+        : result.items.where((purchase) {
             return purchase.vehicleName.toLowerCase().contains(query) ||
                 purchase.storeName.toLowerCase().contains(query) ||
                 (purchase.partName?.toLowerCase().contains(query) ?? false);
@@ -160,58 +161,41 @@ class _ConsumerPurchasesPageState extends ConsumerState<ConsumerPurchasesPage> {
           onClear: _clearQuery,
         ),
         Expanded(
-          child: RefreshIndicator(
-            color: AppColors.primary,
+          child: PagedListBody<ConsumerPurchase>(
+            key: ValueKey(ref.watch(purchaseFilterProvider)),
+            state: result,
+            itemCount: visible.length,
+            completeSearch: query.isNotEmpty,
             onRefresh: () => ref.refresh(consumerPurchasesProvider.future),
-            child: visible.isEmpty
-                ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics(),
-                    ),
-                    padding: EdgeInsets.only(
-                      bottom: bottomNavigationContentInset(context) +
-                          AppSpacing.xl2,
-                    ),
-                    children: [
-                      const SizedBox(height: 80),
-                      EmptyState(
-                        title: result.purchases.isEmpty
-                            ? 'Aún no tienes compras'
-                            : 'Sin resultados',
-                        subtitle: result.purchases.isEmpty
-                            ? 'Cuando compres un repuesto, aparecerá en esta sección.'
-                            : 'No encontramos compras para “$_query”.',
-                        icon: result.purchases.isEmpty
-                            ? AppIcons.purchases
-                            : AppIcons.searchEmpty,
-                      ),
-                    ],
-                  )
-                : ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics(),
-                    ),
-                    padding: EdgeInsets.fromLTRB(
-                      24,
-                      AppSpacing.sm,
-                      24,
-                      bottomNavigationContentInset(context) + AppSpacing.xl2,
-                    ),
-                    itemCount: visible.length,
-                    itemBuilder: (_, index) {
-                      final purchase = visible[index];
-                      return StaggeredEntrance(
-                        key: ValueKey('purchase-${purchase.id}'),
-                        index: index,
-                        child: ConsumerPurchaseCard(
-                          purchase: purchase,
-                          onReview: _hasReviewAction(purchase)
-                              ? () => _openReview(purchase)
-                              : null,
-                        ),
-                      );
-                    },
-                  ),
+            onLoadMore: () => ref
+                .read(paginatedPurchasesProvider('consumer').notifier)
+                .loadMore(),
+            padding: EdgeInsets.fromLTRB(24, AppSpacing.sm, 24,
+                bottomNavigationContentInset(context) + AppSpacing.xl2),
+            empty: EmptyState(
+              title: result.items.isEmpty
+                  ? 'Aún no tienes compras'
+                  : 'Sin resultados',
+              subtitle: result.items.isEmpty
+                  ? 'Cuando compres un repuesto, aparecerá en esta sección.'
+                  : 'No encontramos compras para “$_query”.',
+              icon: result.items.isEmpty
+                  ? AppIcons.purchases
+                  : AppIcons.searchEmpty,
+            ),
+            itemBuilder: (_, index) {
+              final purchase = visible[index];
+              return StaggeredEntrance(
+                key: ValueKey('purchase-${purchase.id}'),
+                index: index,
+                child: ConsumerPurchaseCard(
+                  purchase: purchase,
+                  onReview: _hasReviewAction(purchase)
+                      ? () => _openReview(purchase)
+                      : null,
+                ),
+              );
+            },
           ),
         ),
       ],

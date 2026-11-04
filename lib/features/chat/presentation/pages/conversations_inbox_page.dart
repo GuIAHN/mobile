@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/providers/paged_list_notifier.dart';
+import '../../../../shared/widgets/paged_list_body.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -60,7 +62,8 @@ class _ConversationsInboxPageState
   @override
   Widget build(BuildContext context) {
     final role = ref.watch(currentRoleProvider);
-    final conversationsAsync = ref.watch(myConversationsProvider);
+    final conversationsAsync =
+        ref.watch(paginatedConversationsProvider('inbox'));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -114,68 +117,43 @@ class _ConversationsInboxPageState
   }
 
   Widget _buildList(
-    List<ChatConversation> conversations, {
+    PagedListState<ChatConversation> result, {
     required bool consumerPerspective,
   }) {
-    final filtered = _filter(conversations);
+    final filtered = _filter(result.items);
 
-    if (filtered.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: () => ref.refresh(myConversationsProvider.future),
-        color: AppColors.primary,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
-          padding: EdgeInsets.only(
-            bottom: bottomNavigationContentInset(context) + 24,
-          ),
-          children: [
-            const SizedBox(height: 80),
-            EmptyState(
-              title:
-                  _query.isNotEmpty ? 'Sin resultados' : 'Aún no tienes chats',
-              subtitle: _query.isNotEmpty
-                  ? 'No encontramos conversaciones para "$_query".'
-                  : 'Cuando inicies una conversación, aparecerá aquí.',
-              icon: _query.isNotEmpty ? AppIcons.searchEmpty : AppIcons.message,
-            ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
+    return PagedListBody<ChatConversation>(
+      state: result,
+      itemCount: filtered.length,
+      completeSearch: _query.trim().isNotEmpty,
       onRefresh: () => ref.refresh(myConversationsProvider.future),
-      color: AppColors.primary,
-      child: ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
-        ),
-        padding: EdgeInsets.fromLTRB(
-          24,
-          8,
-          24,
-          bottomNavigationContentInset(context) + 24,
-        ),
-        itemCount: filtered.length,
-        itemBuilder: (context, index) {
-          final conversation = filtered[index];
-          return StaggeredEntrance(
-            key: ValueKey(
-              'conversation-${conversation.realtimeConversationId}',
-            ),
-            index: index,
-            child: RealtimeStoreChatCard(
-              conversation: conversation,
-              consumerPerspective: consumerPerspective,
-              onTap: () => context.push(
-                RouteNames.chatConversationPath(conversation.id),
-              ),
-            ),
-          );
-        },
+      onLoadMore: () =>
+          ref.read(paginatedConversationsProvider('inbox').notifier).loadMore(),
+      empty: EmptyState(
+        title: _query.isNotEmpty ? 'Sin resultados' : 'Aún no tienes chats',
+        subtitle: _query.isNotEmpty
+            ? 'No encontramos conversaciones para "$_query".'
+            : 'Cuando inicies una conversación, aparecerá aquí.',
+        icon: _query.isNotEmpty ? AppIcons.searchEmpty : AppIcons.message,
       ),
+      padding: EdgeInsets.fromLTRB(
+          24, 8, 24, bottomNavigationContentInset(context) + 24),
+      itemBuilder: (context, index) {
+        final conversation = filtered[index];
+        return StaggeredEntrance(
+          key: ValueKey(
+            'conversation-${conversation.realtimeConversationId}',
+          ),
+          index: index,
+          child: RealtimeStoreChatCard(
+            conversation: conversation,
+            consumerPerspective: consumerPerspective,
+            onTap: () => context.push(
+              RouteNames.chatConversationPath(conversation.id),
+            ),
+          ),
+        );
+      },
     );
   }
 }

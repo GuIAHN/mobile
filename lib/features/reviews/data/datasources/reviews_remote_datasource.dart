@@ -1,3 +1,4 @@
+import '../../../../core/network/page_metadata.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../domain/repositories/reviews_repository.dart';
 import '../models/review_model.dart';
@@ -27,7 +28,12 @@ class ReviewsRemoteDataSource {
         .map((json) => ReviewModel.fromJson(json as Map<String, dynamic>))
         .toList();
 
+    final metadata =
+        PageMetadata.fromResponse(data, page: page, pageSize: limit);
     return PaginatedReviews(
+      page: metadata.page,
+      pageSize: metadata.pageSize,
+      total: metadata.total,
       items: items,
     );
   }

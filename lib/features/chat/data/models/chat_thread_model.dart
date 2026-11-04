@@ -9,6 +9,7 @@ class ChatThreadModel extends ChatThread {
     required super.unreadCount,
     required super.conversationCount,
     required super.lastActivityAt,
+    super.createdAt,
     super.isOpen,
     super.clientName,
     super.clientId,
@@ -72,6 +73,7 @@ class ChatThreadModel extends ChatThread {
       ),
       unreadCount: json['unreadCount'] as int? ?? 0,
       conversationCount: json['conversationCount'] as int? ?? 0,
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
       lastActivityAt: DateTime.parse(
           json['lastActivityAt'] as String? ?? json['createdAt'] as String),
       isOpen: json['isOpen'] as bool? ??

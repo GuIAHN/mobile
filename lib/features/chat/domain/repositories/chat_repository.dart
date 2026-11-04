@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+
 import '../../../../core/error/failures.dart';
 import '../entities/chat_threads_result.dart';
 import '../entities/chat_thread.dart';
@@ -22,7 +23,8 @@ abstract class ChatRepository {
   Future<Either<Failure, List<ChatConversation>>> getConversations(
       String threadId);
 
-  Future<Either<Failure, List<ChatMessage>>> getMessages(String conversationId);
+  Future<Either<Failure, List<ChatMessage>>> getMessages(String conversationId,
+      {DateTime? before, int limit = 30});
 
   Future<Either<Failure, ChatMessage?>> getLatestMessage(String conversationId);
 
@@ -46,7 +48,8 @@ abstract class ChatRepository {
 
   Future<Either<Failure, String>> startChatFromOffer(String offerId);
 
-  Future<Either<Failure, List<ChatConversation>>> getMyConversations();
+  Future<Either<Failure, List<ChatConversation>>> getMyConversations(
+      {int page = 1, int pageSize = 20});
 
   Future<Either<Failure, ChatConversation>> getConversationDetails(
       String conversationId);

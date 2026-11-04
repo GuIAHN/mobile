@@ -9,9 +9,126 @@ import 'package:mocktail/mocktail.dart';
 class _MockDioClient extends Mock implements DioClient {}
 
 void main() {
+  for (final role in [UserRole.consumer, UserRole.store]) {
+    test('$role preserves pagination metadata and orders requests by creation',
+        () async {
+      final client = _MockDioClient();
+      final base = role == UserRole.store
+          ? ApiEndpoints.storeSearchRequests
+          : ApiEndpoints.searchMe;
+      final endpoint = '$base?status=ALL&page=2&limit=5';
+      when(() => client.get(endpoint)).thenAnswer((_) async =>
+          Response(requestOptions: RequestOptions(path: endpoint), data: {
+            'items': [
+              {
+                'id': 'old',
+                'createdAt': '2026-10-01T00:00:00Z',
+                'lastMessageAt': '2026-11-03T00:00:00Z'
+              },
+              {'id': 'new', 'createdAt': '2026-11-02T00:00:00Z'},
+            ],
+            'total': 13,
+            'page': 2,
+            'limit': 5,
+            'counts': {'all': 13},
+          }));
+      final result = await ChatRemoteDataSource(client, () => 'me')
+          .getChatThreads(role, statusFilter: 'ALL', page: 2, pageSize: 5);
+      expect(result.threads.map((t) => t.id), ['new', 'old']);
+      expect(result.page, 2);
+      expect(result.pageSize, 5);
+      expect(result.total, 13);
+      expect(result.hasMore, isTrue);
+      expect(result.counts['all'], 13);
+      verify(() => client.get(endpoint)).called(1);
+    });
+  }
+
+  test('offer comparison traverses every server page and deduplicates offers',
+      () async {
+    final client = _MockDioClient();
+    final requested = <int>[];
+    when(() => client.get(any())).thenAnswer((call) async {
+      final endpoint = call.positionalArguments.first as String;
+      final uri = Uri.parse(endpoint);
+      final page = int.parse(uri.queryParameters['page']!);
+      requested.add(page);
+      final start = (page - 1) * 20;
+      final end = page == 3 ? 43 : page * 20;
+      return Response(requestOptions: RequestOptions(path: endpoint), data: {
+        'items': [
+          for (var i = start; i < end; i++)
+            {
+              'id': 'offer-$i',
+              'createdAt': '2026-11-03T00:00:00Z',
+              'status': 'SENT',
+            }
+        ],
+        'page': page,
+        'limit': 20,
+        'total': 43,
+      });
+    });
+    final items = await ChatRemoteDataSource(client, () => 'me')
+        .getConversations('request', UserRole.consumer);
+    expect(items, hasLength(43));
+    expect(items.last.offerId, 'offer-42');
+    expect(requested, [1, 2, 3]);
+  });
+
+  test(
+      'a duplicate-only offers page does not hide remaining pages with a known total',
+      () async {
+    final client = _MockDioClient();
+    final requested = <int>[];
+    when(() => client.get(any())).thenAnswer((call) async {
+      final endpoint = call.positionalArguments.first as String;
+      final page = int.parse(Uri.parse(endpoint).queryParameters['page']!);
+      requested.add(page);
+      final start = page == 3 ? 20 : 0;
+      return Response(requestOptions: RequestOptions(path: endpoint), data: {
+        'items': [
+          for (var i = start; i < start + 20; i++)
+            {
+              'id': 'offer-$i',
+              'createdAt': '2026-11-03T00:00:00Z',
+              'status': 'SENT',
+            }
+        ],
+        'page': page,
+        'limit': 20,
+        'total': 60,
+      });
+    });
+    final items = await ChatRemoteDataSource(client, () => 'me')
+        .getConversations('request', UserRole.consumer);
+    expect(items, hasLength(40));
+    expect(items.last.offerId, 'offer-39');
+    expect(requested, [1, 2, 3]);
+  });
+
+  test('message history sends the oldest loaded timestamp as UTC cursor',
+      () async {
+    final client = _MockDioClient();
+    when(() => client.get(any())).thenAnswer((call) async => Response(
+        requestOptions:
+            RequestOptions(path: call.positionalArguments.first as String),
+        data: []));
+    final cursor = DateTime.parse('2026-11-03T10:00:00-04:00');
+    await ChatRemoteDataSource(client, () => 'me')
+        .getMessages('chat', UserRole.consumer, before: cursor, limit: 30);
+    final endpoint =
+        verify(() => client.get(captureAny())).captured.single as String;
+    final uri = Uri.parse(endpoint);
+    expect(uri.path, 'conversations/chat/messages');
+    expect(uri.queryParameters,
+        {'limit': '30', 'before': '2026-11-03T14:00:00.000Z'});
+  });
+
   test('reads offers from the new paginated response envelope', () async {
     final client = _MockDioClient();
-    final endpoint = ApiEndpoints.searchOffers('request-paginated');
+    final endpoint =
+        '${ApiEndpoints.searchOffers('request-paginated')}?page=1&limit=20';
     when(() => client.get(endpoint)).thenAnswer(
       (_) async => Response(
         requestOptions: RequestOptions(path: endpoint),
@@ -78,9 +195,10 @@ void main() {
   test('keeps latest-message authorship after the conversation is read',
       () async {
     final client = _MockDioClient();
-    when(() => client.get('conversations/me')).thenAnswer(
+    when(() => client.get('conversations/me?page=1&limit=20')).thenAnswer(
       (_) async => Response(
-        requestOptions: RequestOptions(path: 'conversations/me'),
+        requestOptions:
+            RequestOptions(path: 'conversations/me?page=1&limit=20'),
         statusCode: 200,
         data: const [
           {
@@ -112,7 +230,8 @@ void main() {
 
   test('offer card uses the latest chat message and its timestamp', () async {
     final client = _MockDioClient();
-    final endpoint = ApiEndpoints.searchOffers('request-1');
+    final endpoint =
+        '${ApiEndpoints.searchOffers('request-1')}?page=1&limit=20';
     when(() => client.get(endpoint)).thenAnswer(
       (_) async => Response(
         requestOptions: RequestOptions(path: endpoint),
@@ -157,7 +276,8 @@ void main() {
   test('offer card remains compatible with the previous API contract',
       () async {
     final client = _MockDioClient();
-    final endpoint = ApiEndpoints.searchOffers('request-1');
+    final endpoint =
+        '${ApiEndpoints.searchOffers('request-1')}?page=1&limit=20';
     when(() => client.get(endpoint)).thenAnswer(
       (_) async => Response(
         requestOptions: RequestOptions(path: endpoint),
@@ -191,7 +311,8 @@ void main() {
   test('reads cancellation metadata and store reputation from offers',
       () async {
     final client = _MockDioClient();
-    final endpoint = ApiEndpoints.searchOffers('request-1');
+    final endpoint =
+        '${ApiEndpoints.searchOffers('request-1')}?page=1&limit=20';
     when(() => client.get(endpoint)).thenAnswer(
       (_) async => Response(
         requestOptions: RequestOptions(path: endpoint),
@@ -233,9 +354,10 @@ void main() {
 
   test('reads flat reputation fields from the conversations inbox', () async {
     final client = _MockDioClient();
-    when(() => client.get('conversations/me')).thenAnswer(
+    when(() => client.get('conversations/me?page=1&limit=20')).thenAnswer(
       (_) async => Response(
-        requestOptions: RequestOptions(path: 'conversations/me'),
+        requestOptions:
+            RequestOptions(path: 'conversations/me?page=1&limit=20'),
         statusCode: 200,
         data: const [
           {
@@ -473,18 +595,17 @@ void main() {
     ).called(1);
   });
 
-  test('keeps the sales lookup as create-quote fallback', () async {
+  test('loads request detail directly as create-quote fallback', () async {
     final client = _MockDioClient();
     final dataSource = ChatRemoteDataSource(client, () => 'store-1');
-    const fallbackEndpoint =
-        '${ApiEndpoints.storeSearchRequests}?status=ALL&page=1&pageSize=100';
+    final fallbackEndpoint = ApiEndpoints.storeSearchRequestDetail('request-1');
     when(() => client.get(fallbackEndpoint)).thenAnswer(
       (_) async => Response(
         requestOptions: RequestOptions(path: fallbackEndpoint),
         data: const {
-          'items': [
-            {'id': 'request-1', 'searchMatchId': 'match-fallback'},
-          ],
+          'id': 'request-1',
+          'searchMatchId': 'match-fallback',
+          'createdAt': '2026-08-24T12:00:00.000Z',
         },
       ),
     );

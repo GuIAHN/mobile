@@ -7,6 +7,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'shared/widgets/app_notification_host.dart';
 import 'shared/widgets/maintenance_page.dart';
+import 'shared/widgets/app_update_gate.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/presentation/providers/auth_state.dart';
 import 'core/services/socket_service.dart';
@@ -201,15 +202,23 @@ class _GuiAutomotrizAppState extends ConsumerState<GuiAutomotrizApp>
       routerConfig: router,
       builder: (context, child) {
         final authState = ref.watch(authProvider);
-        if (authState.status == AuthStatus.error && authState.user == null) {
-          return MaintenancePage(
-            message:
-                authState.errorMessage ?? 'El sistema está en mantenimiento.',
-          );
-        }
-        return AppNotificationHost(
-          onNotificationTap: _openInAppNotification,
-          child: child ?? const SizedBox.shrink(),
+        return AppUpdateGate(
+          backButtonDispatcher: router.backButtonDispatcher,
+          child: AppNotificationHost(
+            onNotificationTap: _openInAppNotification,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                child ?? const SizedBox.shrink(),
+                if (authState.status == AuthStatus.error &&
+                    authState.user == null)
+                  MaintenancePage(
+                    message: authState.errorMessage ??
+                        'El sistema está en mantenimiento.',
+                  ),
+              ],
+            ),
+          ),
         );
       },
     );
