@@ -5,6 +5,11 @@ import '../../../../core/domain/enums/part_type.dart';
 
 /// Contrato del datasource remoto de búsqueda de proveedores y creación de búsquedas de repuestos.
 abstract class SearchRemoteDatasource {
+  Future<Map<String, dynamic>> updateSearchRequest(
+      {required String requestId,
+      required String details,
+      required List<String> photoUrls});
+
   Future<Map<String, dynamic>> searchMechanics(Map<String, dynamic> params);
   Future<Map<String, dynamic>> searchWorkshops(Map<String, dynamic> params);
   Future<Map<String, dynamic>> searchStores(Map<String, dynamic> params);
@@ -17,6 +22,8 @@ abstract class SearchRemoteDatasource {
     required String subcategoryId,
     String? details,
     String? fotoUrl,
+    int quantity = 1,
+    List<String>? photoUrls,
     PartType? partType,
     int? radioKm,
     double? lat,
@@ -30,6 +37,18 @@ class SearchRemoteDatasourceImpl implements SearchRemoteDatasource {
   final DioClient _client;
 
   SearchRemoteDatasourceImpl(this._client);
+
+  @override
+  Future<Map<String, dynamic>> updateSearchRequest(
+      {required String requestId,
+      required String details,
+      required List<String> photoUrls}) async {
+    final response = await _client.patch<Map<String, dynamic>>(
+        '/search/$requestId',
+        data: {'details': details, 'photoUrls': photoUrls});
+    if (response.data == null) throw const ParseException();
+    return response.data!;
+  }
 
   @override
   Future<Map<String, dynamic>> searchMechanics(
@@ -87,6 +106,8 @@ class SearchRemoteDatasourceImpl implements SearchRemoteDatasource {
     required String subcategoryId,
     String? details,
     String? fotoUrl,
+    int quantity = 1,
+    List<String>? photoUrls,
     PartType? partType,
     int? radioKm,
     double? lat,
@@ -102,10 +123,14 @@ class SearchRemoteDatasourceImpl implements SearchRemoteDatasource {
       }
 
       final payload = {
+        'quantity': quantity,
         'userCarId': userCarId,
         'subcategoryId': subcategoryId,
         if (details != null && details.isNotEmpty) 'details': details,
-        if (uploadedPhotoUrl != null && uploadedPhotoUrl.isNotEmpty)
+        if (photoUrls != null) 'photoUrls': photoUrls,
+        if (photoUrls == null &&
+            uploadedPhotoUrl != null &&
+            uploadedPhotoUrl.isNotEmpty)
           'photoUrl': uploadedPhotoUrl,
         if (partType != null) 'partType': partType.apiValue,
         if (radioKm != null) 'radiusKm': radioKm,

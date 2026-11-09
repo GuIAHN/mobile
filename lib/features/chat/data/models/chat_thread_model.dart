@@ -1,3 +1,4 @@
+import '../../../../core/utils/request_photo_urls.dart';
 import '../../domain/entities/chat_thread.dart';
 import '../../../../core/domain/enums/service_type.dart';
 
@@ -14,6 +15,7 @@ class ChatThreadModel extends ChatThread {
     super.clientName,
     super.clientId,
     super.fotoUrl,
+    super.photoUrls,
     super.details,
     super.partType,
     super.vehicleYear,
@@ -35,6 +37,9 @@ class ChatThreadModel extends ChatThread {
     super.offerId,
     super.offerStatus,
     super.offerPrice,
+    super.quantity,
+    super.unitPrice,
+    super.quantityAssumed,
     super.deliveryCost,
     super.totalCost,
     super.conversationId,
@@ -82,6 +87,11 @@ class ChatThreadModel extends ChatThread {
           json['clientName'] as String? ?? json['consumerName'] as String?,
       clientId: json['clientId'] as String?,
       fotoUrl: json['fotoUrl'] as String? ?? json['photoUrl'] as String?,
+      quantity: int.tryParse(json['quantity']?.toString() ?? '') ?? 1,
+      unitPrice: double.tryParse(
+          (json['unitPrice'] ?? json['offerUnitPrice'])?.toString() ?? ''),
+      quantityAssumed: json['quantityAssumed'] == true,
+      photoUrls: requestPhotoUrls(json),
       details: json['details'] as String?,
       partType: json['partType'] as String?,
       vehicleYear: json['vehicleYear'] as int? ?? vehicle?['year'] as int?,

@@ -1,3 +1,5 @@
+import '../../../../core/utils/quote_amounts.dart';
+import '../../../../core/utils/formatters.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -61,18 +63,21 @@ class _DecimalFormatter extends TextInputFormatter {
 /// Devuelve `{price, deliveryCost?, updateDeliveryCost, brand?, photoPath?}`.
 class QuoteInputDialog extends StatefulWidget {
   final String requestTitle;
+  final int quantity;
   final ScrollController scrollController;
 
   const QuoteInputDialog({
     super.key,
     required this.requestTitle,
+    this.quantity = 1,
     required this.scrollController,
   });
 
   static Future<Map<String, dynamic>?> show(
     BuildContext context,
-    String title,
-  ) {
+    String title, {
+    int quantity = 1,
+  }) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return showModalBottomSheet<Map<String, dynamic>>(
       context: context,
@@ -97,6 +102,7 @@ class QuoteInputDialog extends StatefulWidget {
         shouldCloseOnMinExtent: true,
         builder: (context, scrollController) => QuoteInputDialog(
           requestTitle: title,
+          quantity: quantity,
           scrollController: scrollController,
         ),
       ),
@@ -123,6 +129,7 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
     super.initState();
     // Actualiza el estado del botón al escribir.
     _priceController.addListener(() => setState(() => _errorMessage = null));
+    _deliveryController.addListener(() => setState(() => _errorMessage = null));
   }
 
   @override
@@ -141,8 +148,10 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
   }
 
   bool get _canSubmit {
-    final p = _value(_priceController);
-    return p != null && p > 0;
+    final cents = QuoteAmounts.cents(_priceController.text);
+    return cents != null &&
+        cents > 0 &&
+        cents * widget.quantity <= QuoteAmounts.maxSubtotalCents;
   }
 
   void _submit() {
@@ -154,10 +163,15 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
       setState(() => _errorMessage = 'Ingresa un precio mayor a 0.');
       return;
     }
+    if (!_canSubmit) {
+      setState(
+          () => _errorMessage = 'El subtotal supera el importe permitido.');
+      return;
+    }
     final deliveryCost = _value(_deliveryController);
     HapticFeedback.mediumImpact();
     Navigator.pop(context, {
-      'price': price,
+      'unitPrice': price,
       'updateDeliveryCost': true,
       'deliveryCost': deliveryCost,
       if (brand.isNotEmpty) 'brand': brand,
@@ -250,6 +264,13 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
               ),
               const SizedBox(height: 26),
 
+              Text('PRECIO POR UNIDAD',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.hankenGrotesk(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary)),
+              const SizedBox(height: 8),
               // Monto: número grande naranja con $
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -261,11 +282,28 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
                 ),
               ),
 
+              const SizedBox(height: 16),
+              Text(
+                  '${widget.quantity} ${widget.quantity == 1 ? 'unidad' : 'unidades'} · Subtotal ${Formatters.currency(QuoteAmounts.subtotal(_priceController.text, widget.quantity))}',
+                  key: const Key('quote-quantity-subtotal'),
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.hankenGrotesk(
+                      fontSize: 16,
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600)),
               const SizedBox(height: 24),
 
               _DeliverySection(
                 controller: _deliveryController,
               ),
+              const SizedBox(height: 12),
+              Text(
+                  'Total ${Formatters.currency(QuoteAmounts.total(QuoteAmounts.subtotal(_priceController.text, widget.quantity), _value(_deliveryController))!)}',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.hankenGrotesk(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary)),
               const SizedBox(height: 20),
 
               if (_errorMessage != null) ...[
@@ -279,7 +317,7 @@ class _QuoteInputDialogState extends State<QuoteInputDialog> {
                       child: Text(
                         _errorMessage!,
                         style: GoogleFonts.hankenGrotesk(
-                          color: AppColors.error,
+                          color: AppColors.errorInk,
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
                         ),
@@ -354,65 +392,79 @@ class _AmountField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            r'$',
+    return LayoutBuilder(builder: (context, constraints) {
+      final measure = TextPainter(
+        text: TextSpan(
+            text: '\$ ${controller.text.isEmpty ? '00.00' : controller.text}',
             style: GoogleFonts.hankenGrotesk(
-              fontSize: fontSize * 0.40,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primary.withValues(alpha: 0.7),
+                fontSize: fontSize,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -2)),
+        textDirection: TextDirection.ltr,
+        textScaler: MediaQuery.textScalerOf(context),
+      )..layout();
+      final fittedSize = fontSize *
+          (constraints.maxWidth / (measure.width + 12)).clamp(0.2, 1.0);
+      measure.dispose();
+      return Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              r'$',
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: (fittedSize * 0.40).clamp(16.0, fontSize),
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
             ),
-          ),
-          const SizedBox(width: 6),
-          Flexible(
-            child: AnimatedSize(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOutQuart,
-              alignment: Alignment.centerLeft,
-              child: IntrinsicWidth(
-                child: TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  autofocus: autofocus,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  textAlign: TextAlign.left,
-                  cursorColor: AppColors.primary,
-                  inputFormatters: [_DecimalFormatter()],
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -2,
-                    height: 1.0,
-                    color: AppColors.primary,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                  decoration: InputDecoration(
-                    isCollapsed: true,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    filled: false,
-                    hintText: '00.00',
-                    hintStyle: GoogleFonts.hankenGrotesk(
-                      fontSize: fontSize,
+            const SizedBox(width: 6),
+            Flexible(
+              child: Semantics(
+                textField: true,
+                label: 'Precio por unidad en dólares',
+                child: IntrinsicWidth(
+                  child: TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    autofocus: autofocus,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    textAlign: TextAlign.left,
+                    cursorColor: AppColors.primary,
+                    inputFormatters: [_DecimalFormatter()],
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: fittedSize,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -2,
                       height: 1.0,
-                      color: AppColors.primary.withValues(alpha: 0.28),
+                      color: AppColors.primary,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                    decoration: InputDecoration(
+                      isCollapsed: true,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: false,
+                      hintText: '00.00',
+                      hintStyle: GoogleFonts.hankenGrotesk(
+                        fontSize: fittedSize,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -2,
+                        height: 1.0,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    });
   }
 }
 
@@ -466,7 +518,7 @@ class _DeliverySection extends StatelessWidget {
               hintText: '0.00',
               helperText:
                   'Déjalo vacío si no ofrecerás delivery. Escribe 0 si es gratis.',
-              helperMaxLines: 2,
+              helperMaxLines: 5,
               prefixIcon: const Padding(
                 padding: EdgeInsets.only(left: 16, right: 12),
                 child: AppLineIcon(
@@ -561,7 +613,8 @@ class _OptionalDetails extends StatelessWidget {
         GestureDetector(
           onTap: onPickImage,
           child: Container(
-            height: 100,
+            height: imagePath != null ? 100 : null,
+            constraints: const BoxConstraints(minHeight: 100),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
@@ -590,6 +643,7 @@ class _OptionalDetails extends StatelessWidget {
                     ],
                   )
                 : Column(
+                    mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Icon(Icons.add_photo_alternate_outlined,
@@ -651,7 +705,7 @@ class _SubmitButton extends StatelessWidget {
         onPressed: enabled ? onPressed : null,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
+          foregroundColor: AppColors.textOnPrimary,
           disabledBackgroundColor: const Color(0xFFD9DCE1),
           disabledForegroundColor: const Color(0xFF9AA0A8),
           elevation: 0,

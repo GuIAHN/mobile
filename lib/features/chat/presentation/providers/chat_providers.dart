@@ -1,3 +1,4 @@
+import '../../../home/presentation/providers/home_providers.dart';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -130,7 +131,8 @@ final _chatRealtimeRevisionProvider =
     StateNotifierProvider<_ChatRealtimeRevisionNotifier, _ChatRealtimeRevision>(
         (ref) {
   ref.watch(sessionGenerationProvider);
-  return _ChatRealtimeRevisionNotifier(ref.watch(socketServiceProvider));
+  return _ChatRealtimeRevisionNotifier(ref.watch(socketServiceProvider),
+      onDelivered: () => ref.invalidate(homeTopProvidersProvider));
 });
 
 class _ChatRealtimeRevision {
@@ -149,18 +151,21 @@ class _ChatRealtimeRevision {
 
 class _ChatRealtimeRevisionNotifier
     extends StateNotifier<_ChatRealtimeRevision> {
-  _ChatRealtimeRevisionNotifier(SocketService socketService)
+  _ChatRealtimeRevisionNotifier(SocketService socketService,
+      {required void Function() onDelivered})
       : _subscriptions = [],
         super(const _ChatRealtimeRevision()) {
     _subscriptions.addAll([
       socketService.onSearchMatched.listen((_) => _advance(storeSales: true)),
       socketService.onOfferUpdated.listen(
-        (_) => _advance(
-          consumerRequests: true,
-          storeSales: true,
-          conversations: true,
-          details: true,
-        ),
+        (event) {
+          if (event['status'] == 'DELIVERED') onDelivered();
+          _advance(
+              consumerRequests: true,
+              storeSales: true,
+              conversations: true,
+              details: true);
+        },
       ),
       socketService.onNotification.listen((event) {
         // Inquiry creation currently has no independent domain event on the

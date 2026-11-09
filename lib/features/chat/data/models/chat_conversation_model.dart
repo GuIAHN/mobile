@@ -23,6 +23,9 @@ class ChatConversationModel extends ChatConversation {
     super.hasQuote,
     super.isInquiry,
     super.price,
+    super.quantity,
+    super.unitPrice,
+    super.quantityAssumed,
     super.deliveryCost,
     super.totalCost,
     super.spareBrand,
@@ -111,6 +114,10 @@ class ChatConversationModel extends ChatConversation {
       isInquiry: json['isInquiry'] as bool? ??
           (json['offerStatus'] as String?) == 'INQUIRY',
       price: parseDouble(json['price']),
+      quantity: int.tryParse(json['quantity']?.toString() ?? '') ?? 1,
+      unitPrice: double.tryParse(
+          (json['unitPrice'] ?? json['offerUnitPrice'])?.toString() ?? ''),
+      quantityAssumed: json['quantityAssumed'] == true,
       deliveryCost: parseDouble(json['deliveryCost']),
       totalCost: parseDouble(json['totalCost']),
       spareBrand: json['spareBrand'] as String?,

@@ -11,11 +11,26 @@ class SearchRepositoryImpl implements SearchRepository {
   SearchRepositoryImpl(this.remoteDataSource);
 
   @override
+  Future<Either<Failure, Map<String, dynamic>>> updateSearchRequest(
+      {required String requestId,
+      required String details,
+      required List<String> photoUrls}) async {
+    try {
+      return Right(await remoteDataSource.updateSearchRequest(
+          requestId: requestId, details: details, photoUrls: photoUrls));
+    } catch (error) {
+      return Left(ErrorMapper.map(error));
+    }
+  }
+
+  @override
   Future<Either<Failure, Map<String, dynamic>>> createSearchRequest({
     required String userCarId,
     required String subcategoryId,
     String? details,
     String? fotoUrl,
+    int quantity = 1,
+    List<String>? photoUrls,
     PartType? partType,
     int? radioKm,
     double? lat,
@@ -27,6 +42,8 @@ class SearchRepositoryImpl implements SearchRepository {
         subcategoryId: subcategoryId,
         details: details,
         fotoUrl: fotoUrl,
+        quantity: quantity,
+        photoUrls: photoUrls,
         partType: partType,
         radioKm: radioKm,
         lat: lat,

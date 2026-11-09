@@ -158,12 +158,14 @@ class _WizardBottomBar extends StatelessWidget {
             ],
             SizedBox(
               width: double.infinity,
-              height: AppSpacing.buttonHeightLg,
               child: ElevatedButton(
                 onPressed: enabled && !loading ? onPressed : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  foregroundColor: AppColors.textOnPrimary,
+                  minimumSize: const Size(48, AppSpacing.buttonHeightLg),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                   disabledBackgroundColor: AppColors.disabledBackground,
                   disabledForegroundColor: AppColors.textDisabled,
                   elevation: enabled ? 4 : 0,
@@ -181,7 +183,7 @@ class _WizardBottomBar extends StatelessWidget {
                           height: 22,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.5,
-                            color: Colors.white,
+                            color: AppColors.textOnPrimary,
                           ),
                         )
                       : Text(
@@ -190,8 +192,9 @@ class _WizardBottomBar extends StatelessWidget {
                           style: AppTypography.label.copyWith(
                             fontSize: 15,
                             letterSpacing: 0.4,
-                            color:
-                                enabled ? Colors.white : AppColors.textDisabled,
+                            color: enabled
+                                ? AppColors.textOnPrimary
+                                : AppColors.textDisabled,
                           ),
                         ),
                 ),

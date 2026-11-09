@@ -9,6 +9,55 @@ import 'package:mocktail/mocktail.dart';
 class _MockDioClient extends Mock implements DioClient {}
 
 void main() {
+  test('quotes multiple units using unitPrice and parses the server subtotal',
+      () async {
+    final client = _MockDioClient();
+    when(() => client.post('offers', data: any(named: 'data'))).thenAnswer(
+        (_) async =>
+            Response(requestOptions: RequestOptions(path: 'offers'), data: {
+              'id': 'o',
+              'conversationId': 'c',
+              'createdAt': '2026-11-08T00:00:00Z',
+              'status': 'SENT',
+              'quantity': 3,
+              'unitPrice': 12.35,
+              'price': 37.05,
+              'deliveryCost': 2,
+              'totalCost': 39.05,
+            }));
+    final result = await ChatRemoteDataSource(client, () => 'store')
+        .createQuote(
+            threadId: 'r',
+            searchMatchId: 'match',
+            unitPrice: 12.35,
+            deliveryCost: 2);
+    final body =
+        verify(() => client.post('offers', data: captureAny(named: 'data')))
+            .captured
+            .single as Map;
+    expect(body['unitPrice'], 12.35);
+    expect(body.containsKey('price'), isFalse);
+    expect(result.quantity, 3);
+    expect(result.unitPrice, 12.35);
+    expect(result.price, 37.05);
+    expect(result.totalCost, 39.05);
+  });
+
+  test('requotes an inquiry with unitPrice without sending a legacy total',
+      () async {
+    final client = _MockDioClient();
+    when(() => client.patch('offers/o', data: any(named: 'data'))).thenAnswer(
+        (_) async =>
+            Response(requestOptions: RequestOptions(path: 'offers/o')));
+    await ChatRemoteDataSource(client, () => 'store').quoteOffer(
+        offerId: 'o',
+        unitPrice: 0.15,
+        updateDeliveryCost: true,
+        deliveryCost: 0);
+    verify(() => client.patch('offers/o',
+        data: {'unitPrice': 0.15, 'deliveryCost': 0.0})).called(1);
+  });
+
   for (final role in [UserRole.consumer, UserRole.store]) {
     test('$role preserves pagination metadata and orders requests by creation',
         () async {

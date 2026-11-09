@@ -1,3 +1,4 @@
+import '_atoms/offer_price_breakdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -175,7 +176,15 @@ class ChatConversationCard extends StatelessWidget {
                     const SizedBox(height: 10),
 
                     // Precio protagonista
-                    if (hasFormalQuote)
+                    if (hasFormalQuote && conv.quantity > 1)
+                      OfferPriceBreakdown(
+                        productCost: conv.price,
+                        quantity: conv.quantity,
+                        unitPrice: conv.unitPrice,
+                        deliveryCost: conv.deliveryCost,
+                        totalCost: conv.totalCost,
+                      )
+                    else if (hasFormalQuote)
                       PriceText(
                         amount: conv.totalCost ?? conv.price,
                         style: CardTokens.priceHero,

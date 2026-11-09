@@ -16,6 +16,23 @@ For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
 
+## Desarrollo con iPhone físico
+
+Conecta el iPhone y el Mac a la misma red y mantén el backend en ejecución
+en el puerto 3000. La IP del Mac puede cambiar al reconectar el Wi-Fi;
+puedes pasar la dirección actual sin editar el código:
+
+```bash
+MAC_LAN_IP=$(ipconfig getifaddr en0)
+flutter run -d 00008130-0000454C3E41001C \
+  --dart-define=ENV=development \
+  --dart-define=API_BASE_URL="http://${MAC_LAN_IP}:3000/api"
+```
+
+`en0` corresponde al Wi-Fi en este Mac. Si usas otra interfaz, consulta su IP
+en los ajustes de red. Reinicia la ejecución completa al cambiar
+`API_BASE_URL`; hot reload no actualiza los valores de `--dart-define`.
+
 ## Android release
 
 Release builds default to the production environment so they never point to

@@ -154,12 +154,13 @@ class _WizardStepIntro extends StatelessWidget {
           children: [
             Icon(icon, size: 17, color: AppColors.textSecondary),
             const SizedBox(width: 7),
-            Text(
+            Flexible(
+                child: Text(
               eyebrow,
               style: AppTypography.overline.copyWith(
                 color: AppColors.textSecondary,
               ),
-            ),
+            )),
           ],
         ),
         const SizedBox(height: 7),

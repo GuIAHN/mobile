@@ -1,3 +1,5 @@
+import '../../domain/usecases/update_search_request_usecase.dart';
+import '../../../../core/error/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/domain/enums/service_type.dart';
 import '../../../../core/network/dio_client.dart';
@@ -38,15 +40,20 @@ final createSearchRequestUseCaseProvider =
   return CreateSearchRequestUseCase(repository);
 });
 
+final updateSearchRequestUseCaseProvider = Provider<UpdateSearchRequestUseCase>(
+    (ref) => UpdateSearchRequestUseCase(ref.watch(searchRepositoryProvider)));
+
 enum SearchRequestStatus { idle, loading, success, error }
 
 class SearchRequestState {
   final SearchRequestStatus status;
   final String? errorMessage;
+  final Failure? failure;
 
   const SearchRequestState({
     this.status = SearchRequestStatus.idle,
     this.errorMessage,
+    this.failure,
   });
 }
 
@@ -62,6 +69,8 @@ class SearchRequestNotifier extends StateNotifier<SearchRequestState> {
     required String subcategoryId,
     String? details,
     String? fotoUrl,
+    int quantity = 1,
+    List<String>? photoUrls,
     PartType? partType,
     int? radioKm,
     double? lat,
@@ -74,6 +83,8 @@ class SearchRequestNotifier extends StateNotifier<SearchRequestState> {
       subcategoryId: subcategoryId,
       details: details,
       fotoUrl: fotoUrl,
+      quantity: quantity,
+      photoUrls: photoUrls,
       partType: partType,
       radioKm: radioKm,
       lat: lat,
@@ -85,6 +96,7 @@ class SearchRequestNotifier extends StateNotifier<SearchRequestState> {
         state = SearchRequestState(
           status: SearchRequestStatus.error,
           errorMessage: failure.message,
+          failure: failure,
         );
       },
       (_) {

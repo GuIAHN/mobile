@@ -32,6 +32,7 @@ abstract class ChatRepository {
     required String threadId,
     String? searchMatchId,
     double? price,
+    double? unitPrice,
     double? deliveryCost,
     String? brand,
     String? photoPath,
@@ -39,7 +40,8 @@ abstract class ChatRepository {
 
   Future<Either<Failure, void>> quoteOffer({
     required String offerId,
-    required double price,
+    double? price,
+    double? unitPrice,
     required bool updateDeliveryCost,
     double? deliveryCost,
     String? brand,

@@ -99,6 +99,7 @@ class ChatRepositoryImpl implements ChatRepository {
     required String threadId,
     String? searchMatchId,
     double? price,
+    double? unitPrice,
     double? deliveryCost,
     String? brand,
     String? photoPath,
@@ -108,6 +109,7 @@ class ChatRepositoryImpl implements ChatRepository {
         threadId: threadId,
         searchMatchId: searchMatchId,
         price: price,
+        unitPrice: unitPrice,
         deliveryCost: deliveryCost,
         brand: brand,
         photoPath: photoPath,
@@ -121,7 +123,8 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<Either<Failure, void>> quoteOffer({
     required String offerId,
-    required double price,
+    double? price,
+    double? unitPrice,
     required bool updateDeliveryCost,
     double? deliveryCost,
     String? brand,
@@ -131,6 +134,7 @@ class ChatRepositoryImpl implements ChatRepository {
       await remoteDataSource.quoteOffer(
         offerId: offerId,
         price: price,
+        unitPrice: unitPrice,
         updateDeliveryCost: updateDeliveryCost,
         deliveryCost: deliveryCost,
         brand: brand,

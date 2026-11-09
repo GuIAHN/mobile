@@ -58,6 +58,10 @@
 - Sombra: naranja al 40%, blur 24, offset (0, 8).
 - Estado deshabilitado: fondo #D9DCE1, texto #9AA0A8, sin sombra.
 
+### Color de las acciones principales
+- Los botones con fondo naranja usan siempre texto e iconos blancos (`AppColors.textOnPrimary`), incluidos publicar o editar solicitudes, enviar cotizaciones y confirmar compras.
+- Los indicadores de carga sobre esos botones también son blancos. No usar texto carbón en estas acciones.
+
 ### Botón secundario
 - Fondo transparente, border 1.5px, borderRadius 32.
 - Activo: borde y texto naranja. Inactivo: borde #DDE0E5, texto #B8BDC4.

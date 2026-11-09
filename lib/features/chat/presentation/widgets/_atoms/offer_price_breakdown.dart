@@ -1,3 +1,4 @@
+import '../../../../../core/utils/quote_amounts.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -15,17 +16,21 @@ class OfferPriceBreakdown extends StatelessWidget {
     this.deliveryCost,
     this.totalCost,
     this.width = 152,
+    this.quantity = 1,
+    this.unitPrice,
   });
 
   final double? productCost;
   final double? deliveryCost;
   final double? totalCost;
   final double width;
+  final int quantity;
+  final double? unitPrice;
 
   double? get _resolvedTotal {
     if (totalCost != null) return totalCost;
     if (productCost == null) return null;
-    return productCost! + (deliveryCost ?? 0);
+    return QuoteAmounts.total(productCost, deliveryCost);
   }
 
   @override
@@ -41,7 +46,7 @@ class OfferPriceBreakdown extends StatelessWidget {
       );
     }
 
-    if (deliveryCost == null) {
+    if (deliveryCost == null && quantity == 1) {
       return SizedBox(
         width: effectiveWidth,
         child: _PriceLine(
@@ -58,17 +63,25 @@ class OfferPriceBreakdown extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          Text(
+              '$quantity ${quantity == 1 ? 'unidad' : 'unidades'}${unitPrice != null ? ' × ${Formatters.currency(unitPrice!)}' : ''}',
+              key: const Key('offer-quantity'),
+              style: GoogleFonts.hankenGrotesk(
+                  fontSize: 12, color: AppColors.textPrimary)),
+          const SizedBox(height: 4),
           _PriceLine(
-            label: 'Producto',
+            label: 'Subtotal',
             value: Formatters.currency(productCost!),
             valueKey: const Key('offer-product-cost'),
           ),
           const SizedBox(height: 3),
           _PriceLine(
             label: 'Delivery',
-            value: deliveryCost == 0
-                ? 'Gratis'
-                : Formatters.currency(deliveryCost!),
+            value: deliveryCost == null
+                ? 'Retiro en tienda'
+                : deliveryCost == 0
+                    ? 'Gratis'
+                    : Formatters.currency(deliveryCost!),
             valueKey: const Key('offer-delivery-cost'),
           ),
           const Padding(
@@ -89,7 +102,7 @@ class OfferPriceBreakdown extends StatelessWidget {
   TextStyle get _amountStyle => GoogleFonts.hankenGrotesk(
         fontSize: 17,
         fontWeight: FontWeight.w900,
-        color: AppColors.primary,
+        color: AppColors.textPrimary,
       );
 }
 
@@ -122,16 +135,17 @@ class _PriceLine extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        Text(
+        Flexible(
+            child: Text(
           value,
           key: valueKey,
           style: GoogleFonts.hankenGrotesk(
             fontSize: emphasized ? 16 : 11.5,
             fontWeight: emphasized ? FontWeight.w900 : FontWeight.w700,
-            color: emphasized ? AppColors.primary : AppColors.textSecondary,
+            color: emphasized ? AppColors.textPrimary : AppColors.textSecondary,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
-        ),
+        )),
       ],
     );
   }

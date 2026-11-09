@@ -1,3 +1,4 @@
+import '../../../../core/utils/quote_amounts.dart';
 import 'package:equatable/equatable.dart';
 
 enum PurchaseStatus {
@@ -32,6 +33,9 @@ class ConsumerPurchase extends Equatable {
     this.vehicleYear,
     this.offerId,
     this.price,
+    this.quantity = 1,
+    this.unitPrice,
+    this.quantityAssumed = false,
     this.deliveryCost,
     this.totalCost,
     this.conversationId,
@@ -61,6 +65,9 @@ class ConsumerPurchase extends Equatable {
   final int? vehicleYear;
   final String? offerId;
   final double? price;
+  final int quantity;
+  final double? unitPrice;
+  final bool quantityAssumed;
   final double? deliveryCost;
   final double? totalCost;
   final String? conversationId;
@@ -73,7 +80,8 @@ class ConsumerPurchase extends Equatable {
   final bool canReview;
   final String? reviewTargetId;
 
-  double? get resolvedTotal => totalCost ?? price;
+  double? get resolvedTotal =>
+      totalCost ?? QuoteAmounts.total(price, deliveryCost);
 
   @override
   List<Object?> get props => [
@@ -93,6 +101,9 @@ class ConsumerPurchase extends Equatable {
         vehicleYear,
         offerId,
         price,
+        quantity,
+        unitPrice,
+        quantityAssumed,
         deliveryCost,
         totalCost,
         conversationId,

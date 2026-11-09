@@ -1,3 +1,4 @@
+import '../../../../core/utils/request_photo_urls.dart';
 import '../../../../core/network/page_metadata.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/api_endpoints.dart';
@@ -131,6 +132,9 @@ class ChatRemoteDataSource {
       soldByAnotherStore: json['soldByAnotherStore'] as bool? ?? false,
       clientName: json['consumerName']?.toString() ?? 'Cliente',
       fotoUrl: json['photoUrl']?.toString(),
+      photoUrls: requestPhotoUrls(json),
+      quantity: _asInt(json['quantity']) ?? 1,
+      quantityAssumed: json['quantityAssumed'] == true,
       details: json['details']?.toString(),
       partType: json['partType']?.toString(),
       vehicleYear: _asInt(vehicle?['year']),
@@ -149,6 +153,7 @@ class ChatRemoteDataSource {
       hasOffer: hasOffer,
       offerId: (json['offerId'] ?? offer?['id'])?.toString(),
       offerStatus: offerStatus,
+      unitPrice: _asDouble(json['offerUnitPrice'] ?? offer?['unitPrice']),
       offerPrice: _asDouble(json['offerPrice'] ?? offer?['price']),
       deliveryCost: _asDouble(json['deliveryCost'] ?? offer?['deliveryCost']),
       totalCost: _asDouble(json['totalCost'] ?? offer?['totalCost']),
@@ -203,6 +208,9 @@ class ChatRemoteDataSource {
       isOpen: json['status'] == 'OPEN',
       clientId: json['consumerId']?.toString(),
       fotoUrl: json['photoUrl']?.toString(),
+      photoUrls: requestPhotoUrls(json),
+      quantity: _asInt(json['quantity']) ?? 1,
+      quantityAssumed: json['quantityAssumed'] == true,
       details: json['details']?.toString(),
       partType: json['partType']?.toString(),
       vehicleYear: _asInt(vehicle?['year']),
@@ -219,6 +227,7 @@ class ChatRemoteDataSource {
       hasOffer: purchasedOffer != null,
       offerId: purchasedOffer?['offerId']?.toString(),
       offerStatus: purchasedOffer?['status']?.toString(),
+      unitPrice: _asDouble(purchasedOffer?['unitPrice']),
       offerPrice: _asDouble(purchasedOffer?['price']),
       deliveryCost: _asDouble(purchasedOffer?['deliveryCost']),
       totalCost: _asDouble(purchasedOffer?['totalCost']),
@@ -321,6 +330,8 @@ class ChatRemoteDataSource {
         price: json['price'] != null
             ? double.tryParse(json['price'].toString())
             : null,
+        quantity: _asInt(json['quantity']) ?? 1,
+        unitPrice: _asDouble(json['unitPrice']),
         deliveryCost: json['deliveryCost'] != null
             ? double.tryParse(json['deliveryCost'].toString())
             : null,
@@ -417,6 +428,7 @@ class ChatRemoteDataSource {
     required String threadId,
     String? searchMatchId,
     double? price,
+    double? unitPrice,
     double? deliveryCost,
     String? brand,
     String? photoPath,
@@ -443,6 +455,7 @@ class ChatRemoteDataSource {
     final payload = {
       'searchMatchId': resolvedSearchMatchId,
       if (price != null) 'price': price,
+      if (unitPrice != null) 'unitPrice': unitPrice,
       if (deliveryCost != null) 'deliveryCost': deliveryCost,
       if (brand != null && brand.isNotEmpty) 'spareBrand': brand,
       if (sparePhotoUrl != null && sparePhotoUrl.isNotEmpty)
@@ -483,6 +496,8 @@ class ChatRemoteDataSource {
       totalCost: json['totalCost'] != null
           ? double.tryParse(json['totalCost'].toString())
           : null,
+      quantity: _asInt(json['quantity']) ?? 1,
+      unitPrice: _asDouble(json['unitPrice']),
       spareBrand: json['spareBrand'],
       sparePhotoUrl: json['sparePhotoUrl'],
     );
@@ -492,7 +507,8 @@ class ChatRemoteDataSource {
   /// PATCH /offers/:id — con precio sobre una INQUIRY la promueve a SENT.
   Future<void> quoteOffer({
     required String offerId,
-    required double price,
+    double? price,
+    double? unitPrice,
     required bool updateDeliveryCost,
     double? deliveryCost,
     String? brand,
@@ -507,7 +523,8 @@ class ChatRemoteDataSource {
     }
 
     await _dioClient.patch('offers/$offerId', data: {
-      'price': price,
+      if (price != null) 'price': price,
+      if (unitPrice != null) 'unitPrice': unitPrice,
       if (updateDeliveryCost) 'deliveryCost': deliveryCost,
       if (brand != null && brand.isNotEmpty) 'spareBrand': brand,
       if (sparePhotoUrl != null && sparePhotoUrl.isNotEmpty)

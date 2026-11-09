@@ -1,3 +1,4 @@
+import '../../../../core/domain/enums/mechanic_level.dart';
 import 'package:equatable/equatable.dart';
 
 /// Categoría de repuestos que ofrece una tienda, con precio base opcional.
@@ -28,6 +29,7 @@ class ProviderDetail extends Equatable {
   final String? descripcion;
   final double? rating;
   final int ratingCount;
+  final MechanicLevel? level;
   final double? tarifa;
   final double? distanciaKm;
   final List<String> especialidades;
@@ -63,6 +65,7 @@ class ProviderDetail extends Equatable {
     this.hasDelivery = false,
     this.categorias = const [],
     this.photo,
+    this.level,
   });
 
   @override
@@ -87,5 +90,6 @@ class ProviderDetail extends Equatable {
         hasDelivery,
         categorias,
         photo,
+        level,
       ];
 }

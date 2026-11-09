@@ -76,6 +76,16 @@ class ErrorMapper {
         final statusCode = e.response?.statusCode ?? 0;
         final serverMessage = _extractMessage(e.response?.data);
         final rawMessage = serverMessage ?? e.message ?? 'Error del servidor.';
+        final body = e.response?.data;
+        final details =
+            body is Map && body['data'] is Map ? body['data'] : body;
+        final reason = details is Map ? details['reason'] : null;
+        if (statusCode == 409 && reason == 'SEARCH_REQUEST_NOT_EDITABLE') {
+          return const RequestNotEditableFailure();
+        }
+        if (statusCode == 422 && reason == 'PHOTOS_NOT_AVAILABLE') {
+          return const RequestPhotosUnavailableFailure();
+        }
         final unavailable = _requestUnavailable(
           statusCode,
           rawMessage,
@@ -157,6 +167,14 @@ class ErrorMapper {
   /// Analiza los detalles del mensaje de error del backend/BD para retornar algo amigable en español.
   static String parseErrorMessage(String originalMessage) {
     final lower = originalMessage.toLowerCase();
+
+    if (lower.contains('unitprice') || lower.contains('price per unit')) {
+      return 'Ingresa un precio por unidad válido, con un máximo de dos decimales.';
+    }
+    if (lower.contains('photo') &&
+        (lower.contains('5 mb') || lower.contains('file size'))) {
+      return 'La foto supera 5 MB. Elige una más pequeña.';
+    }
 
     if (lower.contains('missing authorization token')) {
       return 'No pudimos validar tu sesión. Inicia sesión e inténtalo nuevamente.';

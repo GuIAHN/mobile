@@ -65,6 +65,12 @@ class ConsumerPurchaseCard extends StatelessWidget {
       'Compra de $partName para ${purchase.vehicleName}, $_statusLabel, '
       'tienda ${purchase.storeName}',
     );
+    semantics.write(
+        ', ${purchase.quantity} ${purchase.quantity == 1 ? 'unidad' : 'unidades'}');
+    if (purchase.unitPrice != null) {
+      semantics.write(
+          ', precio por unidad ${Formatters.currency(purchase.unitPrice!)}');
+    }
     if (purchase.needsReview) semantics.write(', pendiente de reseña');
 
     final total = Semantics(
@@ -76,6 +82,19 @@ class ConsumerPurchaseCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (purchase.quantity > 1 || purchase.deliveryCost != null) ...[
+              if (purchase.price != null)
+                Text('Subtotal ${Formatters.currency(purchase.price!)}',
+                    style: AppTypography.bodySm),
+              Text(
+                  purchase.deliveryCost == null
+                      ? 'Retiro en tienda'
+                      : purchase.deliveryCost == 0
+                          ? 'Envío gratis'
+                          : 'Envío ${Formatters.currency(purchase.deliveryCost!)}',
+                  style: AppTypography.bodySm),
+              const SizedBox(height: AppSpacing.xs),
+            ],
             Text('TOTAL', style: AppTypography.overline),
             const SizedBox(height: AppSpacing.xs),
             Text(
@@ -198,6 +217,10 @@ class ConsumerPurchaseCard extends StatelessWidget {
                             ),
                           ],
                         ),
+                        if (purchase.quantity > 1)
+                          Text(
+                              '${purchase.quantity} unidades${purchase.unitPrice == null ? '' : ' × ${Formatters.currency(purchase.unitPrice!)}'}',
+                              style: AppTypography.bodySm),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           purchase.vehicleName,

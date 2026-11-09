@@ -1,3 +1,4 @@
+import '../../../../core/domain/enums/mechanic_level.dart';
 import '../../domain/entities/home_item.dart';
 import '../../../../core/domain/enums/service_type.dart';
 
@@ -32,6 +33,7 @@ class ProviderModel extends HomeItem {
     super.tarifa,
     super.hasDelivery,
     super.photo,
+    super.level,
   });
 
   factory ProviderModel.fromJson(Map<String, dynamic> json, ServiceType type) {
@@ -79,6 +81,7 @@ class ProviderModel extends HomeItem {
       name:
           json['nombre'] as String? ?? json['name'] as String? ?? 'Sin nombre',
       detail: detail,
+      level: MechanicLevel.fromApi(json['level']),
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       reviews: reviews,
       distanceKm: (json['distancia_km'] as num? ?? json['distanceKm'] as num?)

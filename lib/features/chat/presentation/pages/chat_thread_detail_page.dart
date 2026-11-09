@@ -1,3 +1,5 @@
+import '../widgets/edit_request_dialog.dart';
+import '../../../../shared/photos/request_photo_gallery.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../core/utils/media_url.dart';
 import '../../../../core/providers/current_user_provider.dart';
 import '../../../../core/domain/enums/user_role.dart';
 import '../../../../core/domain/enums/part_type.dart';
@@ -187,6 +190,37 @@ class _ChatThreadDetailPageState extends ConsumerState<ChatThreadDetailPage> {
                           },
                         ),
                 ),
+
+                if (requestAsync.valueOrNull case final thread?)
+                  SliverToBoxAdapter(
+                      child: Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                          child: RequestPhotoGallery(
+                              urls: thread.photoUrls.isNotEmpty
+                                  ? thread.photoUrls
+                                  : [
+                                      if (thread.fotoUrl != null)
+                                        thread.fotoUrl!
+                                    ],
+                              onEdit: !isStore &&
+                                      thread.isOpen &&
+                                      !thread.isExpired &&
+                                      thread.quotesCount == 0 &&
+                                      !thread.hasOffer &&
+                                      (thread.expiresAt == null ||
+                                          thread.expiresAt!
+                                              .isAfter(DateTime.now()))
+                                  ? () async {
+                                      await EditRequestDialog.show(
+                                          context, thread);
+                                      if (!mounted) return;
+                                      ref.invalidate(
+                                          requestDetailProvider(detailKey));
+                                      ref.invalidate(consumerRequestsProvider);
+                                      ref.invalidate(chatConversationsProvider(
+                                          widget.threadId));
+                                    }
+                                  : null))),
 
                 if (availabilityFailure == null) ...[
                   // 2. Filtro y conteo, inmediatamente después de la cabecera.
@@ -846,6 +880,11 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
                                             icon: AppIcons.catalog,
                                             label: partTypeLabel,
                                           ),
+                                          _buildGlassChip(
+                                            icon: AppIcons.catalog,
+                                            label:
+                                                '${thread.quantity} ${thread.quantity == 1 ? "unidad" : "unidades"}',
+                                          ),
                                         ],
                                       ),
                                       if (thread.details != null &&
@@ -1043,7 +1082,8 @@ class _RequestSummaryCardState extends ConsumerState<_RequestSummaryCard> {
 
   Widget _buildHeroMedia(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final photoUrl = thread.fotoUrl?.trim();
+    final photoUrl = resolveMediaUrl(
+        thread.photoUrls.isNotEmpty ? thread.photoUrls.first : thread.fotoUrl);
     final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
 
     return Stack(
