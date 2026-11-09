@@ -1,4 +1,4 @@
-import '_atoms/offer_price_breakdown.dart';
+import '../../../../core/utils/quote_amounts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -107,7 +107,7 @@ class ChatConversationCard extends StatelessWidget {
           .write(', calificación ${conv.storeRating!.toStringAsFixed(1)} de 5');
     }
     if (hasFormalQuote) {
-      semanticLabel.write(', ${conv.formattedTotalCost}');
+      semanticLabel.write(', total ${conv.formattedTotalCost}');
     }
     if (distance != null) semanticLabel.write(', a $distance');
     if (hasUnread) semanticLabel.write(', mensajes sin leer');
@@ -116,6 +116,7 @@ class ChatConversationCard extends StatelessWidget {
       onTap: onTap,
       semanticLabel: semanticLabel.toString(),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Cuerpo: producto + tienda + precio ───────────────────────────
@@ -176,17 +177,10 @@ class ChatConversationCard extends StatelessWidget {
                     const SizedBox(height: 10),
 
                     // Precio protagonista
-                    if (hasFormalQuote && conv.quantity > 1)
-                      OfferPriceBreakdown(
-                        productCost: conv.price,
-                        quantity: conv.quantity,
-                        unitPrice: conv.unitPrice,
-                        deliveryCost: conv.deliveryCost,
-                        totalCost: conv.totalCost,
-                      )
-                    else if (hasFormalQuote)
+                    if (hasFormalQuote)
                       PriceText(
-                        amount: conv.totalCost ?? conv.price,
+                        amount: conv.totalCost ??
+                            QuoteAmounts.total(conv.price, conv.deliveryCost),
                         style: CardTokens.priceHero,
                       )
                     else
@@ -196,15 +190,6 @@ class ChatConversationCard extends StatelessWidget {
                           color: AppColors.textMeta,
                         ),
                       ),
-                    if (hasFormalQuote && conv.deliveryCost != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        conv.deliveryCost == 0
-                            ? 'Total · delivery gratis'
-                            : 'Total con delivery',
-                        style: CardTokens.meta,
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -213,8 +198,8 @@ class ChatConversationCard extends StatelessWidget {
 
           // ── Footer: mensaje + acción ─────────────────────────────────────
           const CardDivider(),
-          Row(
-            children: [
+          LayoutBuilder(builder: (context, constraints) {
+            final preview = Row(children: [
               if (hasUnread) ...[
                 Container(
                   width: 7,
@@ -228,46 +213,54 @@ class ChatConversationCard extends StatelessWidget {
               ],
               Expanded(
                 child: Text.rich(
-                  TextSpan(
-                    children: [
-                      if (hasLastMessage && conv.lastMessageIsFromMe != null)
-                        TextSpan(
-                          text: conv.lastMessageIsFromMe!
-                              ? 'Tú: '
-                              : '${conv.participantName}: ',
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      TextSpan(text: message),
-                    ],
-                  ),
+                  TextSpan(children: [
+                    if (hasLastMessage && conv.lastMessageIsFromMe != null)
+                      TextSpan(
+                        text: conv.lastMessageIsFromMe!
+                            ? 'Tú: '
+                            : '${conv.participantName}: ',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    TextSpan(text: message),
+                  ]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: hasUnread ? CardTokens.bodyUnread : CardTokens.body,
                 ),
               ),
-              const SizedBox(width: 12),
-              SizedBox(
-                height: 40,
-                child: ElevatedButton(
-                  onPressed: onTap,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    // El ElevatedButtonTheme global fuerza ancho infinito.
-                    minimumSize: Size.zero,
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: Text(
-                    hasFormalQuote ? 'Ver cotización' : 'Ver chat',
-                    style: CardTokens.button,
-                  ),
-                ),
+            ]);
+            final action = ElevatedButton(
+              onPressed: onTap,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                // Override the global theme's infinite minimum width.
+                minimumSize: const Size(0, 48),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
-            ],
-          ),
+              child: Text(
+                hasFormalQuote ? 'Ver cotización' : 'Ver chat',
+                textAlign: TextAlign.center,
+                style: CardTokens.button,
+              ),
+            );
+            if (constraints.maxWidth < 300 ||
+                MediaQuery.textScalerOf(context).scale(14) > 21) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [preview, const SizedBox(height: 12), action],
+              );
+            }
+            return Row(children: [
+              Expanded(child: preview),
+              const SizedBox(width: 12),
+              action,
+            ]);
+          }),
         ],
       ),
     );

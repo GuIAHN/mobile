@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:guiautomotriz_mobile/core/theme/app_theme.dart';
+import 'package:guiautomotriz_mobile/core/utils/formatters.dart';
 import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_conversation.dart';
 import 'package:guiautomotriz_mobile/features/chat/presentation/widgets/chat_conversation_card.dart';
 
-Widget _subject(ChatConversation conversation) {
+Widget _subject(ChatConversation conversation, {double textScale = 1}) {
   return MaterialApp(
     theme: AppTheme.light(),
+    builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(textScale), disableAnimations: true),
+        child: child!),
     home: Scaffold(
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -23,6 +28,10 @@ ChatConversation _conversation({
   required String status,
   required bool isInquiry,
   double? price,
+  int quantity = 1,
+  double? unitPrice,
+  double? deliveryCost,
+  double? totalCost,
   String lastMessage = '',
   bool? lastMessageIsFromMe,
 }) {
@@ -40,11 +49,68 @@ ChatConversation _conversation({
     hasQuote: true,
     isInquiry: isInquiry,
     price: price,
+    quantity: quantity,
+    unitPrice: unitPrice,
+    deliveryCost: deliveryCost,
+    totalCost: totalCost,
     storeLogoUrl: 'https://example.com/private-logo.jpg',
   );
 }
 
 void main() {
+  for (final width in [320.0, 430.0]) {
+    testWidgets('keeps a multi-unit quote usable at $width and 2x text',
+        (tester) async {
+      tester.view.physicalSize = Size(width, 932);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(_subject(
+          _conversation(
+              status: 'SENT',
+              isInquiry: false,
+              price: 60,
+              quantity: 3,
+              unitPrice: 20,
+              deliveryCost: 2,
+              totalCost: 62,
+              lastMessage: 'Hola',
+              lastMessageIsFromMe: false),
+          textScale: 2));
+      await tester.pumpAndSettle();
+      expect(find.text(Formatters.currency(62)), findsOneWidget);
+      expect(
+          tester
+              .getSize(find.widgetWithText(ElevatedButton, 'Ver cotización'))
+              .height,
+          greaterThanOrEqualTo(48));
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final total in [null, 62.0]) {
+    testWidgets('shows only the quoted total with delivery (server: $total)',
+        (tester) async {
+      await tester.pumpWidget(_subject(_conversation(
+          status: 'SENT',
+          isInquiry: false,
+          price: 60,
+          quantity: 3,
+          unitPrice: 20,
+          deliveryCost: 2,
+          totalCost: total)));
+      expect(find.text(Formatters.currency(62)), findsOneWidget);
+      expect(find.text(Formatters.currency(60)), findsNothing);
+      expect(find.text(Formatters.currency(20)), findsNothing);
+      expect(find.text(Formatters.currency(2)), findsNothing);
+      expect(find.text('Subtotal'), findsNothing);
+      expect(find.text('Delivery'), findsNothing);
+      expect(find.text('Total con delivery'), findsNothing);
+      expect(find.text('Ver cotización'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('shows an inquiry as a chat, not as a received quote',
       (tester) async {
     await tester.pumpWidget(
