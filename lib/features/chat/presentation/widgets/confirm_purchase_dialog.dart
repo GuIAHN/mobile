@@ -1,9 +1,9 @@
-import '_atoms/offer_price_breakdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/utils/quote_amounts.dart';
 import '../../../../shared/utils/subcategory_presentation.dart';
 import '../../domain/entities/chat_conversation.dart';
 
@@ -37,9 +37,20 @@ class ConfirmPurchaseDialog extends StatelessWidget {
       fallback: 'Repuesto solicitado',
     );
 
-    final priceStr = details.price != null
-        ? Formatters.currency(details.price!)
-        : 'Precio a coordinar';
+    final total = details.totalCost ??
+        QuoteAmounts.total(details.price, details.deliveryCost);
+    final priceStr =
+        total != null ? Formatters.currency(total) : 'Precio a coordinar';
+    final usesLargeText = MediaQuery.textScalerOf(context).scale(16) > 20;
+    final priceLabel = Text(
+      priceStr,
+      semanticsLabel: 'Total: $priceStr',
+      style: GoogleFonts.hankenGrotesk(
+        fontSize: 16,
+        fontWeight: FontWeight.w900,
+        color: AppColors.textPrimary,
+      ),
+    );
 
     return Dialog(
       shape: RoundedRectangleBorder(
@@ -165,31 +176,20 @@ class ConfirmPurchaseDialog extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
+                        if (usesLargeText) ...[
+                          const SizedBox(height: 8),
+                          priceLabel,
+                        ],
                       ],
                     ),
                   ),
-                  Text(
-                    priceStr,
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
+                  if (!usesLargeText) priceLabel,
                 ],
               ),
             ),
 
             const SizedBox(height: 16),
 
-            OfferPriceBreakdown(
-                productCost: details.price,
-                quantity: details.quantity,
-                unitPrice: details.unitPrice,
-                deliveryCost: details.deliveryCost,
-                totalCost: details.totalCost,
-                width: double.infinity),
-            const SizedBox(height: 16),
             // Nota / Aviso informativo
             Container(
               padding: const EdgeInsets.all(12),
@@ -232,6 +232,7 @@ class ConfirmPurchaseDialog extends StatelessWidget {
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(48, 48),
                       padding: const EdgeInsets.symmetric(vertical: 13),
                       side: const BorderSide(color: AppColors.border),
                       shape: RoundedRectangleBorder(
@@ -256,6 +257,7 @@ class ConfirmPurchaseDialog extends StatelessWidget {
                       Navigator.pop(context, true);
                     },
                     style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(48, 48),
                       backgroundColor: AppColors.primary,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 13),
