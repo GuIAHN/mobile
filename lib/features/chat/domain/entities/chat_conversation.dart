@@ -1,3 +1,4 @@
+import '../../../../core/utils/quote_amounts.dart';
 import 'package:equatable/equatable.dart';
 import '../../../../core/domain/enums/offer_status.dart';
 
@@ -35,6 +36,9 @@ class ChatConversation extends Equatable {
   final bool hasQuote;
   final bool isInquiry;
   final double? price;
+  final int quantity;
+  final double? unitPrice;
+  final bool quantityAssumed;
   final double? deliveryCost;
   final double? totalCost;
   final String? spareBrand;
@@ -91,6 +95,9 @@ class ChatConversation extends Equatable {
     this.hasQuote = false,
     this.isInquiry = false,
     this.price,
+    this.quantity = 1,
+    this.unitPrice,
+    this.quantityAssumed = false,
     this.deliveryCost,
     this.totalCost,
     this.spareBrand,
@@ -124,13 +131,13 @@ class ChatConversation extends Equatable {
 
   String get formattedPrice {
     if (!hasQuote || price == null) return 'Sin cotizar';
-    return '\$${price!.toStringAsFixed(0)}';
+    return '\$${price!.toStringAsFixed(price! % 1 == 0 ? 0 : 2)}';
   }
 
   String get formattedTotalCost {
-    final total = totalCost;
+    final total = totalCost ?? QuoteAmounts.total(price, deliveryCost);
     if (total == null) return formattedPrice;
-    return '\$${total.toStringAsFixed(0)}';
+    return '\$${total.toStringAsFixed(total % 1 == 0 ? 0 : 2)}';
   }
 
   /// Distancia legible para chips ("1.2 km"). Null si no hay dato válido.
@@ -184,6 +191,9 @@ class ChatConversation extends Equatable {
       hasQuote: hasQuote,
       isInquiry: isInquiry,
       price: price,
+      quantity: quantity,
+      unitPrice: unitPrice,
+      quantityAssumed: quantityAssumed,
       deliveryCost: deliveryCost,
       totalCost: totalCost,
       spareBrand: spareBrand,
@@ -239,6 +249,9 @@ class ChatConversation extends Equatable {
         hasQuote,
         isInquiry,
         price,
+        quantity,
+        unitPrice,
+        quantityAssumed,
         deliveryCost,
         totalCost,
         spareBrand,

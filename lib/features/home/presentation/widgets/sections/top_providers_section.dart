@@ -31,14 +31,17 @@ const Duration _providerDiscoveryReturnDuration = Duration(milliseconds: 450);
 double _providerCardHeight(
   BuildContext context,
   ServiceType serviceType,
-  double cardWidth,
-) {
+  double cardWidth, {
+  bool hasProfessionalLevel = false,
+}) {
   final scaler = MediaQuery.textScalerOf(context);
   final scale = scaler.scale(14) / 14;
   final normalizedScale = (scale - 1).clamp(0.0, 1.0);
 
   return switch (serviceType) {
-    ServiceType.mechanic => _mechanicCardBaseHeight + normalizedScale * 140,
+    ServiceType.mechanic => _mechanicCardBaseHeight +
+        (hasProfessionalLevel ? 24 : 0) +
+        normalizedScale * (hasProfessionalLevel ? 164 : 140),
     ServiceType.workshops =>
       cardWidth * 9 / 16 + _workshopDetailsBaseHeight + normalizedScale * 100,
     ServiceType.spareParts ||
@@ -87,7 +90,9 @@ class TopProvidersSection extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         AnimatedSwitcher(
-          duration: const Duration(milliseconds: 260),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 260),
           switchInCurve: Curves.easeOut,
           switchOutCurve: Curves.easeIn,
           child: KeyedSubtree(
@@ -220,8 +225,10 @@ class _ProviderSequenceState extends State<_ProviderSequence> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final cardWidth = _providerCardWidth(constraints.maxWidth);
-          final cardHeight =
-              _providerCardHeight(context, widget.serviceType, cardWidth);
+          final cardHeight = _providerCardHeight(
+              context, widget.serviceType, cardWidth,
+              hasProfessionalLevel:
+                  widget.items.any((item) => item.level != null));
           return SizedBox(
             height: cardHeight,
             child: NotificationListener<ScrollNotification>(
@@ -412,6 +419,11 @@ class _MechanicProviderBody extends StatelessWidget {
                   style: CardTokens.title.copyWith(fontSize: 15),
                 ),
                 const SizedBox(height: CardTokens.tight),
+                if (item.level != null)
+                  Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(item.level!.label,
+                          style: CardTokens.metaStrong)),
                 _RatingSummary(item: item, fillAvailableWidth: true),
                 const SizedBox(height: 2),
                 _DistanceSummary(item: item, fillAvailableWidth: true),
@@ -440,6 +452,7 @@ class _RatingSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (item.reviews <= 0) return Text('Sin reseñas', style: CardTokens.meta);
     final reviews = Text(
       item.reviews > 0 ? '${item.reviews} reseñas' : 'Sin reseñas',
       maxLines: 1,

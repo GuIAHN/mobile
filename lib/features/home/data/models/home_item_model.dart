@@ -1,3 +1,4 @@
+import '../../../../core/domain/enums/mechanic_level.dart';
 import '../../domain/entities/home_item.dart';
 import '../../../../core/domain/enums/service_type.dart';
 
@@ -12,12 +13,14 @@ class HomeItemModel extends HomeItem {
     required super.iconName,
     required super.type,
     super.gradientColors,
+    super.level,
   });
 
   factory HomeItemModel.fromJson(Map<String, dynamic> json) {
     return HomeItemModel(
       name: json['name'] as String,
       detail: json['detail'] as String,
+      level: MechanicLevel.fromApi(json['level']),
       rating: (json['rating'] as num).toDouble(),
       reviews: json['reviews'] as int,
       distanceKm: (json['distanceKm'] as num).toDouble(),

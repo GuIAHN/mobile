@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/utils/quote_amounts.dart';
 import '../../../../shared/utils/subcategory_presentation.dart';
 import '../../domain/entities/chat_conversation.dart';
 
@@ -36,9 +37,20 @@ class ConfirmPurchaseDialog extends StatelessWidget {
       fallback: 'Repuesto solicitado',
     );
 
-    final priceStr = details.price != null
-        ? Formatters.currency(details.price!)
-        : 'Precio a coordinar';
+    final total = details.totalCost ??
+        QuoteAmounts.total(details.price, details.deliveryCost);
+    final priceStr =
+        total != null ? Formatters.currency(total) : 'Precio a coordinar';
+    final usesLargeText = MediaQuery.textScalerOf(context).scale(16) > 20;
+    final priceLabel = Text(
+      priceStr,
+      semanticsLabel: 'Total: $priceStr',
+      style: GoogleFonts.hankenGrotesk(
+        fontSize: 16,
+        fontWeight: FontWeight.w900,
+        color: AppColors.textPrimary,
+      ),
+    );
 
     return Dialog(
       shape: RoundedRectangleBorder(
@@ -46,7 +58,8 @@ class ConfirmPurchaseDialog extends StatelessWidget {
       ),
       backgroundColor: Colors.white,
       elevation: 12,
-      child: Padding(
+      child: SingleChildScrollView(
+          child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -63,7 +76,7 @@ class ConfirmPurchaseDialog extends StatelessWidget {
                   ),
                   child: const Icon(
                     Icons.shopping_bag_outlined,
-                    color: AppColors.primary,
+                    color: AppColors.textPrimary,
                     size: 24,
                   ),
                 ),
@@ -77,7 +90,7 @@ class ConfirmPurchaseDialog extends StatelessWidget {
                         style: GoogleFonts.hankenGrotesk(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w900,
-                          color: AppColors.primary,
+                          color: AppColors.textPrimary,
                           letterSpacing: 1.2,
                         ),
                       ),
@@ -125,14 +138,14 @@ class ConfirmPurchaseDialog extends StatelessWidget {
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => const Icon(
                                 Icons.build_circle_outlined,
-                                color: AppColors.primary,
+                                color: AppColors.textPrimary,
                                 size: 24,
                               ),
                             ),
                           )
                         : const Icon(
                             Icons.build_circle_outlined,
-                            color: AppColors.primary,
+                            color: AppColors.textPrimary,
                             size: 24,
                           ),
                   ),
@@ -163,17 +176,14 @@ class ConfirmPurchaseDialog extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
+                        if (usesLargeText) ...[
+                          const SizedBox(height: 8),
+                          priceLabel,
+                        ],
                       ],
                     ),
                   ),
-                  Text(
-                    priceStr,
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.primary,
-                    ),
-                  ),
+                  if (!usesLargeText) priceLabel,
                 ],
               ),
             ),
@@ -195,7 +205,7 @@ class ConfirmPurchaseDialog extends StatelessWidget {
                   const Icon(
                     Icons.info_outline_rounded,
                     size: 16,
-                    color: AppColors.primary,
+                    color: AppColors.textPrimary,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -222,6 +232,7 @@ class ConfirmPurchaseDialog extends StatelessWidget {
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(48, 48),
                       padding: const EdgeInsets.symmetric(vertical: 13),
                       side: const BorderSide(color: AppColors.border),
                       shape: RoundedRectangleBorder(
@@ -246,6 +257,7 @@ class ConfirmPurchaseDialog extends StatelessWidget {
                       Navigator.pop(context, true);
                     },
                     style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(48, 48),
                       backgroundColor: AppColors.primary,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 13),
@@ -258,7 +270,7 @@ class ConfirmPurchaseDialog extends StatelessWidget {
                       style: GoogleFonts.hankenGrotesk(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w800,
-                        color: Colors.white,
+                        color: AppColors.textOnPrimary,
                       ),
                     ),
                   ),
@@ -267,7 +279,7 @@ class ConfirmPurchaseDialog extends StatelessWidget {
             ),
           ],
         ),
-      ),
+      )),
     );
   }
 }

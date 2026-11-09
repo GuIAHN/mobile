@@ -14,6 +14,7 @@ class ChatThread extends Equatable {
   final String? clientName; // Nombre del creador (para vista de tienda)
   final String? clientId;
   final String? fotoUrl;
+  final List<String> photoUrls;
 
   // Extra details for the UI
   final String? details;
@@ -39,6 +40,9 @@ class ChatThread extends Equatable {
   final String? offerId;
   final String? offerStatus;
   final double? offerPrice;
+  final int quantity;
+  final double? unitPrice;
+  final bool quantityAssumed;
   final double? deliveryCost;
   final double? totalCost;
   final String? conversationId;
@@ -71,6 +75,7 @@ class ChatThread extends Equatable {
     this.clientName,
     this.clientId,
     this.fotoUrl,
+    this.photoUrls = const [],
     this.details,
     this.partType,
     this.vehicleYear,
@@ -92,6 +97,9 @@ class ChatThread extends Equatable {
     this.offerId,
     this.offerStatus,
     this.offerPrice,
+    this.quantity = 1,
+    this.unitPrice,
+    this.quantityAssumed = false,
     this.deliveryCost,
     this.totalCost,
     this.conversationId,
@@ -136,6 +144,7 @@ class ChatThread extends Equatable {
         clientName,
         clientId,
         fotoUrl,
+        photoUrls,
         details,
         partType,
         vehicleYear,
@@ -157,6 +166,9 @@ class ChatThread extends Equatable {
         offerId,
         offerStatus,
         offerPrice,
+        quantity,
+        unitPrice,
+        quantityAssumed,
         deliveryCost,
         totalCost,
         conversationId,

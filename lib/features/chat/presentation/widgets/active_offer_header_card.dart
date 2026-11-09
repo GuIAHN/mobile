@@ -828,6 +828,9 @@ class _OfferPriceSummary extends StatelessWidget {
       children: [
         OfferPriceBreakdown(
           productCost: details.price,
+          quantity: details.quantity,
+          unitPrice: details.unitPrice ??
+              (details.quantity == 1 ? details.price : null),
           deliveryCost: details.deliveryCost,
           totalCost: details.totalCost,
         ),

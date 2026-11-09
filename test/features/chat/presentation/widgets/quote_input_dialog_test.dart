@@ -156,7 +156,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(submitted, isNotNull);
-    expect(submitted!['price'], 125);
+    expect(submitted!['unitPrice'], 125);
     expect(submitted!['deliveryCost'], 18.5);
     expect(submitted!['updateDeliveryCost'], isTrue);
   });

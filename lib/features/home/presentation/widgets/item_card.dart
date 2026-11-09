@@ -64,7 +64,7 @@ class _ItemCardState extends State<ItemCard> {
     return Semantics(
       button: true,
       label:
-          '$providerType ${item.name}, ${item.rating.toStringAsFixed(1)} estrellas',
+          '$providerType ${item.name}, ${item.reviews > 0 ? '${item.rating.toStringAsFixed(1)} estrellas' : 'sin reseñas'}${item.type == ServiceType.mechanic && item.level != null ? ', ${item.level!.label}' : ''}',
       child: GestureDetector(
         onTapDown: (_) => setState(() => _isPressed = true),
         onTapUp: (_) => setState(() => _isPressed = false),
@@ -138,9 +138,11 @@ class _ItemCardState extends State<ItemCard> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        item.especialidades.isNotEmpty
-                            ? item.especialidades.take(2).join(' · ')
-                            : item.detail,
+                        item.type == ServiceType.mechanic && item.level != null
+                            ? '${item.level!.label} · ${item.especialidades.isNotEmpty ? item.especialidades.take(2).join(' · ') : item.detail}'
+                            : item.especialidades.isNotEmpty
+                                ? item.especialidades.take(2).join(' · ')
+                                : item.detail,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: AppTypography.bodySm.copyWith(
@@ -158,7 +160,9 @@ class _ItemCardState extends State<ItemCard> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            item.rating.toStringAsFixed(1),
+                            item.reviews > 0
+                                ? item.rating.toStringAsFixed(1)
+                                : 'Nuevo',
                             style: AppTypography.meta.copyWith(
                               fontWeight: FontWeight.w800,
                               color: AppColors.textPrimary,

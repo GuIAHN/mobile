@@ -1,3 +1,4 @@
+import '../../../../core/domain/enums/mechanic_level.dart';
 import '../../domain/entities/provider_detail.dart';
 
 /// Modelo para el perfil público completo devuelto por:
@@ -29,6 +30,7 @@ class ProviderDetailModel extends ProviderDetail {
     super.hasDelivery,
     super.categorias,
     super.photo,
+    super.level,
   });
 
   static double? _toDouble(dynamic value) {
@@ -80,6 +82,7 @@ class ProviderDetailModel extends ProviderDetail {
           json['isWorkshop'] as bool? ?? json['esTaller'] as bool? ?? false,
       descripcion:
           json['description'] as String? ?? json['descripcion'] as String?,
+      level: MechanicLevel.fromApi(json['level']),
       rating: _toDouble(json['rating']),
       ratingCount: ratingCount,
       tarifa: _toDouble(json['rate'] ?? json['tarifa']),
@@ -130,6 +133,7 @@ class ProviderDetailModel extends ProviderDetail {
       esTaller: true,
       descripcion:
           json['description'] as String? ?? json['descripcion'] as String?,
+      level: MechanicLevel.fromApi(json['level']),
       rating: _toDouble(json['rating']),
       ratingCount: ratingCount,
       identificacion: ident,

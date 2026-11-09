@@ -232,6 +232,8 @@ void main() {
         subcategoryId: 'frenos-otro',
         details: 'Necesito identificar la pieza',
         fotoUrl: null,
+        quantity: 1,
+        photoUrls: const [],
         partType: PartType.original,
         lat: 14.0723,
         lon: -87.1921,
@@ -270,7 +272,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-      find.byType(TextField),
+      find.byKey(const Key('request-details')),
       'Necesito identificar la pieza',
     );
     await tester.pump();
@@ -289,6 +291,8 @@ void main() {
         subcategoryId: 'frenos-otro',
         details: 'Necesito identificar la pieza',
         fotoUrl: null,
+        quantity: 1,
+        photoUrls: const [],
         partType: PartType.original,
         lat: 14.0723,
         lon: -87.1921,

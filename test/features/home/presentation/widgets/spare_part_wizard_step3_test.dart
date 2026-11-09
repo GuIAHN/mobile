@@ -1,3 +1,4 @@
+import 'package:guiautomotriz_mobile/shared/photos/request_photos_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:guiautomotriz_mobile/core/domain/enums/part_type.dart';
@@ -19,10 +20,10 @@ Widget _testApp({
         selectedSubcategory: selectedSubcategory,
         selectedPartType: selectedPartType,
         detailsController: detailsController ?? TextEditingController(),
-        selectedImagePath: null,
+        photosController: RequestPhotosController(
+            (_) async => 'https://example.com/photo.jpg'),
         requestLocation: selection,
         onLocationTap: () {},
-        onImagePicked: (_) {},
       ),
     ),
   );

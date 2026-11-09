@@ -322,6 +322,7 @@ void main() {
     when(() => repository.quoteOffer(
               offerId: any(named: 'offerId'),
               price: any(named: 'price'),
+              unitPrice: any(named: 'unitPrice'),
               updateDeliveryCost: any(named: 'updateDeliveryCost'),
               deliveryCost: any(named: 'deliveryCost'),
               brand: any(named: 'brand'),

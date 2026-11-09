@@ -250,7 +250,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Producto'), findsOneWidget);
+    expect(find.text('Subtotal'), findsOneWidget);
     expect(find.text(r'$125.00'), findsOneWidget);
     expect(find.text('Delivery'), findsOneWidget);
     expect(find.text(r'$25.00'), findsOneWidget);

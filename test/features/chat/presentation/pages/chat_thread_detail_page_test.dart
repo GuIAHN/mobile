@@ -11,6 +11,7 @@ import 'package:guiautomotriz_mobile/core/domain/enums/user_role.dart';
 import 'package:guiautomotriz_mobile/core/error/failures.dart';
 import 'package:guiautomotriz_mobile/core/error/error_mapper.dart';
 import 'package:guiautomotriz_mobile/core/providers/current_user_provider.dart';
+import 'package:guiautomotriz_mobile/core/utils/media_url.dart';
 import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_conversation.dart';
 import 'package:guiautomotriz_mobile/features/chat/domain/entities/chat_thread.dart';
 import 'package:guiautomotriz_mobile/features/chat/data/models/chat_thread_model.dart';
@@ -37,6 +38,7 @@ void main() {
     double? offerPrice,
     String? conversationId,
     String? fotoUrl,
+    List<String> photoUrls = const [],
     String subcategory = 'Pastillas de freno',
     bool subcategoryIsCatchAll = false,
     String? categoryName,
@@ -65,6 +67,7 @@ void main() {
         offerPrice: offerPrice,
         conversationId: conversationId,
         fotoUrl: fotoUrl,
+        photoUrls: photoUrls,
         isOpen: isOpen,
         isExpired: isExpired,
       );
@@ -681,11 +684,32 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.image(const NetworkImage(photoUrl)), findsOneWidget);
+    expect(find.image(const NetworkImage(photoUrl)), findsNWidgets(2));
     expect(
       find.image(const AssetImage('assets/images/header_car.png')),
       findsNothing,
     );
+  });
+
+  testWidgets('uses the first ordered photo as the reachable hero cover',
+      (tester) async {
+    const first = 'http://localhost:3000/uploads/requests/first.jpg';
+    final repository = _MockChatRepository();
+    await tester.pumpWidget(subject(repository: repository, threads: [
+      thread('request-1',
+          fotoUrl: 'https://example.com/old-cover.jpg',
+          photoUrls: [first, 'https://example.com/second.jpg']),
+    ]));
+    await tester.pumpAndSettle();
+
+    expect(
+        find.descendant(
+            of: find.byKey(const Key('request-photo-hero')),
+            matching: find.image(NetworkImage(resolveMediaUrl(first)!))),
+        findsOneWidget);
+    expect(find.image(const NetworkImage('https://example.com/old-cover.jpg')),
+        findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('places request text over the photo hero and offers filter below',
@@ -791,10 +815,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('request-photo-hero')), findsOneWidget);
-    await tester.drag(
-      find.byType(CustomScrollView),
-      const Offset(0, -560),
-    );
+    await tester.scrollUntilVisible(
+        find.byKey(const Key('conversation-sort-filter')), 160,
+        scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('conversation-sort-filter')), findsOneWidget);
     expect(tester.takeException(), isNull);

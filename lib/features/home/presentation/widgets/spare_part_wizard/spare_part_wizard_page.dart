@@ -1,18 +1,19 @@
-import 'dart:io';
+import '../../../../../core/error/failures.dart';
+import '../../../../../core/network/dio_client.dart';
+import '../../../../../shared/photos/request_photos_controller.dart';
+import '../../../../../shared/photos/request_photos_editor.dart';
+import '../../../../../shared/widgets/request_quantity_field.dart';
 import 'dart:async';
-import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_icons.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/router/route_names.dart';
 import '../../../../../core/domain/enums/part_type.dart';
-import '../../../../../shared/widgets/image_source_selector_sheet.dart';
 import '../../../../../shared/widgets/error_view.dart';
 import '../../../../../shared/widgets/skeleton_loader.dart';
 import '../../../../../shared/utils/subcategory_presentation.dart';
@@ -240,7 +241,8 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
   PartType? _selectedPartType;
 
   final _detailsController = TextEditingController();
-  String? _selectedImagePath;
+  final _quantityController = TextEditingController(text: '1');
+  late final RequestPhotosController _photos;
   RequestLocationSelection? _requestLocation;
   bool _isLocatingRequest = false;
   bool _requestedCurrentLocation = false;
@@ -251,15 +253,28 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
   void initState() {
     super.initState();
     _pageController = PageController();
+    _photos =
+        RequestPhotosController(ref.read(dioClientProvider).uploadRequestImage);
+    _photos.addListener(_onPhotosChanged);
+    _quantityController.addListener(() {
+      if (mounted) setState(() => _isDirty = true);
+    });
     _selectedVehicle = widget.initialVehicle;
     _temporaryModelId = widget.initialModelId;
   }
 
   @override
   void dispose() {
+    _photos.removeListener(_onPhotosChanged);
+    _photos.dispose();
     _pageController.dispose();
     _detailsController.dispose();
+    _quantityController.dispose();
     super.dispose();
+  }
+
+  void _onPhotosChanged() {
+    if (mounted) setState(() => _isDirty = true);
   }
 
   Future<void> _goToStep(int nextStep) async {
@@ -493,6 +508,8 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
         subcat == null ||
         partType == null ||
         details.isEmpty ||
+        !_photos.ready ||
+        RequestQuantityField.value(_quantityController.text) == null ||
         requestLocation == null) {
       return;
     }
@@ -537,7 +554,8 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
             subcategoryId: subcat.id,
             details: details,
             partType: partType,
-            fotoUrl: _selectedImagePath,
+            photoUrls: _photos.urls,
+            quantity: RequestQuantityField.value(_quantityController.text)!,
             lat: requestLocation.latitude,
             lon: requestLocation.longitude,
           );
@@ -547,6 +565,9 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
       if (state.status == SearchRequestStatus.success) {
         _showSuccessDialog();
       } else {
+        if (state.failure is RequestPhotosUnavailableFailure) {
+          _photos.requireReupload();
+        }
         setState(() {
           _submitError = state.errorMessage ??
               'No pudimos enviar la solicitud. Intenta nuevamente.';
@@ -698,7 +719,9 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
         return _selectedSubcategory != null && _selectedPartType != null;
       default:
         return _resolveEffectiveRequestLocation().selection != null &&
-            _detailsController.text.trim().isNotEmpty;
+            _detailsController.text.trim().isNotEmpty &&
+            _photos.ready &&
+            RequestQuantityField.value(_quantityController.text) != null;
     }
   }
 
@@ -732,15 +755,17 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
               _WizardHeader(step: _currentStep, onBack: _prevStep),
               const Divider(height: 1, color: AppColors.border),
               Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    _buildStep(1),
-                    _buildStep(2),
-                    _buildStep(3),
-                  ],
-                ),
+                child: AbsorbPointer(
+                    absorbing: _isSubmitting,
+                    child: PageView(
+                      controller: _pageController,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        _buildStep(1),
+                        _buildStep(2),
+                        _buildStep(3),
+                      ],
+                    )),
               ),
               ValueListenableBuilder<TextEditingValue>(
                 valueListenable: _detailsController,
@@ -807,19 +832,14 @@ class _SparePartWizardPageState extends ConsumerState<SparePartWizardPage> {
           selectedSubcategory: _selectedSubcategory,
           selectedPartType: _selectedPartType,
           detailsController: _detailsController,
-          selectedImagePath: _selectedImagePath,
+          quantityController: _quantityController,
+          photosController: _photos,
           requestLocation: effectiveLocation,
           isLocatingLocation: _isLocatingRequest,
           locationError: _requestLocationError,
           onLocationTap: _openRequestLocationPicker,
           onEditVehicle: () => _goToStep(1),
           onEditPart: () => _goToStep(2),
-          onImagePicked: (path) {
-            setState(() {
-              _selectedImagePath = path;
-              _isDirty = true;
-            });
-          },
         );
       default:
         return const SizedBox();

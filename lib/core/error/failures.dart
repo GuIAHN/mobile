@@ -1,5 +1,21 @@
 import 'package:equatable/equatable.dart';
 
+class RequestNotEditableFailure extends Failure {
+  const RequestNotEditableFailure()
+      : super(
+            message:
+                'Esta solicitud ya no se puede editar: recibió una cotización, venció o fue cerrada.',
+            code: 409);
+}
+
+class RequestPhotosUnavailableFailure extends Failure {
+  const RequestPhotosUnavailableFailure()
+      : super(
+            message:
+                'Una o más fotos ya no están disponibles. Vuelve a cargarlas o elimínalas para continuar.',
+            code: 422);
+}
+
 /// Jerarquía de fallos del dominio.
 /// Usado con `Either<Failure, T>` de dartz.
 /// Las clases de Failure NO conocen Dio ni HTTP — son puro dominio.

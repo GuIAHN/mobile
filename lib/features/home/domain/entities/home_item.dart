@@ -1,3 +1,4 @@
+import '../../../../core/domain/enums/mechanic_level.dart';
 import 'package:equatable/equatable.dart';
 import '../../../../core/domain/enums/service_type.dart';
 
@@ -8,6 +9,7 @@ class HomeItem extends Equatable {
   final String detail;
   final double rating;
   final int reviews;
+  final MechanicLevel? level;
 
   /// Distance returned by the backend. `null` means it was not provided.
   final double? distanceKm;
@@ -45,6 +47,7 @@ class HomeItem extends Equatable {
     this.tarifa,
     this.hasDelivery = false,
     this.photo,
+    this.level,
   });
 
   @override
@@ -63,5 +66,6 @@ class HomeItem extends Equatable {
         tarifa,
         hasDelivery,
         photo,
+        level,
       ];
 }

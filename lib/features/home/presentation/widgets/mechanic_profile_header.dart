@@ -82,6 +82,13 @@ class MechanicProfileHeader extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(detail.nombre, style: AppTypography.h1),
+        if (!detail.esTaller && detail.level != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text('Nivel profesional · ${detail.level!.label}',
+              key: const Key('mechanic-professional-level'),
+              style:
+                  AppTypography.bodySm.copyWith(color: AppColors.textPrimary)),
+        ],
         const SizedBox(height: AppSpacing.sm),
         Row(
           children: [

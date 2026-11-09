@@ -54,15 +54,15 @@ class _RequestLocationPreviewState extends State<RequestLocationPreview> {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: widget.onTap,
-          child: SizedBox(
-            height: selection == null ? emptyHeight : selectedHeight,
-            child: selection == null
-                ? _EmptyMapPreview(
-                    isLocating: widget.isLocating,
-                    errorMessage: widget.errorMessage,
-                  )
-                : _buildSelectedMap(context, selection),
-          ),
+          child: selection == null
+              ? ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: emptyHeight),
+                  child: _EmptyMapPreview(
+                      isLocating: widget.isLocating,
+                      errorMessage: widget.errorMessage))
+              : SizedBox(
+                  height: selectedHeight,
+                  child: _buildSelectedMap(context, selection)),
         ),
       ),
     );

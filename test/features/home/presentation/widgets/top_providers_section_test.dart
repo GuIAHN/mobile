@@ -1,3 +1,4 @@
+import 'package:guiautomotriz_mobile/core/domain/enums/mechanic_level.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +17,7 @@ void main() {
     String id = 'workshop-1',
     String name = 'Taller Norte',
     int reviews = 24,
+    MechanicLevel? level,
     double? distanceKm = 2.4,
     bool? isOpen = true,
     String? photo,
@@ -27,6 +29,7 @@ void main() {
         detail: 'Diagnóstico y frenos',
         rating: 4.8,
         reviews: reviews,
+        level: level,
         distanceKm: distanceKm,
         isOpen: isOpen,
         iconName: 'warehouse_outlined',
@@ -118,6 +121,26 @@ void main() {
           homeTopProvidersProvider.overrideWith(loader),
         ],
       );
+
+  for (final width in [320.0, 430.0]) {
+    testWidgets('professional level fits at $width with large text',
+        (tester) async {
+      tester.view.physicalSize = Size(width, 932);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(subject(
+          AsyncData([
+            fixture(type: ServiceType.mechanic, level: MechanicLevel.engineer)
+          ]),
+          type: ServiceType.mechanic,
+          textScale: 2,
+          disableAnimations: true));
+      await tester.pumpAndSettle();
+      expect(find.text('Ingeniero'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('shows three skeletons while providers load', (tester) async {
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -516,7 +539,7 @@ void main() {
   testWidgets('labels a provider with no reviews honestly', (tester) async {
     await tester.pumpWidget(subject(AsyncValue.data([fixture(reviews: 0)])));
 
-    expect(find.text('4.8'), findsOneWidget);
+    expect(find.text('4.8'), findsNothing);
     expect(find.text('Sin reseñas'), findsOneWidget);
   });
 

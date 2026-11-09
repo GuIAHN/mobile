@@ -191,10 +191,11 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
     }
   }
 
-  Future<void> _quoteFromChat(
-      String offerId, String requestTitle, String requestId) async {
+  Future<void> _quoteFromChat(String offerId, String requestTitle,
+      String requestId, int quantity) async {
     if (_isQuoting || _unavailableFailure != null) return;
-    final result = await QuoteInputDialog.show(context, requestTitle);
+    final result =
+        await QuoteInputDialog.show(context, requestTitle, quantity: quantity);
     if (result == null || !mounted) return;
 
     setState(() => _isQuoting = true);
@@ -202,7 +203,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
       final useCase = ref.read(quoteOfferUseCaseProvider);
       final res = await useCase(
         offerId: offerId,
-        price: result['price'] as double,
+        unitPrice: result['unitPrice'] as double,
         updateDeliveryCost: result['updateDeliveryCost'] as bool? ?? false,
         deliveryCost: result['deliveryCost'] as double?,
         brand: result['brand'] as String?,
@@ -594,6 +595,7 @@ class _ChatConversationPageState extends ConsumerState<ChatConversationPage> {
                                       fallback: 'la solicitud',
                                     ),
                                     detailsAsync.valueOrNull!.threadId,
+                                    detailsAsync.valueOrNull!.quantity,
                                   ),
                           icon: _isQuoting
                               ? const SizedBox.square(
